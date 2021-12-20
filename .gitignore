@@ -1,0 +1,26 @@
+*.pyc
+*.log.*
+*.log
+
+# Archive files
+*.tgz
+*.tar
+
+# Editor temporaries
+*~
+.#*
+
+# System generated files
+.DS_Store
+
+*.tex
+auto/
+*.out
+build/
+MANIFEST
+dist/
+*.egg-info/
+*.svg
+.vagrant
+.pytest_cache/
+.cache/
