@@ -1,2 +1,3 @@
-python-shamir-mnemonic
+shamir-mnemonic
 eth-account
+fpdf
