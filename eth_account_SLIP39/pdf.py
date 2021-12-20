@@ -1,3 +1,5 @@
+from typing			import Any, Dict, Iterable, List, NamedTuple, Sequence, Set, Tuple
+
 from fpdf		import FPDF
 
 from .generate		import create
