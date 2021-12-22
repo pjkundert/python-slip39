@@ -18,26 +18,39 @@ def random_secret() -> bytes:
 
 
 def create(
+    name: str,
     group_threshold: int,
-    groups: Sequence[Tuple[int, int]],
+    groups: Dict[str,Tuple[int, int]],
     master_secret: bytes	= None,
     passphrase: bytes		= b"",
     iteration_exponent: int	= 1,
-    path: str			= None,
-) -> Tuple[List[List[str]], eth_account.Account]:
+    paths: Sequence[str]	= None,	# Default: PATH_ETH_DEFAULT
+) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[eth_account.Account]]:
+    """
+    """
     if master_secret is None:
         master_secret		= random_secret()
-    return (
-        mnemonics(
-            group_threshold	= group_threshold,
-            groups		= groups,
-            master_secret	= master_secret,
-            passphrase	= passphrase,
-            iteration_exponent = iteration_exponent ),
-        account(
-            master_secret	= master_secret,
-            path		= path )
+    g_names,g_dims		= list( zip( *groups.items() ))
+    mnems			= mnemonics(
+        group_threshold	= group_threshold,
+        groups		= g_dims,
+        master_secret	= master_secret,
+        passphrase	= passphrase,
+        iteration_exponent= iteration_exponent
     )
+    # Derive all the Ethereum accounts at the specified derivation paths, or the default
+    accounts			= {
+        path: account(
+            master_secret= master_secret,
+            path	= path
+        )
+        for path in paths or [PATH_ETH_DEFAULT]
+    }
+    groups			= {
+        g_name: (g_of, g_mnems)
+        for (g_name,(g_of, _),g_mnems) in zip( g_names, g_dims, mnems )
+    }
+    return (name, group_threshold, groups, accounts)
 
 
 def mnemonics(
@@ -47,6 +60,10 @@ def mnemonics(
     passphrase: bytes		= b"",
     iteration_exponent: int	= 1,
 ) -> List[List[str]]:
+    """Generate SLIP39 mnemonics for the supplied group_threshold of the given groups.  Will generate a
+     random master_secret, if necessary.
+
+    """
     if master_secret is None:
         master_secret		= random_secret()
     if len( master_secret ) != 16:

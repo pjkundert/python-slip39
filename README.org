@@ -17,14 +17,14 @@ but creating such accounts is difficult; presently, only the Trezor supports the
 only be created "manually".  Writing down 5 or more sets of 20 words is difficult and time
 consuming.
 
-The =eth-account-slip39= project exists to assist in the safe creation and documentation of new
-accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed, generates a
-standard account (at derivation path =m/66'/40'/0'/0/0=) with Ethereum wallet address and QR code,
-produces the required SLIP-39 phrases, and outputs a single PDF containing all the required
-printable cards to document the account.
+The =python-slip39= project exists to assist in the safe creation and documentation of new accounts,
+with various SLIP-39 sharing parameters.  It generates the new wallet seed, generates standard
+Ethereum account(s) (at derivation path =m/66'/40'/0'/0/0= by default) with Ethereum wallet address
+and QR code, produces the required SLIP-39 phrases, and outputs a single PDF containing all the
+required printable cards to document the account.
 
-On an air-gapped computer, new accounts can safely be generated, and the PDF directly printed
-without the file being saved to disk.
+On an air-gapped computer, new accounts can safely be generated, and the PDF saved to a USD drive
+for printing (or directly printed without the file being saved to disk.)
 #+END_ABSTRACT
 #+TOC: headlines 2
 
