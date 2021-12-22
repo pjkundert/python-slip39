@@ -64,16 +64,15 @@ to a USB drive for printing (or directly printed without the file being saved to
    | Second |        1 |       1 | Stored in office safe         |
    | Fam    |        2 |       4 | Distributed to family members |
    | Frens  |        3 |       6 | Distributed to close friends  |
-   |        |          |         |                               |
-   
 
    The account owner might store their First and Second group data in their home and office safes.
-   These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)  If
+   These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)
    #+CAPTION: SLIP-39 PDF
    #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
    [[./images/slip39-pdf.jpg]]
-   the account needs to be recovered, collecting the First and Second cards from the home and office
-   safe is sufficient to recover the seed, and re-generate the HD Wallet accounts.
+
+   If the account needs to be recovered, collecting the First and Second cards from the home and
+   office safe is sufficient to recover the seed, and re-generate the HD Wallet accounts.
 
    Only 2 Fam member's cards must be collected to recover the Fam group's data.  So, if the HD
    Wallet owner loses their home and First group card in a fire, they could get the Second group
@@ -85,15 +84,17 @@ to a USB drive for printing (or directly printed without the file being saved to
 
 * SLIP-39 Account Generation
 
-  Generating a new SLIP-39 encoded Ethereum wallet is easy.
   #+CAPTION: SLIP-39 text
   #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
   [[./images/slip39-text.jpg]]
-  The default groups are as described above.
-  Run the following to obtain a PDF file similar to this example:  
+
+  Generating a new SLIP-39 encoded Ethereum wallet is easy, with results available as PDF or text.
+  The default groups are as described above.  Run the following to obtain a PDF file similar to this
+  example, insert a USB drive to collect the output, and run:
 
 #+LATEX: {\scriptsize
 #+BEGIN_EXAMPLE
+$ cd /Volumes/USBDRIVE/
 $ python3 -m pip install slip39
 $ python3 -m slip39 Perry # or just "slip39 Perry"
 ...Output SLIP39-encoded wallet for 'Perry' to:\
@@ -105,8 +106,8 @@ $ python3 -m slip39 Perry # or just "slip39 Perry"
 
   This PDF file can be printed on 3x5 cards, or on regular paper or card stock and the cards can be cut out.
 
-  To get the data printed on  the terminal, add a =-v=:
-  
+  To get the data printed on the terminal as in this example (so you could write it down on cards
+  instead), add a =-v=.
 
 * Dependencies
 
