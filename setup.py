@@ -42,10 +42,14 @@ classifiers			= [
     "Programming Language :: Python :: 3",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
     "Environment :: Console",
-    "Topic :: Cryptocurrency",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Office/Business :: Financial",
 ]
-
+project_urls			= {
+    "Bug Tracker": "https://github.com/pjkundert/python-slip39/issues",
+}
 setup(
     name			= "slip39",
     version			= __version__,
@@ -53,12 +57,11 @@ setup(
     install_requires		= install_requires,
     packages			= package_dir.keys(),
     package_dir			= package_dir,
-    #package_data		= package_data,
-    include_package_data	= True,
-    zip_safe			= False,
+    zip_safe			= True,
     entry_points		= entry_points,
     author			= "Perry Kundert",
     author_email		= "perry@dominionrnd.com",
+    project_urls		= project_urls,
     description			= "The slip39 module implements SLIP39 recovery for Ethereum accounts",
     long_description		= long_description,
     license			= "Dual License; GPLv3 and Proprietary",

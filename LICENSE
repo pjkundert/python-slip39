@@ -1,17 +1,16 @@
-Python-slip39 is distributed under the GNU General Public License version 3 (or
-later) and is also available under alternative licenses negotiated directly
-with Dominion Research & Development Corp.  If you obtained Python-slip39 under
-the GPL, then the GPL applies to all Python-slip39 modules used on your system
-as well, except as defined below. The GPL (version 3) is included in this
-source tree in the file COPYING.
+Slip39 is distributed under the GNU General Public License version 3 (or later)
+and is also available under alternative licenses negotiated directly with
+Dominion Research & Development Corp.  If you obtained slip39 under the GPL,
+then the GPL applies to all slip39 modules used on your system as well, except
+as defined below. The GPL (version 3) is included in this source tree in the
+file COPYING.
 
 Dominion Research & Development Corp. holds copyright and/or sufficient
-licenses to all components of the Python-slip39 package, and therefore can
-grant, at its sole discretion, the ability for companies, individuals, or
-organizations to create proprietary or Open Source (even if not GPL) modules
-which may use at runtime the portions of Python-slip39 which fall under our
-copyright/license umbrella, or are distributed under more flexible licenses
-than GPL.
+licenses to all components of the slip39 package, and therefore can grant, at
+its sole discretion, the ability for companies, individuals, or organizations
+to create proprietary or Open Source (even if not GPL) modules which may use at
+runtime the portions of slip39 which fall under our copyright/license umbrella,
+or are distributed under more flexible licenses than GPL.
 
 If you wish to use our code in other GPL programs, don't worry -- there is no
 requirement that you provide the same exception in your GPL'd products.

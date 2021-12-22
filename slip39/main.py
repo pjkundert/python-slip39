@@ -116,7 +116,8 @@ def output(
 log_cfg				= {
     "level":	logging.WARNING,
     "datefmt":	'%Y-%m-%d %H:%M:%S',
-    "format":	'%(asctime)s.%(msecs).03d %(threadName)10.10s %(name)-8.8s %(levelname)-8.8s %(funcName)-10.10s %(message)s',
+    #"format":	'%(asctime)s.%(msecs).03d %(threadName)10.10s %(name)-8.8s %(levelname)-8.8s %(funcName)-10.10s %(message)s',
+    "format":	'%(asctime)s %(name)-8.8s %(message)s',
 }
 
 
@@ -146,7 +147,7 @@ group_parser.RE			= re.compile(
 
 def main( argv=None ):
     ap				= argparse.ArgumentParser(
-        description = "Create and output SLIP39 encoded Ethereum wallet(s)",
+        description = "Create and output SLIP39 encoded Ethereum wallet(s) to a PDF file.",
         epilog = "" )
     ap.add_argument( '-v', '--verbose', action="count",
                      default=0, 
@@ -204,6 +205,6 @@ def main( argv=None ):
             address	= address,
         )
         pdf.output( filename )
-        log.warning( f"Output SLIP39-encoded wallet for {name!r} to: {filename}" )
+        log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {filename}" )
 
     return 0

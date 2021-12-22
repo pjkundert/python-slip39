@@ -5,6 +5,7 @@
 #+STARTUP: org-startup-with-inline-images inlineimages
 #+OPTIONS: ^:nil # Disable sub/superscripting with bare _; _{...} still works
 #+OPTIONS: toc:nil
+#+LATEX_HEADER: \usepackage[margin=1.0in]{geometry}
 
 #+BEGIN_ABSTRACT
 Creating Ethereum accounts is complex and fraught with potential for loss of funds.
@@ -12,28 +13,112 @@ Creating Ethereum accounts is complex and fraught with potential for loss of fun
 Creating a BIP-39 seed recover phrase helps, but a *single* lapse in security dooms the account.  If
 someone finds your recover phrase, the account is gone.
 
-The SLIP-39 standard allows you to split the seed between multiple recover phrases.  This is better,
-but creating such accounts is difficult; presently, only the Trezor supports these, and they can
-only be created "manually".  Writing down 5 or more sets of 20 words is difficult and time
-consuming.
+The SLIP-39 standard allows you to split the seed between 1 or more groups of multiple recovery
+phrases.  This is better, but creating such accounts is difficult; presently, only the Trezor
+supports these, and they can only be created "manually".  Writing down 5 or more sets of 20 words is
+difficult and time consuming.
 
-The =python-slip39= project exists to assist in the safe creation and documentation of new accounts,
-with various SLIP-39 sharing parameters.  It generates the new wallet seed, generates standard
-Ethereum account(s) (at derivation path =m/66'/40'/0'/0/0= by default) with Ethereum wallet address
-and QR code, produces the required SLIP-39 phrases, and outputs a single PDF containing all the
-required printable cards to document the account.
+The [[https://github.com/pjkundert/=python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
+Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed,
+generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/66'/40'/0'/0/0= by default) with
+Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
+containing all the required printable cards to document the account.
 
-On an air-gapped computer, new accounts can safely be generated, and the PDF saved to a USD drive
-for printing (or directly printed without the file being saved to disk.)
+On an secure (ideally air-gapped) computer, new accounts can safely be generated and the PDF saved
+to a USB drive for printing (or directly printed without the file being saved to disk.)
 #+END_ABSTRACT
 #+TOC: headlines 2
 
-* Ethereum SLIP-39 Account Generation
+* Security with Availability
+
+  A 128-bit random "seed" is the source of an unlimited sequence of Ethereum HD Wallet accounts.
+  Anyone who can obtain this seed gains control of all Ethereum accounts derived from it, so it must
+  be securely stored.
+
+  Losing this seed means that all of the HD Wallet accounts are permanently lost.  Therefore, it
+  must be backed up reliably, and be readily accessible.
+
+
+  Therefore, we must:
+
+  - Ensure that nobody untrustworthy can recover the seed, but
+  - Store the seed in many places with several (some perhaps untrustworthy) people.
+  
+  How can we address these conflicting requirements?
+
+** Shamir's Secret Sharing System (SSSS)
+
+   [[https://github.com/satoshilabs/slips/blob/master/slip-0039.md][Satoshi Lab's (Trezor) SLIP-39]] uses SSSS to distribute the ability to recover the key to 1 or more "groups".
+
+   First, the key material is split between 1 or more groups, and a "group_threshold" of how many
+   groups must bet successfully collected to recover the key.
+
+   For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
+   be combined to recover the key.  Each group has members with varying levels of trust, so have
+   different number of Members, and differing numbers Required to recover that group's data:
+
+
+   | Group  | Required | Members | Description                   |
+   |--------+----------+---------+-------------------------------|
+   | First  |        1 |       1 | Stored at home                |
+   | Second |        1 |       1 | Stored in office safe         |
+   | Fam    |        2 |       4 | Distributed to family members |
+   | Frens  |        3 |       6 | Distributed to close friends  |
+   |        |          |         |                               |
+   
+
+   The account owner might store their First and Second group data in their home and office safes.
+   These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)  If
+   #+CAPTION: SLIP-39 PDF
+   #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
+   [[./images/slip39-pdf.jpg]]
+   the account needs to be recovered, collecting the First and Second cards from the home and office
+   safe is sufficient to recover the seed, and re-generate the HD Wallet accounts.
+
+   Only 2 Fam member's cards must be collected to recover the Fam group's data.  So, if the HD
+   Wallet owner loses their home and First group card in a fire, they could get the Second group
+   card from the office safe, and 2 cards from Fam group members, and recover the wallet.
+
+   If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
+   (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (eg. at the
+   funeral?), completing the Fam and Frens groups' data, and recover the HD Wallet account.
+
+* SLIP-39 Account Generation
+
+  Generating a new SLIP-39 encoded Ethereum wallet is easy.
+  #+CAPTION: SLIP-39 text
+  #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
+  [[./images/slip39-text.jpg]]
+  The default groups are as described above.
+  Run the following to obtain a PDF file similar to this example:  
+
+#+LATEX: {\scriptsize
+#+BEGIN_EXAMPLE
+$ python3 -m pip install slip39
+$ python3 -m slip39 Perry # or just "slip39 Perry"
+...Output SLIP39-encoded wallet for 'Perry' to:\
+  Perry-2021-12-22+15.45.36-0x3868015D2894bD916262AE2EFFe913c788e81964.pdf
+#+END_EXAMPLE
+#+LATEX: }
+
+  The resultant PDF will be output into the designated file.
+
+  This PDF file can be printed on 3x5 cards, or on regular paper or card stock and the cards can be cut out.
+
+  To get the data printed on  the terminal, add a =-v=:
+  
+
+* Dependencies
+
+  Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data,
+  and the Ethereum project's [[https://github.com/ethereum/eth-account][eth-account]] to convert seeds to Ethereum accounts.
 
 ** The =python-shamir-mnemonic= API
 
-   Obtain [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]], and install it.
+   To use it directly, obtain , and install it, or run =python3 -m pip install
+shamir-mnemonic=.
 
+#+LATEX: {\scriptsize
 #+BEGIN_EXAMPLE
 $ shamir create custom --group-threshold 2 --group 1 1 --group 1 1 --group 2 5 --group 3 6
 Using master secret: 87e39270d1d1976e9ade9cc15a084c62
@@ -54,41 +139,38 @@ merit aluminum decision shaft arcade infant argue elevator imply obesity oral ve
 merit aluminum decision skin already fused tactics skunk work floral very gesture organize puny hunting voice python trial lawsuit machine
 merit aluminum decision snake cage premium aide wealthy viral chemical pharmacy smoking inform work cubic ancestor clay genius forward exotic
 merit aluminum decision spider boundary lunar staff inside junior tendency sharp editor trouble legal visual tricycle auction grin spit index
-$
 #+END_EXAMPLE
-
-* Converting the Seed to a Standard Account
+#+LATEX: }
 
 ** The =eth-account= API
+
+  To creete Ethereum accounts from seed data, two steps are required.
+  
+  First, derive a Private Key from the seed data plus a derivation path:
+
+#+LATEX: {\scriptsize
 #+BEGIN_EXAMPLE
 >>> seed=codecs.decode("dd0e2f02b1f6c92a1a265561bc164135", 'hex_codec')
->>> eth_account.hdaccount.key_from_seed(seed, "m/44'/60'/0'/0/0")
-b'\x17\x88p\x00\x94\x16\x17L\x96\x97w{\x1d\x94"\x95\x04\xe8?%\xb1`^{\xb12\xaa[\x88\xdad\xb6'
 >>> key=eth_account.hdaccount.key_from_seed(seed, "m/44'/60'/0'/0/0")
 >>> keyhex=codecs.encode(key, 'hex_codec')
 >>> keyhex
 b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
->>> keyhex.encode('ascii')
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-AttributeError: 'bytes' object has no attribute 'encode'
+#+END_EXAMPLE
+#+LATEX: }
+
+  Then, use the private key to obtain the Ethereum account data:
+
+#+LATEX: {\scriptsize
+#+BEGIN_EXAMPLE
 >>> keyhex.decode('ascii')
 '178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 >>> keyhex = '0x'+keyhex.decode('ascii')
 >>> keyhex
 '0x178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
->>> account = eth_account.Account(keyhex)
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-TypeError: Account() takes no arguments
 >>> account = eth_account.Account.from_key(keyhex)
->>> acount
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-NameError: name 'acount' is not defined
 >>> account
 <eth_account.signers.local.LocalAccount object at 0x7fba368ae670>
 >>> account.address
 '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
-
 #+END_EXAMPLE
+#+LATEX: }

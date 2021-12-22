@@ -35,7 +35,7 @@ analyze:
 	flake8 -j 1 --max-line-length=110					\
 	  --ignore=F401,E221,E201,E202,E203,E223,E225,E226,E231,E241,E242,E261,E272,E302,W503,E701,E702,E,W	\
 	  --exclude="__init__.py" \
-	  .
+	  slip39
 
 pylint:
 	cd .. && pylint slip39 --disable=W,C,R
@@ -56,12 +56,12 @@ install:	dist/slip39-$(VERSION)-py3-none-any.whl
 	$(PY3) -m pip install --force-reinstall $^
 
 
-# Support uploading a new version of python-slip32 to pypi.  Must:
+# Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
 
-upload: clean
-	$(PY3) setup.py sdist upload
+upload: build
+	python3 -m twine upload --repository pypi dist/*
 
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '*.pyc' -o -name '__pycache__' )
