@@ -17,6 +17,26 @@ from .generate	import create, PATH_ETH_DEFAULT
 
 log				= logging.getLogger( __package__ )
 
+def organize_mnemonic( mnemonic, rows = 7, cols = 3, label="" ):
+    """Given a "word word ... word" or ["word", "word", ..., "word"] mnemonic, emit rows organized in
+    the desired rows and cols.  We return the fullly formatted line, plus the list of individual
+    words in that line."""
+    if isinstance( mnem, str ):
+        mnemonic		= mnemonic.split( ' ' )
+    num_words		= dict(
+        (i, f"{i+1:>2d} {w}")
+        for i,w in enumerate( mnemonic )
+    )
+    rows,cols		= 7,3
+    for r in range( rows ):
+        line		= label if r == 0 else ' ' * len( label )
+        words		= []
+        for c in range( cols ):
+            if word := num_words.get( c*rows+r ):
+                words.append( word )
+                line   += f"{word:<13}"
+        yield line,words
+
 
 def output(
     name: str,
@@ -99,16 +119,15 @@ def output(
             num_words		= dict( (i, f"{i+1:>2d} {w}")
                                         for i,w in enumerate( mnem.split( ' ' )))
             col_width		= pdf.epw / 4
+            
             rows,cols		= 7,3
-            for r in range( rows ):
-                line		= "     " if r else f"  {mn_num+1}: "
-                for c in range( cols ):
-                    if word := num_words.get( c*rows+r ):
-                        pdf.multi_cell( col_width, line_height, word,
-                                        border=False, ln=3, max_line_height=pdf.font_size )
-                        line   += f"{word:<13}"
-                pdf.ln( line_height )
+            for line,words in organize_mnemonic(
+                    mnem, rows=rows, cols=cols, label=f"  {mn_num+1}: "):
                 log.info( line )
+                for word in words:
+                    pdf.multi_cell( col_width, line_height, word,
+                                    border=False, ln=3, max_line_height=pdf.font_size )
+                pdf.ln( line_height )
 
     return pdf,accounts
 
