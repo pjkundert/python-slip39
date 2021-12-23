@@ -21,7 +21,7 @@ def organize_mnemonic( mnemonic, rows = 7, cols = 3, label="" ):
     """Given a "word word ... word" or ["word", "word", ..., "word"] mnemonic, emit rows organized in
     the desired rows and cols.  We return the fullly formatted line, plus the list of individual
     words in that line."""
-    if isinstance( mnem, str ):
+    if isinstance( mnemonic, str ):
         mnemonic		= mnemonic.split( ' ' )
     num_words		= dict(
         (i, f"{i+1:>2d} {w}")

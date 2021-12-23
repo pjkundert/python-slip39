@@ -19,11 +19,11 @@ def test_account():
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create():
-    (name,thres,groups,accounts)		= create(
+    details		= create(
         "SLIP39 Wallet: Test",
         1, dict( fren = (3,5) ), SEED_XMAS )
 
-    assert groups == {
+    assert details.groups == {
         "fren": ( 3, [
             "academic acid academic acne academic academic academic academic academic academic academic academic academic academic academic academic academic carpet making building",
             "academic acid academic agree depart dance galaxy acrobat mayor disaster quick justice ordinary agency plunge should pupal emphasis security obtain",
@@ -33,8 +33,8 @@ def test_create():
         ] ),
     }
 
-    assert len(accounts) == 1
-    for path,acct in accounts.items():
+    assert len(details.accounts) == 1
+    for path,acct in details.accounts.items():
         assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
 
-    assert recover( groups['fren'][1][:3] ) == SEED_XMAS
+    assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS

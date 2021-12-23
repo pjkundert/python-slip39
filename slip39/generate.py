@@ -1,6 +1,6 @@
 import codecs
 import secrets
-
+from collections		import namedtuple
 from typing			import Any, Dict, Iterable, List, NamedTuple, Sequence, Set, Tuple
 
 import eth_account		
@@ -16,6 +16,7 @@ RANDOM_BYTES			= secrets.token_bytes
 def random_secret() -> bytes:
     return RANDOM_BYTES( 16 )
 
+Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts') )
 
 def create(
     name: str,
@@ -26,7 +27,9 @@ def create(
     iteration_exponent: int	= 1,
     paths: Sequence[str]	= None,	# Default: PATH_ETH_DEFAULT
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[eth_account.Account]]:
-    """
+    """Creates a SLIP-39 encoding and 1 or more Ethereum accounts.  Returns the details, in a form
+    compatible with the output API.
+
     """
     if master_secret is None:
         master_secret		= random_secret()
@@ -50,7 +53,7 @@ def create(
         g_name: (g_of, g_mnems)
         for (g_name,(g_of, _),g_mnems) in zip( g_names, g_dims, mnems )
     }
-    return (name, group_threshold, groups, accounts)
+    return Details(name, group_threshold, groups, accounts)
 
 
 def mnemonics(
@@ -78,11 +81,11 @@ def mnemonics(
 
 
 def recover(
-    mnemonics: List[List[str]],
+    mnemonics: List[str],
     passphrase: bytes		= b"",
 ) -> bytes:
     """Recover a master secret from the supplied SLIP-39 mnemonics"""
-    return combine_mnemonics( mnemonics )
+    return combine_mnemonics( mnemonics, passphrase=passphrase )
 
 
 def account(

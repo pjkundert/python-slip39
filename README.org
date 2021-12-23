@@ -3,15 +3,24 @@
 #+draft: false
 #+EXPORT_FILE_NAME: README.pdf
 #+STARTUP: org-startup-with-inline-images inlineimages
+#+STARTUP: org-latex-tables-centered nil
 #+OPTIONS: ^:nil # Disable sub/superscripting with bare _; _{...} still works
 #+OPTIONS: toc:nil
 #+LATEX_HEADER: \usepackage[margin=1.0in]{geometry}
 
+#+BEGIN_SRC emacs-lisp :noweb no-export :exports results
+;; Tables not centered
+(setq org-latex-tables-centered nil)
+nil
+#+END_SRC
+
+#+RESULTS:
+
 #+BEGIN_ABSTRACT
 Creating Ethereum accounts is complex and fraught with potential for loss of funds.
 
-Creating a BIP-39 seed recover phrase helps, but a *single* lapse in security dooms the account.  If
-someone finds your recover phrase, the account is gone.
+A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account.  If someone
+finds your recovery phrase, the account is /gone/.
 
 The SLIP-39 standard allows you to split the seed between 1 or more groups of multiple recovery
 phrases.  This is better, but creating such accounts is difficult; presently, only the Trezor
@@ -49,19 +58,22 @@ to a USB drive for printing (or directly printed without the file being saved to
 
    [[https://github.com/satoshilabs/slips/blob/master/slip-0039.md][Satoshi Lab's (Trezor) SLIP-39]] uses SSSS to distribute the ability to recover the key to 1 or more "groups".
 
-   First, the key material is split between 1 or more groups, and a "group_threshold" of how many
-   groups must bet successfully collected to recover the key.
+   First, a "group_threshold" of how many groups must bet successfully collected to recover the key.
+   Then key is (conceptually) split between 1 or more groups (not really; each group's data alone
+   gives away no information about the key).
 
    For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
    be combined to recover the key.  Each group has members with varying levels of trust, so have
    different number of Members, and differing numbers Required to recover that group's data:
 
+   #+LATEX: {\scriptsize
    | Group  | Required | Members | Description                   |
    |--------+----------+---------+-------------------------------|
    | First  |        1 |       1 | Stored at home                |
    | Second |        1 |       1 | Stored in office safe         |
    | Fam    |        2 |       4 | Distributed to family members |
    | Frens  |        3 |       6 | Distributed to close friends  |
+   #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
    These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)
@@ -80,7 +92,7 @@ to a USB drive for printing (or directly printed without the file being saved to
    (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (eg. at the
    funeral?), completing the Fam and Frens groups' data, and recover the HD Wallet account.
 
-* SLIP-39 Account Generation
+* SLIP-39 Account Generation and Recovery
 
   #+CAPTION: SLIP-39 text
   #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
@@ -90,15 +102,15 @@ to a USB drive for printing (or directly printed without the file being saved to
   The default groups are as described above.  Run the following to obtain a PDF file similar to this
   example, insert a USB drive to collect the output, and run:
 
-#+LATEX: {\scriptsize
-#+BEGIN_EXAMPLE
-$ cd /Volumes/USBDRIVE/
-$ python3 -m pip install slip39
-$ python3 -m slip39 Perry # or just "slip39 Perry"
-...Output SLIP-39-encoded wallet for 'Perry' to:\
-  Perry-2021-12-22+15.45.36-0x3868015D2894bD916262AE2EFFe913c788e81964.pdf
-#+END_EXAMPLE
-#+LATEX: }
+  #+LATEX: {\scriptsize
+  #+BEGIN_EXAMPLE
+  $ cd /Volumes/USBDRIVE/
+  $ python3 -m pip install slip39
+  $ python3 -m slip39 Perry # or just "slip39 Perry"
+  ...Output SLIP-39-encoded wallet for 'Perry' to:\
+    Perry-2021-12-22+15.45.36-0x3868015D2894bD916262AE2EFFe913c788e81964.pdf
+  #+END_EXAMPLE
+  #+LATEX: }
 
   The resultant PDF will be output into the designated file.
 
@@ -107,6 +119,179 @@ $ python3 -m slip39 Perry # or just "slip39 Perry"
   To get the data printed on the terminal as in this example (so you could write it down on cards
   instead), add a =-v=.
 
+** The =slip39= module API
+   
+   Provide SLIP-39 Mnemonic set creation from a 128-bit master secret, and recovery of the secret
+   from a subset of the provided Mnemonic set.
+   
+*** =slip39.create=
+
+    Creates a set of SLIP-39 groups and their mnemonics.
+
+    #+LATEX: {\scriptsize
+    | Key                | Description                                                                |
+    |--------------------+----------------------------------------------------------------------------|
+    | name               | Who/what the account is for                                                |
+    | group_threshold    | How many groups' data is required to recover the account(s)                |
+    | groups             | Each group's description, as {"<group>":(<required>, <members>), ...}      |
+    | master_secret      | 128-bit secret (default: from secrets.token_bytes)                         |
+    | passphrase         | An optional additional passphrase required to recover secret (default: "") |
+    | iteration_exponent | For encrypted secret, exponentially increase PBKDF2 rounds (default: 1)    |
+    | paths              | A number of HD Wallet derivation paths (default: ["m/60'/44'/0'/0/0"]      |
+    #+LATEX: }
+
+    Outputs a =slip39.Details= namedtuple containing:
+    
+    #+LATEX: {\scriptsize
+    | Key             | Description                                       |
+    |-----------------+---------------------------------------------------|
+    | name            | (same)                                            |
+    | group_threshold | (same)                                            |
+    | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
+    | accounts        | Resultant { "path": eth_account.Account, ...}     |
+    #+LATEX: }
+
+    This is immediately usable to pass to =slip39.output=.
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    import codecs
+    import random
+
+    import eth_account
+    import slip39
+    paths = [ "m/60'/44'/0'/0/0", "m/60'/44'/0'/0/1" ]
+    master_secret,passphrase = bytes(range(16)),b"password!" # >8/
+    create_details = slip39.create(
+        "Test", 2, { "Mine": (1,1), "Fam": (2,3) },
+        master_secret=master_secret, passphrase=passphrase, paths=paths )
+    [
+        [
+            f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else ""
+        ] + words
+        for g_name,(g_of,g_mnems) in create_details.groups.items()
+        for g_n,mnem in enumerate( g_mnems )
+        for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
+                mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[16]:
+    | 0             | 1          | 2           | 3           |
+    |---------------+------------+-------------+-------------|
+    | Mine(1/1) #1: | 1 guest    | 8 harvest   | 15 true     |
+    |               | 2 discuss  | 9 research  | 16 hamster  |
+    |               | 3 acrobat  | 10 preach   | 17 maiden   |
+    |               | 4 easy     | 11 scholar  | 18 therapy  |
+    |               | 5 budget   | 12 knife    | 19 capacity |
+    |               | 6 username | 13 destroy  | 20 sympathy |
+    |               | 7 payment  | 14 racism   |             |
+    | Fam(2/3) #1:  | 1 guest    | 8 thumb     | 15 demand   |
+    |               | 2 discuss  | 9 favorite  | 16 briefing |
+    |               | 3 beard    | 10 coding   | 17 drift    |
+    |               | 4 echo     | 11 often    | 18 raisin   |
+    |               | 5 cowboy   | 12 mild     | 19 husky    |
+    |               | 6 emission | 13 regular  | 20 idea     |
+    |               | 7 fangs    | 14 avoid    |             |
+    | Fam(2/3) #2:  | 1 guest    | 8 distance  | 15 insect   |
+    |               | 2 discuss  | 9 easy      | 16 phantom  |
+    |               | 3 beard    | 10 sweater  | 17 venture  |
+    |               | 4 email    | 11 taught   | 18 modern   |
+    |               | 5 change   | 12 agree    | 19 metric   |
+    |               | 6 mustang  | 13 crowd    | 20 diet     |
+    |               | 7 mental   | 14 coastal  |             |
+    | Fam(2/3) #3:  | 1 guest    | 8 express   | 15 spirit   |
+    |               | 2 discuss  | 9 response  | 16 satisfy  |
+    |               | 3 beard    | 10 sidewalk | 17 glen     |
+    |               | 4 entrance | 11 agency   | 18 violence |
+    |               | 5 dish     | 12 angel    | 19 often    |
+    |               | 6 weapon   | 13 overall  | 20 company  |
+    |               | 7 losing   | 14 game     |             |
+    :end:
+
+    #+LATEX: }
+
+    Add the resultant HD Wallet addresses:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    [
+        [ path, eth.address ]
+        for path,eth in create_details.accounts.items()
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[17]:
+    | 0                | 1                                          |
+    |------------------+--------------------------------------------|
+    | m/60'/44'/0'/0/0 | 0x7A64E13f00a4502b62d45EED15d6254b9Cc10a34 |
+    | m/60'/44'/0'/0/1 | 0xF7dc45001A1F3b26565B1364b03C76553FBEE931 |
+    :end:
+
+    #+LATEX: }
+
+*** =slip39.output=
+
+    #+LATEX: {\scriptsize
+    | Key             | Description                                       |
+    |-----------------+---------------------------------------------------|
+    | name            | (same)                                            |
+    | group_threshold | (same)                                            |
+    | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
+    | accounts        | Resultant { "path": eth_account.Account, ...}     |
+    #+LATEX: }
+
+    Produce a PDF containing all the SLIP-39 details for the account.
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC
+    slip32.output( *create_details )
+    #+END_SRC
+    #+LATEX: }
+
+*** =slip39.recover=
+
+    Takes a number of SLIP-39 mnemonics, and if sufficient =group_threshold= groups' mnemonics are
+    present (and the options =passphrase= is supplied), the =master_secret= is recovered.  This can
+    be used with =slip39.accounts= to directly obtain any =eth_account.Account= data.
+    
+    #+LATEX: {\scriptsize
+    | Key        | Description                                       |
+    |------------+---------------------------------------------------|
+    | mnemonics  | ["<mnemonics>", ...]                              |
+    | passphrase | Optional passphrase to decrypt secret
+    #+LATEX: }
+    
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    recovery = slip39.recover(
+        create_details.groups['Mine'][1] + create_details.groups['Fam'][1][:2],
+        passphrase=passphrase
+    )
+    recoveryhex = codecs.encode( recovery, 'hex_codec' ).decode( 'ascii' )
+
+    [[ f"{len(recovery)*8}-bit secret recovered:" ]] + [
+     [ f"{recoveryhex[b*32:b*32+32]}" ]
+        for b in range( len( recoveryhex ) // 32 )
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[18]:
+    | 0                                |
+    |----------------------------------|
+    | 128-bit secret recovered:        |
+    | 000102030405060708090a0b0c0d0e0f |
+    :end:
+
+    #+LATEX: }
+
+
 * Dependencies
 
   Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data,
@@ -114,8 +299,7 @@ $ python3 -m slip39 Perry # or just "slip39 Perry"
 
 ** The =python-shamir-mnemonic= API
 
-   To use it directly, obtain , and install it, or run =python3 -m pip install
-shamir-mnemonic=.
+   To use it directly, obtain , and install it, or run =python3 -m pip install shamir-mnemonic=.
 
 #+LATEX: {\scriptsize
 #+BEGIN_EXAMPLE
@@ -191,14 +375,10 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     BIP-39 uses a single set of 12, 15, 18, 21 or 24 BIP-39 words to carefully preserve a specific
     128 to 256 bits of initial entropy.
 
-    | Input                     | Output                        | Description                      |
-    |---------------------------+-------------------------------+----------------------------------|
-    | 0xA745..67                | "adult" "cattle" ... "remind" | 128 bits of entropy --> 12 words |
     | "adult cattle ... remind" | 0x9CE8...44                   | Normalized string Extended       |
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    import eth_account
     from eth_account.hdaccount.mnemonic import Mnemonic
     # bip39 = eth_account.hdaccount.generate_mnemonic( 12, "english" )
     bip39_english = Mnemonic("english")
@@ -209,7 +389,7 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+RESULTS:
     :results:
-    # Out[59]:
+    # Out[19]:
     | 0                                                 |
     |---------------------------------------------------|
     | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
@@ -230,7 +410,6 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    import random
     def random_words( n, count=100 ):
         for _ in range( count ):
             yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
@@ -246,12 +425,12 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+RESULTS:
     :results:
-    # Out[102]:
+    # Out[20]:
     | 0                               |
     |---------------------------------|
     | Valid random 12-word mnemonics: |
-    | 6.37%                           |
-    | ~ 1/15.7                        |
+    | 6.15%                           |
+    | ~ 1/16.3                        |
     :end:
 
     #+LATEX: }
@@ -268,20 +447,17 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    import codecs
     seed = bip39_english.to_seed( entropy_mnemonic )
     seedhex = codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
-    [
-        [ f"{len(seed)*8}-bit seed:" ]
-    ] + [
-        [ f"{seedhex[b*32:b*32+32]}" ]
+    [[ f"{len(seed)*8}-bit seed:" ]] + [
+     [ f"{seedhex[b*32:b*32+32]}" ]
      for b in range( len( seedhex ) // 32 )
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[125]:
+    # Out[21]:
     | 0                                |
     |----------------------------------|
     | 512-bit seed:                    |
@@ -307,21 +483,17 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     key = eth_account.hdaccount.key_from_seed( seed, path )
     keyhex = '0x' + codecs.encode( key, 'hex_codec' ).decode( 'ascii' )
     eth = eth_account.Account.from_key( keyhex )
-    [
-        [ f"{len(key)*8}-bit derived key at path {path!r}:" ]
-    ] + [
-        [ f"{keyhex}" ]
-    ] + [
-        [ "... yields ..." ]
-    ] + [
-        [ f"Ethereum address: {eth.address}" ]
+    [[ f"{len(key)*8}-bit derived key at path {path!r}:" ]] + [
+     [ f"{keyhex}" ]] + [
+     [ "... yields ..." ]] + [
+     [ f"Ethereum address: {eth.address}" ]
     ]
 
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[129]:
+    # Out[22]:
     | 0                                                                  |
     |--------------------------------------------------------------------|
     | 256-bit derived key at path "m/66'/40'/0'/0/0":                    |
@@ -341,53 +513,49 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     #shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
     #import secrets
     #shamir_mnemonic.shamir.RANDOM_BYTES = secrets.token_bytes
-    import slip39
     name,threshold,entropy_slip39,accts = slip39.create(
         "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy, paths=[path] )
-    [
-        [
-            f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else ""
-        ] + words
-        for g_name,(g_of,g_mnems) in entropy_slip39.items()
-        for g_n,mnem in enumerate( g_mnems )
-        for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
-                mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+    [[ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
+     for g_name,(g_of,g_mnems) in entropy_slip39.items()
+     for g_n,mnem in enumerate( g_mnems )
+     for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
+             mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[33]:
+    # Out[23]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
-    | Mine(1/1) #1: | 1 craft    | 8 closet    | 15 tolerate |
-    |               | 2 pajamas  | 9 wrote     | 16 invasion |
-    |               | 3 acrobat  | 10 beaver   | 17 budget   |
-    |               | 4 easy     | 11 sweater  | 18 acid     |
-    |               | 5 alto     | 12 weapon   | 19 husky    |
-    |               | 6 museum   | 13 chemical | 20 fake     |
-    |               | 7 downtown | 14 safari   |             |
-    | Fam(2/3) #1:  | 1 craft    | 8 wavy      | 15 cowboy   |
-    |               | 2 pajamas  | 9 best      | 16 beard    |
-    |               | 3 beard    | 10 friar    | 17 priority |
-    |               | 4 echo     | 11 enjoy    | 18 plot     |
-    |               | 5 craft    | 12 gross    | 19 traveler |
-    |               | 6 program  | 13 episode  | 20 pleasure |
-    |               | 7 wrist    | 14 tricycle |             |
-    | Fam(2/3) #2:  | 1 craft    | 8 rapids    | 15 auction  |
-    |               | 2 pajamas  | 9 cards     | 16 quantity |
-    |               | 3 beard    | 10 friendly | 17 easy     |
-    |               | 4 email    | 11 coastal  | 18 safari   |
-    |               | 5 always   | 12 remind   | 19 anxiety  |
-    |               | 6 treat    | 13 necklace | 20 glimpse  |
-    |               | 7 home     | 14 birthday |             |
-    | Fam(2/3) #3:  | 1 craft    | 8 intend    | 15 glen     |
-    |               | 2 pajamas  | 9 shadow    | 16 ticket   |
-    |               | 3 beard    | 10 furl     | 17 debut    |
-    |               | 4 entrance | 11 tricycle | 18 elite    |
-    |               | 5 crunch   | 12 shelter  | 19 sympathy |
-    |               | 6 cinema   | 13 crucial  | 20 rich     |
-    |               | 7 pupal    | 14 artist   |             |
+    | Mine(1/1) #1: | 1 pancake  | 8 detailed  | 15 award    |
+    |               | 2 echo     | 9 item      | 16 forecast |
+    |               | 3 acrobat  | 10 package  | 17 realize  |
+    |               | 4 easy     | 11 editor   | 18 bucket   |
+    |               | 5 debris   | 12 fumes    | 19 crisis   |
+    |               | 6 process  | 13 writing  | 20 cover    |
+    |               | 7 watch    | 14 lawsuit  |             |
+    | Fam(2/3) #1:  | 1 pancake  | 8 warmth    | 15 aspect   |
+    |               | 2 echo     | 9 estate    | 16 phantom  |
+    |               | 3 beard    | 10 inside   | 17 thorn    |
+    |               | 4 echo     | 11 champion | 18 album    |
+    |               | 5 answer   | 12 grant    | 19 stilt    |
+    |               | 6 drink    | 13 lunar    | 20 glimpse  |
+    |               | 7 fragment | 14 pink     |             |
+    | Fam(2/3) #2:  | 1 pancake  | 8 pecan     | 15 identify |
+    |               | 2 echo     | 9 rich      | 16 jacket   |
+    |               | 3 beard    | 10 scared   | 17 sugar    |
+    |               | 4 email    | 11 elegant  | 18 mixed    |
+    |               | 5 blanket  | 12 fatigue  | 19 frequent |
+    |               | 6 ajar     | 13 smirk    | 20 spider   |
+    |               | 7 step     | 14 mule     |             |
+    | Fam(2/3) #3:  | 1 pancake  | 8 fact      | 15 victim   |
+    |               | 2 echo     | 9 client    | 16 rhythm   |
+    |               | 3 beard    | 10 analysis | 17 carpet   |
+    |               | 4 entrance | 11 tension  | 18 aircraft |
+    |               | 5 diploma  | 12 render   | 19 darkness |
+    |               | 6 excuse   | 13 both     | 20 length   |
+    |               | 7 dismiss  | 14 spend    |             |
     :end:
 
     #+LATEX: }
@@ -400,17 +568,15 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
 
-    [
-        [ "HD Wallet Path:", "Ethereum Address:" ],
-    ] + [
-        [ path, eth.address ]
-        for path,eth in accts.items()
+    [[ "HD Wallet Path:", "Ethereum Address:" ]] + [
+     [ path, eth.address ]
+     for path,eth in accts.items()
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[34]:
+    # Out[24]:
     | 0                | 1                                          |
     |------------------+--------------------------------------------|
     | HD Wallet Path:  | Ethereum Address:                          |
@@ -430,23 +596,21 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     _,mnem_mine = entropy_slip39['Mine']
     _,mnem_fam =  entropy_slip39['Fam']
     recseed = slip39.recover( mnem_mine + mnem_fam[:2] )
-    recseedhex = '0x' + codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
-    [[ f"Entropy recovered: {recseedhex}" ]]
-    [
-        [ f"{len(recseed)*8}-bit seed:" ]
-    ] + [
-        [ f"{recseedhex[b*32:b*32+32]}" ]
-     for b in range( len( recseedhex ) // 32 )
+    recseedhex = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
+
+    [[ f"{len(recseed)*8}-bit seed:" ]] + [
+     [ f"{recseedhex[b*32:b*32+32]}" ]
+        for b in range( len( recseedhex ) // 32 )
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[40]:
+    # Out[25]:
     | 0                                |
     |----------------------------------|
     | 128-bit seed:                    |
-    | 0xffffffffffffffffffffffffffffff |
+    | ffffffffffffffffffffffffffffffff |
     :end:
 
     #+LATEX: }
@@ -456,23 +620,19 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    reckey = eth_account.hdaccount.key_from_seed( rec, path )
+    reckey = eth_account.hdaccount.key_from_seed( recseed, path )
     reckeyhex = '0x' + codecs.encode( reckey, 'hex_codec' ).decode( 'ascii' )
-    receth = eth_account.Account.from_key( reckeyhex )
-    [
-        [ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]
-    ] + [
-        [ f"{reckeyhex}" ]
-    ] + [
-        [ "... yields ..." ]
-    ] + [
-        [ f"Ethereum address: {receth.address}" ]
+    receth = eth_account.Accou5nt.from_key( reckeyhex )
+    [[ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]] + [
+     [ f"{reckeyhex}" ]] + [
+     [ "... yields ..." ]] + [
+     [ f"Ethereum address: {receth.address}" ]
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[39]:
+    # Out[26]:
     | 0                                                                  |
     |--------------------------------------------------------------------|
     | 256-bit derived key at path "m/66'/40'/0'/0/0":                    |
@@ -483,8 +643,8 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 
     #+LATEX: }
 
-    And we see that we obtain the same Ethereum address =0x3224..56c5= as we originally got from =slip39.create
-    above.
+    And we see that we obtain the same Ethereum address =0x3224..56c5= as we originally got from
+    =slip39.create= above.
 
 ** BIP-39 vs SLIP-39 Key Derivation Summary
 
