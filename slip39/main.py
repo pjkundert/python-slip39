@@ -2,40 +2,197 @@ import argparse
 import io
 import logging
 import math
-import os
 import re
 
+from collections import namedtuple
 from datetime	import datetime
-from typing	import Any, Dict, Iterable, List, NamedTuple, Sequence, Set, Tuple
+from typing	import Dict, List, Tuple
 
 import qrcode
 import eth_account
-from fpdf	import FPDF
+from fpdf	import FPDF, FlexTemplate
 
 from .generate	import create, PATH_ETH_DEFAULT
 
 
 log				= logging.getLogger( __package__ )
 
-def organize_mnemonic( mnemonic, rows = 7, cols = 3, label="" ):
-    """Given a "word word ... word" or ["word", "word", ..., "word"] mnemonic, emit rows organized in
-    the desired rows and cols.  We return the fullly formatted line, plus the list of individual
-    words in that line."""
+
+def enumerate_mnemonic( mnemonic ):
     if isinstance( mnemonic, str ):
         mnemonic		= mnemonic.split( ' ' )
-    num_words		= dict(
+    return dict(
         (i, f"{i+1:>2d} {w}")
         for i,w in enumerate( mnemonic )
     )
-    rows,cols		= 7,3
+
+
+def organize_mnemonic( mnemonic, rows = 7, cols = 3, label="" ):
+    """Given a "word word ... word" or ["word", "word", ..., "word"] mnemonic, emit rows organized in
+    the desired rows and cols.  We return the fully formatted line, plus the list of individual
+    words in that line."""
+    num_words			= enumerate_mnemonic( mnemonic )
     for r in range( rows ):
-        line		= label if r == 0 else ' ' * len( label )
-        words		= []
+        line			= label if r == 0 else ' ' * len( label )
+        words			= []
         for c in range( cols ):
-            if word := num_words.get( c*rows+r ):
+            word		= num_words.get( c * rows + r )
+            if word:
                 words.append( word )
-                line   += f"{word:<13}"
+                line	       += f"{word:<13}"
         yield line,words
+
+
+class Region:
+    """Takes authority for a portion of another Region, and places things in it, relative to its
+    upper-left and lower-right corners."""
+    def __init__( self, name, x1=None, y1=None, x2=None, y2=None, rotation=None ):
+        self.name		= name
+        self.x1			= x1		# could represent positions, offsets or ratios
+        self.y1			= y1
+        self.x2			= x2
+        self.y2			= y2
+        self.rotation		= rotation
+        self.regions		= []
+
+    def element( self ):
+        return dict(
+            name	= self.name,
+            x1		= self.x1 * 25.4,       # always in mm
+            y1		= self.y1 * 25.4,
+            x2		= self.x2 * 25.4,
+            y2		= self.y2 * 25.4,
+            rotation	= self.rotation or 0.0
+        )
+
+    def __str__( self ):
+        return f"({self.name:16}: ({float(self.x1):8}, {float( self.y1):8}) - ({float(self.x2):8} - {float(self.y2):8})"
+
+    def add_region_relative( self, region ):
+        region.x1	       += self.x1
+        region.y1	       += self.y1
+        region.x2	       += self.x2
+        region.y2	       += self.y2
+        self.regions.append( region )
+        return region
+
+    def add_region_proportional( self, region ):
+        region.x1		= self.x1 + ( self.x2 - self.x1 ) * region.x1
+        region.y1		= self.y1 + ( self.y2 - self.y1 ) * region.y1
+        region.x2		= self.x1 + ( self.x2 - self.x1 ) * region.x2
+        region.y2		= self.y1 + ( self.y2 - self.y1 ) * region.y2
+        self.regions.append( region )
+        return region
+
+    def dimensions( self ):
+        return Coordinate( (self.x2 - self.x1) * 25.4, (self.y2 - self.y1) * 25.4 )
+
+    def elements( self ):
+        """Yield a sequence of { 'name': "...", 'x1': #,  ... }"""
+        if self.__class__ != Region:
+            yield self.element()
+        for r in self.regions:
+            for d in r.elements():
+                yield d
+
+
+fonts			= dict(
+    sans	= 'helvetica',
+    mono	= 'courier',
+)
+
+
+class Text( Region ):
+    def __init__( self, *args, font=None, text=None, size=None, size_ratio=None, align=None,
+                  **kwds ):
+        self.font		= font
+        self.text		= text
+        self.size		= size
+        self.size_ratio		= size_ratio or 2/3
+        self.align		= align
+        super().__init__( *args, **kwds )
+
+    def element( self ):
+        d			= super().element()
+        d['type']		= 'T'
+        d['font']		= fonts.get( self.font ) or self.font or fonts.get( 'sans' )
+        line_height		= (self.y2 - self.y1) * 72      # points
+        d['size']		= self.size or int( round( line_height * self.size_ratio ))
+        if self.text:
+            d['text']		= self.text
+        if self.align:
+            d['align']		= self.align
+        return d
+
+
+class Image( Region ):
+    def __init__( self, *args, font=None, text=None, size=None, **kwds ):
+        self.font		= font
+        self.text		= text
+        self.size		= None
+        super().__init__( *args, **kwds )
+
+    def element( self ):
+        d			= super().element()
+        d['type']		= 'I'
+        return d
+
+
+class Line( Region ):
+    def emit( self, d, *args, **kwds ):
+        d['type']		= 'L'
+        super().emit( *args, **kwds )
+
+
+class Box( Region ):
+    def element( self ):
+        d			= super().element()
+        d['type']		= 'B'
+        return d
+
+
+Coordinate			= namedtuple( 'Coordinate', ('x', 'y') )
+
+card_size			= Coordinate( y=2+1/4, x=3+3/8 )
+card_margin			= 1/16
+
+card				= Box( 'card', 0, 0, card_size.x, card_size.y )
+card_interior			= card.add_region_relative(
+    Region( 'card-interior', x1=+card_margin, y1=+card_margin, x2=-card_margin, y2=-card_margin )
+)
+
+card_top			= card_interior.add_region_proportional(
+    Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
+)
+card_bottom			= card_interior.add_region_proportional(
+    Region( 'card-bottom', x1=0, y1=1/4, x2=1, y2=1 )
+)
+card_mnemonics			= card_bottom.add_region_proportional(
+    Region( 'card-mnemonics', x1=0, y1=0, x2=3/4, y2=1 )
+)
+card_qr				= card_bottom.add_region_proportional(
+    Image( 'card-qr', x1=3/4, y1=0, x2=1, y2=1 )
+)
+card_qr.y2			= card_qr.y1 + (card_qr.x2 - card_qr.x1)  # make height same as width
+
+card_top.add_region_proportional(
+    Text( 'card-title', x1=0, y1=0, x2=1, y2=44/100 )
+)
+card_top.add_region_proportional(
+    Text( 'card-requires', x1=0, y1=45/100, x2=1, y2=75/100, align='C' )
+)
+card_top.add_region_proportional(
+    Text( 'card-ETH', x1=0, y1=75/100, x2=1, y2=100/100, align='R' )
+)
+
+rows,cols		= 7,3
+for r in range( rows ):
+    for c in range( cols ):
+        card_mnemonics.add_region_proportional(
+            Text( f"mnem-{c * rows + r}",
+                  x1=c/cols, y1=r/rows, x2=(c+1)/cols, y2=(r+1)/rows,
+                  font='mono', size_ratio=1/2 )
+        )
 
 
 def output(
@@ -44,8 +201,10 @@ def output(
     groups: Dict[str,Tuple[int,List[str]]],
     accounts: Dict[str, eth_account.Account],
 ):
+    """Produces a PDF with a number of cards containing the provided slip39.Details."""
     size		= (3, 5)
     margin		= .25
+    margin_mm		= margin * 25.4
 
     pdf				= FPDF(
         orientation	= 'L',
@@ -53,21 +212,16 @@ def output(
         format		= size,
     )
     pdf.set_margin( margin )
-    fonts		= dict(
-        sans	= 'helvetica',
-        mono	= 'courier',
-    )
 
-    '''
-    for font,style in ( ('FreeSans', ''), ('FreeSansB','B'), ('FreeMono' ):
-        pdf.add_font( font.lower(), fname=os.path.join( os.path.dirname( __file__ ), 'fonts', font+'.ttf' ), uni=True )
-    '''
+    tplpdf			= FPDF()
+    tpl				= FlexTemplate( tplpdf, list( card.elements() ))
+
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requirements		= f"Need {group_threshold} of {', '.join(group_reqs)} to recover."
+    requires			= f"Need {group_threshold} of {', '.join(group_reqs)} to recover."
 
-    # Output the first account path and address QR code
+    # Obtain the first ETH path and account, and address QR code
     qr				= None
     for path,acct in accounts.items():
         log.info( f"ETH({path:16}): {acct.address}" )
@@ -85,51 +239,42 @@ def output(
             f			= io.StringIO()
             qrc.print_ascii( out=f )
             f.seek( 0 )
-            for l in f:
-                log.info( f"{l.strip()}" )
+            for line in f:
+                log.info( line.strip() )
+
+    card_dim			= card.dimensions()
+    card_cols			= int(( tplpdf.epw - margin_mm * 2 ) // card_dim.x )
+    card_rows			= int(( tplpdf.eph - margin_mm * 2 ) // card_dim.y )
+    cards_pp			= card_rows * card_cols
+
+    def card_page( num ):
+        return int( num // cards_pp )
+
+    def card_xy( num ):
+        nth			= ( num % cards_pp )
+        r			= nth // card_cols
+        c			= nth % card_cols
+        return Coordinate( margin_mm + c * card_dim.x, margin_mm + r * card_dim.y )
 
     assert qr, "At least one ETH account must be supplied"
     for g_num,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
-        log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requirements}" )
+        log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
         for mn_num,mnem in enumerate( g_mnems ):
-            pdf.add_page()
+            eth			= f"ETH({path}): {acct.address}{'...' if len(accounts)>1 else ''}"
+            if mn_num == 0 or card_page( mn_num ) > card_page( mn_num - 1 ):
+                tplpdf.add_page()
 
-            qr_siz		= pdf.eph / 2
-            pdf.image( qr.get_image(), h=qr_siz, w=qr_siz, x=pdf.epw + margin - qr_siz, y=pdf.eph + margin - qr_siz )
-                
-            pdf.set_font( fonts['sans'], size=16 )
-            line_height	= pdf.font_size * 1.5
-            pdf.cell( pdf.epw, line_height,
-                      f"SLIP39 **{g_name}({mn_num+1}/{len(g_mnems)})** for: {name}", markdown=True )
-            pdf.ln( line_height )
+            tpl['card-title']	= f"SLIP39 {g_name}({mn_num+1}/{len(g_mnems)}) for: {name}"
+            tpl['card-requires'] = requires
+            tpl['card-eth']	= eth
+            tpl['card-qr']	= qr.get_image()
 
-            pdf.set_font( size=12 )
-            line_height	= pdf.font_size * 1.5
-            pdf.cell( pdf.epw, line_height, requirements )
-            pdf.ln( line_height )
+            for n,m in enumerate_mnemonic( mnem ).items():
+                tpl[f"mnem-{n}"] = m
+            offsetx,offsety	= card_xy( mn_num )
+            tpl.render( offsetx=offsetx, offsety=offsety )
 
-            pdf.set_font( size=8 )
-            line_height	= pdf.font_size * 2
-            pdf.cell( pdf.epw, line_height,
-                      f"ETH({path}): {acct.address}{'...' if len(accounts)>1 else ''}" )
-            pdf.ln( line_height )
-
-            pdf.set_font( fonts['mono'], size=10 )
-            line_height	= pdf.font_size * 1.65
-            num_words		= dict( (i, f"{i+1:>2d} {w}")
-                                        for i,w in enumerate( mnem.split( ' ' )))
-            col_width		= pdf.epw / 4
-            
-            rows,cols		= 7,3
-            for line,words in organize_mnemonic(
-                    mnem, rows=rows, cols=cols, label=f"  {mn_num+1}: "):
-                log.info( line )
-                for word in words:
-                    pdf.multi_cell( col_width, line_height, word,
-                                    border=False, ln=3, max_line_height=pdf.font_size )
-                pdf.ln( line_height )
-
-    return pdf,accounts
+    return tplpdf,accounts
 
 
 log_cfg				= {
@@ -150,9 +295,9 @@ def group_parser( group_spec ):
     if not size:
         size			= 1
     if not require:
-        require			= math.ceil( int( size ) / 2. ) # eg. default 2/4, 3/5
+        require			= math.ceil( int( size ) / 2. )		# eg. default 2/4, 3/5
     return name,(int(require),int(size))
-group_parser.RE			= re.compile(
+group_parser.RE			= re.compile( # noqa E305
     r"""^
         \s*
         (?P<name> [^\d\(/]+ )
@@ -169,7 +314,7 @@ def main( argv=None ):
         description = "Create and output SLIP39 encoded Ethereum wallet(s) to a PDF file.",
         epilog = "" )
     ap.add_argument( '-v', '--verbose', action="count",
-                     default=0, 
+                     default=0,
                      help="Display logging information." )
     ap.add_argument( '-o', '--output',
                      default="{name}-{date}+{time}-{address}.pdf",
@@ -185,15 +330,12 @@ def main( argv=None ):
                      help="Account names to produce")
     args			= ap.parse_args( argv )
 
-
     levelmap 			= {
         0: logging.WARNING,
         1: logging.INFO,
         2: logging.DEBUG,
     }
-    log_cfg['level']		= ( levelmap[args.verbose] 
-                                    if args.verbose in levelmap
-                                    else logging.DEBUG )
+    log_cfg['level']		= levelmap[args.verbose] if args.verbose in levelmap else logging.DEBUG
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
     # basicConfig is a NO-OP), by (also) setting the logging level
     logging.basicConfig( **log_cfg )

@@ -31,9 +31,24 @@ package_dir			= {
 }
 
 long_description		= """\
-Securing and safely restoring access to cryptocurrency accounts is difficult.
+Creating Ethereum accounts is complex and fraught with potential for loss of funds.
 
-The SLIP39 seed backup format is useful.
+A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account.  If someone
+finds your recovery phrase, the account is /gone/.
+
+The SLIP-39 standard allows you to split the seed between 1 or more groups of multiple recovery
+phrases.  This is better, but creating such accounts is difficult; presently, only the Trezor
+supports these, and they can only be created "manually".  Writing down 5 or more sets of 20 words is
+difficult and time consuming.
+
+The python-slip39 project exists to assist in the safe creation and documentation of Ethereum HD
+Wallet accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed,
+generates standard Ethereum account(s) (at derivation path =m/66'/40'/0'/0/0= by default) with
+Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
+containing all the required printable cards to document the account.
+
+On an secure (ideally air-gapped) computer, new accounts can safely be generated and the PDF saved
+to a USB drive for printing (or directly printed without the file being saved to disk.)
 """
 
 classifiers			= [

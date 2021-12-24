@@ -1,12 +1,9 @@
 import codecs
-import contextlib
-import json
 
-import eth_account
 import shamir_mnemonic
 
 from .generate_test	import substitute, nonrandom_bytes
-from .generate		import PATH_ETH_DEFAULT, account, create, recover
+from .generate		import account, create, recover
 
 SEED_XMAS_HEX			= b"dd0e2f02b1f6c92a1a265561bc164135"
 SEED_XMAS			= codecs.decode( SEED_XMAS_HEX, 'hex_codec' )

@@ -32,9 +32,8 @@ doctest:
 
 
 analyze:
-	flake8 -j 1 --max-line-length=110					\
-	  --ignore=F401,E221,E201,E202,E203,E223,E225,E226,E231,E241,E242,E261,E272,E302,W503,E701,E702,E,W	\
-	  --exclude="__init__.py" \
+	flake8 -j 1 --max-line-length=200 \
+	  --ignore=E201,E202,E223,E226,E231,E242,E251,E265,E272,E274 \
 	  slip39
 
 pylint:

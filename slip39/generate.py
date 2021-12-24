@@ -1,9 +1,9 @@
 import codecs
 import secrets
 from collections		import namedtuple
-from typing			import Any, Dict, Iterable, List, NamedTuple, Sequence, Set, Tuple
+from typing			import Dict, List, Sequence, Tuple
 
-import eth_account		
+import eth_account
 
 from shamir_mnemonic		import generate_mnemonics, combine_mnemonics
 
@@ -16,7 +16,9 @@ RANDOM_BYTES			= secrets.token_bytes
 def random_secret() -> bytes:
     return RANDOM_BYTES( 16 )
 
+
 Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts') )
+
 
 def create(
     name: str,
@@ -25,7 +27,7 @@ def create(
     master_secret: bytes	= None,
     passphrase: bytes		= b"",
     iteration_exponent: int	= 1,
-    paths: Sequence[str]	= None,	# Default: PATH_ETH_DEFAULT
+    paths: Sequence[str]	= None,		# Default: PATH_ETH_DEFAULT
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[eth_account.Account]]:
     """Creates a SLIP-39 encoding and 1 or more Ethereum accounts.  Returns the details, in a form
     compatible with the output API.

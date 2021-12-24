@@ -1,3 +1,3 @@
-from .version	import __version__, __version_info__
-from .generate	import *
-from .main	import *
+from .version	import __version__, __version_info__	# noqa F401
+from .generate	import *				# noqa F403
+from .main	import *				# noqa F403
