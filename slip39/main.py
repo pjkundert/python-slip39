@@ -1,8 +1,11 @@
 import argparse
 import io
+import json
 import logging
 import math
+import os
 import re
+import getpass
 
 from collections import namedtuple
 from datetime	import datetime
@@ -318,7 +321,7 @@ def main( argv=None ):
                      help="Display logging information." )
     ap.add_argument( '-o', '--output',
                      default="{name}-{date}+{time}-{address}.pdf",
-                     help="Output PDF to file or '-' (stdout); formatting w/ name, date, time and address allowed" )
+                     help="Output PDF to file or '-' (stdout); formatting w/ name, date, time, path and address allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
@@ -326,6 +329,9 @@ def main( argv=None ):
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Fren(3/5)' )." )
     ap.add_argument( '-p', '--path', action='append',
                      help=f"A derivation path (default: {PATH_ETH_DEFAULT})" )
+    ap.add_argument( '-j', '--json',
+                     default=None,
+                     help=f"Save an encrypted JSON wallet for each Ethereum address, supplying the password, '-' read read from stdin (default: None)" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
@@ -358,14 +364,62 @@ def main( argv=None ):
             )
         )
         now			= datetime.now()
-        address			= accounts[next(iter(accounts.keys()))].address
-        filename		= args.output.format(
+        path			= next(iter(accounts.keys()))
+        address			= accounts[path].address
+        pdf_name		= args.output.format(
             name	= name or "SLIP39",
             date	= datetime.strftime( now, '%Y-%m-%d' ),
             time	= datetime.strftime( now, '%H.%M.%S'),
+            path	= path,
             address	= address,
         )
-        pdf.output( filename )
-        log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {filename}" )
+
+        if args.json:
+            if args.json == '-':
+                json_pwd	= getpass.getpass( 'JSON key file password: ' )
+            else:
+                json_pwd	= args.json
+                log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
+            
+            for path,account in accounts.items():
+                json_str	= json.dumps( eth_account.Account.encrypt( account.key, json_pwd ), indent=4 )
+                json_name	= args.output.format(
+                    name	= name or "SLIP39",
+                    date	= datetime.strftime( now, '%Y-%m-%d' ),
+                    time	= datetime.strftime( now, '%H.%M.%S'),
+                    path	= path,
+                    address	= address,
+                )
+                if json_name.lower().endswith( '.pdf' ):
+                    json_name	= json_name[:-4]
+                json_name      += '.json'
+                while os.path.exists( json_name ):
+                    log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
+                    json_name.append( '.new' )
+                with open( json_name, 'w' ) as json_f:
+                    json_f.write( json_str )
+                log.warning( f"Wrote JSON encrypted wallet for {name!r} to: {json_name}" )
+
+                # Add the encrypted JSON account recovery to the PDF also.
+                pdf.add_page()
+                margin_mm	= 1.0 * 25.4
+                pdf.set_margin( 1.0 * 25.4 )
+
+                col_width	= pdf.epw - 2 * margin_mm
+                pdf.set_font( fonts['sans'], size=12 )
+                line_height	= pdf.font_size * 1.25
+                pdf.cell( col_width, line_height, json_name )
+                pdf.ln( line_height )
+
+                pdf.set_font( fonts['sans'], size=10 )
+                line_height	= pdf.font_size * 1.25
+
+                for line in json_str.split( '\n' ):
+                    pdf.cell( col_width, line_height, line )
+                    pdf.ln( line_height )
+                pdf.image( qrcode.make( json_str ).get_image(), h=pdf.epw/2, w=pdf.epw/2 )
+
+        pdf.output( pdf_name )
+        log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )
 
     return 0
