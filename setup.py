@@ -31,6 +31,7 @@ package_dir			= {
     "slip39.recovery":		"./slip39/recovery",
 }
 
+long_description_content_type	= 'text/markdown'
 long_description		= """\
 Creating Ethereum accounts is complex and fraught with potential for loss of funds.
 
@@ -111,6 +112,7 @@ setup(
     project_urls		= project_urls,
     description			= "The slip39 module implements SLIP39 recovery for Ethereum accounts",
     long_description		= long_description,
+    long_description_content_type = long_description_content_type,
     license			= "Dual License; GPLv3 and Proprietary",
     keywords			= "Ethereum cryptocurrency SLIP39 BIP39 seed recovery",
     url				= "https://github.com/pjkundert/python-slip39",

@@ -3,7 +3,7 @@ import qrcode
 
 from fpdf		import FPDF, FlexTemplate
 
-from .main		import Region, Text, Image, Box, Coordinate
+from .layout		import Region, Text, Image, Box, Coordinate
 
 
 def test_Region():
