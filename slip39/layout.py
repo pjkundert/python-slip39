@@ -1,5 +1,6 @@
 from collections	import namedtuple
 
+
 class Region:
     """Takes authority for a portion of another Region, and places things in it, relative to its
     upper-left and lower-right corners."""

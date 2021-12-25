@@ -72,5 +72,6 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
         print( secret )
     return 0
 
+
 if __name__ == "__main__":
     sys.exit( main() )
