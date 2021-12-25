@@ -106,9 +106,9 @@ to a USB drive for printing (or directly printed without the file being saved to
   #+BEGIN_EXAMPLE
   $ cd /Volumes/USBDRIVE/
   $ python3 -m pip install slip39
-  $ python3 -m slip39 Perry # or just "slip39 Perry"
-  ...Output SLIP-39-encoded wallet for 'Perry' to:\
-    Perry-2021-12-22+15.45.36-0x3868015D2894bD916262AE2EFFe913c788e81964.pdf
+  $ python3 -m slip39 Perry   # or just "slip39 Perry"
+  2021-12-25 11:10:38 slip39           Write SLIP-39-encoded wallet for 'Perry' to:\
+    Perry-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
   #+LATEX: }
 
@@ -118,6 +118,37 @@ to a USB drive for printing (or directly printed without the file being saved to
 
   To get the data printed on the terminal as in this example (so you could write it down on cards
   instead), add a =-v=.
+
+  Later, if you need to recover the Ethereum wallet, keep entering SLIP-39 mnemonics until the secret
+  is recovered (invalid/duplicate mnemonics will be ignored):
+
+  #+LATEX: {\scriptsize
+  #+BEGIN_EXAMPLE
+  $ python3 -m slip39.recovery -v
+  Enter 1st SLIP-39 mnemonic: ab c
+  Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
+  Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
+  Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy ...
+  2021-12-25 11:03:33 slip39.recovery  Recovered SLIP-39 secret; Use:  python3 -m slip39 --secret ...
+  383597fd63547e7c9525575decd413f7
+  #+END_EXAMPLE
+  #+LATEX: }
+
+  Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for
+  import into a software wallet:
+
+  #+LATEX: {\scriptsize
+  #+BEGIN_EXAMPLE
+  $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
+  2021-12-25 11:09:57 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
+  ...
+  JSON key file password: <enter JSON wallet password>
+  2021-12-25 11:10:38 slip39           Wrote JSON encrypted wallet for '' to:\
+    SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.json
+  2021-12-25 11:10:39 slip39           Wrote SLIP39-encoded wallet for '' to:\
+    SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  #+END_EXAMPLE
+  #+LATEX: }
 
 ** The =slip39= module API
    
@@ -622,7 +653,7 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
     reckey = eth_account.hdaccount.key_from_seed( recseed, path )
     reckeyhex = '0x' + codecs.encode( reckey, 'hex_codec' ).decode( 'ascii' )
-    receth = eth_account.Accou5nt.from_key( reckeyhex )
+    receth = eth_account.Account.from_key( reckeyhex )
     [[ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]] + [
      [ f"{reckeyhex}" ]] + [
      [ "... yields ..." ]] + [

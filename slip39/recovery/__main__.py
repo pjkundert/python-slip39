@@ -68,7 +68,7 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
             mnemonics.append( input( f"Enter {ordinal(len(mnemonics)+1)} SLIP-39 mnemonic: " ))
     if master_secret:
         secret			= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
-        log.warning( f"Successfully recovered SLIP-39 master secret seed; Use:  python3 -m slip39 --secret {secret} ..." )
+        log.warning( "Recovered SLIP-39 secret; Use: python3 -m slip39 --secret ..." )
         print( secret )
     return 0
 

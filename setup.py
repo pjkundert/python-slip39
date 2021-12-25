@@ -69,14 +69,13 @@ is recovered (invalid/duplicate mnemonics will be ignored):
     Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
     Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
     Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy editor penalty woman beyond divorce check oasis thumb envy spit
-    2021-12-25 11:03:33 slip39.recovery  Successfully recovered SLIP-39 master secret seed; Use:  python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 ...
+    2021-12-25 11:03:33 slip39.recovery  Recovered SLIP-39 secret; Use:  python3 -m slip39 --secret ...
     383597fd63547e7c9525575decd413f7
 
-Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for inport
+Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for import
 into a software wallet:
 
     $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
-
     2021-12-25 11:09:57 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
     ...
     JSON key file password: <enter JSON wallet password>
