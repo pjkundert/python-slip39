@@ -17,6 +17,7 @@ except FileNotFoundError:
 
 console_scripts			= [
     'slip39		= slip39.main:main',
+    'slip39-recovery	= slip39.recovery.__main__:main',
 ]
 
 entry_points			= {

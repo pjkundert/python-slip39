@@ -106,7 +106,7 @@ to a USB drive for printing (or directly printed without the file being saved to
   #+BEGIN_EXAMPLE
   $ cd /Volumes/USBDRIVE/
   $ python3 -m pip install slip39
-  $ python3 -m slip39 Perry   # or just "slip39 Perry"
+  $ python3 -m slip39 Perry   # (or just "slip39 Perry")
   2021-12-25 11:10:38 slip39           Write SLIP-39-encoded wallet for 'Perry' to:\
     Perry-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
@@ -124,7 +124,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
-  $ python3 -m slip39.recovery -v
+  $ python3 -m slip39.recovery   # (or just "slip39-recovery")
   Enter 1st SLIP-39 mnemonic: ab c
   Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
   Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
