@@ -1,22 +1,23 @@
 import argparse
+import codecs
+import getpass
 import io
 import json
 import logging
 import math
 import os
 import re
-import getpass
 
-from collections import namedtuple
-from datetime	import datetime
-from typing	import Dict, List, Tuple
+from collections	import namedtuple
+from datetime		import datetime
+from typing		import Dict, List, Tuple
 
 import qrcode
 import eth_account
-from fpdf	import FPDF, FlexTemplate
+from fpdf		import FPDF, FlexTemplate
 
-from .generate	import create, PATH_ETH_DEFAULT
-
+from .util		import log_cfg
+from .generate		import create, PATH_ETH_DEFAULT
 
 log				= logging.getLogger( __package__ )
 
@@ -263,6 +264,7 @@ def output(
     for g_num,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
         log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
         for mn_num,mnem in enumerate( g_mnems ):
+            log.info( f"  {mnem}" )
             eth			= f"ETH({path}): {acct.address}{'...' if len(accounts)>1 else ''}"
             if mn_num == 0 or card_page( mn_num ) > card_page( mn_num - 1 ):
                 tplpdf.add_page()
@@ -278,14 +280,6 @@ def output(
             tpl.render( offsetx=offsetx, offsety=offsety )
 
     return tplpdf,accounts
-
-
-log_cfg				= {
-    "level":	logging.WARNING,
-    "datefmt":	'%Y-%m-%d %H:%M:%S',
-    #"format":	'%(asctime)s.%(msecs).03d %(threadName)10.10s %(name)-8.8s %(levelname)-8.8s %(funcName)-10.10s %(message)s',
-    "format":	'%(asctime)s %(name)-8.8s %(message)s',
-}
 
 
 def group_parser( group_spec ):
@@ -331,7 +325,13 @@ def main( argv=None ):
                      help=f"A derivation path (default: {PATH_ETH_DEFAULT})" )
     ap.add_argument( '-j', '--json',
                      default=None,
-                     help=f"Save an encrypted JSON wallet for each Ethereum address, supplying the password, '-' read read from stdin (default: None)" )
+                     help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
+    ap.add_argument( '-s', '--secret',
+                     default=None,
+                     help="Use the supplied 128-bit hex value as the master secret seed (eg. from slip39.recover)" )
+    ap.add_argument( '--passphrase',
+                     default=None,
+                     help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
@@ -354,12 +354,32 @@ def main( argv=None ):
     )
     group_threshold		= args.threshold or math.ceil( len( groups ) / 2. )
 
+    # Optional passphrase (utf-8 encoded bytes
+    passphrase			= args.passphrase or ""
+    if passphrase == '-':
+        passphrase		= getpass.getpass( 'Master seed passphrase: ' )
+    elif passphrase:
+        log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
+
+    # Master secret seed supplied as hex
+    master_secret		= args.secret
+    if master_secret:
+        if master_secret.lower().startswith('0x'):
+            master_secret	= master_secret[2:]
+        master_secret		= codecs.decode( master_secret, 'hex_codec' )
+        len_bits		= len( master_secret ) * 8
+        if len_bits != 128:
+            raise ValueError( f"A {len_bits}-bit master secret was supplied; 128 bits expected" )
+
+    # Generate each desired SLIP-39 wallet
     for name in args.names or [ "" ]:
         pdf,accounts		= output(
             *create(
-                name	= name,
+                name		= name,
                 group_threshold = group_threshold,
-                groups	= groups,
+                groups		= groups,
+                master_secret	= master_secret,
+                passphrase	= passphrase.encode( 'utf-8' ),
                 paths	= args.path,
             )
         )
@@ -375,12 +395,15 @@ def main( argv=None ):
         )
 
         if args.json:
+            # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
+            # password than the SLIP-39 master secret encryption passphrase.  It will be required to
+            # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
             if args.json == '-':
                 json_pwd	= getpass.getpass( 'JSON key file password: ' )
             else:
                 json_pwd	= args.json
                 log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
-            
+
             for path,account in accounts.items():
                 json_str	= json.dumps( eth_account.Account.encrypt( account.key, json_pwd ), indent=4 )
                 json_name	= args.output.format(

@@ -1,12 +1,11 @@
 import codecs
 import secrets
-from collections		import namedtuple
-from typing			import Dict, List, Sequence, Tuple
+from collections	import namedtuple
+from typing		import Dict, List, Sequence, Tuple
 
 import eth_account
 
-from shamir_mnemonic		import generate_mnemonics, combine_mnemonics
-
+from shamir_mnemonic	import generate_mnemonics
 
 PATH_ETH_DEFAULT		= "m/44'/60'/0'/0/0"
 
@@ -80,14 +79,6 @@ def mnemonics(
         master_secret	= master_secret,
         passphrase	= passphrase,
         iteration_exponent = iteration_exponent )
-
-
-def recover(
-    mnemonics: List[str],
-    passphrase: bytes		= b"",
-) -> bytes:
-    """Recover a master secret from the supplied SLIP-39 mnemonics"""
-    return combine_mnemonics( mnemonics, passphrase=passphrase )
 
 
 def account(

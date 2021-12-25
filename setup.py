@@ -28,6 +28,7 @@ tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readline
 
 package_dir			= {
     "slip39":			"./slip39",
+    "slip39.recovery":		"./slip39/recovery",
 }
 
 long_description		= """\
@@ -49,6 +50,38 @@ containing all the required printable cards to document the account.
 
 On an secure (ideally air-gapped) computer, new accounts can safely be generated and the PDF saved
 to a USB drive for printing (or directly printed without the file being saved to disk.)
+
+    $ python3 -m slip39 -v
+    2021-12-25 11:02:20 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
+    ...
+    2021-12-25 11:02:20 slip39           First(1/1): Need 2 of First(1), Second(1), Fam(2/4), Fren(3/5) to recover.
+    2021-12-25 11:02:20 slip39             valuable discuss acrobat romp apart trust earth brother election bundle finance darkness dryer capacity chubby laundry diet glasses fiction general
+    2021-12-25 11:02:20 slip39           Second(1/1): Need 2 of First(1), Second(1), Fam(2/4), Fren(3/5) to recover.
+    2021-12-25 11:02:20 slip39             valuable discuss beard romp duckling move space bolt wolf junior cargo disaster desert vintage bulb rhythm dictate timber impact losing
+    ...
+    2021-12-25 11:02:20 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-25+11.02.20-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+
+Later, if you need to recover the Ethereum wallet, keep entering SLIP-39 mnemonics until the secret
+is recovered (invalid/duplicate mnemonics will be ignored):
+
+    $ python3 -m slip39.recovery -v
+    Enter 1st SLIP-39 mnemonic: ab c
+    Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
+    Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
+    Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy editor penalty woman beyond divorce check oasis thumb envy spit
+    2021-12-25 11:03:33 slip39.recovery  Successfully recovered SLIP-39 master secret seed; Use:  python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 ...
+    383597fd63547e7c9525575decd413f7
+
+Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for inport
+into a software wallet:
+
+    $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
+
+    2021-12-25 11:09:57 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
+    ...
+    JSON key file password: <enter JSON wallet password>
+    2021-12-25 11:10:38 slip39           Wrote JSON encrypted wallet for '' to: SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.json
+    2021-12-25 11:10:39 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
 """
 
 classifiers			= [
