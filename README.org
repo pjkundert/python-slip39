@@ -1,12 +1,11 @@
 #+title: Ethereum SLIP-39 Account Generation
-#+date: 2021-12-20 10:55:0
+#+date: 2021-12-20 10:55:00
 #+draft: false
 #+EXPORT_FILE_NAME: README.pdf
 #+STARTUP: org-startup-with-inline-images inlineimages
 #+STARTUP: org-latex-tables-centered nil
 #+OPTIONS: ^:nil # Disable sub/superscripting with bare _; _{...} still works
 #+OPTIONS: toc:nil
-#+LATEX_HEADER: \usepackage[margin=1.0in]{geometry}
 
 #+BEGIN_SRC emacs-lisp :noweb no-export :exports results
 ;; Tables not centered
@@ -40,9 +39,9 @@ to a USB drive for printing (or directly printed without the file being saved to
 
 * Security with Availability
 
-  A 128-bit random "seed" is the source of an unlimited sequence of Ethereum HD Wallet accounts.
-  Anyone who can obtain this seed gains control of all Ethereum accounts derived from it, so it must
-  be securely stored.
+  For both BIP-39 and SLIP-39, a 128-bit random "seed" is the source of an unlimited sequence of
+  Ethereum HD Wallet accounts.  Anyone who can obtain this seed gains control of all Ethereum
+  accounts derived from it, so it must be securely stored.
 
   Losing this seed means that all of the HD Wallet accounts are permanently lost.  Therefore, it
   must be backed up reliably, and be readily accessible.
@@ -56,30 +55,31 @@ to a USB drive for printing (or directly printed without the file being saved to
 
 ** Shamir's Secret Sharing System (SSSS)
 
-   [[https://github.com/satoshilabs/slips/blob/master/slip-0039.md][Satoshi Lab's (Trezor) SLIP-39]] uses SSSS to distribute the ability to recover the key to 1 or more "groups".
+   [[https://github.com/satoshilabs/slips/blob/master/slip-0039.md][Satoshi Lab's (Trezor) SLIP-39]] uses SSSS to distribute the ability to recover the key to 1 or
+   more "groups".  Collecting the mnemonics from the required number of groups allows recovery of
+   the seed.  For BIP-39, the number of groups is always 1, and the number of mnemonics required for
+   that group is always 1.
 
-   First, a "group_threshold" of how many groups must bet successfully collected to recover the key.
-   Then key is (conceptually) split between 1 or more groups (not really; each group's data alone
-   gives away no information about the key).
+   For SLIP-39, a "group_threshold" of how many groups must bet successfully collected to recover
+   the key.  Then key is (conceptually) split between 1 or more groups (not really; each group's
+   data alone gives away no information about the key).
 
    For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
    be combined to recover the key.  Each group has members with varying levels of trust, so have
    different number of Members, and differing numbers Required to recover that group's data:
 
    #+LATEX: {\scriptsize
-   | Group  | Required | Members | Description                   |
-   |--------+----------+---------+-------------------------------|
-   | First  |        1 |       1 | Stored at home                |
-   | Second |        1 |       1 | Stored in office safe         |
-   | Fam    |        2 |       4 | Distributed to family members |
-   | Frens  |        3 |       6 | Distributed to close friends  |
+   | Group  | Required |   | Members | Description                   |
+   |--------+----------+---+---------+-------------------------------|
+   |        |      <r> |   | <l>     |                               |
+   | First  |        1 | / | 1       | Stored at home                |
+   | Second |        1 | / | 1       | Stored in office safe         |
+   | Fam    |        2 | / | 4       | Distributed to family members |
+   | Frens  |        3 | / | 6       | Distributed to close friends  |
    #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
    These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)
-   #+CAPTION: SLIP-39 PDF
-   #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
-   [[./images/slip39-pdf.jpg]]
 
    If the account needs to be recovered, collecting the First and Second cards from the home and
    office safe is sufficient to recover the seed, and re-generate the HD Wallet accounts.
@@ -89,25 +89,21 @@ to a USB drive for printing (or directly printed without the file being saved to
    card from the office safe, and 2 cards from Fam group members, and recover the wallet.
 
    If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
-   (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (eg. at the
-   funeral?), completing the Fam and Frens groups' data, and recover the HD Wallet account.
+   (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards, completing
+   the Fam and Frens groups' data, and recover the HD Wallet account.
 
 * SLIP-39 Account Generation and Recovery
 
-  #+CAPTION: SLIP-39 text
-  #+ATTR_LATEX: :float wrap :width 5cm :placement {r}
-  [[./images/slip39-text.jpg]]
-
-  Generating a new SLIP-39 encoded Ethereum wallet is easy, with results available as PDF or text.
+  Generating a new SLIP-39 encoded Ethereum wallet is easy, with results available as PDF and text.
   The default groups are as described above.  Run the following to obtain a PDF file similar to this
-  example, insert a USB drive to collect the output, and run:
+  example; insert a USB drive to collect the output, and run:
 
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
-  $ cd /Volumes/USBDRIVE/
-  $ python3 -m pip install slip39
-  $ python3 -m slip39 Perry   # (or just "slip39 Perry")
-  2021-12-25 11:10:38 slip39           Write SLIP-39-encoded wallet for 'Perry' to:\
+  $ python3 -m pip install slip39  # Install slip39 in Python3
+  $ cd /Volumes/USBDRIVE/          # Change current directory to USB
+  $ python3 -m slip39 Perry        # Or just run "slip39 Perry"
+  2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Perry' to:\
     Perry-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
   #+LATEX: }
