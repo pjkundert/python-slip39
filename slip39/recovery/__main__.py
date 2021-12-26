@@ -1,10 +1,9 @@
 import argparse
 import codecs
-import getpass
 import logging
 import sys
 
-from ..util		import log_cfg, ordinal
+from ..util		import log_cfg, input_secure, ordinal
 from .			import recover
 
 log				= logging.getLogger( __package__ )
@@ -49,7 +48,7 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
     # Optional passphrase (utf-8 encoded bytes)
     passphrase			= args.passphrase or ""
     if passphrase == '-':
-        passphrase		= getpass.getpass( 'Master seed passphrase: ' )
+        passphrase		= input_secure( 'Master seed passphrase: ' )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
@@ -68,7 +67,7 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
             mnemonics.append( input( f"Enter {ordinal(len(mnemonics)+1)} SLIP-39 mnemonic: " ))
     if master_secret:
         secret			= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
-        log.warning( "Recovered SLIP-39 secret; Use: python3 -m slip39 --secret ..." )
+        log.warning( "Recovered SLIP-39 secret; Use: python3 -m slip39 --secret -" )
         print( secret )
     return 0
 

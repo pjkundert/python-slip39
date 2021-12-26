@@ -1,6 +1,6 @@
 import argparse
+import ast
 import codecs
-import getpass
 import io
 import json
 import logging
@@ -15,9 +15,14 @@ import qrcode
 import eth_account
 from fpdf		import FPDF, FlexTemplate
 
-from .generate		import create, PATH_ETH_DEFAULT
-from .util		import log_cfg
-from .layout		import card, fonts, Coordinate
+from .generate		import create
+from .util		import log_cfg, input_secure
+from .defaults		import (
+    GROUPS, GROUP_THRESHOLD_RATIO, GROUP_REQUIRED_RATIO,
+    PATH_ETH_DEFAULT,
+    CARD, CARD_SIZES, PAGE_MARGIN, FONTS,
+)
+from .			import layout
 
 log				= logging.getLogger( __package__ )
 
@@ -52,20 +57,53 @@ def output(
     group_threshold: int,
     groups: Dict[str,Tuple[int,List[str]]],
     accounts: Dict[str, eth_account.Account],
+    card_format: str		= 'index',  # 'index' or '(<h>,<w>),<margin>'
+    page_format: str		= 'Letter',
 ):
     """Produces a PDF with a number of cards containing the provided slip39.Details."""
-    size		= (3, 5)
-    margin		= .25
-    margin_mm		= margin * 25.4
+    # Deduce the card size.
+    try:
+        (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
+    except KeyError:
+        (card_h,card_w),card_margin = ast.literal_eval( card_format )
 
-    pdf				= FPDF(
-        orientation	= 'L',
-        unit		= 'in',
-        format		= size,
+    card_size			= layout.Coordinate( y=card_h, x=card_w )
+    page_margin_mm		= PAGE_MARGIN * 25.4
+
+    # Compute how many cards per page.  Flip page portrait/landscape to match the cards'
+    card			= layout.card( card_size, card_margin )  # converts to mm
+    card_dim			= card.dimensions()
+
+    if card_dim.y >= card_dim.x:
+        orientation		= 'portrait'
+    else:
+        orientation		= 'landscape'
+    tplpdf			= FPDF(
+        orientation	= orientation,
+        format		= page_format,
     )
-    pdf.set_margin( margin )
+    tplpdf.set_margin( 0 )
 
-    tplpdf			= FPDF()
+    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    page_dim			= layout.Coordinate( x=tplpdf.epw, y=tplpdf.eph )
+    card_cols			= int(( page_dim.x - page_margin_mm * 2 ) // card_dim.x )
+    card_rows			= int(( page_dim.y - page_margin_mm * 2 ) // card_dim.y )
+    cards_pp			= card_rows * card_cols
+    log.info( f"Page: {orientation} {page_dim.x:.8}mm w x {page_dim.y:.8}mm h w/ {page_margin_mm}mm margins,"
+              f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {card_cols} x {card_rows} cards" )
+
+    def card_page( num ):
+        return int( num // cards_pp )
+
+    def card_xy( num ):
+        nth			= num % cards_pp
+        r			= nth // card_cols
+        c			= nth % card_cols
+        return layout.Coordinate( page_margin_mm + c * card_dim.x, page_margin_mm + r * card_dim.y )
+
+    elements			= list( card.elements() )
+    if log.isEnabledFor( logging.DEBUG ):
+        log.debug( f"Card elements: {json.dumps( elements, indent=4)}" )
     tpl				= FlexTemplate( tplpdf, list( card.elements() ))
 
     group_reqs			= list(
@@ -94,20 +132,6 @@ def output(
             for line in f:
                 log.info( line.strip() )
 
-    card_dim			= card.dimensions()
-    card_cols			= int(( tplpdf.epw - margin_mm * 2 ) // card_dim.x )
-    card_rows			= int(( tplpdf.eph - margin_mm * 2 ) // card_dim.y )
-    cards_pp			= card_rows * card_cols
-
-    def card_page( num ):
-        return int( num // cards_pp )
-
-    def card_xy( num ):
-        nth			= ( num % cards_pp )
-        r			= nth // card_cols
-        c			= nth % card_cols
-        return Coordinate( margin_mm + c * card_dim.x, margin_mm + r * card_dim.y )
-
     assert qr, "At least one ETH account must be supplied"
     for g_num,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
         log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
@@ -121,6 +145,7 @@ def output(
             tpl['card-requires'] = requires
             tpl['card-eth']	= eth
             tpl['card-qr']	= qr.get_image()
+            tpl['card-group']	= f"{g_name:5.5}{' ' if len(g_name)<=5 else '..'}{mn_num+1}"
 
             for n,m in enumerate_mnemonic( mnem ).items():
                 tpl[f"mnem-{n}"] = m
@@ -140,7 +165,8 @@ def group_parser( group_spec ):
     if not size:
         size			= 1
     if not require:
-        require			= math.ceil( int( size ) / 2. )		# eg. default 2/4, 3/5
+        # eg. default 2/4, 3/5
+        require			= math.ceil( int( size ) * GROUP_REQUIRED_RATIO )
     return name,(int(require),int(size))
 group_parser.RE			= re.compile( # noqa E305
     r"""^
@@ -176,10 +202,13 @@ def main( argv=None ):
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
     ap.add_argument( '-s', '--secret',
                      default=None,
-                     help="Use the supplied 128-bit hex value as the master secret seed (eg. from slip39.recover)" )
+                     help="Use the supplied 128-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
+    ap.add_argument( '-c', '--card',
+                     default=None,
+                     help=f"Card size; {', '.join(CARD_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {CARD})" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
@@ -198,26 +227,30 @@ def main( argv=None ):
 
     groups			= dict(
         group_parser( g )
-        for g in args.group or [ "First1", "Second(1/1)", "Fam(4)", "Fren/5" ]
+        for g in args.group or GROUPS
     )
-    group_threshold		= args.threshold or math.ceil( len( groups ) / 2. )
-
-    # Optional passphrase (utf-8 encoded bytes
-    passphrase			= args.passphrase or ""
-    if passphrase == '-':
-        passphrase		= getpass.getpass( 'Master seed passphrase: ' )
-    elif passphrase:
-        log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
+    group_threshold		= args.threshold or math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
     # Master secret seed supplied as hex
     master_secret		= args.secret
     if master_secret:
+        if master_secret == '-':
+            master_secret	= input_secure( 'Master secret hex: ' )
+        else:
+            log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
         if master_secret.lower().startswith('0x'):
             master_secret	= master_secret[2:]
         master_secret		= codecs.decode( master_secret, 'hex_codec' )
         len_bits		= len( master_secret ) * 8
         if len_bits != 128:
             raise ValueError( f"A {len_bits}-bit master secret was supplied; 128 bits expected" )
+
+    # Optional passphrase (utf-8 encoded bytes
+    passphrase			= args.passphrase or ""
+    if passphrase == '-':
+        passphrase		= input_secure( 'Master seed passphrase: ' )
+    elif passphrase:
+        log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
     # Generate each desired SLIP-39 wallet
     for name in args.names or [ "" ]:
@@ -228,8 +261,9 @@ def main( argv=None ):
                 groups		= groups,
                 master_secret	= master_secret,
                 passphrase	= passphrase.encode( 'utf-8' ),
-                paths	= args.path,
-            )
+                paths		= args.path,
+            ),
+            card_format		= args.card or CARD,
         )
         now			= datetime.now()
         path			= next(iter(accounts.keys()))
@@ -247,7 +281,7 @@ def main( argv=None ):
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
             if args.json == '-':
-                json_pwd	= getpass.getpass( 'JSON key file password: ' )
+                json_pwd	= input_secure( 'JSON key file password: ' )
             else:
                 json_pwd	= args.json
                 log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
@@ -273,22 +307,22 @@ def main( argv=None ):
 
                 # Add the encrypted JSON account recovery to the PDF also.
                 pdf.add_page()
-                margin_mm	= 1.0 * 25.4
+                margin_mm	= PAGE_MARGIN * 25.4
                 pdf.set_margin( 1.0 * 25.4 )
 
                 col_width	= pdf.epw - 2 * margin_mm
-                pdf.set_font( fonts['sans'], size=12 )
-                line_height	= pdf.font_size * 1.25
+                pdf.set_font( FONTS['sans'], size=10 )
+                line_height	= pdf.font_size * 1.2
                 pdf.cell( col_width, line_height, json_name )
                 pdf.ln( line_height )
 
-                pdf.set_font( fonts['sans'], size=10 )
-                line_height	= pdf.font_size * 1.25
+                pdf.set_font( FONTS['sans'], size=9 )
+                line_height	= pdf.font_size * 1.1
 
                 for line in json_str.split( '\n' ):
                     pdf.cell( col_width, line_height, line )
                     pdf.ln( line_height )
-                pdf.image( qrcode.make( json_str ).get_image(), h=pdf.epw/2, w=pdf.epw/2 )
+                pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
 
         pdf.output( pdf_name )
         log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )

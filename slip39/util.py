@@ -1,4 +1,6 @@
+import getpass
 import logging
+import sys
 
 log_cfg				= {
     "level":	logging.WARNING,
@@ -13,3 +15,12 @@ def ordinal(num):
     q, mod			= divmod( num, 10 )
     suffix			= q % 10 != 1 and ordinal_dict.get(mod) or "th"
     return f"{num}{suffix}"
+
+
+def input_secure( prompt ):
+    """When getting secure input from a stream, we don't want to use getpass, which attempts
+    to read from /dev/tty"""
+    if sys.stdin.isatty():
+        return getpass.getpass( prompt )
+    else:
+        return input( prompt )

@@ -7,7 +7,7 @@ import eth_account
 
 from shamir_mnemonic	import generate_mnemonics
 
-PATH_ETH_DEFAULT		= "m/44'/60'/0'/0/0"
+from .defaults		import PATH_ETH_DEFAULT
 
 RANDOM_BYTES			= secrets.token_bytes
 
