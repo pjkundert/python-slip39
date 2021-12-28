@@ -1,6 +1,7 @@
 import argparse
 import ast
 import codecs
+
 import io
 import json
 import logging
@@ -16,11 +17,11 @@ import eth_account
 from fpdf		import FPDF, FlexTemplate
 
 from .generate		import create
-from .util		import log_cfg, input_secure
+from .util		import log_cfg, log_level, input_secure
 from .defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, GROUP_REQUIRED_RATIO,
     PATH_ETH_DEFAULT,
-    CARD, CARD_SIZES, PAGE_MARGIN, FONTS,
+    CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
 )
 from .			import layout
 
@@ -57,64 +58,45 @@ def output(
     group_threshold: int,
     groups: Dict[str,Tuple[int,List[str]]],
     accounts: Dict[str, eth_account.Account],
-    card_format: str		= 'index',  # 'index' or '(<h>,<w>),<margin>'
-    page_format: str		= 'Letter',
-):
-    """Produces a PDF with a number of cards containing the provided slip39.Details."""
-    # Deduce the card size.
+    card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
+    paper_format: str		= PAPER,  # 'Letter', ...
+) -> Tuple[FPDF, Dict[str, eth_account.Account]]:
+    """Produces a PDF, containing a number of cards containing the provided slip39.Details if
+    card_format is not False, and pass through the supplied accounts."""
+
+    # Deduce the card size
     try:
         (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
     except KeyError:
         (card_h,card_w),card_margin = ast.literal_eval( card_format )
-
     card_size			= layout.Coordinate( y=card_h, x=card_w )
-    page_margin_mm		= PAGE_MARGIN * 25.4
 
     # Compute how many cards per page.  Flip page portrait/landscape to match the cards'
     card			= layout.card( card_size, card_margin )  # converts to mm
     card_dim			= card.dimensions()
 
-    if card_dim.y >= card_dim.x:
-        orientation		= 'portrait'
-    else:
-        orientation		= 'landscape'
-    tplpdf			= FPDF(
-        orientation	= orientation,
-        format		= page_format,
+    # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
+    page_margin_mm		= PAGE_MARGIN * 25.4
+    cards_pp,orientation,pdf,page_xy = max(
+        layout.pdf_layout( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
+        for orientation in ('portrait', 'landscape')
     )
-    tplpdf.set_margin( 0 )
-
-    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
-    page_dim			= layout.Coordinate( x=tplpdf.epw, y=tplpdf.eph )
-    card_cols			= int(( page_dim.x - page_margin_mm * 2 ) // card_dim.x )
-    card_rows			= int(( page_dim.y - page_margin_mm * 2 ) // card_dim.y )
-    cards_pp			= card_rows * card_cols
-    log.info( f"Page: {orientation} {page_dim.x:.8}mm w x {page_dim.y:.8}mm h w/ {page_margin_mm}mm margins,"
-              f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {card_cols} x {card_rows} cards" )
-
-    def card_page( num ):
-        return int( num // cards_pp )
-
-    def card_xy( num ):
-        nth			= num % cards_pp
-        r			= nth // card_cols
-        c			= nth % card_cols
-        return layout.Coordinate( page_margin_mm + c * card_dim.x, page_margin_mm + r * card_dim.y )
+    log.info( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
+              f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
 
     elements			= list( card.elements() )
     if log.isEnabledFor( logging.DEBUG ):
         log.debug( f"Card elements: {json.dumps( elements, indent=4)}" )
-    tpl				= FlexTemplate( tplpdf, list( card.elements() ))
+    tpl				= FlexTemplate( pdf, list( card.elements() ))
 
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Need {group_threshold} of {', '.join(group_reqs)} to recover."
+    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
 
     # Obtain the first ETH path and account, and address QR code
     qr				= None
     for path,acct in accounts.items():
-        log.info( f"ETH({path:16}): {acct.address}" )
         qrc			= qrcode.QRCode(
             version	= None,
             error_correction = qrcode.constants.ERROR_CORRECT_M,
@@ -133,26 +115,30 @@ def output(
                 log.info( line.strip() )
 
     assert qr, "At least one ETH account must be supplied"
-    for g_num,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
+    card_n			= 0
+    page_n			= None
+    for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
         log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
-        for mn_num,mnem in enumerate( g_mnems ):
+        for mn_n,mnem in enumerate( g_mnems ):
             log.info( f"  {mnem}" )
-            eth			= f"ETH({path}): {acct.address}{'...' if len(accounts)>1 else ''}"
-            if mn_num == 0 or card_page( mn_num ) > card_page( mn_num - 1 ):
-                tplpdf.add_page()
+            p,(offsetx,offsety)	= page_xy( card_n )
+            if p != page_n:
+                pdf.add_page()
+                page_n		= p
+            card_n	       += 1
 
-            tpl['card-title']	= f"SLIP39 {g_name}({mn_num+1}/{len(g_mnems)}) for: {name}"
+            tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
             tpl['card-requires'] = requires
-            tpl['card-eth']	= eth
+            tpl['card-eth']	= f"ETH {path}: {acct.address}{'...' if len(accounts)>1 else ''}"
             tpl['card-qr']	= qr.get_image()
-            tpl['card-group']	= f"{g_name:5.5}{' ' if len(g_name)<=5 else '..'}{mn_num+1}"
+            tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
 
             for n,m in enumerate_mnemonic( mnem ).items():
                 tpl[f"mnem-{n}"] = m
-            offsetx,offsety	= card_xy( mn_num )
+
             tpl.render( offsetx=offsetx, offsety=offsety )
 
-    return tplpdf,accounts
+    return pdf,accounts
 
 
 def group_parser( group_spec ):
@@ -187,6 +173,9 @@ def main( argv=None ):
     ap.add_argument( '-v', '--verbose', action="count",
                      default=0,
                      help="Display logging information." )
+    ap.add_argument( '-q', '--quiet', action="count",
+                     default=0,
+                     help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
                      default="{name}-{date}+{time}-{address}.pdf",
                      help="Output PDF to file or '-' (stdout); formatting w/ name, date, time, path and address allowed" )
@@ -209,16 +198,20 @@ def main( argv=None ):
     ap.add_argument( '-c', '--card',
                      default=None,
                      help=f"Card size; {', '.join(CARD_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {CARD})" )
+    ap.add_argument( '--paper',
+                     default=None,
+                     help=f"Paper size (default: {PAPER})" )
+    ap.add_argument( '--no-card', dest="card", action='store_false',
+                     help="Disable PDF SLIP-39 mnemonic card output" )
+    ap.add_argument( '--text', action='store_true',
+                     default=None,
+                     help="Enable textual SLIP-39 mnemonic output to stdout" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
 
-    levelmap 			= {
-        0: logging.WARNING,
-        1: logging.INFO,
-        2: logging.DEBUG,
-    }
-    log_cfg['level']		= levelmap[args.verbose] if args.verbose in levelmap else logging.DEBUG
+    log_cfg['level']		= log_level( args.verbose - args.quiet )
+
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
     # basicConfig is a NO-OP), by (also) setting the logging level
     logging.basicConfig( **log_cfg )
@@ -235,7 +228,7 @@ def main( argv=None ):
     master_secret		= args.secret
     if master_secret:
         if master_secret == '-':
-            master_secret	= input_secure( 'Master secret hex: ' )
+            master_secret	= input_secure( 'Master secret hex: ', secret=True )
         else:
             log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
         if master_secret.lower().startswith('0x'):
@@ -248,26 +241,42 @@ def main( argv=None ):
     # Optional passphrase (utf-8 encoded bytes
     passphrase			= args.passphrase or ""
     if passphrase == '-':
-        passphrase		= input_secure( 'Master seed passphrase: ' )
+        passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
-    # Generate each desired SLIP-39 wallet
+    # Generate each desired SLIP-39 wallet.  Supports --card (the default) and --text
     for name in args.names or [ "" ]:
-        pdf,accounts		= output(
-            *create(
-                name		= name,
-                group_threshold = group_threshold,
-                groups		= groups,
-                master_secret	= master_secret,
-                passphrase	= passphrase.encode( 'utf-8' ),
-                paths		= args.path,
-            ),
-            card_format		= args.card or CARD,
+        details			= create(
+            name		= name,
+            group_threshold	= group_threshold,
+            groups		= groups,
+            master_secret	= master_secret,
+            passphrase		= passphrase.encode( 'utf-8' ),
+            paths		= args.path,
         )
+        for path,account in details.accounts.items():
+            log.error( f"{path:20}: {account.address}" )
+
+        if args.text:
+            # Output the SLIP-39 mnemonics as text:
+            #    name: mnemonic
+            for g_name,(g_of,g_mnems) in details.groups.items():
+                for mnem in g_mnems:
+                    print( f"{name}{name and ': ' or ''}{mnem}" )
+
+        # Unless --no-card specified, output a PDF containing the SLIP-39 mnemonic recovery cards
+        pdf,accounts		= None,details.accounts
+        if args.card is not False:
+            pdf,_		= output(
+                *details,
+                card_format	= args.card or CARD,
+                paper_format	= args.paper or PAPER )
+
         now			= datetime.now()
         path			= next(iter(accounts.keys()))
         address			= accounts[path].address
+
         pdf_name		= args.output.format(
             name	= name or "SLIP39",
             date	= datetime.strftime( now, '%Y-%m-%d' ),
@@ -275,26 +284,22 @@ def main( argv=None ):
             path	= path,
             address	= address,
         )
+        if not pdf_name.lower().endswith( '.pdf' ):
+            pdf_name	       += '.pdf'
 
         if args.json:
             # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
             if args.json == '-':
-                json_pwd	= input_secure( 'JSON key file password: ' )
+                json_pwd	= input_secure( 'JSON key file password: ', secret=True )
             else:
                 json_pwd	= args.json
                 log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
             for path,account in accounts.items():
                 json_str	= json.dumps( eth_account.Account.encrypt( account.key, json_pwd ), indent=4 )
-                json_name	= args.output.format(
-                    name	= name or "SLIP39",
-                    date	= datetime.strftime( now, '%Y-%m-%d' ),
-                    time	= datetime.strftime( now, '%H.%M.%S'),
-                    path	= path,
-                    address	= address,
-                )
+                json_name	= pdf_name[:]
                 if json_name.lower().endswith( '.pdf' ):
                     json_name	= json_name[:-4]
                 json_name      += '.json'
@@ -305,26 +310,28 @@ def main( argv=None ):
                     json_f.write( json_str )
                 log.warning( f"Wrote JSON encrypted wallet for {name!r} to: {json_name}" )
 
-                # Add the encrypted JSON account recovery to the PDF also.
-                pdf.add_page()
-                margin_mm	= PAGE_MARGIN * 25.4
-                pdf.set_margin( 1.0 * 25.4 )
+                if pdf:
+                    # Add the encrypted JSON account recovery to the PDF also, if generated.
+                    pdf.add_page()
+                    margin_mm	= PAGE_MARGIN * 25.4
+                    pdf.set_margin( 1.0 * 25.4 )
 
-                col_width	= pdf.epw - 2 * margin_mm
-                pdf.set_font( FONTS['sans'], size=10 )
-                line_height	= pdf.font_size * 1.2
-                pdf.cell( col_width, line_height, json_name )
-                pdf.ln( line_height )
-
-                pdf.set_font( FONTS['sans'], size=9 )
-                line_height	= pdf.font_size * 1.1
-
-                for line in json_str.split( '\n' ):
-                    pdf.cell( col_width, line_height, line )
+                    col_width	= pdf.epw - 2 * margin_mm
+                    pdf.set_font( FONTS['sans'], size=10 )
+                    line_height	= pdf.font_size * 1.2
+                    pdf.cell( col_width, line_height, json_name )
                     pdf.ln( line_height )
-                pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
 
-        pdf.output( pdf_name )
-        log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )
+                    pdf.set_font( FONTS['sans'], size=9 )
+                    line_height	= pdf.font_size * 1.1
+
+                    for line in json_str.split( '\n' ):
+                        pdf.cell( col_width, line_height, line )
+                        pdf.ln( line_height )
+                    pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
+
+        if pdf:
+            pdf.output( pdf_name )
+            log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )
 
     return 0

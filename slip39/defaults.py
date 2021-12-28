@@ -35,12 +35,18 @@ FONTS				= dict(
 CREDIT_CARD			= (2+1/4, 3+3/8), 1/16
 INDEX_CARD			= (3,     5),     1/8   # noqa: E241
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
+HALF_LETTER			= (4+1/2, 8),     1/4   # noqa: E241 (actually, 2/letter, 3/legal)
+FULL_LETTER			= (8,    10),     1/4   # noqa: E241
 
 CARD				= 'index'
 CARD_SIZES			= dict(
     credit	= CREDIT_CARD,
     index	= INDEX_CARD,
     business	= BUSINESS_CARD,
+    half	= HALF_LETTER,
+    full	= FULL_LETTER
 )
 
 PAGE_MARGIN			= 1/4  # Typical printers cannot print within 1/4" of edge
+
+PAPER				= 'Letter'

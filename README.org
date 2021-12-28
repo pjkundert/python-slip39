@@ -21,13 +21,13 @@ Creating Ethereum accounts is complex and fraught with potential for loss of fun
 A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account.  If someone
 finds your recovery phrase, the account is /gone/.
 
-The SLIP-39 standard allows you to split the seed between 1 or more groups of multiple recovery
-phrases.  This is better, but creating such accounts is difficult; presently, only the Trezor
-supports these, and they can only be created "manually".  Writing down 5 or more sets of 20 words is
-difficult and time consuming.
+The SLIP-39 standard allows you to split the seed between 1 or more groups of several mnemonic
+recovery phrases.  This is better, but creating such accounts is difficult; presently, only the
+Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
+words is difficult, error-prone and time consuming.
 
 The [[https://github.com/pjkundert/=python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
-Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed,
+Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new random wallet seed,
 generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/66'/40'/0'/0/0= by default) with
 Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
 containing all the required printable cards to document the account.
@@ -98,25 +98,29 @@ to a USB drive for printing (or directly printed without the file being saved to
 * SLIP-39 Account Generation and Recovery
 
   Generating a new SLIP-39 encoded Ethereum wallet is easy, with results available as PDF and text.
-  The default groups are as described above.  Run the following to obtain a PDF file similar to this
-  example; insert a USB drive to collect the output, and run:
+  The default groups are as described above.  Run the following to obtain a PDF file containing
+  index cards with the default SLIP-39 groups for the account named "Personal"; insert a USB drive to collect the output, and run:
 
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
   $ python3 -m pip install slip39  # Install slip39 in Python3
   $ cd /Volumes/USBDRIVE/          # Change current directory to USB
-  $ python3 -m slip39 Perry        # Or just run "slip39 Perry"
-  2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Perry' to:\
-    Perry-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  $ python3 -m slip39 Personal     # Or just run "slip39 Personal"
+  2021-12-25 11:10:38 slip39           m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Personal' to:\
+    Personal-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
   #+LATEX: }
 
   The resultant PDF will be output into the designated file.
 
-  This PDF file can be printed on 3x5 cards, or on regular paper or card stock and the cards can be cut out.
+  This PDF file can be printed on 3x5 cards, or on regular paper or card stock and the cards can be
+  cut out (=--card credit= or =--card business= are also available).
 
   To get the data printed on the terminal as in this example (so you could write it down on cards
   instead), add a =-v=.
+
+** Recover & Regeneration
 
   Later, if you need to recover the Ethereum wallet, keep entering SLIP-39 mnemonics until the secret
   is recovered (invalid/duplicate mnemonics will be ignored):
@@ -148,6 +152,28 @@ to a USB drive for printing (or directly printed without the file being saved to
     SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
   #+LATEX: }
+
+*** Pipelining =slip39.recovery | slip39 --secret -=
+
+   The tools can be used in a pipeline to avoid printing the secret.  Here we generate some
+   mnemonics, sorting them in reverse order so we need more than just the first couple to recover.
+   Observe the Ethereum wallet address generated.
+
+   Then, we recover the master secret seed in hex with =slip39-recovery=, and finally send it to
+   =slip39 --secret -= to re-generate the same wallet as we originally created.
+
+   #+LATEX: {\scriptsize
+   #+BEGIN_SRC bash :exports both :results output
+   ( python3 -m slip39 --text --no-card -q \
+       | sort -r \
+       | python3 -m slip39.recovery \
+       | python3 -m slip39 --secret - --no-card -q ) 2>&1
+   #+END_SRC
+   #+RESULTS:
+   : 2021-12-28 10:55:17 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+   : 2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
+   : 2021-12-28 10:55:18 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+   #+LATEX: }
 
 ** The =slip39= module API
    
@@ -208,37 +234,37 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[16]:
+    # Out[2]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
-    | Mine(1/1) #1: | 1 guest    | 8 harvest   | 15 true     |
-    |               | 2 discuss  | 9 research  | 16 hamster  |
-    |               | 3 acrobat  | 10 preach   | 17 maiden   |
-    |               | 4 easy     | 11 scholar  | 18 therapy  |
-    |               | 5 budget   | 12 knife    | 19 capacity |
-    |               | 6 username | 13 destroy  | 20 sympathy |
-    |               | 7 payment  | 14 racism   |             |
-    | Fam(2/3) #1:  | 1 guest    | 8 thumb     | 15 demand   |
-    |               | 2 discuss  | 9 favorite  | 16 briefing |
-    |               | 3 beard    | 10 coding   | 17 drift    |
-    |               | 4 echo     | 11 often    | 18 raisin   |
-    |               | 5 cowboy   | 12 mild     | 19 husky    |
-    |               | 6 emission | 13 regular  | 20 idea     |
-    |               | 7 fangs    | 14 avoid    |             |
-    | Fam(2/3) #2:  | 1 guest    | 8 distance  | 15 insect   |
-    |               | 2 discuss  | 9 easy      | 16 phantom  |
-    |               | 3 beard    | 10 sweater  | 17 venture  |
-    |               | 4 email    | 11 taught   | 18 modern   |
-    |               | 5 change   | 12 agree    | 19 metric   |
-    |               | 6 mustang  | 13 crowd    | 20 diet     |
-    |               | 7 mental   | 14 coastal  |             |
-    | Fam(2/3) #3:  | 1 guest    | 8 express   | 15 spirit   |
-    |               | 2 discuss  | 9 response  | 16 satisfy  |
-    |               | 3 beard    | 10 sidewalk | 17 glen     |
-    |               | 4 entrance | 11 agency   | 18 violence |
-    |               | 5 dish     | 12 angel    | 19 often    |
-    |               | 6 weapon   | 13 overall  | 20 company  |
-    |               | 7 losing   | 14 game     |             |
+    | Mine(1/1) #1: | 1 plot     | 8 paid      | 15 drift    |
+    |               | 2 roster   | 9 black     | 16 standard |
+    |               | 3 acrobat  | 10 center   | 17 beaver   |
+    |               | 4 easy     | 11 bolt     | 18 ancestor |
+    |               | 5 aluminum | 12 discuss  | 19 pink     |
+    |               | 6 frozen   | 13 withdraw | 20 nail     |
+    |               | 7 spirit   | 14 ceiling  |             |
+    | Fam(2/3) #1:  | 1 plot     | 8 broken    | 15 pumps    |
+    |               | 2 roster   | 9 frozen    | 16 main     |
+    |               | 3 beard    | 10 distance | 17 very     |
+    |               | 4 echo     | 11 careful  | 18 cradle   |
+    |               | 5 dismiss  | 12 security | 19 laden    |
+    |               | 6 database | 13 keyboard | 20 finance  |
+    |               | 7 eraser   | 14 estimate |             |
+    | Fam(2/3) #2:  | 1 plot     | 8 observe   | 15 ticket   |
+    |               | 2 roster   | 9 leaves    | 16 peasant  |
+    |               | 3 beard    | 10 viral    | 17 album    |
+    |               | 4 email    | 11 hazard   | 18 permit   |
+    |               | 5 duckling | 12 destroy  | 19 tofu     |
+    |               | 6 crunch   | 13 dish     | 20 submit   |
+    |               | 7 husky    | 14 triumph  |             |
+    | Fam(2/3) #3:  | 1 plot     | 8 priest    | 15 injury   |
+    |               | 2 roster   | 9 theater   | 16 shaft    |
+    |               | 3 beard    | 10 render   | 17 ounce    |
+    |               | 4 entrance | 11 volume   | 18 finance  |
+    |               | 5 dilemma  | 12 chest    | 19 unfold   |
+    |               | 6 craft    | 13 violence | 20 oral     |
+    |               | 7 dominant | 14 behavior |             |
     :end:
 
     #+LATEX: }
@@ -269,10 +295,12 @@ to a USB drive for printing (or directly printed without the file being saved to
     #+LATEX: {\scriptsize
     | Key             | Description                                       |
     |-----------------+---------------------------------------------------|
-    | name            | (same)                                            |
-    | group_threshold | (same)                                            |
+    | name            | (same as =slip39.create=)                         |
+    | group_threshold | (same as =slip39.create=)                         |
     | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
     | accounts        | Resultant { "path": eth_account.Account, ...}     |
+    | card_format     | 'index', ...                                      |
+    | paper_format    | 'Letter', ...                                     |
     #+LATEX: }
 
     Produce a PDF containing all the SLIP-39 details for the account.
@@ -320,7 +348,6 @@ to a USB drive for printing (or directly printed without the file being saved to
     :end:
 
     #+LATEX: }
-
 
 * Dependencies
 

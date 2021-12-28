@@ -9,6 +9,27 @@ log_cfg				= {
     "format":	'%(asctime)s %(name)-16.16s %(message)s',
 }
 
+log_levelmap 			= {
+    -2: logging.FATAL,
+    -1: logging.ERROR,
+    0: logging.WARNING,
+    1: logging.INFO,
+    2: logging.DEBUG,
+}
+
+
+def log_level( adjust ):
+    """Return a logging level corresponding to the +'ve/-'ve adjustment"""
+    return log_levelmap[
+        max(
+            min(
+                adjust,
+                max( log_levelmap.keys() )
+            ),
+            min( log_levelmap.keys() )
+        )
+    ]
+
 
 def ordinal(num):
     ordinal_dict		= {1: "st", 2: "nd", 3: "rd"}
@@ -17,10 +38,17 @@ def ordinal(num):
     return f"{num}{suffix}"
 
 
-def input_secure( prompt ):
-    """When getting secure input from a stream, we don't want to use getpass, which attempts
-    to read from /dev/tty"""
+def input_secure( prompt, secret=True ):
+    """When getting secure (optionally secret) input from standard input, we don't want to use getpass, which
+    attempts to read from /dev/tty.
+
+    """
     if sys.stdin.isatty():
-        return getpass.getpass( prompt )
+        # From TTY; provide prompts, and do not echo secret input
+        if secret:
+            return getpass.getpass( prompt )
+        else:
+            return input( prompt )
     else:
-        return input( prompt )
+        # Not a TTY; don't litter pipeline output with prompts
+        return input()

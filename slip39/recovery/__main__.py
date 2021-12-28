@@ -3,7 +3,7 @@ import codecs
 import logging
 import sys
 
-from ..util		import log_cfg, input_secure, ordinal
+from ..util		import log_cfg, log_level, input_secure, ordinal
 from .			import recover
 
 log				= logging.getLogger( __package__ )
@@ -26,6 +26,9 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
     ap.add_argument( '-v', '--verbose', action="count",
                      default=0,
                      help="Display logging information." )
+    ap.add_argument( '-q', '--quiet', action="count",
+                     default=0,
+                     help="Reduce logging output." )
     ap.add_argument( '-m', '--mnemonic', action='append',
                      help="Supply another SLIP-39 mnemonic phrase" )
     ap.add_argument( '-p', '--passphrase',
@@ -33,12 +36,8 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
     args			= ap.parse_args( argv )
 
-    levelmap 			= {
-        0: logging.WARNING,
-        1: logging.INFO,
-        2: logging.DEBUG,
-    }
-    log_cfg['level']		= levelmap[args.verbose] if args.verbose in levelmap else logging.DEBUG
+    log_cfg['level']		= log_level( args.verbose - args.quiet )
+
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
     # basicConfig is a NO-OP), by (also) setting the logging level
     logging.basicConfig( **log_cfg )
@@ -48,26 +47,28 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
     # Optional passphrase (utf-8 encoded bytes)
     passphrase			= args.passphrase or ""
     if passphrase == '-':
-        passphrase		= input_secure( 'Master seed passphrase: ' )
+        passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
-    # Collect mnemonics 'til we can successfully recover the master secret seed
-
+    # Collect more mnemonics 'til we can successfully recover the master secret seed
     mnemonics			= args.mnemonic or []
-    master_secret		= None
-    while master_secret is None:
+    secret			= None
+    while secret is None:
         try:
-            master_secret	= recover( mnemonics, passphrase.encode( 'utf-8' ))
+            secret		= recover( mnemonics, passphrase.encode( 'utf-8' ))
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
             if mnemonics:
                 log.info( f"Could not recover SLIP-39 master secret with {len(mnemonics)} supplied mnemonics: {exc}" )
-            mnemonics.append( input( f"Enter {ordinal(len(mnemonics)+1)} SLIP-39 mnemonic: " ))
-    if master_secret:
-        secret			= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
-        log.warning( "Recovered SLIP-39 secret; Use: python3 -m slip39 --secret -" )
+            phrase		= input_secure( f"Enter {ordinal(len(mnemonics)+1)} SLIP-39 mnemonic: ", secret=False )
+            if ':' in phrase:  # Discard any "<name>: <mnemonic>" name prefix.
+                _,phrase	= phrase.split( ':', 1 )
+            mnemonics.append( phrase )
+    if secret:
+        secret			= codecs.encode( secret, 'hex_codec' ).decode( 'ascii' )
+        log.info( "Recovered SLIP-39 secret; To re-generate, send it to: python3 -m slip39 --secret -" )
         print( secret )
     return 0
 

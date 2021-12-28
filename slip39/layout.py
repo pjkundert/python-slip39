@@ -1,5 +1,8 @@
 from collections	import namedtuple
+from collections.abc	import Callable
+from typing		import Tuple
 
+from fpdf		import FPDF
 
 from .defaults		import FONTS
 
@@ -135,9 +138,35 @@ def card(
     card_interior		= card.add_region_relative(
         Region( 'card-interior', x1=+card_margin, y1=+card_margin, x2=-card_margin, y2=-card_margin )
     )
-    card_interior.add_region_proportional(
-        Text( 'card-group', x1=1/8, y1=-1/8, x2=7/8, y2=3/8, foreground=0xFFCCCC, rotate=-45 )  # almost white
-    )
+    for g_n in range( 16 ):
+        o = "BB"
+        h = "DD"
+        f = "FF"
+        color			= [
+            # Primary
+            f"0x{f}{o}{o}",  # Red
+            f"0x{o}{f}{o}",  # Green
+            f"0x{o}{o}{f}",  # Blue
+            # Secondary
+            f"0x{o}{f}{f}",  # Cyan,
+            f"0x{f}{o}{f}",  # Magenta
+            f"0x{f}{f}{o}",  # Yellow
+            # Tertiary
+            f"0x{f}{h}{o}",  # Orange
+            f"0x{h}{f}{o}",  # Lime
+            f"0x{h}{o}{f}",  # Violet
+            f"0x{f}{o}{h}",  # Red-Magenta
+            f"0x{o}{h}{f}",  # Ocean
+            f"0x{o}{f}{h}",  # Turquoise
+            # Other
+            f"0x{o}{h}{h}",  # Light Cyan
+            f"0x{h}{o}{h}",  # Light Magenta
+            f"0x{h}{h}{o}",  # Light Yellow
+            f"0x{h}{h}{h}",  # Light grey,
+        ]
+        card_interior.add_region_proportional(
+            Text( f'card-g{g_n}', x1=1/8, y1=-1/8, x2=7/8, y2=3/8, foreground=int( color[g_n], 16 ), rotate=-45 )
+        )
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
     )
@@ -171,3 +200,34 @@ def card(
                       font='mono', size_ratio=1/2 )
             )
     return card
+
+
+def pdf_layout(
+        card_dim: Coordinate,                   # mm.
+        page_margin_mm: float	= .25 * 25.4,   # mm.
+        orientation: str	= 'portrait',
+        paper_format: str	= 'Letter'
+) -> Tuple[int, FPDF, Callable[[int],[int, Coordinate]]]:
+    """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
+    cards per page, the FPDF, and a function useful for laying out templates on the pages of the
+    PDF."""
+    pdf				= FPDF(
+        orientation	= orientation,
+        format		= paper_format,
+    )
+    pdf.set_margin( 0 )
+
+    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    # Allow 5% bleed over into page margins (to allow for slight error in paper vs. card sizes)
+    card_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // card_dim.x )
+    card_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // card_dim.y )
+    cards_pp			= card_rows * card_cols
+
+    def page_xy( num ):
+        """Returns the page, and the coordinates within that page"""
+        page,nth		= divmod( num, cards_pp )
+        page_rows,page_cols	= divmod( nth, card_cols )
+        return (page, Coordinate( page_margin_mm + page_cols * card_dim.x,
+                                  page_margin_mm + page_rows * card_dim.y ))
+
+    return (cards_pp, orientation, pdf, page_xy)
