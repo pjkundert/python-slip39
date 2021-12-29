@@ -81,7 +81,7 @@ def output(
         layout.pdf_layout( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in ('portrait', 'landscape')
     )
-    log.info( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
+    log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
               f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
 
     elements			= list( card.elements() )
@@ -256,7 +256,7 @@ def main( argv=None ):
             paths		= args.path,
         )
         for path,account in details.accounts.items():
-            log.error( f"{path:20}: {account.address}" )
+            log.error( f"ETH {path:20}: {account.address}" )
 
         if args.text:
             # Output the SLIP-39 mnemonics as text:

@@ -54,35 +54,58 @@ On an secure (ideally air-gapped) computer, new accounts can safely be generated
 to a USB drive for printing (or directly printed without the file being saved to disk.)
 
     $ python3 -m slip39 -v
-    2021-12-25 11:02:20 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
+    2021-12-29 13:21:57 slip39           ETH m/44'/60'/0'/0/0    : 0x8686D2cb685A934233eB8a4907d17e45257eBaD0
     ...
-    2021-12-25 11:02:20 slip39           First(1/1): Need 2 of First(1), Second(1), Fam(2/4), Fren(3/5) to recover.
-    2021-12-25 11:02:20 slip39             valuable discuss acrobat romp apart trust earth brother election bundle finance darkness dryer capacity chubby laundry diet glasses fiction general
-    2021-12-25 11:02:20 slip39           Second(1/1): Need 2 of First(1), Second(1), Fam(2/4), Fren(3/5) to recover.
-    2021-12-25 11:02:20 slip39             valuable discuss beard romp duckling move space bolt wolf junior cargo disaster desert vintage bulb rhythm dictate timber impact losing
+    2021-12-29 13:21:57 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2021-12-29 13:21:57 slip39             withdraw pajamas acrobat romp afraid engage sniff olympic rescue taxi careful calcium radar thank realize join thank parcel desktop tofu
+    2021-12-29 13:21:57 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2021-12-29 13:21:57 slip39             withdraw pajamas beard romp ajar cricket medical human unkind undergo legend briefing climate learn member change glasses maximum critical photo
+    2021-12-29 13:21:57 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2021-12-29 13:21:57 slip39             withdraw pajamas ceramic roster daisy voice bike spider rhyme stay slow devote phantom cricket carpet favorite decent society ending elite
+    2021-12-29 13:21:57 slip39             withdraw pajamas ceramic scared calcium says spew fake blue exceed actress velvet romp ounce mild smear sled kernel divorce oral
     ...
-    2021-12-25 11:02:20 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-25+11.02.20-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+    2021-12-29 13:21:57 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-29+13.21.57-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.pdf
 
 Later, if you need to recover the Ethereum wallet, keep entering SLIP-39 mnemonics until the secret
 is recovered (invalid/duplicate mnemonics will be ignored):
 
     $ python3 -m slip39.recovery -v
-    Enter 1st SLIP-39 mnemonic: ab c
-    Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
-    Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover trend best retailer club income coding round mama critical spill endless
-    Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy editor penalty woman beyond divorce check oasis thumb envy spit
-    2021-12-25 11:03:33 slip39.recovery  Recovered SLIP-39 secret; Use:  python3 -m slip39 --secret ...
-    383597fd63547e7c9525575decd413f7
+    Enter 1st SLIP-39 mnemonic: withdraw pajamas acrobat romp afraid engage sniff olympic rescue taxi careful calcium radar thank realize join thank parcel desktop tofu
+    2021-12-29 13:24:25 slip39.recovery  Could not recover SLIP-39 master secret with 1 supplied mnemonics: Insufficient number of mnemonic groups. The required number of groups is 2.
+    Enter 2nd SLIP-39 mnemonic: a bc
+    2021-12-29 13:24:53 slip39.recovery  Could not recover SLIP-39 master secret with 2 supplied mnemonics: Invalid mnemonic word 'a'.
+    Enter 3rd SLIP-39 mnemonic:  withdraw pajamas ceramic roster daisy voice bike spider rhyme stay slow devote phantom cricket carpet favorite decent society ending elite
+    2021-12-29 13:24:58 slip39.recovery  Could not recover SLIP-39 master secret with 3 supplied mnemonics: Invalid mnemonic word 'a'.
+    Enter 4th SLIP-39 mnemonic: withdraw pajamas ceramic scared calcium says spew fake blue exceed actress velvet romp ounce mild smear sled kernel divorce oral
+    2021-12-29 13:25:14 slip39.recovery  Recovered SLIP-39 secret with 3 (1st, 3rd, 4th) of 4 supplied mnemonics
+    2021-12-29 13:25:14 slip39.recovery  Recovered SLIP-39 secret; To re-generate, send it to: python3 -m slip39 --secret -
+    9658a84b5138f63c428f6086be6e82b5
 
 Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for import
-into a software wallet:
+into a software wallet; note that the same Ethereum wallet address 0x8686...BaD0 is recovered:
 
-    $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
-    2021-12-25 11:09:57 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
-    ...
+    $ python3 -m slip39 --secret 9658a84b5138f63c428f6086be6e82b5 --json -
+    2021-12-29 13:26:04 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+    2021-12-29 13:26:04 slip39           ETH m/44'/60'/0'/0/0    : 0x8686D2cb685A934233eB8a4907d17e45257eBaD0
     JSON key file password: <enter JSON wallet password>
-    2021-12-25 11:10:38 slip39           Wrote JSON encrypted wallet for '' to: SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.json
-    2021-12-25 11:10:39 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+    2021-12-29 13:26:29 slip39           Wrote JSON encrypted wallet for '' to: SLIP39-2021-12-29+13.26.04-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.json
+    2021-12-29 13:26:29 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-29+13.26.04-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.pdf
+
+The whole toolchain is suitable for pipelining:
+
+   $ python3 -m slip39 --text --no-card -q \
+       | sort -r \
+       | python3 -m slip39.recovery \
+       | python3 -m slip39 --secret - --no-card -q
+   2021-12-28 10:55:17 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+   2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
+   2021-12-28 10:55:18 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+
+Here's an example of PDF containing the SLIP-39 recovery mnemonic cards produced:
+
+![slip39 mnemonic cards][slip39-pdf]
+
+[slip39-pdf]: https://github.com/pjkundert/python-slip39/raw/master/images/slip39-pdf.png "slip39 mnemonic cards PDF"
 """
 
 classifiers			= [
