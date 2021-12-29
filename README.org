@@ -26,7 +26,7 @@ recovery phrases.  This is better, but creating such accounts is difficult; pres
 Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
 words is difficult, error-prone and time consuming.
 
-The [[https://github.com/pjkundert/=python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
+The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
 Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new random wallet seed,
 generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/66'/40'/0'/0/0= by default) with
 Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
