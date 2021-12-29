@@ -93,9 +93,9 @@ into a software wallet; note that the same Ethereum wallet address 0x8686...BaD0
 
 The whole toolchain is suitable for pipelining:
 
-    $ python3 -m slip39 --text --no-card -q \
-        | sort -r \
-        | python3 -m slip39.recovery \
+    $ python3 -m slip39 --text --no-card -q \\
+        | sort -r \\
+        | python3 -m slip39.recovery \\
         | python3 -m slip39 --secret - --no-card -q
     2021-12-28 10:55:17 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
     2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
