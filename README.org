@@ -175,6 +175,13 @@ to a USB drive for printing (or directly printed without the file being saved to
    : 2021-12-28 10:55:18 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
    #+LATEX: }
 
+** Recovery Menonic Cards PDF
+
+   This is what the output SLIP-39 mnemonic cards PDF looks like:
+
+   #+CAPTION: SLIP39 Mnemonic Cards PDF
+   [[./images/slip39-pdf.png]]
+
 ** The =slip39= module API
    
    Provide SLIP-39 Mnemonic set creation from a 128-bit master secret, and recovery of the secret
