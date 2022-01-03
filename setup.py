@@ -46,7 +46,7 @@ difficult and time consuming.
 
 The python-slip39 project exists to assist in the safe creation and documentation of Ethereum HD
 Wallet accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed,
-generates standard Ethereum account(s) (at derivation path =m/66'/40'/0'/0/0= by default) with
+generates standard Ethereum account(s) (at derivation path =m/44'/60'/0'/0/0= by default) with
 Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
 containing all the required printable cards to document the account.
 
@@ -97,9 +97,9 @@ The whole toolchain is suitable for pipelining:
         | sort -r \\
         | python3 -m slip39.recovery \\
         | python3 -m slip39 --secret - --no-card -q
-    2021-12-28 10:55:17 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+    2021-12-28 10:55:17 slip39           ETH m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
     2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
-    2021-12-28 10:55:18 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+    2021-12-28 10:55:18 slip39           ETH m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
 
 Here's an example of PDF containing the SLIP-39 recovery mnemonic cards produced:
 

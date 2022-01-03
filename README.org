@@ -28,7 +28,7 @@ words is difficult, error-prone and time consuming.
 
 The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
 Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new random wallet seed,
-generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/66'/40'/0'/0/0= by default) with
+generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) with
 Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
 containing all the required printable cards to document the account.
 
@@ -170,9 +170,9 @@ to a USB drive for printing (or directly printed without the file being saved to
        | python3 -m slip39 --secret - --no-card -q ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2021-12-28 10:55:17 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
-   : 2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
-   : 2021-12-28 10:55:18 slip39           m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+   : 2022-01-03 10:37:06 slip39           ETH m/44'/60'/0'/0/0    : 0xe751A1C06e7FaaEd7054F47f88145C21AFD46A15
+   : 2022-01-03 10:37:07 slip39.recovery  Recovered 128-bit SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
+   : 2022-01-03 10:37:07 slip39           ETH m/44'/60'/0'/0/0    : 0xe751A1C06e7FaaEd7054F47f88145C21AFD46A15
    #+LATEX: }
 
 ** Recovery Mnemonic Cards PDF
@@ -221,11 +221,23 @@ to a USB drive for printing (or directly printed without the file being saved to
     import codecs
     import random
 
+    #
+    # NOTE:
+    #
+    # We turn off randomness here during SLIP-39 generation to get deterministic phrases;
+    # during normal operation, secure entropy is used during mnemonic generation, yielding
+    # random phrases, even when the same seed is used multiple times.
+    # 
+    import shamir_mnemonic
+    shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
+
     import eth_account
     import slip39
-    paths = [ "m/60'/44'/0'/0/0", "m/60'/44'/0'/0/1" ]
-    master_secret,passphrase = bytes(range(16)),b"password!" # >8/
-    create_details = slip39.create(
+
+    paths               = [ "m/44'/60'/0'/0/0", "m/44'/60'/0'/0/1" ]
+    master_secret       = b'\xFF' * 16
+    passphrase          = b""
+    create_details      = slip39.create(
         "Test", 2, { "Mine": (1,1), "Fam": (2,3) },
         master_secret=master_secret, passphrase=passphrase, paths=paths )
     [
@@ -235,43 +247,43 @@ to a USB drive for printing (or directly printed without the file being saved to
         for g_name,(g_of,g_mnems) in create_details.groups.items()
         for g_n,mnem in enumerate( g_mnems )
         for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
-                mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+                mnem, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[2]:
+    # Out[308]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
-    | Mine(1/1) #1: | 1 plot     | 8 paid      | 15 drift    |
-    |               | 2 roster   | 9 black     | 16 standard |
-    |               | 3 acrobat  | 10 center   | 17 beaver   |
-    |               | 4 easy     | 11 bolt     | 18 ancestor |
-    |               | 5 aluminum | 12 discuss  | 19 pink     |
-    |               | 6 frozen   | 13 withdraw | 20 nail     |
-    |               | 7 spirit   | 14 ceiling  |             |
-    | Fam(2/3) #1:  | 1 plot     | 8 broken    | 15 pumps    |
-    |               | 2 roster   | 9 frozen    | 16 main     |
-    |               | 3 beard    | 10 distance | 17 very     |
-    |               | 4 echo     | 11 careful  | 18 cradle   |
-    |               | 5 dismiss  | 12 security | 19 laden    |
-    |               | 6 database | 13 keyboard | 20 finance  |
-    |               | 7 eraser   | 14 estimate |             |
-    | Fam(2/3) #2:  | 1 plot     | 8 observe   | 15 ticket   |
-    |               | 2 roster   | 9 leaves    | 16 peasant  |
-    |               | 3 beard    | 10 viral    | 17 album    |
-    |               | 4 email    | 11 hazard   | 18 permit   |
-    |               | 5 duckling | 12 destroy  | 19 tofu     |
-    |               | 6 crunch   | 13 dish     | 20 submit   |
-    |               | 7 husky    | 14 triumph  |             |
-    | Fam(2/3) #3:  | 1 plot     | 8 priest    | 15 injury   |
-    |               | 2 roster   | 9 theater   | 16 shaft    |
-    |               | 3 beard    | 10 render   | 17 ounce    |
-    |               | 4 entrance | 11 volume   | 18 finance  |
-    |               | 5 dilemma  | 12 chest    | 19 unfold   |
-    |               | 6 craft    | 13 violence | 20 oral     |
-    |               | 7 dominant | 14 behavior |             |
+    | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
+    |               | 2 acid     | 9 drug      | 16 angry    |
+    |               | 3 acrobat  | 10 browser  | 17 similar  |
+    |               | 4 easy     | 11 trash    | 18 aspect   |
+    |               | 5 change   | 12 fridge   | 19 smug     |
+    |               | 6 injury   | 13 busy     | 20 violence |
+    |               | 7 painting | 14 finger   |             |
+    | Fam(2/3) #1:  | 1 academic | 8 prevent   | 15 dwarf    |
+    |               | 2 acid     | 9 mouse     | 16 dream    |
+    |               | 3 beard    | 10 daughter | 17 flavor   |
+    |               | 4 echo     | 11 ancient  | 18 oral     |
+    |               | 5 crystal  | 12 fortune  | 19 chest    |
+    |               | 6 machine  | 13 ruin     | 20 marathon |
+    |               | 7 bolt     | 14 warmth   |             |
+    | Fam(2/3) #2:  | 1 academic | 8 prune     | 15 briefing |
+    |               | 2 acid     | 9 pickup    | 16 often    |
+    |               | 3 beard    | 10 device   | 17 escape   |
+    |               | 4 email    | 11 device   | 18 sprinkle |
+    |               | 5 dive     | 12 peanut   | 19 segment  |
+    |               | 6 warn     | 13 enemy    | 20 devote   |
+    |               | 7 ranked   | 14 graduate |             |
+    | Fam(2/3) #3:  | 1 academic | 8 dining    | 15 intimate |
+    |               | 2 acid     | 9 invasion  | 16 satoshi  |
+    |               | 3 beard    | 10 bumpy    | 17 hobo     |
+    |               | 4 entrance | 11 identify | 18 ounce    |
+    |               | 5 alarm    | 12 anxiety  | 19 both     |
+    |               | 6 health   | 13 august   | 20 award    |
+    |               | 7 discuss  | 14 sunlight |             |
     :end:
 
     #+LATEX: }
@@ -288,11 +300,11 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[17]:
+    # Out[283]:
     | 0                | 1                                          |
     |------------------+--------------------------------------------|
-    | m/60'/44'/0'/0/0 | 0x7A64E13f00a4502b62d45EED15d6254b9Cc10a34 |
-    | m/60'/44'/0'/0/1 | 0xF7dc45001A1F3b26565B1364b03C76553FBEE931 |
+    | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
+    | m/44'/60'/0'/0/1 | 0x8D342083549C635C0494d3c77567860ee7456963 |
     :end:
 
     #+LATEX: }
@@ -306,7 +318,7 @@ to a USB drive for printing (or directly printed without the file being saved to
     | group_threshold | (same as =slip39.create=)                         |
     | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
     | accounts        | Resultant { "path": eth_account.Account, ...}     |
-    | card_format     | 'index', ...                                      |
+    | card_format     | 'index', '(<h>,<w>),<margin>', ...                |
     | paper_format    | 'Letter', ...                                     |
     #+LATEX: }
 
@@ -323,6 +335,14 @@ to a USB drive for printing (or directly printed without the file being saved to
     Takes a number of SLIP-39 mnemonics, and if sufficient =group_threshold= groups' mnemonics are
     present (and the options =passphrase= is supplied), the =master_secret= is recovered.  This can
     be used with =slip39.accounts= to directly obtain any =eth_account.Account= data.
+
+    Note that the passphrase is *not* checked; entering a different passphrase for the same set of
+    mnemonics will recover a *different* wallet!  This is by design; it allows the holder of the
+    SLIP-39 mnemonic phrases to recover a "decoy" wallet by supplying a specific passphrase, while
+    protecting the "primary" wallet.
+
+    Therefore, it is *essential* to remember any non-default (empty) passphrase used, separately and
+    securely.  Take great care in deciding if you wish to use a passphrase with your SLIP-39 wallet!
     
     #+LATEX: {\scriptsize
     | Key        | Description                                       |
@@ -333,28 +353,389 @@ to a USB drive for printing (or directly printed without the file being saved to
     
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    recovery = slip39.recover(
-        create_details.groups['Mine'][1] + create_details.groups['Fam'][1][:2],
+    recoverydecoy       = slip39.recover(
+        create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
+        passphrase=b"wrong!"
+    )
+    recoverydecoyhex    = codecs.encode( recoverydecoy, 'hex_codec' ).decode( 'ascii' )
+
+    recoveryvalid       = slip39.recover(
+        create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
         passphrase=passphrase
     )
-    recoveryhex = codecs.encode( recovery, 'hex_codec' ).decode( 'ascii' )
+    recoveryvalidhex    = codecs.encode( recoveryvalid, 'hex_codec' ).decode( 'ascii' )
 
-    [[ f"{len(recovery)*8}-bit secret recovered:" ]] + [
-     [ f"{recoveryhex[b*32:b*32+32]}" ]
-        for b in range( len( recoveryhex ) // 32 )
+    [[ f"{len(recoverydecoy)*8}-bit secret w/ decoy password recovered:" ]] + [
+     [ f"{recoverydecoyhex[b*32:b*32+32]}" ]
+        for b in range( len( recoverydecoyhex ) // 32 )
+    ] +  [[ f"{len(recoveryvalid)*8}-bit secret recovered:" ]] + [
+     [ f"{recoveryvalidhex[b*32:b*32+32]}" ]
+        for b in range( len( recoveryvalidhex ) // 32 )
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[18]:
-    | 0                                |
-    |----------------------------------|
-    | 128-bit secret recovered:        |
-    | 000102030405060708090a0b0c0d0e0f |
+    # Out[284]:
+    | 0                                           |
+    |---------------------------------------------|
+    | 128-bit secret w/ decoy password recovered: |
+    | 2e522cea2b566840495c220cf79c756e            |
+    | 128-bit secret recovered:                   |
+    | ffffffffffffffffffffffffffffffff            |
     :end:
 
     #+LATEX: }
+
+* Conversion from BIP-39 to SLIP-39
+
+  If we already have a BIP-39 wallet, it would certainly be nice to be able to create nice, safe
+  SLIP-39 mnemonics for it, and discard the unsafe BIP-39 mnemonics we have lying around, just
+  waiting to be accidentally discovered and the account compromised!
+
+** BIP-39 vs. SLIP-39 Incompatibility
+
+   Unfortunately, it is *not possible* to cleanly convert a BIP-39 derived wallet into a SLIP-39
+   wallet.  Both of these techniques preserve "entropy" (random) bits, but these bits are used
+   *differently* -- and incompatibly -- to derive the resultant Ethereum wallets.
+
+   The best we can do is to preserve the 512-bit *output* of the BIP-39 mnemonic phrase as a set of
+   512-bit SLIP-39 mnemonics.
+
+*** BIP-39 Entropy to Mnemonic
+
+    BIP-39 uses a single set of 12, 15, 18, 21 or 24 BIP-39 words to carefully preserve a specific
+    128 to 256 bits of initial entropy.  Here's a 128-bit (12-word) example using some fixed
+    "entropy" =0xFFFF..FFFF=:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    from eth_account.hdaccount.mnemonic import Mnemonic
+    bip39_english       = Mnemonic("english")
+    entropy             = b'\xFF' * 16
+    entropy_mnemonic    = bip39_english.to_mnemonic( entropy )
+    [[entropy_mnemonic]]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[285]:
+    | 0                                                 |
+    |---------------------------------------------------|
+    | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
+    :end:
+
+    #+LATEX: }
+
+    Each word is one of a corpus of 2048 words; therefore, each word encodes 11 bits (2048 == 2**11)
+    of entropy.  So, we provided 128 bits, but 12*11 == 132.  So where does the extra 4 bits of data
+    come from?
+
+    It comes from the first few bits of a SHA256 hash of the entropy, which is added to the end of
+    the supplied 128 bits, to reach the required 132 bits: 132 / 11 == 12 words.
+
+    This last 4 bits (up to 8 bits, for a 256-bit 24-word BIP-39) is checked, when validating the
+    BIP-39 mnemonic.  Therefore, making up a random BIP-39 mnemonic will succeed only 1 / 16 times on
+    average, due to an incorrect checksum 4-bit (16 == 2**4) .  Lets check:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    def random_words( n, count=100 ):
+        for _ in range( count ):
+            yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
+
+    successes           = sum(
+        bip39_english.is_mnemonic_valid( m )
+        for i,m in enumerate( random_words( 12, 10000 ))) / 100
+    [[ f"Valid random 12-word mnemonics:" ]] + [
+     [ f"{successes}%" ]] + [
+     [ f"~ 1/{100/successes:.3}" ]]
+
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[245]:
+    | 0                               |
+    |---------------------------------|
+    | Valid random 12-word mnemonics: |
+    | 6.2%                            |
+    | ~ 1/16.1                        |
+    :end:
+
+    #+LATEX: }
+
+    Sure enough, about 1/16 random 12-word phrases are valid BIP-39 mnemonics.  OK, we've got the
+    contents of the BIP-39 phrase dialed in.  How is it used to generate accounts?
+
+*** BIP-39 Mnemonic to Seed
+
+    Unfortunately, we do *not* use the carefully preserved 128-bit entropy to generate the wallet!
+    Nope, it is stretched to a 512-bit seed using PBKDF2 HMAC SHA512.  The normalized *text* (/not
+    the entropy bytes/) of the 12-word mnemonic is then used (with a salt of "mnemonic" plus an
+    optional passphrase, "" by default), to obtain the seed:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    seed                = bip39_english.to_seed( entropy_mnemonic )
+    seedhex             = codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+    [[ f"{len(seed)*8}-bit seed:" ]] + [
+     [ f"{seedhex[b*32:b*32+32]}" ]
+     for b in range( len( seedhex ) // 32 )
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[271]:
+    | 0                                |
+    |----------------------------------|
+    | 512-bit seed:                    |
+    | b6a6d8921942dd9806607ebc2750416b |
+    | 289adea669198769f2e15ed926c3aa92 |
+    | bf88ece232317b4ea463e84b0fcd3b53 |
+    | 577812ee449ccc448eb45e6f544e25b6 |
+    :end:
+
+    #+LATEX: }
+
+*** BIP-39 Seed to Address
+
+    Finally, this 512-bit seed is used to derive HD wallet(s).  The HD Wallet key derivation process
+    consumes whatever seed entropy is provided (512 bits in the case of BIP-39), and uses HMAC SHA512
+    with a prefix of b"Bitcoin seed" to stretch the supplied seed entropy to 64 bytes (512 bits).
+    Then, the HD Wallet *path* segments are iterated through, permuting the first 32 bytes of this
+    material as the key with the second 32 bytes of material as the chain node, until finally the
+    32-byte (256-bit) Ethereum account private key is produced.  We then use this private key to
+    compute the rest of the Ethereum account details, such as its public address.
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    path                = "m/44'/60'/0'/0/0"
+    key                 = eth_account.hdaccount.key_from_seed( seed, path )
+    keyhex              = codecs.encode( key, 'hex_codec' ).decode( 'ascii' )
+    eth_hd              = eth_account.Account.from_key( keyhex )
+
+    [[ f"{len(key)*8}-bit derived key at path {path!r}:" ]] + [
+     [ f"{keyhex}" ]] + [
+     [ "... yields ..." ]] + [
+     [ f"Ethereum address: {eth_hd.address}" ]
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[295]:
+    | 0                                                                |
+    |------------------------------------------------------------------|
+    | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
+    | 7af65ba4dd53f23495dcb04995e96f47c243217fc279f10795871b725cd009ae |
+    | ... yields ...                                                   |
+    | Ethereum address: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E     |
+    :end:
+
+    #+LATEX: }
+
+    Thus, we see that while the 12-word BIP-39 mnemonic careful preserves the original 128-bit
+    entropy, this data is not directly used to derive the wallet private key and address.  Also,
+    since an irreversible hash is used to derive the seed from the mnemonic, we can't reverse the
+    process on the seed to arrive back at the BIP-39 mnemonic phrase.
+
+*** SLIP-39 Entropy to Mnemonic
+
+    Just like BIP-39 carefully preserves the original 128-bit entropy bytes in a single 12-word
+    mnemonic phrase, SLIP-39 preserves the original 128-bit entropy in a /set/ of 30-word mnemonic
+    phrases.
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    name,thrs,grps,acct = slip39.create(
+        "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy, paths=[path] )
+    [[ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
+     for g_name,(g_of,g_mnems) in grps.items()
+     for g_n,mnem in enumerate( g_mnems )
+     for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
+             mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[289]:
+    | 0             | 1          | 2           | 3           |
+    |---------------+------------+-------------+-------------|
+    | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
+    |               | 2 acid     | 9 drug      | 16 angry    |
+    |               | 3 acrobat  | 10 browser  | 17 similar  |
+    |               | 4 easy     | 11 trash    | 18 aspect   |
+    |               | 5 change   | 12 fridge   | 19 smug     |
+    |               | 6 injury   | 13 busy     | 20 violence |
+    |               | 7 painting | 14 finger   |             |
+    | Fam(2/3) #1:  | 1 academic | 8 prevent   | 15 dwarf    |
+    |               | 2 acid     | 9 mouse     | 16 dream    |
+    |               | 3 beard    | 10 daughter | 17 flavor   |
+    |               | 4 echo     | 11 ancient  | 18 oral     |
+    |               | 5 crystal  | 12 fortune  | 19 chest    |
+    |               | 6 machine  | 13 ruin     | 20 marathon |
+    |               | 7 bolt     | 14 warmth   |             |
+    | Fam(2/3) #2:  | 1 academic | 8 prune     | 15 briefing |
+    |               | 2 acid     | 9 pickup    | 16 often    |
+    |               | 3 beard    | 10 device   | 17 escape   |
+    |               | 4 email    | 11 device   | 18 sprinkle |
+    |               | 5 dive     | 12 peanut   | 19 segment  |
+    |               | 6 warn     | 13 enemy    | 20 devote   |
+    |               | 7 ranked   | 14 graduate |             |
+    | Fam(2/3) #3:  | 1 academic | 8 dining    | 15 intimate |
+    |               | 2 acid     | 9 invasion  | 16 satoshi  |
+    |               | 3 beard    | 10 bumpy    | 17 hobo     |
+    |               | 4 entrance | 11 identify | 18 ounce    |
+    |               | 5 alarm    | 12 anxiety  | 19 both     |
+    |               | 6 health   | 13 august   | 20 award    |
+    |               | 7 discuss  | 14 sunlight |             |
+    :end:
+
+    #+LATEX: }
+
+    Since there is some randomness used in the SLIP-39 mnemonics generation process, we would get a
+    *different* set of words each time for the fixed "entropy" =0xFFFF..FF= used in this example (if
+    we hadn't manually disabled entropy for =shamir_mnemonic=, above), but we will *always* derive
+    the same Ethereum account =0x824b..19a1= at the specified HD Wallet derivation path.
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+
+    [[ "HD Wallet Path:", "Ethereum Address:" ]] + [
+     [ path, eth.address ]
+     for path,eth in acct.items()
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[292]:
+    | 0                | 1                                          |
+    |------------------+--------------------------------------------|
+    | HD Wallet Path:  | Ethereum Address:                          |
+    | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
+    :end:
+
+    #+LATEX: }
+
+*** SLIP-39 Mnemonic to Seed
+
+    Lets prove that we can actually recover the *original* entropy from the SLIP-39 recovery
+    mnemonics; in this case, we've specified a SLIP-39 group_threshold of 2 groups, so we'll use 1
+    mnemonic from Mine, and 2 from Fam:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    _,mnem_mine         = entropy_slip39['Mine']
+    _,mnem_fam          = entropy_slip39['Fam']
+    recseed             = slip39.recover( mnem_mine + mnem_fam[:2] )
+    recseedhex          = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
+
+    [[ f"{len(recseed)*8}-bit seed:" ]] + [
+     [ f"{recseedhex[b*32:b*32+32]}" ]
+        for b in range( len( recseedhex ) // 32 )
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[293]:
+    | 0                                |
+    |----------------------------------|
+    | 128-bit seed:                    |
+    | ffffffffffffffffffffffffffffffff |
+    :end:
+
+    #+LATEX: }
+
+*** SLIP-39 Seed to Address
+
+    And we'll use the same style of code as for the BIP-39 example above, to derive the Ethereum
+    address *directly* from this recovered 128-bit seed:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results raw drawer
+    reckey              = eth_account.hdaccount.key_from_seed( recseed, path )
+    reckeyhex           = codecs.encode( reckey, 'hex_codec' ).decode( 'ascii' )
+    receth              = eth_account.Account.from_key( reckeyhex )
+    [[ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]] + [
+     [ f"{reckeyhex}" ]] + [
+     [ "... yields ..." ]] + [
+     [ f"Ethereum address: {receth.address}" ]
+    ]
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    # Out[294]:
+    | 0                                                                |
+    |------------------------------------------------------------------|
+    | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
+    | 6a2ec39aab88ec0937b79c8af6aaf2fd3c909e9a56c3ddd32ab5354a06a21a2b |
+    | ... yields ...                                                   |
+    | Ethereum address: 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1     |
+    :end:
+
+    #+LATEX: }
+
+    And we see that we obtain the same Ethereum address =0x824b..1a2b= as we originally got from
+    =slip39.create= above.  However, this is *not* the Ethereum wallet address obtained from BIP-39
+    with exactly the same =0xFFFF...FF= entropy, which was =0xfc20..1B5E=.  This is due to the fact
+    that BIP-39 does not use the recovered entropy to produce the seed like SLIP-39 does, but
+    applies additional one-way hashing of the mnemonic to produce the seed.
+
+** BIP-39 vs SLIP-39 Key Derivation Summary
+
+   At no time in BIP-39 account derivation is the original 128-bit mnemonic entropy used directly in
+   the derivation of the wallet key.  This differs from SLIP-39, which directly uses the 128-bit mnemonic
+   entropy recovered from the SLIP-39 Shamir's Secret Sharing System recovery process to generate
+   each HD Wallet account's private key.
+
+   Furthermore, there is no point in the BIP-39 entropy to account generation where we *could*
+   introduce a known 128-bit seed and produce a known Ethereum wallet from it, other than as the
+   very beginning.
+
+*** BIP-39 Backup via SLIP-39
+
+    There is one approach which can preserve an original BIP-39 wallet address, using SLIP-39 mnemonics.
+
+    It is clumsy, as it preserves the BIP-39 *output* 512-bit stretched seed, and the resultant
+    59-word SLIP-39 mnemonics cannot be used (at present) with the Trezor hardware wallet.  They
+    can, however, be used to recover the HD wallet private keys without access to the original
+    BIP-39 mnemonic phrase -- you could generate and distribute a set of more secure SLIP-39
+    mnemonic phrases, instead of trying to secure the original BIP-39 mnemonic.
+
+    We'll use =slip39.recovery --bip39 ...= to recover the 512-bit stretched seed from BIP-39:
+
+   #+LATEX: {\scriptsize
+   #+BEGIN_SRC bash :exports both :results output
+   ( python3 -m slip39.recovery --bip39 \
+         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
+    ) 2>&1
+   #+END_SRC
+   #+RESULTS:
+   : 2022-01-03 09:35:05 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
+   #+LATEX: }
+
+   Then we can generate a 59-word SLIP-39 mnemonic set from the 512-bit secret:
+   
+   #+LATEX: {\scriptsize
+   #+BEGIN_SRC bash :exports both :results output
+   ( python3 -m slip39.recovery --bip39 \
+         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+       | python3 -m slip39 --secret - --no-card -q ) 2>&1
+   #+END_SRC
+   #+RESULTS:
+   : 2022-01-03 09:35:07 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : 2022-01-03 09:35:07 slip39           ETH m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+   #+LATEX: }
+
+   This =0xfc20..1B5E= address is the same Ethereum address as is recovered on a Trezor using this
+   BIP-39 mnemonic phrase.
 
 * Dependencies
 
@@ -422,305 +803,3 @@ b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
 #+END_EXAMPLE
 #+LATEX: }
 
-* Conversion from BIP-39 to SLIP-39
-
-  If we already have a BIP-39 wallet, it would certainly be nice to be able to create nice, safe
-  SLIP-39 mnemonics for it, and discard the unsafe BIP-39 mnemonics we have lying around, just
-  waiting to be accidentally discovered and the account compromised!
-
-** BIP-39 vs. SLIP-39 Incompatibility
-
-   Unforunately, it is *not possible* to convert a BIP-39 derived wallet into a SLIP-39 wallet.
-   Both of these techniques preserve "entropy" (random) bits, but these bits are used *differently*
-   -- and incompatibly -- to derive the resultant Ethereum wallets.
-
-*** BIP-39 Entropy to Mnemonic
-
-    BIP-39 uses a single set of 12, 15, 18, 21 or 24 BIP-39 words to carefully preserve a specific
-    128 to 256 bits of initial entropy.
-
-    | "adult cattle ... remind" | 0x9CE8...44                   | Normalized string Extended       |
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    from eth_account.hdaccount.mnemonic import Mnemonic
-    # bip39 = eth_account.hdaccount.generate_mnemonic( 12, "english" )
-    bip39_english = Mnemonic("english")
-    entropy = b'\xFF' * 16
-    entropy_mnemonic = bip39_english.to_mnemonic( entropy )
-    [[entropy_mnemonic]]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[19]:
-    | 0                                                 |
-    |---------------------------------------------------|
-    | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
-    :end:
-
-    #+LATEX: }
-
-    Each word is one of a corpus of 2048 words; therefore, each word encodes 11 bits (2048 == 2**11)
-    of entropy.  So, we provided 128 bits, but 12*11 == 132.  So where does the extra 4 bits of data
-    come from?  
-
-    It comes from the first few bits of a SHA256 hash of the entropy, which is added to the end of
-    the supplied 128 bits, to reach the required 132 bits: 132 / 11 == 12 words.
-
-    This last 4 bits (up to 8 bits, for a 256-bit 24-word BIP-39) is checked, when validating the
-    BIP-39 mnemonic.  Therefore, making up a random BIP-39 mnemonic will succeed only 1 / 16 times on
-    average, due to an incorrect checksum 4-bit (16 == 2**4) .  Lets check:
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    def random_words( n, count=100 ):
-        for _ in range( count ):
-            yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
-
-    successes = sum(
-        bip39_english.is_mnemonic_valid( m )
-        for i,m in enumerate( random_words( 12, 10000 ))) / 100
-    [[ f"Valid random 12-word mnemonics:" ]] + [
-     [ f"{successes}%" ]] + [
-     [ f"~ 1/{100/successes:.3}" ]]
-
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[20]:
-    | 0                               |
-    |---------------------------------|
-    | Valid random 12-word mnemonics: |
-    | 6.15%                           |
-    | ~ 1/16.3                        |
-    :end:
-
-    #+LATEX: }
-
-    Sure enough, about 1/16 random 12-word phrases are valid BIP-39 mnemonics.  OK, we've got the
-    contents of the BIP-39 phrase dialed in.  How is it used to generate accounts?
-
-*** BIP-39 Mnemonic to Seed
-
-    Unfortunately, we do *not* use the carefully preserved 128-bit entropy to generate the wallet!
-    Nope, it is stretched to a 512-bit seed using PBKDF2 HMAC SAH512.  The normalized *text* of the
-    12-word mnemonic is then used (with a salt of "mnemonic" plus an optional passphrase, "" by
-    default), to obtain the seed:
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    seed = bip39_english.to_seed( entropy_mnemonic )
-    seedhex = codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
-    [[ f"{len(seed)*8}-bit seed:" ]] + [
-     [ f"{seedhex[b*32:b*32+32]}" ]
-     for b in range( len( seedhex ) // 32 )
-    ]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[21]:
-    | 0                                |
-    |----------------------------------|
-    | 512-bit seed:                    |
-    | b6a6d8921942dd9806607ebc2750416b |
-    | 289adea669198769f2e15ed926c3aa92 |
-    | bf88ece232317b4ea463e84b0fcd3b53 |
-    | 577812ee449ccc448eb45e6f544e25b6 |
-    :end:
-
-    #+LATEX: }
-
-    Then, this 512-bit seed is used to derive HD wallets.  The HD Wallet key derivation process
-    consumes whatever seed entropy is provided (512 bits in this case), and uses HMAC SAH512 with a
-    prefix of b"Bitcoin seed" to stretch the supplied seed entropy to 64 bytes (512 bits).  Then,
-    the HD Wallet path segments are iterated through, permuting the first 32 bytes of this material
-    as the key with the second 32 bytes of material as the chain node, until finally the 32-byte
-    (256-bit) Ethereum account private key is produced.  We then use this private key to compute the
-    rest of the Ethereum account details, such as its public address.
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    path = "m/66'/40'/0'/0/0"
-    key = eth_account.hdaccount.key_from_seed( seed, path )
-    keyhex = '0x' + codecs.encode( key, 'hex_codec' ).decode( 'ascii' )
-    eth = eth_account.Account.from_key( keyhex )
-    [[ f"{len(key)*8}-bit derived key at path {path!r}:" ]] + [
-     [ f"{keyhex}" ]] + [
-     [ "... yields ..." ]] + [
-     [ f"Ethereum address: {eth.address}" ]
-    ]
-
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[22]:
-    | 0                                                                  |
-    |--------------------------------------------------------------------|
-    | 256-bit derived key at path "m/66'/40'/0'/0/0":                    |
-    | 0x9d291e4a972d86ee5a8381a7fc4cd99913a0ec3fd141995e33812c32da40c2fb |
-    | ... yields ...                                                     |
-    | Ethereum address: 0xeFCf257B01833cF14229Ed9be0a49b3E026409e9       |
-    :end:
-
-    #+LATEX: }
-
-*** SLIP-39 Entropy to Mnemonic
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    # We can turn off/on randomness during SLIP-39 generation to get deterministic phrases:
-    #import shamir_mnemonic
-    #shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
-    #import secrets
-    #shamir_mnemonic.shamir.RANDOM_BYTES = secrets.token_bytes
-    name,threshold,entropy_slip39,accts = slip39.create(
-        "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy, paths=[path] )
-    [[ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
-     for g_name,(g_of,g_mnems) in entropy_slip39.items()
-     for g_n,mnem in enumerate( g_mnems )
-     for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
-             mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
-    ]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[23]:
-    | 0             | 1          | 2           | 3           |
-    |---------------+------------+-------------+-------------|
-    | Mine(1/1) #1: | 1 pancake  | 8 detailed  | 15 award    |
-    |               | 2 echo     | 9 item      | 16 forecast |
-    |               | 3 acrobat  | 10 package  | 17 realize  |
-    |               | 4 easy     | 11 editor   | 18 bucket   |
-    |               | 5 debris   | 12 fumes    | 19 crisis   |
-    |               | 6 process  | 13 writing  | 20 cover    |
-    |               | 7 watch    | 14 lawsuit  |             |
-    | Fam(2/3) #1:  | 1 pancake  | 8 warmth    | 15 aspect   |
-    |               | 2 echo     | 9 estate    | 16 phantom  |
-    |               | 3 beard    | 10 inside   | 17 thorn    |
-    |               | 4 echo     | 11 champion | 18 album    |
-    |               | 5 answer   | 12 grant    | 19 stilt    |
-    |               | 6 drink    | 13 lunar    | 20 glimpse  |
-    |               | 7 fragment | 14 pink     |             |
-    | Fam(2/3) #2:  | 1 pancake  | 8 pecan     | 15 identify |
-    |               | 2 echo     | 9 rich      | 16 jacket   |
-    |               | 3 beard    | 10 scared   | 17 sugar    |
-    |               | 4 email    | 11 elegant  | 18 mixed    |
-    |               | 5 blanket  | 12 fatigue  | 19 frequent |
-    |               | 6 ajar     | 13 smirk    | 20 spider   |
-    |               | 7 step     | 14 mule     |             |
-    | Fam(2/3) #3:  | 1 pancake  | 8 fact      | 15 victim   |
-    |               | 2 echo     | 9 client    | 16 rhythm   |
-    |               | 3 beard    | 10 analysis | 17 carpet   |
-    |               | 4 entrance | 11 tension  | 18 aircraft |
-    |               | 5 diploma  | 12 render   | 19 darkness |
-    |               | 6 excuse   | 13 both     | 20 length   |
-    |               | 7 dismiss  | 14 spend    |             |
-    :end:
-
-    #+LATEX: }
-
-    Since there is some randomess in the SLIP-39 mnemonics generation process, we'll get a different
-    set of words each time for the fixed "entropy" =0xFFFF..FF= used in this example, but we'll
-    *always* derive the same Ethereum account =0x3224..56c5= at the specified HD Wallet derivation
-    path.
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-
-    [[ "HD Wallet Path:", "Ethereum Address:" ]] + [
-     [ path, eth.address ]
-     for path,eth in accts.items()
-    ]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[24]:
-    | 0                | 1                                          |
-    |------------------+--------------------------------------------|
-    | HD Wallet Path:  | Ethereum Address:                          |
-    | m/66'/40'/0'/0/0 | 0x322408FCF0dAB471570038DEA08536780aAB56c5 |
-    :end:
-
-    #+LATEX: }
-
-*** SLIP-39 Mnemonic to Seed
-
-    Lets prove that we can actually recover the *original* entropy from the SLIP-39 recovery
-    mnemonics; in this case, we've specified a SLIP-39 group_threshold of 2 groups, so we'll use all
-    1 mnemonic from Mine, and 2 from Fam:
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    _,mnem_mine = entropy_slip39['Mine']
-    _,mnem_fam =  entropy_slip39['Fam']
-    recseed = slip39.recover( mnem_mine + mnem_fam[:2] )
-    recseedhex = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
-
-    [[ f"{len(recseed)*8}-bit seed:" ]] + [
-     [ f"{recseedhex[b*32:b*32+32]}" ]
-        for b in range( len( recseedhex ) // 32 )
-    ]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[25]:
-    | 0                                |
-    |----------------------------------|
-    | 128-bit seed:                    |
-    | ffffffffffffffffffffffffffffffff |
-    :end:
-
-    #+LATEX: }
-
-    And we'll use the same style of code as for the BIP-39 example above, to derive the Ethereum
-    address from this 128-bit seed:
-
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    reckey = eth_account.hdaccount.key_from_seed( recseed, path )
-    reckeyhex = '0x' + codecs.encode( reckey, 'hex_codec' ).decode( 'ascii' )
-    receth = eth_account.Account.from_key( reckeyhex )
-    [[ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]] + [
-     [ f"{reckeyhex}" ]] + [
-     [ "... yields ..." ]] + [
-     [ f"Ethereum address: {receth.address}" ]
-    ]
-    #+END_SRC
-
-    #+RESULTS:
-    :results:
-    # Out[26]:
-    | 0                                                                  |
-    |--------------------------------------------------------------------|
-    | 256-bit derived key at path "m/66'/40'/0'/0/0":                    |
-    | 0x738fc6d8dd28f75027ec04b1c64cead968bbae0d9b15de2dab664e5b59db04f3 |
-    | ... yields ...                                                     |
-    | Ethereum address: 0x322408FCF0dAB471570038DEA08536780aAB56c5       |
-    :end:
-
-    #+LATEX: }
-
-    And we see that we obtain the same Ethereum address =0x3224..56c5= as we originally got from
-    =slip39.create= above.
-
-** BIP-39 vs SLIP-39 Key Derivation Summary
-
-   At no time in BIP-39 account derivation is the original 128-bit mnemonic entropy used directly in
-   the derivation of the wallet key.  This differs from SLIP-39, which directly uses the 128-bit mnemonic
-   entropy recovered from the SLIP-39 Shamir's Secret Sharing System recovery process to generate
-   each HD Wallet account's private key.
-
-   Furthermore, there is no point in the BIP-39 entropy to account generation where we *could*
-   introduce a known 128-bit seed and produce a known Ethereum wallet from it, other than as the
-   very beginning.
-
-   Therefore, SLIP-39 and BIP-39 HD Wallet generation are fundamentally distinct; we cannot produce
-   BIP-39 and SLIP-39 mnemonics that result in the same wallet.  To convert your funds from a BIP-39
-   wallet to a SLIP-39 wallet will require *moving* the funds.

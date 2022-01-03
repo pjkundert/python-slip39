@@ -4,7 +4,7 @@ from typing		import Tuple
 
 from fpdf		import FPDF
 
-from .defaults		import FONTS
+from .defaults		import FONTS, MNEM_ROWS_COLS
 
 
 class Region:
@@ -133,6 +133,7 @@ Coordinate			= namedtuple( 'Coordinate', ('x', 'y') )
 def card(
     card_size: Coordinate,
     card_margin: int,
+    num_mnemonics: int	= 20,
 ):
     card			= Box( 'card', 0, 0, card_size.x, card_size.y )
     card_interior		= card.add_region_relative(
@@ -191,13 +192,15 @@ def card(
         Text( 'card-ETH', x1=0, y1=75/100, x2=1, y2=100/100, align='R' )
     )
 
-    rows,cols		= 7,3
+    assert num_mnemonics in MNEM_ROWS_COLS, \
+        f"Invalid SLIP-39 mnemonic word count: {num_mnemonics}"
+    rows,cols		= MNEM_ROWS_COLS[num_mnemonics]
     for r in range( rows ):
         for c in range( cols ):
             card_mnemonics.add_region_proportional(
                 Text( f"mnem-{c * rows + r}",
                       x1=c/cols, y1=r/rows, x2=(c+1)/cols, y2=(r+1)/rows,
-                      font='mono', size_ratio=1/2 )
+                      font='mono', size_ratio=9/16 )
             )
     return card
 

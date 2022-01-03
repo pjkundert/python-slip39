@@ -16,41 +16,17 @@ import qrcode
 import eth_account
 from fpdf		import FPDF, FlexTemplate
 
-from .generate		import create
+from .generate		import create, random_secret, enumerate_mnemonic
 from .util		import log_cfg, log_level, input_secure
 from .defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, GROUP_REQUIRED_RATIO,
     PATH_ETH_DEFAULT,
     CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
+    BITS, BITS_DEFAULT,
 )
 from .			import layout
 
 log				= logging.getLogger( __package__ )
-
-
-def enumerate_mnemonic( mnemonic ):
-    if isinstance( mnemonic, str ):
-        mnemonic		= mnemonic.split( ' ' )
-    return dict(
-        (i, f"{i+1:>2d} {w}")
-        for i,w in enumerate( mnemonic )
-    )
-
-
-def organize_mnemonic( mnemonic, rows = 7, cols = 3, label="" ):
-    """Given a "word word ... word" or ["word", "word", ..., "word"] mnemonic, emit rows organized in
-    the desired rows and cols.  We return the fully formatted line, plus the list of individual
-    words in that line."""
-    num_words			= enumerate_mnemonic( mnemonic )
-    for r in range( rows ):
-        line			= label if r == 0 else ' ' * len( label )
-        words			= []
-        for c in range( cols ):
-            word		= num_words.get( c * rows + r )
-            if word:
-                words.append( word )
-                line	       += f"{word:<13}"
-        yield line,words
 
 
 def output(
@@ -71,8 +47,11 @@ def output(
         (card_h,card_w),card_margin = ast.literal_eval( card_format )
     card_size			= layout.Coordinate( y=card_h, x=card_w )
 
-    # Compute how many cards per page.  Flip page portrait/landscape to match the cards'
-    card			= layout.card( card_size, card_margin )  # converts to mm
+    # Compute how many cards per page.  Flip page portrait/landscape to match the cards'.  Use the length
+    # of the first Group's first Mnemonic to determine the number of mnemonics on each card.
+    num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
+    card			= layout.card(  # converts to mm
+        card_size, card_margin, num_mnemonics=num_mnemonics )
     card_dim			= card.dimensions()
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
@@ -82,7 +61,7 @@ def output(
         for orientation in ('portrait', 'landscape')
     )
     log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
-              f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
+               f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
 
     elements			= list( card.elements() )
     if log.isEnabledFor( logging.DEBUG ):
@@ -118,9 +97,7 @@ def output(
     card_n			= 0
     page_n			= None
     for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
-        log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
         for mn_n,mnem in enumerate( g_mnems ):
-            log.info( f"  {mnem}" )
             p,(offsetx,offsety)	= page_xy( card_n )
             if p != page_n:
                 pdf.add_page()
@@ -191,7 +168,10 @@ def main( argv=None ):
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
     ap.add_argument( '-s', '--secret',
                      default=None,
-                     help="Use the supplied 128-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
+                     help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
+    ap.add_argument( '--bits',
+                     default=None,  # Do not enforce default of 128-bit seeds
+                     help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -224,9 +204,11 @@ def main( argv=None ):
     )
     group_threshold		= args.threshold or math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    # Master secret seed supplied as hex
+    bits_desired		= int( args.bits ) if args.bits else BITS_DEFAULT
+
     master_secret		= args.secret
     if master_secret:
+        # Master secret seed supplied as hex
         if master_secret == '-':
             master_secret	= input_secure( 'Master secret hex: ', secret=True )
         else:
@@ -234,9 +216,14 @@ def main( argv=None ):
         if master_secret.lower().startswith('0x'):
             master_secret	= master_secret[2:]
         master_secret		= codecs.decode( master_secret, 'hex_codec' )
-        len_bits		= len( master_secret ) * 8
-        if len_bits != 128:
-            raise ValueError( f"A {len_bits}-bit master secret was supplied; 128 bits expected" )
+    else:
+        # Generate a random secret seed
+        master_secret		= random_secret( bits_desired // 8 )
+    master_secret_bits		= len( master_secret ) * 8
+    if master_secret_bits not in BITS:
+        raise ValueError( f"A {master_secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
+    if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
+        raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
 
     # Optional passphrase (utf-8 encoded bytes
     passphrase			= args.passphrase or ""

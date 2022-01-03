@@ -50,3 +50,12 @@ CARD_SIZES			= dict(
 PAGE_MARGIN			= 1/4  # Typical printers cannot print within 1/4" of edge
 
 PAPER				= 'Letter'
+
+BITS				= (128, 256, 512)
+BITS_DEFAULT			= 128
+
+MNEM_ROWS_COLS			= {
+    20:	( 7, 3),		# 128-bit seed
+    33:	(11, 3),		# 256-bit seed
+    59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor hardware wallet)
+}
