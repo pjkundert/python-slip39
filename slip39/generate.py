@@ -99,7 +99,7 @@ def create(
             for mn_n,mnem in enumerate( g_mnems ):
                 for line,_ in organize_mnemonic( mnem, label=f"{ordinal(mn_n+1)} " ):
                     log.info( f"{line}" )
-    
+
     return Details(name, group_threshold, groups, accounts)
 
 
