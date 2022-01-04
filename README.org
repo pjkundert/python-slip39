@@ -64,7 +64,7 @@ to a USB drive for printing (or directly printed without the file being saved to
    the key.  Then key is (conceptually) split between 1 or more groups (not really; each group's
    data alone gives away no information about the key).
 
-   For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
+   For example, you might have First, Second, Fam and Fren groups, and decide that any 2 groups can
    be combined to recover the key.  Each group has members with varying levels of trust and
    persistence, so have different number of Members, and differing numbers Required to recover that
    group's data:
@@ -76,7 +76,7 @@ to a USB drive for printing (or directly printed without the file being saved to
    | First  |        1 | / | 1       | Stored at home                        |
    | Second |        1 | / | 1       | Stored in office safe                 |
    | Fam    |        2 | / | 4       | Distributed to family members         |
-   | Frens  |        2 | / | 6       | Distributed to friends and associates |
+   | Fren   |        2 | / | 6       | Distributed to friends and associates |
    #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
@@ -90,8 +90,8 @@ to a USB drive for printing (or directly printed without the file being saved to
    card from the office safe, and 2 cards from Fam group members, and recover the wallet.
 
    If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
-   (at home) or Second (at the office), they can collect 2 Fam cards and 2 Frens cards (at the
-   funeral, for example), completing the Fam and Frens groups' data, and recover the HD Wallet
+   (at home) or Second (at the office), they can collect 2 Fam cards and 2 Fren cards (at the
+   funeral, for example), completing the Fam and Fren groups' data, and recover the HD Wallet
    account.  Since Frens are less likely to persist long term (and are also less likely to know
    each-other), we'll require a lower proportion of them to be collected.
 
@@ -106,7 +106,7 @@ to a USB drive for printing (or directly printed without the file being saved to
   $ python3 -m pip install slip39  # Install slip39 in Python3
   $ cd /Volumes/USBDRIVE/          # Change current directory to USB
   $ python3 -m slip39 Personal     # Or just run "slip39 Personal"
-  2021-12-25 11:10:38 slip39           m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  2021-12-25 11:10:38 slip39           ETH m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
   2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Personal' to:\
     Personal-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
@@ -114,11 +114,13 @@ to a USB drive for printing (or directly printed without the file being saved to
 
   The resultant PDF will be output into the designated file.
 
-  This PDF file can be printed on 3x5 cards, or on regular paper or card stock and the cards can be
-  cut out (=--card credit= or =--card business= are also available).
+  This PDF file can be  printed on 3x5 index cards, or on regular paper or  card stock and the cards
+  can be cut out  (=--card credit= , =business=, and =half= or =full=  (page) are also available, as
+  well as custom ="(<h>,<w>),<margin>"=).
 
   To get the data printed on the terminal as in this example (so you could write it down on cards
-  instead), add a =-v=.
+  instead), add a =-v= (to see it logged in a tabular format), or =--text= to have it printed to
+  stdout in full lines (ie. for pipelining to other programs).
 
 ** Recover & Regeneration
 
@@ -143,7 +145,7 @@ to a USB drive for printing (or directly printed without the file being saved to
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
   $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
-  2021-12-25 11:09:57 slip39           ETH(m/44'/60'/0'/0/0): 0xb44A2011A99596671d5952CdC22816089f142FB3
+  2021-12-25 11:09:57 slip39           ETH m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
   ...
   JSON key file password: <enter JSON wallet password>
   2021-12-25 11:10:38 slip39           Wrote JSON encrypted wallet for '' to:\
