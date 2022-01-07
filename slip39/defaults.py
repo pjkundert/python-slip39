@@ -14,6 +14,26 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+CRYPTOCURRENCIES		= ('ETH',)  # Currently supported
+CRYPTO_NAMES			= dict(
+    ethereum	= 'ETH',
+)
+
+
+def cryptocurrency_supported( cryptocurrency ):
+    """Validates that the specified cryptocurrency is supported and returns the normalized short name
+    for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
+
+    """
+    validated			= CRYPTO_NAMES.get(
+        cryptocurrency.lower(),
+        cryptocurrency.upper() if cryptocurrency.upper() in CRYPTOCURRENCIES else None
+    )
+    if validated:
+        return validated
+    raise ValueError( f"{cryptocurrency} not presently supported; specify {', '.join( CRYPTOCURRENCIES )}" )
+
+
 PATH_ETH_DEFAULT		= "m/44'/60'/0'/0/0"
 
 # Default group_threshold / required ratios and groups (with varying styles of definition)

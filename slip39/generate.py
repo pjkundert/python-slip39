@@ -8,8 +8,10 @@ import eth_account
 
 from shamir_mnemonic	import generate_mnemonics
 
-from .defaults		import PATH_ETH_DEFAULT, BITS_DEFAULT, MNEM_ROWS_COLS
+
+from .defaults		import PATH_ETH_DEFAULT, BITS_DEFAULT, MNEM_ROWS_COLS, CRYPTOCURRENCIES, cryptocurrency_supported
 from .util		import ordinal
+
 
 RANDOM_BYTES			= secrets.token_bytes
 
@@ -129,14 +131,46 @@ def mnemonics(
 
 def account(
     master_secret: bytes,
-    path: str			= None
+    path: str,
+    cryptocurrency: str	= None,  # default 'ETH'
 ):
     """Generate an account from the supplied master_secret seed, at the given HD derivation path.
 
     """
+    cryptocurrency		= cryptocurrency.upper() if cryptocurrency else 'ETH'
+    assert cryptocurrency in CRYPTOCURRENCIES, \
+        f"{cryptocurrency} not presently supported; specify {', '.join( CRYPTOCURRENCIES )}"
 
     key				= eth_account.hdaccount.key_from_seed(
         master_secret, path or PATH_ETH_DEFAULT
     )
     keyhex			= '0x' + codecs.encode( key, 'hex_codec' ).decode( 'ascii' )
     return eth_account.Account.from_key( keyhex )
+
+
+def address(
+    master_secret: bytes,
+    path: str,
+    cryptocurrency: str		= None
+):
+    """Return the specified cryptocurrency HD account address at path."""
+    crypto			= cryptocurrency_supported( cryptocurrency )
+    if crypto == 'ETH':
+        return account( master_secret, path ).address
+    raise ValueError( f"Cannot generate address for {crypto}" )
+
+
+def addresses(
+    master_secret: bytes,
+    paths: Sequence[str],
+    cryptocurrencies: Sequence[str] = None,  # default ['ETH']
+):
+    """Generate a sequence of cryptocurrency account (path, address, ...)  for all designated
+    cryptocurrencies.
+
+    """
+    for path in paths:
+        yield (path,) + tuple(
+            address( master_secret, path, crypto )
+            for crypto in cryptocurrencies or ['ETH']
+        )

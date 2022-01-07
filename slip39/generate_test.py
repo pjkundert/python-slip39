@@ -1,11 +1,15 @@
 import codecs
 import contextlib
 import json
+
 import pytest
+
+import shamir_mnemonic
 
 from eth_account.hdaccount.mnemonic import Mnemonic
 
-import shamir_mnemonic
+from .defaults import PATH_ETH_DEFAULT
+from .generate import addresses
 
 SEED_KNOWN_HEX			= b'87e39270d1d1976e9ade9cc15a084c62'
 SEED_KNOWN			= codecs.decode( SEED_KNOWN_HEX, 'hex_codec' )
@@ -120,3 +124,62 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
         == seed
     assert all( len( m.split(' ')) == 59 for g in mnemonics for m in g )
     assert any( m == expected_SLIP39     for g in mnemonics for m in g )
+
+
+def test_addresses():
+    path_segs			= PATH_ETH_DEFAULT.split( '/' )
+    path_segs[-1]		= '{index}'
+    path_fmt			= '/'.join( path_segs )
+
+    address_count		= 10
+    master_secret		= b'\xFF' * 16
+    addrs			= list( addresses(
+        master_secret	= master_secret,
+        paths		= (
+            path_fmt.format( index=index ) for index in range( address_count )
+        )
+    ))
+    print( json.dumps( addrs, indent=4 ))
+    assert addrs == [
+        [
+            "m/44'/60'/0'/0/0",
+            "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
+        ],
+        [
+            "m/44'/60'/0'/0/1",
+            "0x8D342083549C635C0494d3c77567860ee7456963"
+        ],
+        [
+            "m/44'/60'/0'/0/2",
+            "0x52787E24965E1aBd691df77827A3CfA90f0166AA"
+        ],
+        [
+            "m/44'/60'/0'/0/3",
+            "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"
+        ],
+        [
+            "m/44'/60'/0'/0/4",
+            "0x42a910D380dE132B5227e3277Cc70C3C76a884aC"
+        ],
+        [
+            "m/44'/60'/0'/0/5",
+            "0x1A3db5E0422c78F43a35686f0307Da8f22344dE0"
+        ],
+        [
+            "m/44'/60'/0'/0/6",
+            "0x19031c515C5d91DB7988D89AAA6F71a5825f5245"
+        ],
+        [
+            "m/44'/60'/0'/0/7",
+            "0xaE693156ac600f5B0D58e5090ecf0A578c5Cc0a8"
+        ],
+        [
+            "m/44'/60'/0'/0/8",
+            "0x4347541fa648BCE62543a8AbC2901E08017f6A6a"
+        ],
+        [
+            "m/44'/60'/0'/0/9",
+            "0xC11235559Dd4c5224a19396C3A14526E92ebba35"
+        ]
+    ]
+
