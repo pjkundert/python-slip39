@@ -14,9 +14,14 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
-CRYPTOCURRENCIES		= ('ETH',)  # Currently supported
+from hdwallet.cryptocurrencies import get_cryptocurrency
+
+CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'XRP',)  # Currently supported
 CRYPTO_NAMES			= dict(
     ethereum	= 'ETH',
+    bitcoin	= 'BTC',
+    litecoin	= 'LTC',
+    ripple	= 'XRP',
 )
 
 
@@ -34,7 +39,21 @@ def cryptocurrency_supported( cryptocurrency ):
     raise ValueError( f"{cryptocurrency} not presently supported; specify {', '.join( CRYPTOCURRENCIES )}" )
 
 
-PATH_ETH_DEFAULT		= "m/44'/60'/0'/0/0"
+#
+# HD Wallet Derivation Paths (Standard BIP-44 / Trezor)
+#
+#     https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87f7
+#
+# BIP-44 defines the purpose of each depth level:
+#    m / purpose’ / coin_type’ / account’ / change / address_index
+#
+# Use https://iancoleman.io/bip39/ to confirm the derivations
+#
+def DEFAULT_PATH( symbol ):
+    assert symbol in CRYPTOCURRENCIES, \
+        "Unsupported cryptocurrency {symbol}"
+    return get_cryptocurrency( symbol=symbol ).DEFAULT_PATH
+
 
 # Default group_threshold / required ratios and groups (with varying styles of definition)
 GROUP_REQUIRED_RATIO		= 1/2   # default to 1/2 of group members, rounded up

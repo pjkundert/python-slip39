@@ -1,6 +1,6 @@
 import codecs
 import contextlib
-import json
+#import json
 
 import pytest
 
@@ -8,8 +8,7 @@ import shamir_mnemonic
 
 from eth_account.hdaccount.mnemonic import Mnemonic
 
-from .defaults import PATH_ETH_DEFAULT
-from .generate import addresses
+from .generate import addresses, addressgroups, accountgroups
 
 SEED_KNOWN_HEX			= b'87e39270d1d1976e9ade9cc15a084c62'
 SEED_KNOWN			= codecs.decode( SEED_KNOWN_HEX, 'hex_codec' )
@@ -117,7 +116,7 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
         passphrase	= b"",
     )
 
-    print( json.dumps( mnemonics, indent=4 ))
+    # print( json.dumps( mnemonics, indent=4 ))
     assert len( mnemonics ) == 4
     assert shamir_mnemonic.combine_mnemonics(mnemonics[0] + mnemonics[2][0:2]) \
         == shamir_mnemonic.combine_mnemonics(mnemonics[1] + mnemonics[2][2:4]) \
@@ -127,59 +126,106 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
 
 
 def test_addresses():
-    path_segs			= PATH_ETH_DEFAULT.split( '/' )
-    path_segs[-1]		= '{index}'
-    path_fmt			= '/'.join( path_segs )
 
-    address_count		= 10
     master_secret		= b'\xFF' * 16
     addrs			= list( addresses(
         master_secret	= master_secret,
-        paths		= (
-            path_fmt.format( index=index ) for index in range( address_count )
-        )
+        crypto		= 'ETH',
+        paths		= "m/44'/60'/0'/0/-9",
     ))
-    print( json.dumps( addrs, indent=4 ))
+    # print( json.dumps( addrs, indent=4, default=str ))
     assert addrs == [
-        [
+        (
+            "ETH",
             "m/44'/60'/0'/0/0",
             "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/1",
             "0x8D342083549C635C0494d3c77567860ee7456963"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/2",
             "0x52787E24965E1aBd691df77827A3CfA90f0166AA"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/3",
             "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/4",
             "0x42a910D380dE132B5227e3277Cc70C3C76a884aC"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/5",
             "0x1A3db5E0422c78F43a35686f0307Da8f22344dE0"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/6",
             "0x19031c515C5d91DB7988D89AAA6F71a5825f5245"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/7",
             "0xaE693156ac600f5B0D58e5090ecf0A578c5Cc0a8"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/8",
             "0x4347541fa648BCE62543a8AbC2901E08017f6A6a"
-        ],
-        [
+        ),
+        (
+            "ETH",
             "m/44'/60'/0'/0/9",
             "0xC11235559Dd4c5224a19396C3A14526E92ebba35"
-        ]
+        )
+    ]
+    addrs			= list( addresses(
+        master_secret	= master_secret,
+        crypto		= 'BTC',
+    ))
+    # print( json.dumps( addrs, indent=4, default=str ))
+    assert addrs == [
+        (
+            "BTC",
+            "m/44'/0'/0'/0/0",
+            "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"
+        )
     ]
 
+
+def test_addressgroups():
+    master_secret		= b'\xFF' * 16
+    addrgrps			= list( enumerate( addressgroups(
+        master_secret	= master_secret,
+        cryptopaths	= [
+            ('ETH', "m/44'/60'/0'/0/-3"),
+            ('BTC', "m/44'/0'/0'/0/-3"),
+        ],
+    )))
+    # print( addrgrps )
+    assert addrgrps == [
+        (0, (("ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"), ("BTC", "m/44'/0'/0'/0/0", "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"))),
+        (1, (("ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"), ("BTC", "m/44'/0'/0'/0/1", "1BGwDuVPJeXDG9upaHvVPds5MXwkTjZoav"))),
+        (2, (("ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"), ("BTC", "m/44'/0'/0'/0/2", "1L64uW2jKB3d1mWvfzTGwZPTGg9qPCaQFM"))),
+        (3, (("ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"), ("BTC", "m/44'/0'/0'/0/3", "1NQv8w7ZNPTadaJg1KxWTC84kLMnCp6pLR"))),
+    ]
+
+
+def test_accountgroups():
+    master_secret		= b'\xFF' * 16
+    acctgrps			= list( accountgroups(
+        master_secret	= master_secret,
+        cryptopaths	= [
+            ('ETH', "m/44'/60'/0'/0/-3"),
+            ('BTC', "m/44'/0'/0'/0/-3"),
+        ],
+    ))
+    # print( json.dumps( acctgrps, default=repr ))
+    assert len(acctgrps) == 4

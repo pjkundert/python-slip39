@@ -20,7 +20,10 @@ def test_account():
 def test_create():
     details			= create(
         "SLIP39 Wallet: Test",
-        1, dict( fren = (3,5) ), SEED_XMAS )
+        1,
+        dict( fren = (3,5) ),
+        SEED_XMAS
+    )
 
     assert details.groups == {
         "fren": ( 3, [
@@ -33,8 +36,9 @@ def test_create():
     }
 
     assert len(details.accounts) == 1
-    for path,acct in details.accounts.items():
-        assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
+    [(eth,btc)] = details.accounts  # The default accounts created are ETH, BTC
+    assert eth.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
+    assert btc.address == '19FQ983heQEBXmopVNyJKf93XG7pN7sNFa'
 
     assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS
 
