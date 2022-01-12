@@ -16,7 +16,7 @@ import qrcode
 import eth_account
 from fpdf		import FPDF, FlexTemplate
 
-from .generate		import create, random_secret, enumerate_mnemonic
+from .api		import create, random_secret, enumerate_mnemonic
 from .util		import log_cfg, log_level, input_secure
 from .types		import Account
 from .defaults		import (
@@ -74,28 +74,27 @@ def output(
         for g_nam,(g_of,g_mns) in groups.items() )
     requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
 
-    # Obtain the first ETH path and account, and address QR code
+    # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
         "At least one cryptocurrency account must be supplied"
-    qr				= None
-    for account in accounts[0]:
+    qr				= {}
+    for i,acct in enumerate( accounts[0] ):
         qrc			= qrcode.QRCode(
             version	= None,
             error_correction = qrcode.constants.ERROR_CORRECT_M,
             box_size	= 10,
             border	= 0
         )
-        qrc.add_data( account.address )
+        qrc.add_data( acct.address )
         qrc.make( fit=True )
-        if qr is None:
-            qr			= qrc.make_image()
+
+        qr[i]			= qrc.make_image()
         if log.isEnabledFor( logging.INFO ):
             f			= io.StringIO()
             qrc.print_ascii( out=f )
             f.seek( 0 )
             for line in f:
                 log.info( line.strip() )
-        break
 
     card_n			= 0
     page_n			= None
@@ -109,8 +108,11 @@ def output(
 
             tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
             tpl['card-requires'] = requires
-            tpl['card-eth']	= f"{account.crypto} {account.path}: {account.address}{'...' if len(accounts)>1 or len(accounts[0])>1 else ''}"
-            tpl['card-qr']	= qr.get_image()
+            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+            tpl['card-qr1']	= qr[0].get_image()
+            if len( accounts[0] ) > 1:
+                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
+                tpl['card-qr2']	= qr[1].get_image()
             tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
 
             for n,m in enumerate_mnemonic( mnem ).items():
@@ -292,24 +294,40 @@ def main( argv=None ):
             # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
+            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
+                "--json is only valid if '--crypto ETH' wallets are specified"
             if args.json == '-':
                 json_pwd	= input_secure( 'JSON key file password: ', secret=True )
             else:
                 json_pwd	= args.json
                 log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
-            for path,account in accounts.items():
-                json_str	= json.dumps( eth_account.Account.encrypt( account.key, json_pwd ), indent=4 )
-                json_name	= pdf_name[:]
+            for eth in (
+                account
+                for group in accounts
+                for account in group
+                if account.crypto == 'ETH'
+            ):
+                if account.crypto != 'ETH':
+                    continue
+                json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
+                json_name	= args.output.format(
+                    name	= name or "SLIP39",
+                    date	= datetime.strftime( now, '%Y-%m-%d' ),
+                    time	= datetime.strftime( now, '%H.%M.%S'),
+                    crypto	= eth.crypto,
+                    path	= eth.path,
+                    address	= eth.address,
+                )
                 if json_name.lower().endswith( '.pdf' ):
                     json_name	= json_name[:-4]
                 json_name      += '.json'
                 while os.path.exists( json_name ):
                     log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
-                    json_name.append( '.new' )
+                    json_name  += '.new'
                 with open( json_name, 'w' ) as json_f:
                     json_f.write( json_str )
-                log.warning( f"Wrote JSON encrypted wallet for {name!r} to: {json_name}" )
+                log.warning( f"Wrote JSON {name or 'SLIP39'!r}'s encrypted ETH wallet {eth.address} to: {json_name}" )
 
                 if pdf:
                     # Add the encrypted JSON account recovery to the PDF also, if generated.

@@ -24,7 +24,7 @@ The master secret seed can then be used to generate a new SLIP-39 encoded wallet
 
 BIP-39 wallets can be backed up as SLIP-39 wallets, but only at the cost of 59-word SLIP-39
 mnemonics.  This is because the *output* 512-bit BIP-39 seed must be stored in SLIP-39 -- not the
-*input* 128-, 160-, 192-, 224-, or 256-bi entropy used to create the original BIP-39 mnemonic
+*input* 128-, 160-, 192-, 224-, or 256-bit entropy used to create the original BIP-39 mnemonic
 phrase.
 
 """ )
@@ -39,10 +39,10 @@ phrase.
                      default=None,
                      help="Recover 512-bit secret seed from BIP-39 mnemonics" )
     ap.add_argument( '-m', '--mnemonic', action='append',
-                     help="Supply another SLIP-39 mnemonic phrase" )
+                     help="Supply another SLIP-39 (or a BIP-39) mnemonic phrase" )
     ap.add_argument( '-p', '--passphrase',
                      default=None,
-                     help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
+                     help="Decrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
     args			= ap.parse_args( argv )
 
     log_cfg['level']		= log_level( args.verbose - args.quiet )

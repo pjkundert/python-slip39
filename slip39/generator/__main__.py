@@ -6,7 +6,7 @@ import sys
 
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS
-from ..generate		import accountgroups
+from ..api		import accountgroups
 
 log				= logging.getLogger( __package__ )
 

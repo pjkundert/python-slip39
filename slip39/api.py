@@ -39,14 +39,12 @@ def path_parser(
         if e:
             e			= int( e )
             ranges[c]		= lambda b=b,e=e: range( b, e+1 )
-            log.info( f"Range {c!r} is a range [{b}, {e})" )
         else:
             assert allow_unbounded and not ( unbounded or ranges ), \
                 f"{'Only first' if allow_unbounded else 'No'} range allowed to be unbounded;" \
                 f" this is the {ordinal(len(ranges)+1)} range in {paths}"
             unbounded		= True
             ranges[c]		= lambda b=b: itertools.count( b )
-            log.info( f"Range {c!r} is unbounded [{b}..]" )
         path_segs[i]		= f"{{{c}}}" + ( "'" if tic else "" )
 
     path_fmt			= '/'.join( path_segs )

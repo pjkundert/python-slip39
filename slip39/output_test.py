@@ -45,7 +45,7 @@ def test_Region():
     #print( json.dumps( elements, indent=4 ))
     assert elements[1]['type'] == 'T'
     assert elements[1]['font'] == 'helvetica'
-    assert elements[1]['size'] == 13
+    assert elements[1]['size'] == 14
 
     pdf				= FPDF()
     pdf.add_page()

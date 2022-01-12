@@ -1,14 +1,9 @@
-import codecs
-
-import pytest
 import shamir_mnemonic
 
-from .generate_test	import substitute, nonrandom_bytes
-from .generate		import account, create
-from .recovery		import recover, recover_bip39
+from .api		import account, create, addresses, addressgroups, accountgroups
+from .recovery		import recover
 
-SEED_XMAS_HEX			= b"dd0e2f02b1f6c92a1a265561bc164135"
-SEED_XMAS			= codecs.decode( SEED_XMAS_HEX, 'hex_codec' )
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS
 
 
 def test_account():
@@ -43,138 +38,106 @@ def test_create():
     assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS
 
 
-@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
-def test_recover():
-    details			= create(
-        "recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ), SEED_XMAS
-    )
-    #import json
-    #print( json.dumps( details.groups, indent=4 ))
-    assert details.groups == {
-        "one": (
-            1,
-            [
-                "academic acid acrobat romp chubby client grief judicial pulse domain flip elevator become spirit heat patent hawk remove pickup boring"
-            ]
+def test_addresses():
+    master_secret		= b'\xFF' * 16
+    addrs			= list( addresses(
+        master_secret	= master_secret,
+        crypto		= 'ETH',
+        paths		= "m/44'/60'/0'/0/-9",
+    ))
+    # print( json.dumps( addrs, indent=4, default=str ))
+    assert addrs == [
+        (
+            "ETH",
+            "m/44'/60'/0'/0/0",
+            "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
         ),
-        "two": (
-            1,
-            [
-                "academic acid beard romp away ancient domain jacket early admit true disaster manual sniff seafood guest stick grumpy blessing unknown"
-            ]
+        (
+            "ETH",
+            "m/44'/60'/0'/0/1",
+            "0x8D342083549C635C0494d3c77567860ee7456963"
         ),
-        "fam": (
-            2,
-            [
-                "academic acid ceramic roster density snapshot crush modify born plastic greatest victim merit weapon general cover wits cradle quick emphasis",
-                "academic acid ceramic scared brother carve scout stay repeat that fumes tendency junior clay freshman rhyme infant enlarge puny decent",
-                "academic acid ceramic shadow class findings zero blessing sidewalk drink jump hormone advocate flip install alpha ugly speak prospect solution",
-                "academic acid ceramic sister aluminum obesity blue furl grownup island educate junk traveler listen evidence merit grant python purchase piece"
-            ]
+        (
+            "ETH",
+            "m/44'/60'/0'/0/2",
+            "0x52787E24965E1aBd691df77827A3CfA90f0166AA"
         ),
-        "fren": (
-            3,
-            [
-                "academic acid decision round academic academic academic academic academic academic academic academic academic academic academic academic academic ranked flame amount",
-                "academic acid decision scatter change pleasure dive cricket class impulse lungs hour invasion strike mustang friendly divorce corner penalty fawn",
-                "academic acid decision shaft disaster python expand math typical screw rumor research unusual segment install curly debut shadow orange museum",
-                "academic acid decision skin browser breathe intimate picture smirk railroad equip spirit nervous capital teaspoon hybrid angel findings hunting similar",
-                "academic acid decision snake angel phrase gums response tracks carve secret bucket liquid dictate enemy decrease dance early weapon season"
-            ]
+        (
+            "ETH",
+            "m/44'/60'/0'/0/3",
+            "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/4",
+            "0x42a910D380dE132B5227e3277Cc70C3C76a884aC"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/5",
+            "0x1A3db5E0422c78F43a35686f0307Da8f22344dE0"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/6",
+            "0x19031c515C5d91DB7988D89AAA6F71a5825f5245"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/7",
+            "0xaE693156ac600f5B0D58e5090ecf0A578c5Cc0a8"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/8",
+            "0x4347541fa648BCE62543a8AbC2901E08017f6A6a"
+        ),
+        (
+            "ETH",
+            "m/44'/60'/0'/0/9",
+            "0xC11235559Dd4c5224a19396C3A14526E92ebba35"
         )
-    }
-    assert recover( details.groups['one'][1] + details.groups['fren'][1][:3] ) == SEED_XMAS
-
-    # Enough correct number of mnemonics must be provided (extras ignored)
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
-
-    assert recover( details.groups['one'][1] + details.groups['fren'][1][:4] ) == SEED_XMAS
-
-    # Invalid mnemonic phrases are rejected (one word changed)
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
-            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry laundry"
-        ])
-    assert "Invalid mnemonic checksum" in str(excinfo.value)
-
-    # Duplicate mnemonics rejected/ignored
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + details.groups['fren'][1][:1] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
-
-    # Mnemonics from another SLIP-39 rejected
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
-            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
-        ])
-    assert "Invalid set of mnemonics" in str(excinfo.value)
-
-
-@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
-def test_bip39():
-    bip39seed			= recover_bip39( 'zoo ' * 11 + 'wrong' )
-    details			= create(
-        "bip39 recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ),
-        master_secret=bip39seed,
-    )
-    #import json
-    #print( json.dumps( details.groups, indent=4 ))
-    assert details.groups == {
-        "one": (
-            1,
-            [
-                "academic acid acrobat romp academic angel email prospect endorse strategy debris award strike frost actress facility legend safari pistol"
-                " mouse hospital identify unwrap talent entrance trust cause ranked should impulse avoid fangs various radar dilemma indicate says rich work"
-                " presence jerky glance hesitate huge depend tension loan tolerate news agree geology phrase random simple finger alarm depart inherit grin"
-            ]
-        ),
-        "two": (
-            1,
-            [
-                "academic acid beard romp acne floral cricket answer debris making decorate square withdraw empty decorate object artwork tracks rocky tolerate"
-                " syndrome decorate predator sweater ordinary pecan plastic spew facility predator miracle change solution item lizard testify coal excuse lecture"
-                " exercise hamster hand crystal rainbow indicate phantom require satisfy flame acrobat detect closet patent therapy overall muscle spill adjust unhappy"
-            ]
-        ),
-        "fam": (
-            2,
-            [
-                "academic acid ceramic roster acquire again tension ugly edge profile custody geology listen hazard smug branch adequate fishing simple adapt fancy"
-                " hour method emperor tactics float quiet location satoshi guilt fantasy royal machine dictate squeeze devote oven eclipse writing level sheriff"
-                " teacher purchase building veteran spirit woman realize width vanish scholar jewelry desktop stilt random rhyme debut premium theater",
-                "academic acid ceramic scared acid space fantasy breathe true recover privacy tactics boring harvest punish swimming leader talent exchange diet"
-                " enforce vanish volume organize coastal emperor change intend club scene intimate upgrade dragon burning lily huge market calcium forecast holiday"
-                " merit method type ruler equip retailer pancake paces thorn worthy always story promise clock staff floral smart iris repair",
-                "academic acid ceramic shadow acne rumor decent elder aspect lizard obesity friendly regular aircraft beyond military campus employer seafood cover"
-                " ivory dough galaxy victim diminish average music cause behavior declare brave toxic visual academic include lilac repair morning rapids building"
-                " kernel herald careful helpful move hawk flash glimpse seafood listen writing rocky browser change hybrid diet organize system wrote",
-                "academic acid ceramic sister academic both legend raspy pecan mixed broken tenant critical again imply finance pacific single echo capital hesitate"
-                " piece disease crush slush belong airline smug voice organize dryer standard emission curious charity swing pitch senior behavior vintage chemical"
-                " cage editor rebuild costume adult ancestor erode steady makeup depart carpet level sympathy being soldier glimpse airport picture"
-            ]
-        ),
-        "fren": (
-            3,
-            [
-                "academic acid decision round academic academic academic academic academic academic academic academic academic academic academic academic academic"
-                " academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
-                " academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
-                " academic academic academic academic academic academic academic aviation endless plastic",
-                "academic acid decision scatter acid ugly raspy famous swimming else length gray raspy brother fake aunt auction premium military emphasis perfect"
-                " surprise class suitable crunch famous burden military laundry inmate regret elder mixture tenant taught smirk voter process steady artist equip"
-                " jury carve acrobat western cylinder gasoline artwork snapshot ancestor object cinema market species platform iris dragon dive medal",
-                "academic acid decision shaft acid carbon credit cards rich living humidity peasant source triumph magazine ladle ruin ocean aspect curious round"
-                " main evoke deny stadium zero discuss union strike pencil golden silent geology display wrap peanut listen aide learn juice decision plot bike example"
-                " obesity ancient square pistol twice sister hour amuse human hobo hospital escape expect wildlife luck",
-                "academic acid decision skin academic vanish olympic evoke gesture rumor unfair scroll grasp very steady include smell diploma package guest greatest"
-                " firm humidity trial width priest class large photo sniff survive machine usher stick capacity heat improve predator float iris jacket soldier apart"
-                " excuse garden cleanup realize permit dough script veteran crazy theater rival secret drink kernel lips pants",
-                "academic acid decision snake acid vegan darkness bucket benefit therapy valuable impulse canyon swing distance vampire round losing twin medal treat"
-                " amount fiction hush remind faint distance custody device believe campus guest preach mule exhaust regular short phrase column rescue steady float"
-                " mixture testify taught fiction usher snake museum detailed agree intend inherit likely typical blimp symbolic prayer course"
-            ]
+    ]
+    addrs			= list( addresses(
+        master_secret	= master_secret,
+        crypto		= 'BTC',
+    ))
+    # print( json.dumps( addrs, indent=4, default=str ))
+    assert addrs == [
+        (
+            "BTC",
+            "m/44'/0'/0'/0/0",
+            "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"
         )
-    }
-    assert recover( details.groups['one'][1][:] + details.groups['fren'][1][:3] ) == bip39seed
+    ]
+
+
+def test_addressgroups():
+    master_secret		= b'\xFF' * 16
+    addrgrps			= list( enumerate( addressgroups(
+        master_secret	= master_secret,
+        cryptopaths	= [
+            ('ETH', "m/44'/60'/0'/0/-3"),
+            ('BTC', "m/44'/0'/0'/0/-3"),
+        ],
+    )))
+    # print( addrgrps )
+    assert addrgrps == [
+        (0, (("ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"), ("BTC", "m/44'/0'/0'/0/0", "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"))),
+        (1, (("ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"), ("BTC", "m/44'/0'/0'/0/1", "1BGwDuVPJeXDG9upaHvVPds5MXwkTjZoav"))),
+        (2, (("ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"), ("BTC", "m/44'/0'/0'/0/2", "1L64uW2jKB3d1mWvfzTGwZPTGg9qPCaQFM"))),
+        (3, (("ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"), ("BTC", "m/44'/0'/0'/0/3", "1NQv8w7ZNPTadaJg1KxWTC84kLMnCp6pLR"))),
+    ]
+
+
+def test_accountgroups():
+    master_secret		= b'\xFF' * 16
+    acctgrps			= list( accountgroups(
+        master_secret	= master_secret,
+        cryptopaths	= [
+            ('ETH', "m/44'/60'/0'/0/-3"),
+            ('BTC', "m/44'/0'/0'/0/-3"),
+        ],
+    ))
+    # print( json.dumps( acctgrps, default=repr ))
+    assert len(acctgrps) == 4

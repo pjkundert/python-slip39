@@ -69,7 +69,7 @@ class Text( Region ):
         self.font		= font
         self.text		= text
         self.size		= size
-        self.size_ratio		= size_ratio or 2/3
+        self.size_ratio		= size_ratio or 3/4
         self.align		= align
         self.foreground		= foreground
         self.background		= background
@@ -175,21 +175,29 @@ def card(
         Region( 'card-bottom', x1=0, y1=1/4, x2=1, y2=1 )
     )
     card_mnemonics		= card_bottom.add_region_proportional(
-        Region( 'card-mnemonics', x1=0, y1=0, x2=3/4, y2=1 )
+        Region( 'card-mnemonics', x1=0, y1=0, x2=13/16, y2=1 )
     )
-    card_qr			= card_bottom.add_region_proportional(
-        Image( 'card-qr', x1=3/4, y1=0, x2=1, y2=1 )
+    card_qr1			= card_bottom.add_region_proportional(
+        Image( 'card-qr1', x1=13/16, y1=0, x2=1, y2=1/2 )
     )
-    card_qr.y2			= card_qr.y1 + (card_qr.x2 - card_qr.x1)  # make height same as width
+    card_qr1.y2			= card_qr1.y1 + (card_qr1.x2 - card_qr1.x1)  # make height same as width
+
+    card_qr2			= card_bottom.add_region_proportional(
+        Image( 'card-qr2', x1=13/16, y1=1/2, x2=1, y2=1 )
+    )
+    card_qr2.y1			= card_qr2.y2 - (card_qr2.x2 - card_qr2.x1)  # make height same as width
 
     card_top.add_region_proportional(
-        Text( 'card-title', x1=0, y1=0, x2=1, y2=44/100, bold=True )
+        Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
     )
     card_top.add_region_proportional(
-        Text( 'card-requires', x1=0, y1=45/100, x2=1, y2=75/100, align='C', italic=True )
+        Text( 'card-requires', x1=0, y1=40/100, x2=1, y2=70/100, align='C', italic=True )
     )
     card_top.add_region_proportional(
-        Text( 'card-ETH', x1=0, y1=75/100, x2=1, y2=100/100, align='R' )
+        Text( 'card-crypto1', x1=0, y1=70/100, x2=1, y2=85/100, align='R' )
+    )
+    card_top.add_region_proportional(
+        Text( 'card-crypto2', x1=0, y1=85/100, x2=1, y2=100/100, align='R' )
     )
 
     assert num_mnemonics in MNEM_ROWS_COLS, \
@@ -198,9 +206,15 @@ def card(
     for r in range( rows ):
         for c in range( cols ):
             card_mnemonics.add_region_proportional(
-                Text( f"mnem-{c * rows + r}",
-                      x1=c/cols, y1=r/rows, x2=(c+1)/cols, y2=(r+1)/rows,
-                      font='mono', size_ratio=9/16 )
+                Text(
+                    f"mnem-{c * rows + r}",
+                    x1		= c/cols,
+                    y1		= r/rows,
+                    x2		= (c+1)/cols,
+                    y2		= (r+1)/rows,
+                    font	= 'mono',
+                    size_ratio	= 9/16,
+                )
             )
     return card
 

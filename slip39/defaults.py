@@ -16,12 +16,12 @@
 
 from hdwallet.cryptocurrencies import get_cryptocurrency
 
-CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'XRP',)  # Currently supported
+CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'DOGE',)  # Currently supported
 CRYPTO_NAMES			= dict(
     ethereum	= 'ETH',
     bitcoin	= 'BTC',
     litecoin	= 'LTC',
-    ripple	= 'XRP',
+    dogecoin	= 'DOGE',
 )
 
 

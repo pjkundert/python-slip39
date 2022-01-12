@@ -15,3 +15,7 @@ class Account( hdwallet.HDWallet ):
     @property
     def path( self ):
         return super( Account, self ).path()
+
+    @property
+    def key( self ):
+        return super( Account, self ).private_key()
