@@ -1,6 +1,7 @@
 #import json
 import qrcode
 
+from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
@@ -45,7 +46,7 @@ def test_Region():
     #print( json.dumps( elements, indent=4 ))
     assert elements[1]['type'] == 'T'
     assert elements[1]['font'] == 'helvetica'
-    assert elements[1]['size'] == 14
+    assert elements[1]['size'] == approx( 14.4 )
 
     pdf				= FPDF()
     pdf.add_page()
