@@ -83,7 +83,7 @@ class Text( Region ):
         d['type']		= 'T'
         d['font']		= FONTS.get( self.font ) or self.font or FONTS.get( 'sans' )
         line_height		= (self.y2 - self.y1) * 72      # points
-        d['size']		= self.size or int( round( line_height * self.size_ratio ))
+        d['size']		= self.size or ( line_height * self.size_ratio )  # No need for int(round(..))
         if self.text is not None:
             d['text']		= self.text
         if self.bold:
@@ -91,7 +91,7 @@ class Text( Region ):
         if self.italic:
             d['italic']		= True
         if self.underline:
-            d['underline']		= True
+            d['underline']	= True
         if self.align is not None:
             d['align']		= self.align
         if self.foreground is not None:
@@ -191,13 +191,13 @@ def card(
         Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
     )
     card_top.add_region_proportional(
-        Text( 'card-requires', x1=0, y1=40/100, x2=1, y2=70/100, align='C', italic=True )
+        Text( 'card-requires', x1=0, y1=40/100, x2=1, y2=66/100, align='C', italic=True )
     )
     card_top.add_region_proportional(
-        Text( 'card-crypto1', x1=0, y1=70/100, x2=1, y2=85/100, align='R' )
+        Text( 'card-crypto1', x1=0, y1=66/100, x2=1, y2=83/100, align='R' )
     )
     card_top.add_region_proportional(
-        Text( 'card-crypto2', x1=0, y1=85/100, x2=1, y2=100/100, align='R' )
+        Text( 'card-crypto2', x1=0, y1=83/100, x2=1, y2=100/100, align='R' )
     )
 
     assert num_mnemonics in MNEM_ROWS_COLS, \
