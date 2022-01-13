@@ -5,7 +5,14 @@ import threading
 
 from serial		import Serial
 
+# Optionally, we can provide ChaCha20Poly1305 to support securing the channel
+try:
+    from chacha20poly1305 import ChaCha20Poly1305
+except ImportError:
+    pass
+
 #from .generate 		import addresses
+
 
 
 def listener(port):
