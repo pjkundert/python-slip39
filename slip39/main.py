@@ -24,6 +24,7 @@ from .defaults		import (
     DEFAULT_PATH,
     CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
     BITS, BITS_DEFAULT,
+    cryptocurrency_supported,
 )
 from .			import layout
 
@@ -229,7 +230,7 @@ def main( argv=None ):
     if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
         raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
 
-    # Optional passphrase (utf-8 encoded bytes
+    # Optional passphrase
     passphrase			= args.passphrase or ""
     if passphrase == '-':
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
@@ -242,9 +243,10 @@ def main( argv=None ):
             crypto,paths	= crypto.split( ':' )
         except ValueError:
             crypto,paths	= crypto,None
+        crypto			= cryptocurrency_supported( crypto )
         cryptopaths.append( (crypto,paths) )
 
-    # Generate each desired SLIP-39 wallet.  Supports --card (the default) and --text
+    # Generate each desired SLIP-39 wallet.  Supports --card (the default)
     for name in args.names or [ "" ]:
         details			= create(
             name		= name,
