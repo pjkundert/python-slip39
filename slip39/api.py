@@ -187,7 +187,7 @@ def create(
         cryptopaths	= cryptopaths or [('ETH',None), ('BTC',None)],
         allow_unbounded	= False,
     ))
-    print( f"{accts!r}" )
+
     groups			= {
         g_name: (g_of, g_mnems)
         for (g_name,(g_of, _),g_mnems) in zip( g_names, g_dims, mnems )

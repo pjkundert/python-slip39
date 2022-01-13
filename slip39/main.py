@@ -194,11 +194,10 @@ def main( argv=None ):
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
-    logging.debug( f"{args}" )
-    log_cfg['level']		= log_level( args.verbose - args.quiet )
 
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
     # basicConfig is a NO-OP), by (also) setting the logging level
+    log_cfg['level']		= log_level( args.verbose - args.quiet )
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
@@ -308,8 +307,6 @@ def main( argv=None ):
                 for account in group
                 if account.crypto == 'ETH'
             ):
-                if account.crypto != 'ETH':
-                    continue
                 json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
                 json_name	= args.output.format(
                     name	= name or "SLIP39",

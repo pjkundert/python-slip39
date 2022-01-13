@@ -16,32 +16,38 @@ nil
 #+RESULTS:
 
 #+BEGIN_ABSTRACT
-Creating Ethereum accounts is complex and fraught with potential for loss of funds.
+Creating Ethereum, Bitcoin and other accounts is complex and fraught with potential for loss of funds.
 
-A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account.  If someone
-finds your recovery phrase, the account is /gone/.
+A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account (and all
+derived accounts, in fact).  If someone finds your recovery phrase, the accounts derived from that
+seed are /gone/.
 
-The SLIP-39 standard allows you to split the seed between 1 or more groups of several mnemonic
+The SLIP-39 standard allows you to split the seed between 1, 2, or more groups of several mnemonic
 recovery phrases.  This is better, but creating such accounts is difficult; presently, only the
 Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
 words is difficult, error-prone and time consuming.
 
 The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
-Wallet]] accounts, with various SLIP-39 sharing parameters.  It generates the new random wallet seed,
-generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) with
-Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
-containing all the required printable cards to document the account.
+Wallet]] seeds and derived accounts, with various SLIP-39 sharing parameters.  It generates the new
+random wallet seed, and generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]]
+=m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at derivation path =m/44'/0'/0'/0/0 by
+default), with wallet address and QR code, produces the required SLIP-39 phrases, and outputs a
+single PDF containing all the required printable cards to document the seed (and the specified
+derived accounts).
 
-On an secure (ideally air-gapped) computer, new accounts can safely be generated and the PDF saved
-to a USB drive for printing (or directly printed without the file being saved to disk.)
+On an secure (ideally air-gapped) computer, new seeds can safely be generated and the PDF saved to a
+USB drive for printing (or directly printed without the file being saved to disk.).  Presently,
+=slip39= can output example ETH, BTC, LTC and DOGE addresses derived from the seed, to illustrate
+what accounts are associated with the backed-up seed.  Recovery of the seed to a Trezor is simple,
+by entering the mnemonics right on the device.
 #+END_ABSTRACT
 #+TOC: headlines 2
 
 * Security with Availability
 
   For both BIP-39 and SLIP-39, a 128-bit random "seed" is the source of an unlimited sequence of
-  Ethereum HD Wallet accounts.  Anyone who can obtain this seed gains control of all Ethereum
-  accounts derived from it, so it must be securely stored.
+  Ethereum HD Wallet accounts.  Anyone who can obtain this seed gains control of all Ethereum,
+  Bitcoin (and other) accounts derived from it, so it must be securely stored.
 
   Losing this seed means that all of the HD Wallet accounts are permanently lost.  Therefore, it
   must be backed up reliably, and be readily accessible.
@@ -145,13 +151,14 @@ to a USB drive for printing (or directly printed without the file being saved to
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
   $ python3 -m slip39 --secret 383597fd63547e7c9525575decd413f7 --json -
-  2021-12-25 11:09:57 slip39           ETH m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  ...
-  JSON key file password: <enter JSON wallet password>
-  2021-12-25 11:10:38 slip39           Wrote JSON encrypted wallet for '' to:\
-    SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.json
-  2021-12-25 11:10:39 slip39           Wrote SLIP39-encoded wallet for '' to:\
-    SLIP39-2021-12-25+11.09.57-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  2022-01-12 19:19:21 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  2022-01-12 19:19:21 slip39           ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  2022-01-12 19:19:21 slip39           BTC    m/44'/0'/0'/0/0     : 1LHhWXKn4PVXRiKfr39qyreBxd4qTLmZa
+  JSON key file password: <enter password for JSON file...>
+  2022-01-12 19:19:28 slip39           Wrote JSON 'SLIP39''s encrypted ETH wallet 0xb44A2011A99596671d5952CdC22816089f142FB3 to:\
+    SLIP39-2022-01-12+19.19.21-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.json
+  2022-01-12 19:19:28 slip39           Wrote SLIP39-encoded wallet for '' to:\
+    SLIP39-2022-01-12+19.19.21-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+END_EXAMPLE
   #+LATEX: }
 
@@ -172,9 +179,7 @@ to a USB drive for printing (or directly printed without the file being saved to
        | python3 -m slip39 --secret - --no-card -q ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-01-03 10:37:06 slip39           ETH m/44'/60'/0'/0/0    : 0xe751A1C06e7FaaEd7054F47f88145C21AFD46A15
-   : 2022-01-03 10:37:07 slip39.recovery  Recovered 128-bit SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
-   : 2022-01-03 10:37:07 slip39           ETH m/44'/60'/0'/0/0    : 0xe751A1C06e7FaaEd7054F47f88145C21AFD46A15
+   : 2022-01-12 17:08:16 slip39.recovery  Recovered 128-bit SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
    #+LATEX: }
 
 ** Recovery Mnemonic Cards PDF
@@ -202,7 +207,7 @@ to a USB drive for printing (or directly printed without the file being saved to
     | master_secret      | 128-bit secret (default: from secrets.token_bytes)                         |
     | passphrase         | An optional additional passphrase required to recover secret (default: "") |
     | iteration_exponent | For encrypted secret, exponentially increase PBKDF2 rounds (default: 1)    |
-    | paths              | A number of HD Wallet derivation paths (default: ["m/60'/44'/0'/0/0"]      |
+    | cryptopaths        | A number of crypto names, and their derivation paths ]                     |
     #+LATEX: }
 
     Outputs a =slip39.Details= namedtuple containing:
@@ -213,7 +218,7 @@ to a USB drive for printing (or directly printed without the file being saved to
     | name            | (same)                                            |
     | group_threshold | (same)                                            |
     | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
-    | accounts        | Resultant { "path": eth_account.Account, ...}     |
+    | accounts        | Resultant list of groups of accounts              |
     #+LATEX: }
 
     This is immediately usable to pass to =slip39.output=.
@@ -236,12 +241,12 @@ to a USB drive for printing (or directly printed without the file being saved to
     import eth_account
     import slip39
 
-    paths               = [ "m/44'/60'/0'/0/0", "m/44'/60'/0'/0/1" ]
+    cryptopaths         = [("ETH","m/44'/60'/0'/0/-2"), ("BTC","m/44'/0'/0'/0/-2")]
     master_secret       = b'\xFF' * 16
     passphrase          = b""
     create_details      = slip39.create(
         "Test", 2, { "Mine": (1,1), "Fam": (2,3) },
-        master_secret=master_secret, passphrase=passphrase, paths=paths )
+        master_secret=master_secret, passphrase=passphrase, cryptopaths=cryptopaths )
     [
         [
             f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else ""
@@ -255,7 +260,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[308]:
+    # Out[8]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -295,18 +300,23 @@ to a USB drive for printing (or directly printed without the file being saved to
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
     [
-        [ path, eth.address ]
-        for path,eth in create_details.accounts.items()
+        [ account.path, account.address ]
+        for group in create_details.accounts
+        for account in group
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[283]:
+    # Out[9]:
     | 0                | 1                                          |
     |------------------+--------------------------------------------|
     | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
+    | m/44'/0'/0'/0/0  | 1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ         |
     | m/44'/60'/0'/0/1 | 0x8D342083549C635C0494d3c77567860ee7456963 |
+    | m/44'/0'/0'/0/1  | 1BGwDuVPJeXDG9upaHvVPds5MXwkTjZoav         |
+    | m/44'/60'/0'/0/2 | 0x52787E24965E1aBd691df77827A3CfA90f0166AA |
+    | m/44'/0'/0'/0/2  | 1L64uW2jKB3d1mWvfzTGwZPTGg9qPCaQFM         |
     :end:
 
     #+LATEX: }
@@ -378,7 +388,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[284]:
+    # Out[11]:
     | 0                                           |
     |---------------------------------------------|
     | 128-bit secret w/ decoy password recovered: |
@@ -421,7 +431,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[285]:
+    # Out[12]:
     | 0                                                 |
     |---------------------------------------------------|
     | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
@@ -457,11 +467,11 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[245]:
+    # Out[13]:
     | 0                               |
     |---------------------------------|
     | Valid random 12-word mnemonics: |
-    | 6.2%                            |
+    | 6.23%                           |
     | ~ 1/16.1                        |
     :end:
 
@@ -489,7 +499,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[271]:
+    # Out[14]:
     | 0                                |
     |----------------------------------|
     | 512-bit seed:                    |
@@ -527,7 +537,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[295]:
+    # Out[15]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -552,7 +562,7 @@ to a USB drive for printing (or directly printed without the file being saved to
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
     name,thrs,grps,acct = slip39.create(
-        "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy, paths=[path] )
+        "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy )
     [[ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
      for g_name,(g_of,g_mnems) in grps.items()
      for g_n,mnem in enumerate( g_mnems )
@@ -563,7 +573,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[289]:
+    # Out[17]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -606,19 +616,25 @@ to a USB drive for printing (or directly printed without the file being saved to
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
 
-    [[ "HD Wallet Path:", "Ethereum Address:" ]] + [
-     [ path, eth.address ]
-     for path,eth in acct.items()
+    [[ "Crypto", "HD Wallet Path:", "Ethereum Address:" ]] + [
+     [ account.crypto, account.path, account.address ]
+     for group in create_details.accounts
+     for account in group
     ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[292]:
-    | 0                | 1                                          |
-    |------------------+--------------------------------------------|
-    | HD Wallet Path:  | Ethereum Address:                          |
-    | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
+    # Out[20]:
+    | 0      | 1                | 2                                          |
+    |--------+------------------+--------------------------------------------|
+    | Crypto | HD Wallet Path:  | Ethereum Address:                          |
+    | ETH    | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
+    | BTC    | m/44'/0'/0'/0/0  | 1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ         |
+    | ETH    | m/44'/60'/0'/0/1 | 0x8D342083549C635C0494d3c77567860ee7456963 |
+    | BTC    | m/44'/0'/0'/0/1  | 1BGwDuVPJeXDG9upaHvVPds5MXwkTjZoav         |
+    | ETH    | m/44'/60'/0'/0/2 | 0x52787E24965E1aBd691df77827A3CfA90f0166AA |
+    | BTC    | m/44'/0'/0'/0/2  | 1L64uW2jKB3d1mWvfzTGwZPTGg9qPCaQFM         |
     :end:
 
     #+LATEX: }
@@ -631,8 +647,8 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    _,mnem_mine         = entropy_slip39['Mine']
-    _,mnem_fam          = entropy_slip39['Fam']
+    _,mnem_mine         = grps['Mine']
+    _,mnem_fam          = grps['Fam']
     recseed             = slip39.recover( mnem_mine + mnem_fam[:2] )
     recseedhex          = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
 
@@ -644,7 +660,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[293]:
+    # Out[24]:
     | 0                                |
     |----------------------------------|
     | 128-bit seed:                    |
@@ -672,7 +688,7 @@ to a USB drive for printing (or directly printed without the file being saved to
 
     #+RESULTS:
     :results:
-    # Out[294]:
+    # Out[26]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -719,7 +735,7 @@ to a USB drive for printing (or directly printed without the file being saved to
     ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-01-03 09:35:05 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : 2022-01-12 19:14:50 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
    : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
    #+LATEX: }
 
@@ -729,11 +745,12 @@ to a USB drive for printing (or directly printed without the file being saved to
    #+BEGIN_SRC bash :exports both :results output
    ( python3 -m slip39.recovery --bip39 \
          --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-       | python3 -m slip39 --secret - --no-card -q ) 2>&1
+       | python3 -m slip39 --secret - --no-card ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-01-03 09:35:07 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-   : 2022-01-03 09:35:07 slip39           ETH m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+   : 2022-01-12 19:16:34 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : 2022-01-12 19:16:34 slip39           ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+   : 2022-01-12 19:16:34 slip39           BTC    m/44'/0'/0'/0/0     : 1EjnS13zBgN6tUgy6U64qFeh53fyAeUsqE
    #+LATEX: }
 
    This =0xfc20..1B5E= address is the same Ethereum address as is recovered on a Trezor using this
