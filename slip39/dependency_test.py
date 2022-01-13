@@ -1,11 +1,12 @@
 import codecs
 import contextlib
-import json
+#import json
+
 import pytest
 
-from eth_account.hdaccount.mnemonic import Mnemonic
-
 import shamir_mnemonic
+
+from eth_account.hdaccount.mnemonic import Mnemonic
 
 SEED_KNOWN_HEX			= b'87e39270d1d1976e9ade9cc15a084c62'
 SEED_KNOWN			= codecs.decode( SEED_KNOWN_HEX, 'hex_codec' )
@@ -13,6 +14,9 @@ PASS_KNOWN			= b''
 
 SEED_TREZOR			= b"ABCDEFGHIJKLMNOP"
 PASS_TREZOR			= b"TREZOR"
+
+SEED_XMAS_HEX			= b"dd0e2f02b1f6c92a1a265561bc164135"
+SEED_XMAS			= codecs.decode( SEED_XMAS_HEX, 'hex_codec' )
 
 
 class substitute( contextlib.ContextDecorator ):
@@ -113,7 +117,7 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
         passphrase	= b"",
     )
 
-    print( json.dumps( mnemonics, indent=4 ))
+    # print( json.dumps( mnemonics, indent=4 ))
     assert len( mnemonics ) == 4
     assert shamir_mnemonic.combine_mnemonics(mnemonics[0] + mnemonics[2][0:2]) \
         == shamir_mnemonic.combine_mnemonics(mnemonics[1] + mnemonics[2][2:4]) \

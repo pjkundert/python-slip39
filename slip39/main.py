@@ -10,17 +10,18 @@ import os
 import re
 
 from datetime		import datetime
-from typing		import Dict, List, Tuple
+from typing		import Dict, List, Tuple, Sequence
 
 import qrcode
 import eth_account
 from fpdf		import FPDF, FlexTemplate
 
-from .generate		import create, random_secret, enumerate_mnemonic
+from .api		import create, random_secret, enumerate_mnemonic
 from .util		import log_cfg, log_level, input_secure
+from .types		import Account
 from .defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, GROUP_REQUIRED_RATIO,
-    PATH_ETH_DEFAULT,
+    DEFAULT_PATH,
     CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
     BITS, BITS_DEFAULT,
 )
@@ -33,10 +34,10 @@ def output(
     name: str,
     group_threshold: int,
     groups: Dict[str,Tuple[int,List[str]]],
-    accounts: Dict[str, eth_account.Account],
+    accounts: Sequence[Sequence[Account]],
     card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
     paper_format: str		= PAPER,  # 'Letter', ...
-) -> Tuple[FPDF, Dict[str, eth_account.Account]]:
+) -> Tuple[FPDF, Sequence[Sequence[Account]]]:
     """Produces a PDF, containing a number of cards containing the provided slip39.Details if
     card_format is not False, and pass through the supplied accounts."""
 
@@ -73,9 +74,11 @@ def output(
         for g_nam,(g_of,g_mns) in groups.items() )
     requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
 
-    # Obtain the first ETH path and account, and address QR code
-    qr				= None
-    for path,acct in accounts.items():
+    # Convert all of the first group's account(s) to an address QR code
+    assert accounts and accounts[0], \
+        "At least one cryptocurrency account must be supplied"
+    qr				= {}
+    for i,acct in enumerate( accounts[0] ):
         qrc			= qrcode.QRCode(
             version	= None,
             error_correction = qrcode.constants.ERROR_CORRECT_M,
@@ -84,8 +87,8 @@ def output(
         )
         qrc.add_data( acct.address )
         qrc.make( fit=True )
-        if qr is None:
-            qr			= qrc.make_image()
+
+        qr[i]			= qrc.make_image()
         if log.isEnabledFor( logging.INFO ):
             f			= io.StringIO()
             qrc.print_ascii( out=f )
@@ -93,7 +96,6 @@ def output(
             for line in f:
                 log.info( line.strip() )
 
-    assert qr, "At least one ETH account must be supplied"
     card_n			= 0
     page_n			= None
     for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
@@ -106,8 +108,11 @@ def output(
 
             tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
             tpl['card-requires'] = requires
-            tpl['card-eth']	= f"ETH {path}: {acct.address}{'...' if len(accounts)>1 else ''}"
-            tpl['card-qr']	= qr.get_image()
+            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+            tpl['card-qr1']	= qr[0].get_image()
+            if len( accounts[0] ) > 1:
+                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
+                tpl['card-qr2']	= qr[1].get_image()
             tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
 
             for n,m in enumerate_mnemonic( mnem ).items():
@@ -154,15 +159,15 @@ def main( argv=None ):
                      default=0,
                      help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
-                     default="{name}-{date}+{time}-{address}.pdf",
-                     help="Output PDF to file or '-' (stdout); formatting w/ name, date, time, path and address allowed" )
+                     default="{name}-{date}+{time}-{crypto}-{address}.pdf",
+                     help="Output PDF to file or '-' (stdout); formatting w/ name, date, time, crypto, path and address allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
     ap.add_argument( '-g', '--group', action='append',
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Fren(3/5)' )." )
-    ap.add_argument( '-p', '--path', action='append',
-                     help=f"A derivation path (default: {PATH_ETH_DEFAULT})" )
+    ap.add_argument( '-c', '--cryptocurrency', action='append',
+                     help=f"A crypto name and optional derivation path (defaults: \"ETH:{DEFAULT_PATH('ETH')}\" and \"BTC:{DEFAULT_PATH('BTC')}\")" )
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
@@ -175,7 +180,7 @@ def main( argv=None ):
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
-    ap.add_argument( '-c', '--card',
+    ap.add_argument( '-C', '--card',
                      default=None,
                      help=f"Card size; {', '.join(CARD_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {CARD})" )
     ap.add_argument( '--paper',
@@ -190,10 +195,9 @@ def main( argv=None ):
                      help="Account names to produce")
     args			= ap.parse_args( argv )
 
-    log_cfg['level']		= log_level( args.verbose - args.quiet )
-
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
     # basicConfig is a NO-OP), by (also) setting the logging level
+    log_cfg['level']		= log_level( args.verbose - args.quiet )
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
@@ -232,6 +236,14 @@ def main( argv=None ):
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
+    cryptopaths			= []
+    for crypto in args.cryptocurrency or ['ETH', 'BTC']:
+        try:
+            crypto,paths	= crypto.split( ':' )
+        except ValueError:
+            crypto,paths	= crypto,None
+        cryptopaths.append( (crypto,paths) )
+
     # Generate each desired SLIP-39 wallet.  Supports --card (the default) and --text
     for name in args.names or [ "" ]:
         details			= create(
@@ -240,10 +252,14 @@ def main( argv=None ):
             groups		= groups,
             master_secret	= master_secret,
             passphrase		= passphrase.encode( 'utf-8' ),
-            paths		= args.path,
+            cryptopaths		= cryptopaths,
         )
-        for path,account in details.accounts.items():
-            log.error( f"ETH {path:20}: {account.address}" )
+        # Get the first group of the accountgroups in details.accounts.  Must be
+        accounts		= details.accounts
+        assert accounts and accounts[0], \
+            "At least one --cryptocurrency must be specified"
+        for account in accounts[0]:
+            log.warning( f"{account.crypto:6} {account.path:20}: {account.address}" )
 
         if args.text:
             # Output the SLIP-39 mnemonics as text:
@@ -253,7 +269,7 @@ def main( argv=None ):
                     print( f"{name}{name and ': ' or ''}{mnem}" )
 
         # Unless --no-card specified, output a PDF containing the SLIP-39 mnemonic recovery cards
-        pdf,accounts		= None,details.accounts
+        pdf			= None
         if args.card is not False:
             pdf,_		= output(
                 *details,
@@ -261,15 +277,14 @@ def main( argv=None ):
                 paper_format	= args.paper or PAPER )
 
         now			= datetime.now()
-        path			= next(iter(accounts.keys()))
-        address			= accounts[path].address
 
         pdf_name		= args.output.format(
             name	= name or "SLIP39",
             date	= datetime.strftime( now, '%Y-%m-%d' ),
             time	= datetime.strftime( now, '%H.%M.%S'),
-            path	= path,
-            address	= address,
+            crypto	= accounts[0][0].crypto,
+            path	= accounts[0][0].path,
+            address	= accounts[0][0].address,
         )
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
@@ -278,24 +293,38 @@ def main( argv=None ):
             # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
+            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
+                "--json is only valid if '--crypto ETH' wallets are specified"
             if args.json == '-':
                 json_pwd	= input_secure( 'JSON key file password: ', secret=True )
             else:
                 json_pwd	= args.json
                 log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
-            for path,account in accounts.items():
-                json_str	= json.dumps( eth_account.Account.encrypt( account.key, json_pwd ), indent=4 )
-                json_name	= pdf_name[:]
+            for eth in (
+                account
+                for group in accounts
+                for account in group
+                if account.crypto == 'ETH'
+            ):
+                json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
+                json_name	= args.output.format(
+                    name	= name or "SLIP39",
+                    date	= datetime.strftime( now, '%Y-%m-%d' ),
+                    time	= datetime.strftime( now, '%H.%M.%S'),
+                    crypto	= eth.crypto,
+                    path	= eth.path,
+                    address	= eth.address,
+                )
                 if json_name.lower().endswith( '.pdf' ):
                     json_name	= json_name[:-4]
                 json_name      += '.json'
                 while os.path.exists( json_name ):
                     log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
-                    json_name.append( '.new' )
+                    json_name  += '.new'
                 with open( json_name, 'w' ) as json_f:
                     json_f.write( json_str )
-                log.warning( f"Wrote JSON encrypted wallet for {name!r} to: {json_name}" )
+                log.warning( f"Wrote JSON {name or 'SLIP39'!r}'s encrypted ETH wallet {eth.address} to: {json_name}" )
 
                 if pdf:
                     # Add the encrypted JSON account recovery to the PDF also, if generated.

@@ -14,7 +14,46 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
-PATH_ETH_DEFAULT		= "m/44'/60'/0'/0/0"
+from hdwallet.cryptocurrencies import get_cryptocurrency
+
+CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'DOGE',)  # Currently supported
+CRYPTO_NAMES			= dict(
+    ethereum	= 'ETH',
+    bitcoin	= 'BTC',
+    litecoin	= 'LTC',
+    dogecoin	= 'DOGE',
+)
+
+
+def cryptocurrency_supported( cryptocurrency ):
+    """Validates that the specified cryptocurrency is supported and returns the normalized short name
+    for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
+
+    """
+    validated			= CRYPTO_NAMES.get(
+        cryptocurrency.lower(),
+        cryptocurrency.upper() if cryptocurrency.upper() in CRYPTOCURRENCIES else None
+    )
+    if validated:
+        return validated
+    raise ValueError( f"{cryptocurrency} not presently supported; specify {', '.join( CRYPTOCURRENCIES )}" )
+
+
+#
+# HD Wallet Derivation Paths (Standard BIP-44 / Trezor)
+#
+#     https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87f7
+#
+# BIP-44 defines the purpose of each depth level:
+#    m / purpose’ / coin_type’ / account’ / change / address_index
+#
+# Use https://iancoleman.io/bip39/ to confirm the derivations
+#
+def DEFAULT_PATH( symbol ):
+    assert symbol in CRYPTOCURRENCIES, \
+        "Unsupported cryptocurrency {symbol}"
+    return get_cryptocurrency( symbol=symbol ).DEFAULT_PATH
+
 
 # Default group_threshold / required ratios and groups (with varying styles of definition)
 GROUP_REQUIRED_RATIO		= 1/2   # default to 1/2 of group members, rounded up
@@ -36,7 +75,6 @@ CREDIT_CARD			= (2+1/4, 3+3/8), 1/16
 INDEX_CARD			= (3,     5),     1/8   # noqa: E241
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
 HALF_LETTER			= (4+1/2, 8),     1/4   # noqa: E241 (actually, 2/letter, 3/legal)
-FULL_LETTER			= (8,    10),     1/4   # noqa: E241
 
 CARD				= 'index'
 CARD_SIZES			= dict(
@@ -44,7 +82,6 @@ CARD_SIZES			= dict(
     index	= INDEX_CARD,
     business	= BUSINESS_CARD,
     half	= HALF_LETTER,
-    full	= FULL_LETTER
 )
 
 PAGE_MARGIN			= 1/4  # Typical printers cannot print within 1/4" of edge
