@@ -1,10 +1,7 @@
 import argparse
 import codecs
 import hashlib
-import json
 import logging
-import random
-import sys
 
 # Optionally, we can provide ChaCha20Poly1305 to support securing the channel
 try:
@@ -12,6 +9,7 @@ try:
 except ImportError:
     pass
 
+from .			import nonce_add, accountgroups_output
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, DEFAULT_PATH
 from ..api		import accountgroups, cryptocurrency_supported, RANDOM_BYTES
@@ -65,11 +63,11 @@ specified.
                      help="Set the baud rate of the serial device (default: 115200)" )
     ap.add_argument( '-e', '--encrypt',
                      default='',
-                     help="Secure the channel from errors and/or prying eyes with ChaCha20-Poly1305 encryption w/ this password; '-' reads from stdin" )
+                     help="Secure the channel from errors and/or prying eyes with ChaCha20Poly1305 encryption w/ this password; '-' reads from stdin" )
     ap.add_argument( '--decrypt', dest="encrypt" )
-    ap.add_argument( '--enumerate', action='store_true',
+    ap.add_argument( '--enumerated', action='store_true',
                      default=True,
-                     help="Include an enumeration in each record output" )
+                     help="Include an enumeration in each record output (required for --encrypt)" )
     ap.add_argument( '--no-enumerate', dest="enumerate", action='store_false',
                      help="Disable enumeration of output records" )
     ap.add_argument( '--receive', action='store_true',
@@ -92,7 +90,7 @@ specified.
 
     # Confirm sanity of args
     assert args.encrypt and args.enumerate, \
-        "When --encrypt is specified, --enumerate is required"
+        "When --encrypt is specified, --enumerated is required"
     assert not args.receive or not ( args.account or args.secret ), \
         "When --receive, no --account nor --secret allowed"
 
@@ -128,20 +126,19 @@ specified.
             # We're receiving: await the incoming encrypted salt.
             record		= input_secure( "Salt: ", secret=False )
             prefix,cipherhex	= record.split( ':', 1 )
-            assert prefix.strip() == 'salt', \
-                f"Failed to find 'salt' enumeration prefix on first record: {record!r}"
-            print( f"Decoding encrypted salt: {cipherhex!r}" )
+            assert prefix.strip() == 'nonce', \
+                f"Failed to find 'nonce' enumeration prefix on first record: {record!r}"
+            print( f"Decoding encrypted nonce: {cipherhex!r}" )
             ciphertext		= codecs.decode( cipherhex.strip(), 'hex_codec' )
             nonce		= bytes( cipher.decrypt( b'\x00' * 12, ciphertext ))
             log.info( f"Decrypting with nonce: {nonce.hex()}" )
             # Receive rows, ignoring any that cannot be parsed.  Add the enumeration
             # to the nonce for decrypting.
-            nonce_int		= int.from_bytes( nonce, 'big' )
             while True:
                 record		= input_secure( "Record: ", secret=False )
                 try:
                     i,cipherhex	= record.split( ':', 1 )
-                    nonce_now	= (( nonce_int + int( i )) % 2**(8*12) ).to_bytes( 12, 'big' )
+                    nonce_now	= nonce_add( nonce, i )
                     ciphertext	= bytearray( bytes.fromhex( cipherhex ))
                     plaintext	= bytes( cipher.decrypt( nonce_now, ciphertext ))
                     print( f"{i:>5}: {plaintext.decode( 'UTF-8' )}" )
@@ -150,14 +147,6 @@ specified.
         else:
             nonce		= RANDOM_BYTES( 12 )
             log.info( f"Encrypting with nonce: {nonce.hex()}" )
-            nonce_int		= int.from_bytes( nonce, 'big' )
-            # Emit the one-time record containing the encrypted nonce.
-            plaintext		= bytearray( nonce )
-            ciphertext		= bytes( cipher.encrypt( b"\x00" * 12, plaintext ))
-            record		= ( ciphertext.hex(), )
-            if args.enumerate:
-                record		= ( f"{'salt':>5}", ) + record
-            print( ": ".join( record ))
 
     cryptopaths			= []
     for crypto in args.cryptocurrency or ['ETH', 'BTC']:
@@ -174,34 +163,14 @@ specified.
             paths		= '/'.join( path_segs )
         cryptopaths.append( (crypto,paths) )
 
-    count			= 0
-    for accts in accountgroups(
+    for index,group in enumerate( accountgroups(
         master_secret	= secret,
         cryptopaths	= cryptopaths,
-    ):
-        payload		= (json.dumps([
-            (acct._cryptocurrency.SYMBOL, acct.path, acct.address)
-            for acct in accts
-        ]))
-        if encrypt:
-            plaintext	= bytearray( payload.encode( 'UTF-8' ))
-            nonce_now	= (( nonce_int + count ) % 2**(8*12) ).to_bytes( 12, 'big' )
-            ciphertext	= bytes( cipher.encrypt( nonce_now, plaintext ))
-            record	= ( codecs.encode( ciphertext, 'hex_codec' ).decode( 'ascii' ), )
-        else:
-            record	= ( payload, )
-
-
-        if args.enumerate:
-            record	= ( f"{count:>5}", ) + record
-            count      += 1
-
-        output		= ": ".join( record )
-
-        if args.corrupt:
-            fraction	= float( args.corrupt ) / 100
-            output	= ''.join(
-                random.choice( 'abcdefghijklmnopqrstuvwxyz0123456789' ) if random.random() < fraction else c
-                for c in output
-            )
-        print( output )
+    )):
+        accountgroups_output(
+            group	= group,
+            index	= index if args.enumerated else None,
+            cipher	= cipher,
+            nonce	= nonce,
+            corrupt	= float( args.corrupt ) if args.corrupt else 0,
+        )
