@@ -38,17 +38,22 @@ def ordinal(num):
     return f"{num}{suffix}"
 
 
-def input_secure( prompt, secret=True ):
+def input_secure( prompt, secret=True, file=None ):
     """When getting secure (optionally secret) input from standard input, we don't want to use getpass, which
     attempts to read from /dev/tty.
 
     """
-    if sys.stdin.isatty():
+    if ( file or sys.stdin ).isatty():
         # From TTY; provide prompts, and do not echo secret input
         if secret:
-            return getpass.getpass( prompt )
+            return getpass.getpass( prompt, stream=file )
+        elif file:
+            # Coming from some file; no prompt, read a line from the file source
+            return file.readline()
         else:
             return input( prompt )
     else:
         # Not a TTY; don't litter pipeline output with prompts
+        if file:
+            return file.readline()
         return input()

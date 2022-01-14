@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 
-from .			import nonce_add, accountgroups_output
+from .			import accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, DEFAULT_PATH
 from ..api		import accountgroups, cryptocurrency_supported, RANDOM_BYTES
@@ -89,7 +89,7 @@ specified.
     logging.debug( f"{args}" )
 
     # Confirm sanity of args
-    assert args.encrypt and args.enumerate, \
+    assert not args.encrypt or args.enumerate, \
         "When --encrypt is specified, --enumerated is required"
     assert not args.receive or not ( args.account or args.secret ), \
         "When --receive, no --account nor --secret allowed"
@@ -122,32 +122,19 @@ specified.
         key			= hashlib.sha256()
         key.update( encrypt.encode( 'UTF-8' ))
         cipher			= ChaCha20Poly1305( key=key.digest() )
-        if args.receive:
-            # We're receiving: await the incoming encrypted salt.
-            record		= input_secure( "Salt: ", secret=False )
-            prefix,cipherhex	= record.split( ':', 1 )
-            assert prefix.strip() == 'nonce', \
-                f"Failed to find 'nonce' enumeration prefix on first record: {record!r}"
-            print( f"Decoding encrypted nonce: {cipherhex!r}" )
-            ciphertext		= codecs.decode( cipherhex.strip(), 'hex_codec' )
-            nonce		= bytes( cipher.decrypt( b'\x00' * 12, ciphertext ))
-            log.info( f"Decrypting with nonce: {nonce.hex()}" )
-            # Receive rows, ignoring any that cannot be parsed.  Add the enumeration
-            # to the nonce for decrypting.
-            while True:
-                record		= input_secure( "Record: ", secret=False )
-                try:
-                    i,cipherhex	= record.split( ':', 1 )
-                    nonce_now	= nonce_add( nonce, i )
-                    ciphertext	= bytearray( bytes.fromhex( cipherhex ))
-                    plaintext	= bytes( cipher.decrypt( nonce_now, ciphertext ))
-                    print( f"{i:>5}: {plaintext.decode( 'UTF-8' )}" )
-                except Exception as exc:
-                    log.warning( f"Discarding invalid record {record:.20}: {exc!r}" )
-        else:
+        if not args.receive:
+            # On --receive, we will read the encrypted nonce from the sender
             nonce		= RANDOM_BYTES( 12 )
-            log.info( f"Encrypting with nonce: {nonce.hex()}" )
 
+    if args.receive:
+        # Receive groups, ignoring any that cannot be parsed.  Add the enumeration
+        # to the nonce for decrypting.
+        for index,group in accountgroups_input( cipher=cipher ):
+            accountgroups_output( group, index=index )
+        return 0
+
+    # ...else...
+    # Transmitting.
     cryptopaths			= []
     for crypto in args.cryptocurrency or ['ETH', 'BTC']:
         try:
@@ -174,3 +161,5 @@ specified.
             nonce	= nonce,
             corrupt	= float( args.corrupt ) if args.corrupt else 0,
         )
+
+    return 0
