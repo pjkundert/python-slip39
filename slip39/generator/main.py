@@ -1,15 +1,8 @@
 import argparse
 import codecs
-import hashlib
 import logging
 
-# Optionally, we can provide ChaCha20Poly1305 to support securing the channel
-try:
-    from chacha20poly1305 import ChaCha20Poly1305
-except ImportError:
-    pass
-
-from .			import accountgroups_output, accountgroups_input
+from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, DEFAULT_PATH
 from ..api		import accountgroups, cryptocurrency_supported, RANDOM_BYTES
@@ -119,9 +112,7 @@ specified.
     if encrypt == '-':
         encrypt			= input_secure( 'Encryption password: ', secret=True )
     if encrypt:
-        key			= hashlib.sha256()
-        key.update( encrypt.encode( 'UTF-8' ))
-        cipher			= ChaCha20Poly1305( key=key.digest() )
+        cipher			= chacha20poly1305( password=encrypt )
         if not args.receive:
             # On --receive, we will read the encrypted nonce from the sender
             nonce		= RANDOM_BYTES( 12 )

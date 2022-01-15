@@ -1,13 +1,27 @@
 import codecs
+import hashlib
 import logging
 import sys
 import json
 import random
 
+# Optionally, we can provide ChaCha20Poly1305 to support securing the channel.  Required if the
+# --en/decrypt option is used.
+try:
+    from chacha20poly1305 import ChaCha20Poly1305
+except ImportError:
+    pass
+
 from ..types		import Account
 from ..util		import input_secure
 
 log				= logging.getLogger( __package__ )
+
+
+def chacha20poly1305( password: str ) -> ChaCha20Poly1305:
+    key				= hashlib.sha256()
+    key.update( password.encode( 'UTF-8' ))
+    return ChaCha20Poly1305( key=key.digest() )
 
 
 def nonce_add(
@@ -32,25 +46,31 @@ def accountgroups_input(
     """
     nonce			= None
     while True:
-        # TODO: detect EOF
-        record			= input_secure( "Account '[<index>:] <group>' ({'encrypted' if cipher else 'plaintext'}): ", secret=False )
+        try:
+            record		= input_secure(
+                "Account '[<index>:] <group>' ({'encrypted' if cipher else 'plaintext'}): ",
+                secret	= False,
+                file	= file,
+            )
+            if type(record) is bytes:  # If file is binary (eg. a Serial device), decode
+                record		= record.decode( 'UTF-8' )
+        except EOFError:
+            return
         index			= None
         try:
             if cipher:
                 index,payload	= record.split( ':', 1 )
                 if nonce is None:
-                    log.info( f"Decoding encrypted nonce: {record!r}" )
                     try:
                         assert index.strip() == 'nonce', \
                             f"Failed to find 'nonce' enumeration prefix on first record: {record!r}"
                         ciphertext	= bytearray( codecs.decode( payload.strip(), 'hex_codec' ))
-                        log.debug( "Found nonce: {ciphertext.hex}" )
                         nonce		= bytes( cipher.decrypt( b'\x00' * 12, ciphertext ))
                     except Exception as exc:
                         message		= f"Failed to recover nonce from {record!r}; cannot proceed: {exc}"
                         log.error( message )
                         return message
-                    log.warning( f"Decrypting accountgroups with nonce: {nonce.hex()}" )
+                    log.info( f"Decrypting accountgroups with nonce: {nonce.hex()}" )
                     continue
                 nonce_now	= nonce_add( nonce, int( index ))
                 ciphertext	= bytearray( bytes.fromhex( payload ))
@@ -58,10 +78,10 @@ def accountgroups_input(
                 record		= plaintext.decode( 'UTF-8' )
             group		= json.loads( record )
         except Exception as exc:
-            log.warning( f"Discarding invalid record {record:.20}: {exc!r}" )
+            log.warning( f"Discarding invalid record {record!r}: {exc!r}" )
             yield None, None
         else:
-            yield index, group
+            yield int(index), group
 
 
 def accountgroups_output(
