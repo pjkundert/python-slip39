@@ -4,7 +4,7 @@ import logging
 from typing		import List
 
 from shamir_mnemonic	import combine_mnemonics
-from eth_account.hdaccount.mnemonic import Mnemonic
+from mnemonic		import Mnemonic
 
 from ..util		import ordinal
 log				= logging.getLogger( __package__ )
@@ -53,7 +53,7 @@ def recover_bip39(
     """Recover a 512-bit seed from a single BIP-39 mnemonic phrase, detecting the language."""
     language			= Mnemonic.detect_language( mnemonic )
     m				= Mnemonic( language )
-    assert m.is_mnemonic_valid( mnemonic ), \
+    assert m.check( mnemonic ), \
         f"Invalid BIP-39 mnemonic: {mnemonic}"
     secret			= Mnemonic.to_seed( mnemonic, passphrase )
     log.warning( f"Recovered {len(secret)*8}-bit BIP-39 secret from {language} mnemonic" )

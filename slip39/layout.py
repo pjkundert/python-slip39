@@ -1,10 +1,20 @@
+import ast
+import io
+import json
+import logging
+
+import qrcode
+
 from collections	import namedtuple
 from collections.abc	import Callable
-from typing		import Tuple
+from typing		import Dict, List, Tuple, Sequence
+from fpdf		import FPDF, FlexTemplate
 
-from fpdf		import FPDF
+from .api		import enumerate_mnemonic
+from .defaults		import FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN
+from .types		import Account
 
-from .defaults		import FONTS, MNEM_ROWS_COLS
+log				= logging.getLogger( __package__ )
 
 
 class Region:
@@ -130,7 +140,7 @@ class Box( Region ):
 Coordinate			= namedtuple( 'Coordinate', ('x', 'y') )
 
 
-def card(
+def layout_card(
     card_size: Coordinate,
     card_margin: int,
     num_mnemonics: int	= 20,
@@ -219,7 +229,7 @@ def card(
     return card
 
 
-def pdf_layout(
+def layout_pdf(
         card_dim: Coordinate,                   # mm.
         page_margin_mm: float	= .25 * 25.4,   # mm.
         orientation: str	= 'portrait',
@@ -248,3 +258,96 @@ def pdf_layout(
                                   page_margin_mm + page_rows * card_dim.y ))
 
     return (cards_pp, orientation, pdf, page_xy)
+
+
+def output_pdf(
+    name: str,
+    group_threshold: int,
+    groups: Dict[str,Tuple[int,List[str]]],
+    accounts: Sequence[Sequence[Account]],
+    card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
+    paper_format: str		= PAPER,  # 'Letter', ...
+) -> Tuple[FPDF, Sequence[Sequence[Account]]]:
+    """Produces a PDF, containing a number of cards containing the provided slip39.Details if
+    card_format is not False, and pass through the supplied accounts."""
+
+    # Deduce the card size
+    try:
+        (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
+    except KeyError:
+        (card_h,card_w),card_margin = ast.literal_eval( card_format )
+    card_size			= Coordinate( y=card_h, x=card_w )
+
+    # Compute how many cards per page.  Flip page portrait/landscape to match the cards'.  Use the length
+    # of the first Group's first Mnemonic to determine the number of mnemonics on each card.
+    num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
+    card			= layout_card(  # converts to mm
+        card_size, card_margin, num_mnemonics=num_mnemonics )
+    card_dim			= card.dimensions()
+
+    # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
+    page_margin_mm		= PAGE_MARGIN * 25.4
+    cards_pp,orientation,pdf,page_xy = max(
+        layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
+        for orientation in ('portrait', 'landscape')
+    )
+    log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
+               f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
+
+    elements			= list( card.elements() )
+    if log.isEnabledFor( logging.DEBUG ):
+        log.debug( f"Card elements: {json.dumps( elements, indent=4)}" )
+    tpl				= FlexTemplate( pdf, list( card.elements() ))
+
+    group_reqs			= list(
+        f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
+        for g_nam,(g_of,g_mns) in groups.items() )
+    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
+
+    # Convert all of the first group's account(s) to an address QR code
+    assert accounts and accounts[0], \
+        "At least one cryptocurrency account must be supplied"
+    qr				= {}
+    for i,acct in enumerate( accounts[0] ):
+        qrc			= qrcode.QRCode(
+            version	= None,
+            error_correction = qrcode.constants.ERROR_CORRECT_M,
+            box_size	= 10,
+            border	= 0
+        )
+        qrc.add_data( acct.address )
+        qrc.make( fit=True )
+
+        qr[i]			= qrc.make_image()
+        if log.isEnabledFor( logging.INFO ):
+            f			= io.StringIO()
+            qrc.print_ascii( out=f )
+            f.seek( 0 )
+            for line in f:
+                log.info( line.strip() )
+
+    card_n			= 0
+    page_n			= None
+    for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
+        for mn_n,mnem in enumerate( g_mnems ):
+            p,(offsetx,offsety)	= page_xy( card_n )
+            if p != page_n:
+                pdf.add_page()
+                page_n		= p
+            card_n	       += 1
+
+            tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
+            tpl['card-requires'] = requires
+            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+            tpl['card-qr1']	= qr[0].get_image()
+            if len( accounts[0] ) > 1:
+                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
+                tpl['card-qr2']	= qr[1].get_image()
+            tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
+
+            for n,m in enumerate_mnemonic( mnem ).items():
+                tpl[f"mnem-{n}"] = m
+
+            tpl.render( offsetx=offsetx, offsety=offsety )
+
+    return pdf,accounts

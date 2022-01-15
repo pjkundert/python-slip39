@@ -19,8 +19,8 @@ nil
 Creating Ethereum, Bitcoin and other accounts is complex and fraught with potential for loss of funds.
 
 A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account (and all
-derived accounts, in fact).  If someone finds your recovery phrase, the accounts derived from that
-seed are /gone/.
+derived accounts, in fact).  If someone finds your recovery phrase (or you lose it), the accounts
+derived from that seed are /gone/.
 
 The SLIP-39 standard allows you to split the seed between 1, 2, or more groups of several mnemonic
 recovery phrases.  This is better, but creating such accounts is difficult; presently, only the
@@ -238,7 +238,6 @@ by entering the mnemonics right on the device.
     import shamir_mnemonic
     shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
 
-    import eth_account
     import slip39
 
     cryptopaths         = [("ETH","m/44'/60'/0'/0/-2"), ("BTC","m/44'/0'/0'/0/-2")]
@@ -329,7 +328,7 @@ by entering the mnemonics right on the device.
     | name            | (same as =slip39.create=)                         |
     | group_threshold | (same as =slip39.create=)                         |
     | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...] |
-    | accounts        | Resultant { "path": eth_account.Account, ...}     |
+    | accounts        | Resultant { "path": Account, ...}                 |
     | card_format     | 'index', '(<h>,<w>),<margin>', ...                |
     | paper_format    | 'Letter', ...                                     |
     #+LATEX: }
@@ -346,7 +345,7 @@ by entering the mnemonics right on the device.
 
     Takes a number of SLIP-39 mnemonics, and if sufficient =group_threshold= groups' mnemonics are
     present (and the options =passphrase= is supplied), the =master_secret= is recovered.  This can
-    be used with =slip39.accounts= to directly obtain any =eth_account.Account= data.
+    be used with =slip39.accounts= to directly obtain any =Account= data.
 
     Note that the passphrase is *not* checked; entering a different passphrase for the same set of
     mnemonics will recover a *different* wallet!  This is by design; it allows the holder of the
@@ -422,7 +421,7 @@ by entering the mnemonics right on the device.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    from eth_account.hdaccount.mnemonic import Mnemonic
+    from mnemonic import Mnemonic
     bip39_english       = Mnemonic("english")
     entropy             = b'\xFF' * 16
     entropy_mnemonic    = bip39_english.to_mnemonic( entropy )
@@ -431,7 +430,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[12]:
+    # Out[61]:
     | 0                                                 |
     |---------------------------------------------------|
     | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
@@ -457,7 +456,7 @@ by entering the mnemonics right on the device.
             yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
 
     successes           = sum(
-        bip39_english.is_mnemonic_valid( m )
+        bip39_english.check( m )
         for i,m in enumerate( random_words( 12, 10000 ))) / 100
     [[ f"Valid random 12-word mnemonics:" ]] + [
      [ f"{successes}%" ]] + [
@@ -467,12 +466,12 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[13]:
+    # Out[75]:
     | 0                               |
     |---------------------------------|
     | Valid random 12-word mnemonics: |
-    | 6.23%                           |
-    | ~ 1/16.1                        |
+    | 5.89%                           |
+    | ~ 1/17.0                        |
     :end:
 
     #+LATEX: }
@@ -524,9 +523,7 @@ by entering the mnemonics right on the device.
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
     path                = "m/44'/60'/0'/0/0"
-    key                 = eth_account.hdaccount.key_from_seed( seed, path )
-    keyhex              = codecs.encode( key, 'hex_codec' ).decode( 'ascii' )
-    eth_hd              = eth_account.Account.from_key( keyhex )
+    eth_hd		= slip39.account( seed, 'ETH', path )
 
     [[ f"{len(key)*8}-bit derived key at path {path!r}:" ]] + [
      [ f"{keyhex}" ]] + [
@@ -537,7 +534,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[15]:
+    # Out[64]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -676,11 +673,9 @@ by entering the mnemonics right on the device.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    reckey              = eth_account.hdaccount.key_from_seed( recseed, path )
-    reckeyhex           = codecs.encode( reckey, 'hex_codec' ).decode( 'ascii' )
-    receth              = eth_account.Account.from_key( reckeyhex )
-    [[ f"{len(reckey)*8}-bit derived key at path {path!r}:" ]] + [
-     [ f"{reckeyhex}" ]] + [
+    receth		= slip39.account( recseed, 'ETH', path )
+    [[ f"{len(receth.key)*4}-bit derived key at path {path!r}:" ]] + [
+     [ f"{receth.key}" ]] + [
      [ "... yields ..." ]] + [
      [ f"Ethereum address: {receth.address}" ]
     ]
@@ -688,7 +683,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[26]:
+    # Out[68]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -788,37 +783,3 @@ merit aluminum decision snake cage premium aide wealthy viral chemical pharmacy 
 merit aluminum decision spider boundary lunar staff inside junior tendency sharp editor trouble legal visual tricycle auction grin spit index
 #+END_EXAMPLE
 #+LATEX: }
-
-** The =eth-account= API
-
-  To creete Ethereum accounts from seed data, two steps are required.
-
-  First, derive a Private Key from the seed data plus a derivation path:
-
-#+LATEX: {\scriptsize
-#+BEGIN_EXAMPLE
->>> seed=codecs.decode("dd0e2f02b1f6c92a1a265561bc164135", 'hex_codec')
->>> key=eth_account.hdaccount.key_from_seed(seed, "m/44'/60'/0'/0/0")
->>> keyhex=codecs.encode(key, 'hex_codec')
->>> keyhex
-b'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
-#+END_EXAMPLE
-#+LATEX: }
-
-  Then, use the private key to obtain the Ethereum account data:
-
-#+LATEX: {\scriptsize
-#+BEGIN_EXAMPLE
->>> keyhex.decode('ascii')
-'178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
->>> keyhex = '0x'+keyhex.decode('ascii')
->>> keyhex
-'0x178870009416174c9697777b1d94229504e83f25b1605e7bb132aa5b88da64b6'
->>> account = eth_account.Account.from_key(keyhex)
->>> account
-<eth_account.signers.local.LocalAccount object at 0x7fba368ae670>
->>> account.address
-'0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
-#+END_EXAMPLE
-#+LATEX: }
-

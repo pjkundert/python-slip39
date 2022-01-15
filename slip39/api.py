@@ -1,6 +1,8 @@
 import codecs
 import itertools
 import logging
+import math
+import re
 import secrets
 
 from collections	import namedtuple
@@ -9,7 +11,7 @@ from typing		import Dict, List, Sequence, Tuple, Union, Callable
 from shamir_mnemonic	import generate_mnemonics
 
 from .types		import Account
-from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, cryptocurrency_supported
+from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, cryptocurrency_supported
 from .util		import ordinal
 
 
@@ -154,6 +156,37 @@ def organize_mnemonic( mnemonic, rows=None, cols=None, label="" ):
                 words.append( word )
                 line	       += f"{word:<13}"
         yield line,words
+
+
+def group_parser( group_spec ):
+    """Parse a SLIP-39 group specification.
+
+        Fren6, Fren 6, Fren(6)	- A 3/6 group (default is 1/2 of group size, rounded up)
+        Fren2/6, Fren(2/6)	- A 2/6 group
+
+    """
+    match			= group_parser.RE.match( group_spec )
+    if not match:
+        raise ValueError( f"Invalid group specification: {group_spec!r}" )
+    name			= match.group( 'name' )
+    size			= match.group( 'size' )
+    require			= match.group( 'require' )
+    if not size:
+        size			= 1
+    if not require:
+        # eg. default 2/4, 3/5
+        require			= math.ceil( int( size ) * GROUP_REQUIRED_RATIO )
+    return name,(int(require),int(size))
+group_parser.RE			= re.compile( # noqa E305
+    r"""^
+        \s*
+        (?P<name> [^\d\(/]+ )
+        \s*\(?\s*
+        (:? (?P<require> \d* ) \s* / )?
+        \s*
+        (?P<size> \d* )
+        \s*\)?\s*
+        $""", re.VERBOSE )
 
 
 def create(
