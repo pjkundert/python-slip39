@@ -4,3 +4,4 @@ hdwallet
 fpdf2
 qrcode
 chacha20poly1305>=0.0.3
+pyserial

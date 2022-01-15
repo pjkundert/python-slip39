@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         # Requires Python3 w/ Type Annotations
-        python-version: [3.9, 3.x, pypy3]
+        python-version: [3.9, 3.x]
 
     steps:
     - uses: actions/checkout@v2
