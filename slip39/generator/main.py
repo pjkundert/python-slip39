@@ -4,8 +4,9 @@ import logging
 
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
-from ..defaults		import BITS, DEFAULT_PATH
-from ..api		import accountgroups, cryptocurrency_supported, RANDOM_BYTES
+from ..defaults		import BITS
+from ..types		import Account
+from ..api		import accountgroups, RANDOM_BYTES
 
 log				= logging.getLogger( __package__ )
 
@@ -47,10 +48,10 @@ specified.
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' (default) reads it from stdin (eg. output from slip39.recover)" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=None,
-                     help="A crypto name and optional derivation path (default: \"ETH:{DEFAULT_PATH('ETH')}\"), optionally w/ ranges, eg: ETH:m/40'/66'/0'/0/-" )
-    ap.add_argument( '-a', '--account',
+                     help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:m/40'/66'/0'/0/-" )
+    ap.add_argument( '-a', '--address',
                      default=None,
-                     help="Modify all cryptocurrency paths by replacing the account section w/ the supplied range, eg. '-', meaning [0,...)")
+                     help="Modify all cryptocurrency paths by replacing the final address segment w/ the supplied range, eg. '-', meaning [0,...)")
     ap.add_argument( '-b', '--baudrate',
                      default='',
                      help="Set the baud rate of the serial device (default: 115200)" )
@@ -84,8 +85,8 @@ specified.
     # Confirm sanity of args
     assert not args.encrypt or args.enumerate, \
         "When --encrypt is specified, --enumerated is required"
-    assert not args.receive or not ( args.account or args.secret ), \
-        "When --receive, no --account nor --secret allowed"
+    assert not args.receive or not ( args.address or args.secret ), \
+        "When --receive, no --address nor --secret allowed"
 
     # Master secret seed supplied as hex
     secret			= None
@@ -102,11 +103,7 @@ specified.
         if secret_bits not in BITS:
             raise ValueError( f"A {secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
 
-    # Create cipher if necessary, and stretch the password (w/ sha256 without a salt!, not
-    # pbkdf2_hmac, as this must be easily replicable in the receiver who has only the password).
-    # The security requirements of this channel is not high, because only public wallet addresses
-    # are being transported, so this is acceptable.  A one-time Nonce must be used whenever the same
-    # password is used, though.
+    # Create cipher if necessary
     cipher,nonce		= None,None
     encrypt			= args.encrypt
     if encrypt == '-':
@@ -132,12 +129,12 @@ specified.
             crypto,paths	= crypto.split( ':' )
         except ValueError:
             crypto,paths	= crypto,None
-        crypto			= cryptocurrency_supported( crypto )
+        crypto			= Account.supported( crypto )
         if paths is None:
-            paths		= DEFAULT_PATH( crypto )
-        if args.account:
+            paths		= Account.path_default( crypto )
+        if args.address:
             path_segs		= paths.split( '/' )
-            path_segs[-1]	= args.account + ( "'" if ( "'" in path_segs[-1] and "'" not in args.account ) else "" )
+            path_segs[-1]	= args.address + ( "'" if ( "'" in path_segs[-1] and "'" not in args.address ) else "" )
             paths		= '/'.join( path_segs )
         cryptopaths.append( (crypto,paths) )
 

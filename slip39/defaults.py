@@ -14,31 +14,6 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
-from hdwallet.cryptocurrencies import get_cryptocurrency
-
-CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'DOGE',)  # Currently supported
-CRYPTO_NAMES			= dict(
-    ethereum	= 'ETH',
-    bitcoin	= 'BTC',
-    litecoin	= 'LTC',
-    dogecoin	= 'DOGE',
-)
-
-
-def cryptocurrency_supported( cryptocurrency ):
-    """Validates that the specified cryptocurrency is supported and returns the normalized short name
-    for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
-
-    """
-    validated			= CRYPTO_NAMES.get(
-        cryptocurrency.lower(),
-        cryptocurrency.upper() if cryptocurrency.upper() in CRYPTOCURRENCIES else None
-    )
-    if validated:
-        return validated
-    raise ValueError( f"{cryptocurrency} not presently supported; specify {', '.join( CRYPTOCURRENCIES )}" )
-
-
 #
 # HD Wallet Derivation Paths (Standard BIP-44 / Trezor)
 #
@@ -49,11 +24,6 @@ def cryptocurrency_supported( cryptocurrency ):
 #
 # Use https://iancoleman.io/bip39/ to confirm the derivations
 #
-def DEFAULT_PATH( symbol ):
-    assert symbol in CRYPTOCURRENCIES, \
-        "Unsupported cryptocurrency {symbol}"
-    return get_cryptocurrency( symbol=symbol ).DEFAULT_PATH
-
 
 # Default group_threshold / required ratios and groups (with varying styles of definition)
 GROUP_REQUIRED_RATIO		= 1/2   # default to 1/2 of group members, rounded up

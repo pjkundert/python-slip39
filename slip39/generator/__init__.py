@@ -19,6 +19,12 @@ log				= logging.getLogger( __package__ )
 
 
 def chacha20poly1305( password: str ) -> ChaCha20Poly1305:
+    """Stretch the password (w/ sha256 without a salt!, not pbkdf2_hmac, as this must be easily
+    replicable in the receiver who has only the password).  The security requirements of this
+    channel is not high, because only public wallet addresses are being transported, so this is
+    acceptable.  A one-time Nonce must be used whenever the same password is used, though.
+
+    """
     key				= hashlib.sha256()
     key.update( password.encode( 'UTF-8' ))
     return ChaCha20Poly1305( key=key.digest() )

@@ -89,7 +89,7 @@ class SerialEOF( Serial ):
                 raise EOFError( str( exc ))
 
 
-def test_accountgroups_pty():
+def test_groups_pty():
     password			= "password"
     master,slave		= pty.openpty()
     slave_name			= os.ttyname( slave )
