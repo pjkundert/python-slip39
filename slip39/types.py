@@ -87,8 +87,8 @@ class Account( hdwallet.HDWallet ):
 
         format			= format.lower() if format else None
         if format not in cls.FORMATS:
-            raise ValueError( f"{format} not recognized; specify one of {', '.join( cls.FORMATS )}" )
-        cls.CRYPTO_FORMATS[crypto]	= format
+            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {', '.join( cls.FORMATS )}" )
+        cls.CRYPTO_FORMAT[crypto]	= format
 
     @classmethod
     def supported( cls, crypto ):

@@ -17,7 +17,8 @@ except FileNotFoundError:
 
 console_scripts			= [
     'slip39		= slip39.main:main',
-    'slip39-recovery	= slip39.recovery.__main__:main',
+    'slip39-recovery	= slip39.recovery.main:main',
+    'slip39-generator	= slip39.generator.main:main',
 ]
 
 entry_points			= {
@@ -30,6 +31,7 @@ tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readline
 package_dir			= {
     "slip39":			"./slip39",
     "slip39.recovery":		"./slip39/recovery",
+    "slip39.generator":		"./slip39/generator",
 }
 
 long_description_content_type	= 'text/markdown'

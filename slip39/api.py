@@ -23,7 +23,10 @@ def path_parser(
     paths: str,
     allow_unbounded: bool	= True,
 ) -> Tuple[str, Dict[str, Callable[[], int]]]:
-    """Create a format and a dictionary of iterators to feed into it."""
+    """Create a format and a dictionary of iterators to feed into it.
+
+    Supports paths with an arbitrary prefix, eg. 'm/' or '.../'
+    """
     path_segs			= paths.split( '/' )
     unbounded			= False
     ranges			= {}

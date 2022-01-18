@@ -11,6 +11,7 @@ log				= logging.getLogger( __package__ )
 def main( argv=None ):
     ap				= argparse.ArgumentParser(
         description = "Recover and output secret seed from SLIP39 or BIP39 mnemonics",
+        formatter_class = argparse.RawDescriptionHelpFormatter,
         epilog = """\
 If you obtain a threshold number of SLIP-39 mnemonics, you can recover the original
 secret seed, and re-generate one or more Ethereum wallets from it.

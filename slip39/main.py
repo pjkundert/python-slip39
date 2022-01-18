@@ -12,12 +12,11 @@ import qrcode
 from .api		import create, random_secret, group_parser
 from .util		import log_cfg, log_level, input_secure
 from .layout		import output_pdf
+from .types		import Account
 from .defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO,
-    DEFAULT_PATH,
     CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
     BITS, BITS_DEFAULT,
-    cryptocurrency_supported,
 )
 
 # Optionally support output of encrypted JSON files
@@ -49,8 +48,12 @@ def main( argv=None ):
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
     ap.add_argument( '-g', '--group', action='append',
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Fren(3/5)' )." )
+    ap.add_argument( '-f', '--format', action='append',
+                     default=[],
+                     help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
-                     help=f"A crypto name and optional derivation path (defaults: \"ETH:{DEFAULT_PATH('ETH')}\" and \"BTC:{DEFAULT_PATH('BTC')}\")" )
+                     default=[],
+                     help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
@@ -84,6 +87,14 @@ def main( argv=None ):
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+
+    # If any --format <crypto>:<format> address formats provided
+    for cf in args.format:
+        try:
+            Account.address_format( *cf.split( ':' ) )
+        except Exception as exc:
+            log.error( f"Invalid address format: {cf}: {exc}" )
+            raise
 
     groups			= dict(
         group_parser( g )
@@ -125,7 +136,6 @@ def main( argv=None ):
             crypto,paths	= crypto.split( ':' )
         except ValueError:
             crypto,paths	= crypto,None
-        crypto			= cryptocurrency_supported( crypto )
         cryptopaths.append( (crypto,paths) )
 
     # Generate each desired SLIP-39 wallet.  Supports --card (the default)
@@ -211,7 +221,7 @@ def main( argv=None ):
                     json_name  += '.new'
                 with open( json_name, 'w' ) as json_f:
                     json_f.write( json_str )
-                log.warning( f"Wrote JSON {name or 'SLIP39'!r}'s encrypted ETH wallet {eth.address} to: {json_name}" )
+                log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
 
                 if pdf:
                     # Add the encrypted JSON account recovery to the PDF also, if generated.

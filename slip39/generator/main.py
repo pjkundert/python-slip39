@@ -24,16 +24,14 @@ of HD wallet addresses from it.  Emits rows in the form:
 If the output is to be transmitted by an insecure channel (eg. a serial port), which may insert
 errors or allow leakage, it is recommended that the records be encrypted with a cryptographic
 function that includes a message authentication code.  We use ChaCha20Poly1305 with a password and a
-random nonce generated at program start time.  This is nonce is incremented for each record output.
+random nonce generated at program start time.  This nonce is incremented for each record output.
 
 Since the receiver requires the nonce to decrypt, and we do not want to separately transmit the
-nonce and supply it to the receiver, the first record emitted when --encrypt is specified, is the
-random nonce, encrypted with the password, with a known nonce of all 0 bytes.  The plaintext data is
-random, while the nonce is not, but since this construction is only used once, it should be
-satisfactory.
+nonce and supply it to the receiver, the first record emitted when --encrypt is specified is the
+random nonce, encrypted with the password, itself with a known nonce of all 0 bytes.  The plaintext
+data is random, while the nonce is not, but since this construction is only used once, it should be
+satisfactory.  This first nonce record is transmitted with an enumeration prefix of "nonce".
 
-This first nonce record is transmitted with an enumeration prefix of "salt", if --enumerate is
-specified.
 
 """ )
 
@@ -46,9 +44,12 @@ specified.
     ap.add_argument( '-s', '--secret',
                      default=None,
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' (default) reads it from stdin (eg. output from slip39.recover)" )
+    ap.add_argument( '-f', '--format', action='append',
+                     default=[],
+                     help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
-                     default=None,
-                     help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:m/40'/66'/0'/0/-" )
+                     default=[],
+                     help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:../0/-" )
     ap.add_argument( '-a', '--address',
                      default=None,
                      help="Modify all cryptocurrency paths by replacing the final address segment w/ the supplied range, eg. '-', meaning [0,...)")
@@ -87,6 +88,14 @@ specified.
         "When --encrypt is specified, --enumerated is required"
     assert not args.receive or not ( args.address or args.secret ), \
         "When --receive, no --address nor --secret allowed"
+
+    # If any --format <crypto>:<format> address formats provided
+    for cf in args.format:
+        try:
+            Account.address_format( *cf.split( ':' ) )
+        except Exception as exc:
+            log.error( f"Invalid address format: {cf}: {exc}" )
+            raise
 
     # Master secret seed supplied as hex
     secret			= None
