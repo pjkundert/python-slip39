@@ -3,9 +3,29 @@ import logging
 
 import hdwallet
 
-__all__				= ( "Account", )
+__all__				= ( "Account", "path_edit" )
 
 log				= logging.getLogger( __package__ )
+
+
+def path_edit(
+    path: str,
+    edit: str,
+):
+    """Replace the current path w/ the new path, either entirely, or if only partially if a continuation
+    '.../' followed by some new path segments is provided.
+
+    """
+    if edit.startswith( '..' ):
+        new_segs	= edit.lstrip( './' ).split( '/' )
+        cur_segs	= path.split( '/' )
+        log.info( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
+        if len( new_segs ) >= len( cur_segs ):
+            raise ValueError( f"Cannot use {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
+        res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + new_segs
+        return '/'.join( res_segs )
+    else:
+        return edit
 
 
 class Account( hdwallet.HDWallet ):
@@ -133,14 +153,7 @@ class Account( hdwallet.HDWallet ):
 
         """
         if path:
-            if path.startswith( '..' ):
-                pth_segs	= path.lstrip( './' ).split( '/' )
-                cur_segs	= self.path.split( '/' )
-                log.info( f"Using {path} to replace last {len(pth_segs)} of {self.path} with {'/'.join(pth_segs)}" )
-                if len( pth_segs ) >= len( cur_segs ):
-                    raise ValueError( f"Cannot use {path} to replace last {len(pth_segs)} of {self.path} with {'/'.join(pth_segs)}" )
-                res_segs	= cur_segs[:len(cur_segs)-len(pth_segs)] + pth_segs
-                path		= '/'.join( res_segs )
+            path		= path_edit( self.path, path )
         else:
             path		= Account.path_default( self.crypto, self.format )
         self.hdwallet.clean_derivation()

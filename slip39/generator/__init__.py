@@ -41,11 +41,13 @@ def nonce_add(
 
 
 def accountgroups_input(
-    cipher	= None,			# Are input accountgroups records encrypted?
-    file	= None,			# Where to retrieve input from
+    cipher	= None,		# Are input accountgroups records encrypted?
+    file	= None,		# Where to retrieve input from
+    encoding	= None,		# Does channel require decoding from binary? Use this encoding, if so
+    healthy	= None,		# Is file healthy for reading?  Read and ignore input while not.
 ):
-    """Receive and yield accountgroups, ignoring any that cannot be parsed.  Add the enumeration to the
-    nonce for decrypting.
+    """Receive and yield accountgroups, ignoring any that cannot be parsed, or received while not
+    healthy.  Add the enumeration to the nonce for decrypting.
 
     The session nonce must be recovered from the first line of input.
 
@@ -53,22 +55,52 @@ def accountgroups_input(
     nonce			= None
     while True:
         try:
-            record		= input_secure(
-                "Account '[<index>:] <group>' ({'encrypted' if cipher else 'plaintext'}): ",
-                secret	= False,
-                file	= file,
-            )
-            if type(record) is bytes:  # If file is binary (eg. a Serial device), decode
-                record		= record.decode( 'UTF-8' )
+            record		= None
+            while not record or not record.endswith( b'\n' if type(record) is bytes else '\n' ):
+                recv		= file.readline()
+                health		= healthy is None or healthy( file )
+                if recv and health:
+                    if record is None:
+                        record	= recv
+                    else:
+                        record += recv
+                elif recv:
+                    log.warning( f"{file!r:.32} Unhealthy; ignoring input: {recv!r}" )
+                else:
+                    log.info( f"{file!r:.32} {'Healthy  ' if health else 'Unhealthy'}; No input received" )
         except EOFError:
             return
-        index			= None
+
+        if encoding:  # Eg. if file is binary (eg. a Serial device), decode
+            try:
+                record		= record.decode( encoding )
+            except Exception as exc:
+                log.warning( f"Discarding invalid record {record!r}: {exc!r}" )
+                yield None, None
+                continue
+                
+        # Ignore empty records
+        record			= record.strip()
+        if not record:
+            continue
+
+        # See if records are indexed.  Only int or 'nonce' is accepted for index.
+        try:
+            index,payload	= record.split( ':', 1 )
+            try:
+                index		= int( index )
+            except ValueError:
+                assert index == 'nonce'
+        except:
+            index,payload	= None,record
+
         try:
             if cipher:
-                index,payload	= record.split( ':', 1 )
-                if nonce is None:
+                if nonce is None or index == 'nonce':
+                    # Either this is the first record ever received, *or* the counterparty has
+                    # restarted and/or is re-noncing the session.
                     try:
-                        assert index.strip() == 'nonce', \
+                        assert index == 'nonce', \
                             f"Failed to find 'nonce' enumeration prefix on first record: {record!r}"
                         ciphertext	= bytearray( codecs.decode( payload.strip(), 'hex_codec' ))
                         nonce		= bytes( cipher.decrypt( b'\x00' * 12, ciphertext ))
@@ -78,11 +110,12 @@ def accountgroups_input(
                         return message
                     log.info( f"Decrypting accountgroups with nonce: {nonce.hex()}" )
                     continue
-                nonce_now	= nonce_add( nonce, int( index ))
+
+                nonce_now	= nonce_add( nonce, index )
                 ciphertext	= bytearray( bytes.fromhex( payload ))
                 plaintext 	= bytes( cipher.decrypt( nonce_now, ciphertext ))
-                record		= plaintext.decode( 'UTF-8' )
-            group		= json.loads( record )
+                payload		= plaintext.decode( 'UTF-8' )
+            group		= json.loads( payload )
         except Exception as exc:
             log.warning( f"Discarding invalid record {record!r}: {exc!r}" )
             yield None, None
@@ -90,36 +123,93 @@ def accountgroups_input(
             yield int(index), group
 
 
+def file_outputline(
+    file,
+    output,
+    encoding	= None,
+    flush	= True,
+    healthy	= None,
+):
+    """Returns the health of the file at the end of the output write/flush.  Unhealthy file_output
+    should return False, allowing the caller to re-try opening the channel and outputting the
+    record.
+
+    A predicate 'healthy' takes a file that tests for its health, returns True iff healhty, False or raising
+    Exception if not healthy.
+
+    """
+    if file is None:
+        file			= sys.stdout
+    output		       += '\n'
+    if encoding:
+        output			= output.encode( encoding )
+
+    # Confirm that the file is healthy before writing output
+    if ( health := healthy is None or healthy( file )):
+        file.write( output )
+    if not health:
+        log.warning( f"File {file!r:.36} became unhealthy before output of {output!r}" )
+        return health
+
+    # Confirm that the file was healthy right up 'til the buffer is done flushing
+    while ( health := healthy is None or healthy( file )) and flush:
+        if flush and hasattr( file, 'out_waiting' ):
+            if file.out_waiting > 0:
+                time.sleep( 1/100 )
+                continue
+            flush		= False
+        elif flush:
+            file.flush()
+            flush		= False
+    if not health:
+        log.warning( f"File {file!r:.36} became unhealthy during output of {output!r}" )
+    return health
+
+
 def accountgroups_output(
     group,
-    index	= None,		# If encrypting, None will emit encrypted nonce
+    index	= None,
     cipher	= None,
     nonce	= None,
     file	= None,
     flush	= True,
     corrupt	= 0,
+    nonce_emit	= True,		# force encrypted Nonce to be emitted
+    encoding	= None,		# Does channel require encoding to binary? Use this encoding, if so
+    healthy	= None,		# Detect health of file
 ):
     """Emit accountgroup records to the provided file, or sys.stdout.
 
     For each record, we will support either a sequence of Accounts (produced by accountgroups()), or
     a sequence of tuples of (<crypto>, <path>, <address>), (ie. recovered via accountgroups_input.
 
+    Supports binary file-like objects (eg pyserial.Serial) w/ the encoding parameter.  Outputs one line,
+    blocking forever -- the counterparty can (and likely will) block for an indeterminate amount of time, 
+    as it waits to use the provided account groups.
+
+    Returns the health of the output before, during and after attempted output write/flush.
+    
     """
     assert not cipher or ( nonce and index is not None ), \
         "Encryption requires both nonce and index"
 
-    # For encrypted output, the first record emitted must be the encrypted nonce.
-    if cipher and nonce and index == 0:
+    # For encrypted output, the first record emitted always must be the encrypted nonce.  This might
+    # occur multiple times outputting a stream of data, if it is detected that the counterparty has
+    # restarted.  Serial port pins such as DTR/DSR can be used to detect counterparty disconnection.
+    # Always emit extra leading newlines to restart the counterparty line reading, since we don't
+    # know what kind of input remains in its buffer.
+    if cipher and nonce and nonce_emit:
         # Emit the one-time record containing the encrypted nonce, itself w/ a zero nonce.
         plaintext		= bytearray( nonce )
         ciphertext		= bytes( cipher.encrypt( b'\x00' * len( nonce ), plaintext ))
         record			= ( 'nonce', ciphertext.hex(), )
-        output			= ": ".join( record )
+        output			= "\n\n" + ": ".join( record )
         log.info( f"Encrypting accountgroups with nonce: {nonce.hex()}" )
-        print( output, file=file or sys.stdout, flush=flush )
+        if not file_outputline( file, output, encoding=encoding, flush=flush, healthy=healthy ):
+            return False
 
-    if not group:
-        return		# Ignore un-parsable/empty groups
+    if not group or ( cipher and index is None ):
+        return		# Ignore un-parsable/empty groups, or encrypting w/ no index
 
     # Emit the (optionally encrypted and indexed) accountgroup record.
     payload			= json.dumps([
@@ -144,4 +234,6 @@ def accountgroups_output(
             random.choice( 'abcdefghijklmnopqrstuvwxyz0123456789' ) if random.random() < fraction else c
             for c in output
         )
-    print( output, file=file or sys.stdout, flush=flush )
+
+    # Finally, output the record, returning the health of the file at the end of the transmission
+    return file_outputline( file, output, encoding=encoding, flush=flush )

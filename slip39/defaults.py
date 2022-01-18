@@ -66,3 +66,6 @@ MNEM_ROWS_COLS			= {
     33:	(11, 3),		# 256-bit seed
     59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor hardware wallet)
 }
+
+
+BAUDRATE			= 115200
