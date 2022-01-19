@@ -3,6 +3,8 @@ import codecs
 import logging
 import time
 
+from collections	import namedtuple
+
 from serial		import Serial
 
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input, file_outputline
@@ -27,33 +29,37 @@ class SerialEOF( Serial ):
                 #     continue
                 raise EOFError( str( exc ))
 
+
+DtrDsr				= namedtuple( 'DtrDsr', ('dtr', 'dsr') )
+RtsCts				= namedtuple( 'RtsCts', ('rts', 'cts') )
+
 def serial_flow( ser ):
-    dsr				= ser.dsr		# Do we output DSR and expect DTR?
-    dtr				= ser.dtr		#   and what is our current DTR?
-    rts				= ser.rts		# Do we output RTS and expect CTS
-    cts				= ser.cts		#   and what is our current CTS?
-    return (dsr,dtr),(rts,cts)
+    dtrdsr			= DtrDsr(
+        dtr	= ser.dtr,		# Do we output an asserted DTR?
+        dsr	= ser.dsr,		#   and what is our current input DSR (our counterparty's DTR)?
+    )
+    rtscts			= RtsCts(
+        rts	= ser.rts,		# Do we output RTS an asserted?
+        cts	= ser.cts,		#   and what is our current CTS (our counterparty's RTS)?
+    )
+    return dtrdsr,rtscts
 
 
-def serial_status( dsrdtr, rtscts ):
-    dsr,dtr		= dsrdtr
-    rts,cts		= rtscts
-    return ( f"DSR --> {'1' if dsr else 'x'} / DTR <-- {'1' if dtr else 'x'},"
-             + f" RTS --> {'1' if rts else 'x'} / CTS <-- {'1' if cts else 'x'}"
-             + ( "" if cts else "; Receiver full " )
-             + ( "" if dtr else "; Receiver not connected " ))
+def serial_status( dtrdsr, rtscts ):
+    return ( f"DTR --> {'1' if dtrdsr.dtr else 'x'} / DSR <-- {'1' if dtrdsr.dsr else 'x'},"
+             + f" RTS --> {'1' if rtscts.rts else 'x'} / CTS <-- {'1' if rtscts.cts else 'x'}"
+             + ( "" if rtscts.cts else "; Receiver full " )
+             + ( "" if dtrdsr.dtr else "; Receiver not connected " ))
 
 
 def serial_connected( ser ):
     """Detect if the serial port is connected by monitoring DSR/DTR. """
-    flow			= serial_flow( ser )
-    (dsr,dtr),(rts,cts)		= flow
-    health			= dsr and dtr
+    dtrdsr,rtscts		= serial_flow( ser )
+    health			= dtrdsr.dsr and dtrdsr.dtr
     if health:
-        log.info( f"{ser!r:.36}: {serial_status( *flow )}; Healthy" )
+        log.info( f"{ser!r:.36}: {serial_status( dtrdsr, rtscts )}; Healthy" )
     else:
-        log.warning( f"{ser!r:.36}: {serial_status( *flow )}; Unhealthy; missing DSR and/or DTR" )
-
+        log.warning( f"{ser!r:.36}: {serial_status( dtrdsr, rtscts )}; Unhealthy; missing DSR and/or DTR" )
     return health
 
 
@@ -163,53 +169,84 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         if secret_bits not in BITS:
             raise ValueError( f"A {secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
 
-    # Create cipher if necessary
+    # Create cipher if necessary.  The nonce must only be used for one message; we'll increment it
+    # below by the index of each record we send.  It must only be transmitted once; a fresh nonce
+    # will be generated for each serial session.
     cipher,nonce		= None,None
     encrypt			= args.encrypt
     if encrypt == '-':
         encrypt			= input_secure( 'Encryption password: ', secret=True )
     if encrypt:
         cipher			= chacha20poly1305( password=encrypt )
-        if not args.receive:
-            # On --receive, we will read the encrypted nonce from the sender
-            nonce		= RANDOM_BYTES( 12 )
 
+    receive_latency		= 1/10
     if args.receive:
-        # Receive groups, ignoring any that cannot be parsed.  Add the enumeration
-        # to the nonce for decrypting.
+        # Receive groups, ignoring any that cannot be parsed.
         file			= None
         encoding		= None
-        healthy			= serial_connected
+        healthy			= None
+        healthy_reset		= None
         if args.device:
             # Await the appearance of a healthy connection to a live (DTR-asserting) peer.
-            health		= False
-            while not health:
-                encoding	= 'UTF-8'
-                file		= Serial(
+            healthy		= serial_connected
+            encoding		= 'UTF-8'
+            def file_opener():
+                ser		= Serial(
                     port	= args.device,
                     baudrate	= args.baudrate or BAUDRATE,
                     xonxoff	= False,
                     rtscts	= True,
-                    dsrdtr	= True,
-                    timeout	= 1/10,		# Re-inspect port every so often on incomplete reads
+                    dsrdtr	= False,			# We will monitor DSR and control DTR manually; it starts low
+                    timeout	= receive_latency,		# Re-inspect port every so often on incomplete reads
                 )
+                return ser
 
-                # Ensure counterparty has time to recognize we have restarted
-                file.dtr	= False
-                time.sleep( .01 )
-                assert( not healthy( file ) )
-                time.sleep( 1 )
-                file.dtr	= True
-                time.sleep( .01 )
-                health		= healthy( file )
+            def healthy_reset( file ):
+                file.dtr		= False
+                # Wait for a server to de-assert DTR, discarding input.  Server will always send a couple of newlines after reset.
+                while ( flow := serial_flow( file ) ) and flow[0].dsr:
+                    log.warning( f"{file!r:.36} {serial_status(*flow)}; Client lowered DTR -- awaiting Server reset" )
+                    read		= file.readline() # could block for timeout
+                    if read:
+                        log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
-        for index,group in accountgroups_input(
-            cipher	= cipher,
-            file	= file,
-            encoding	= encoding,
-            healthy	= healthy,
-        ):
-            accountgroups_output( group, index=index )
+                file.dtr		= True
+                # Server has reset; assert DTR, and discard input 'til Server asserts DTR
+                while ( flow := serial_flow( file ) ) and not flow[0].dsr:
+                    log.warning( f"{file!r:.36} {serial_status(*flow)}; Client asserts DTR -- awaiting Server active" )
+                    read		= file.readline() # could block for timeout
+                    if read:
+                        log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
+
+        # Continually attempt to receive records.
+        while True:
+            # Establish a session.
+            if file is None and file_opener:
+                file		= file_opener()
+            if healthy_reset:
+                healthy_reset( file )
+
+            # Receive each group, or None,None indicating no record parsed, either due to decryption
+            # failure (eg. bad record), or due to connection health.  Will quit if a server session
+            # doesn't produce a nonce as its first record.
+            for index,group in accountgroups_input(
+                cipher		= cipher,
+                file		= file,
+                encoding	= encoding,
+                healthy		= healthy,
+            ):
+                if index and group:
+                    accountgroups_output( group, index=index )
+                    continue
+                if healthy( file ):
+                    continue
+                # Bad connection, awaiting health...
+                if healthy_reset:
+                    healthy_reset( file )
+
+            # The connection has terminated for some reason (eg. no nonce).  Try again.
+            file		= None
+
         return 0
 
     # ...else...
@@ -230,15 +267,38 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow
     # control (software XON/XOFF flow control is also possible, but requires a 2-way serial data
-    # channel, which we want to avoid).  A record is considered to be successfully sent when
+    # channel, which we want to avoid).
     #
-    # 1. The counterparty assert DTR (Data Terminal Ready), which is connected to the local DSR (and
-    #    maybe also DCD, which we ignore).  Only if DSR stays asserted for the entire duration of
-    #    the transmission do we consider the record to have been received.  We will check it
-    #    periodically (if possible), but at least at the beginning and end of the record's
-    #    communication.  If not asserted, we will wait and retry the record -- and also re-send the
-    #    nonce (assuming that the counterparty may have restarted).  An Exception will be raised
-    #    if any of these failure conditions are detected during transmission of the record.
+    # The channel is opened by following procedure:
+    # 
+    # 0. The Server (sender) starts with its DTR low, and prepares to send its new nonce.
+    # 
+    # 1. The Client (receiver) sees the Server's (sender's) DTR is low by seeing a low DSR.  All
+    #    input is discarded by the receiver.  The client responds by raising its DTR.
+    # 
+    # 2. The Server (sender) sees its DSR asserted by the (new) client's DTR, and raises their DTR
+    #    in response.  It then initiates communications by sending the initial nonce.
+    # 
+    # The channel is closed by the client (ie. if it does not successfully receive a nonce within a
+    # few seconds):
+    # 
+    # 3c. The Client lowers its DTR.  It then goes to step 1., where consuming all input will
+    #     eventually cause the Server to notice the loss of its DSR, and stop, lowering its DTR.
+    # 
+    # The channel is closed by the server (ie. if it finishes sending the desired records, fails or
+    # reboots):
+    #
+    # 3s. The Server lowers its DTR.  The client sees its low DSR, and goes to step 1.
+    #
+    # A record is considered to be successfully sent by the Server when:
+    #
+    # 1. The counterparty receiver asserts DTR (Data Terminal Ready), which is connected to the
+    #    local DSR (and maybe also DCD, which we ignore).  Only if DSR stays asserted for the entire
+    #    duration of the transmission do we consider the record to have been successfully received.
+    #    We will check it periodically (if possible), but at least at the beginning and end of the
+    #    record's communication.  If its RTS is not asserted, the Server will will wait in stop
+    #    0. to re-send the record -- and also re-send the nonce (assuming that the counterparty may
+    #    have restarted).
     #
     # 2. During communication of the record, we will only transmit data when the counterparty
     #    asserts RTS (Request To Send).  This is connected to our local CTS (Clear To Send).  The
@@ -249,6 +309,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     file			= None
     encoding			= None
     healthy			= None
+    healthy_waiter		= None
     file_opener			= None
     if args.device:
         # A write-only Serial connection, w/ hardware RTS/CTS and DTR/DSR flow control.
@@ -261,26 +322,34 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 baudrate = args.baudrate or BAUDRATE,
                 xonxoff	= False,
                 rtscts	= True,
-                dsrdtr	= True,
-                #write_timeout = 1/10,	# Re-inspect port every so often on blocked write; nope, block
+                dsrdtr	= False,	# We will monitor DSR and control DTR manually; it starts low
             )
-            ser.dtr		= False
-            assert not healthy( ser )
-            time.sleep( 1 )
-            ser.dtr		= True
             return ser
 
+        def healthy_waiter( file ):
+            file.dtr		= False
+            # Wait for a client; when seen, assert DTR
+            while ( flow := serial_flow( file ) ) and not flow[0].dsr:
+                log.warning( f"{file!r:.36} {serial_status(*flow)}; Server opened for output; awaiting Client" )
+                time.sleep( 1 )
+            file.dtr		= True
+            # Give the client time to notice, by emitting some newlines over a duration longer than
+            # the receive latency.
+            for _ in range( 3 ):
+                file.write( b'\n' )
+                time.sleep( receive_latency )
+
     nonce_emit			= True
+    nonce			= RANDOM_BYTES( 12 )
+
     for index,group in enumerate( accountgroups(
         master_secret	= secret,
         cryptopaths	= cryptopaths,
     )):
         if file is None and file_opener:
-            file	= file_opener()
-            log.warning( f"{file!r:.36} opened for output" )
-            # Wait 'til counterparty responds to our DSR w/ their own DTR.
-            while not ( health := file_outputline( file, "", encoding=encoding, healthy=healthy )):
-                time.sleep( 1 )
+            file		= file_opener()
+            if healthy_waiter:
+                healthy_waiter( file )
                 
         while not ( health := accountgroups_output(
             group	= group,
@@ -293,14 +362,10 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             nonce_emit	= nonce_emit,
             healthy	= healthy
         )):
-            # Output health failed during/after sending group.  We're going to start over.  Try to
-            # re-open the target file every second or so.
             nonce_emit		= True
-            if file is not None:
-                file.close()
-                log.warning( f"{file!r:.36} closed because it was detected as unhealthy" )
-                file		= None
-            time.sleep( 1 )
+            nonce		= RANDOM_BYTES( 12 )
+            if healthy_waiter:
+                healthy_waiter( file )
 
         # Output health confirmed during/after sending group; carry on.
         nonce_emit		= False

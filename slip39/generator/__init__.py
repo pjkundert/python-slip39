@@ -4,6 +4,7 @@ import logging
 import sys
 import json
 import random
+import time
 
 # Optionally, we can provide ChaCha20Poly1305 to support securing the channel.  Required if the
 # --en/decrypt option is used.
@@ -52,25 +53,33 @@ def accountgroups_input(
     The session nonce must be recovered from the first line of input.
 
     """
+    if file is None:
+        file			= sys.stdin
     nonce			= None
     while True:
+        # Attempt to receive a record, while connection is healthy
         try:
             record		= None
             while not record or not record.endswith( b'\n' if type(record) is bytes else '\n' ):
                 recv		= file.readline()
                 health		= healthy is None or healthy( file )
-                if recv and health:
+                if not health:
+                    if recv:
+                        log.warning( f"{file!r:.32} Unhealthy; ignoring input: {recv!r}" )
+                    break
+                if recv:
                     if record is None:
                         record	= recv
                     else:
                         record += recv
-                elif recv:
-                    log.warning( f"{file!r:.32} Unhealthy; ignoring input: {recv!r}" )
-                else:
-                    log.info( f"{file!r:.32} {'Healthy  ' if health else 'Unhealthy'}; No input received" )
         except EOFError:
+            # Session has terminated; TODO: yield the EOFError to signal no more inputs (ever) available?
             return
+        if not health:
+            yield None,None
+            continue
 
+        # Got a record on a healthy connection!
         if encoding:  # Eg. if file is binary (eg. a Serial device), decode
             try:
                 record		= record.decode( encoding )
@@ -140,12 +149,14 @@ def file_outputline(
     """
     if file is None:
         file			= sys.stdout
+    
     output		       += '\n'
     if encoding:
         output			= output.encode( encoding )
 
     # Confirm that the file is healthy before writing output
     if ( health := healthy is None or healthy( file )):
+        log.info( f"File {file!r:.36} writing {len(output):3}: {output!r:.36}{'...' if len(output) >36 else ''}" )
         file.write( output )
     if not health:
         log.warning( f"File {file!r:.36} became unhealthy before output of {output!r}" )
@@ -153,14 +164,20 @@ def file_outputline(
 
     # Confirm that the file was healthy right up 'til the buffer is done flushing
     while ( health := healthy is None or healthy( file )) and flush:
+        '''
         if flush and hasattr( file, 'out_waiting' ):
-            if file.out_waiting > 0:
+            if ( waiting := file.out_waiting ) > 0:
+                log.info( f"{file!r:.32} waiting for {waiting} bytes to flush" )
                 time.sleep( 1/100 )
                 continue
             flush		= False
         elif flush:
             file.flush()
             flush		= False
+        '''
+        file.flush()
+        flush			= False
+
     if not health:
         log.warning( f"File {file!r:.36} became unhealthy during output of {output!r}" )
     return health
@@ -236,4 +253,4 @@ def accountgroups_output(
         )
 
     # Finally, output the record, returning the health of the file at the end of the transmission
-    return file_outputline( file, output, encoding=encoding, flush=flush )
+    return file_outputline( file, output, encoding=encoding, flush=flush, healthy=healthy )
