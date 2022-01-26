@@ -36,62 +36,96 @@ package_dir			= {
 
 long_description_content_type	= 'text/markdown'
 long_description		= """\
-Creating Ethereum accounts is complex and fraught with potential for loss of funds.
+Creating Ethereum, Bitcoin and other accounts is complex and fraught with potential for loss of funds.
 
-A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account.  If someone
-finds your recovery phrase, the account is /gone/.
+A BIP-39 seed recovery phrase helps, but a *single* lapse in security dooms the account (and all
+derived accounts, in fact).  If someone finds your recovery phrase (or you lose it), the accounts
+derived from that seed are /gone/.
 
-The SLIP-39 standard allows you to split the seed between 1 or more groups of multiple recovery
-phrases.  This is better, but creating such accounts is difficult; presently, only the Trezor
-supports these, and they can only be created "manually".  Writing down 5 or more sets of 20 words is
-difficult and time consuming.
+The SLIP-39 standard allows you to split the seed between 1, 2, or more groups of several mnemonic
+recovery phrases.  This is better, but creating such accounts is difficult; presently, only the
+Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
+words is difficult, error-prone and time consuming.
 
 The python-slip39 project exists to assist in the safe creation and documentation of Ethereum HD
-Wallet accounts, with various SLIP-39 sharing parameters.  It generates the new wallet seed,
-generates standard Ethereum account(s) (at derivation path =m/44'/60'/0'/0/0= by default) with
-Ethereum wallet address and QR code, produces the required SLIP-39 phrases, and outputs a single PDF
-containing all the required printable cards to document the account.
+Wallet seeds and derived accounts, with various SLIP-39 sharing parameters.  It generates the new
+random wallet seed, and generates the expected standard Ethereum account(s) (at derivation path
+=m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at Bech32 derivation path =m/84'/0'/0'/0/0= by
+default), with wallet address and QR codee (compatible with Trezor derivations).  It produces the
+required SLIP-39 phrases, and outputs a single PDF containing all the required printable cards to
+document the seed (and the specified derived accounts).
 
-On an secure (ideally air-gapped) computer, new accounts can safely be generated and the PDF saved
-to a USB drive for printing (or directly printed without the file being saved to disk.)
+On an secure (ideally air-gapped) computer, new seeds can safely be generated and the PDF saved to a
+USB drive for printing (or directly printed without the file being saved to disk.).  Presently,
+=slip39= can output example ETH, BTC, LTC and DOGE addresses derived from the seed, to illustrate
+what accounts are associated with the backed-up seed.  Recovery of the seed to a Trezor is simple,
+by entering the mnemonics right on the device.
 
-    $ python3 -m slip39 -v
-    2021-12-29 13:21:57 slip39           ETH m/44'/60'/0'/0/0    : 0x8686D2cb685A934233eB8a4907d17e45257eBaD0
+    $ python3 -m slip39 -v Personal      # or run: slip39 -v Personal
+    2022-01-26 13:55:30 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           1st  1 sister     8 cricket   15 unhappy
+    2022-01-26 13:55:30 slip39                2 acid       9 mental    16 ocean
+    2022-01-26 13:55:30 slip39                3 acrobat   10 veteran   17 mayor
+    2022-01-26 13:55:30 slip39                4 romp      11 phantom   18 promise
+    2022-01-26 13:55:30 slip39                5 anxiety   12 grownup   19 wrote
+    2022-01-26 13:55:30 slip39                6 laser     13 skunk     20 romp
+    2022-01-26 13:55:30 slip39                7 cricket   14 anatomy
+    2022-01-26 13:55:30 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           1st  1 sister     8 belong    15 spirit
+    2022-01-26 13:55:30 slip39                2 acid       9 survive   16 royal
+    2022-01-26 13:55:30 slip39                3 beard     10 home      17 often
+    2022-01-26 13:55:30 slip39                4 romp      11 herd      18 silver
+    2022-01-26 13:55:30 slip39                5 again     12 mountain  19 grocery
+    2022-01-26 13:55:30 slip39                6 orbit     13 august    20 antenna
+    2022-01-26 13:55:30 slip39                7 very      14 evening
+    2022-01-26 13:55:30 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           1st  1 sister     8 rainbow   15 husky
+    2022-01-26 13:55:30 slip39                2 acid       9 swing     16 crowd
+    2022-01-26 13:55:30 slip39                3 ceramic   10 credit    17 learn
+    2022-01-26 13:55:30 slip39                4 roster    11 piece     18 priority
+    2022-01-26 13:55:30 slip39                5 already   12 puny      19 hand
+    2022-01-26 13:55:30 slip39                6 quiet     13 senior    20 watch
+    2022-01-26 13:55:30 slip39                7 erode     14 listen
+    2022-01-26 13:55:30 slip39           2nd  1 sister     8 holy      15 revenue
+    2022-01-26 13:55:30 slip39                2 acid       9 execute   16 junction
+    2022-01-26 13:55:30 slip39                3 ceramic   10 lift      17 elite
+    2022-01-26 13:55:30 slip39                4 scared    11 spark     18 flexible
+    2022-01-26 13:55:30 slip39                5 domestic  12 yoga      19 inform
+    2022-01-26 13:55:30 slip39                6 exact     13 medical   20 predator
+    2022-01-26 13:55:30 slip39                7 finger    14 grief
     ...
-    2021-12-29 13:21:57 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
-    2021-12-29 13:21:57 slip39             withdraw pajamas acrobat romp afraid engage sniff olympic rescue taxi careful calcium radar thank realize join thank parcel desktop tofu
-    2021-12-29 13:21:57 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
-    2021-12-29 13:21:57 slip39             withdraw pajamas beard romp ajar cricket medical human unkind undergo legend briefing climate learn member change glasses maximum critical photo
-    2021-12-29 13:21:57 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
-    2021-12-29 13:21:57 slip39             withdraw pajamas ceramic roster daisy voice bike spider rhyme stay slow devote phantom cricket carpet favorite decent society ending elite
-    2021-12-29 13:21:57 slip39             withdraw pajamas ceramic scared calcium says spew fake blue exceed actress velvet romp ounce mild smear sled kernel divorce oral
+    2022-01-26 13:55:30 slip39           ETH    m/44'/60'/0'/0/0    : 0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1
+    2022-01-26 13:55:30 slip39           BTC    m/84'/0'/0'/0/0     : bc1q6u7qk0tepkxdm8wkhpqzwwy0w8zfls9yvghaxq
     ...
-    2021-12-29 13:21:57 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-29+13.21.57-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.pdf
+    2022-01-26 13:55:30 slip39           Wrote SLIP39-encoded wallet for 'Personal' to: Personal-2022-01-26+13.55.30-ETH-0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1.pdf
 
 Later, if you need to recover the Ethereum wallet, keep entering SLIP-39 mnemonics until the secret
 is recovered (invalid/duplicate mnemonics will be ignored):
 
-    $ python3 -m slip39.recovery -v
-    Enter 1st SLIP-39 mnemonic: withdraw pajamas acrobat romp afraid engage sniff olympic rescue taxi careful calcium radar thank realize join thank parcel desktop tofu
+    $ python3 -m slip39.recovery -v      # or run: slip39-recovery -v
+    Enter 1st SLIP-39 mnemonic: sister acid acrobat romp anxiety laser cricket cricket mental veteran phantom grownup skunk anatomy unhappy ocean mayor promise wrote romp
     2021-12-29 13:24:25 slip39.recovery  Could not recover SLIP-39 master secret with 1 supplied mnemonics: Insufficient number of mnemonic groups. The required number of groups is 2.
     Enter 2nd SLIP-39 mnemonic: a bc
     2021-12-29 13:24:53 slip39.recovery  Could not recover SLIP-39 master secret with 2 supplied mnemonics: Invalid mnemonic word 'a'.
-    Enter 3rd SLIP-39 mnemonic:  withdraw pajamas ceramic roster daisy voice bike spider rhyme stay slow devote phantom cricket carpet favorite decent society ending elite
+    Enter 3rd SLIP-39 mnemonic: sister acid ceramic roster already quiet erode rainbow swing credit piece puny senior listen husky crowd learn priority hand watch
     2021-12-29 13:24:58 slip39.recovery  Could not recover SLIP-39 master secret with 3 supplied mnemonics: Invalid mnemonic word 'a'.
-    Enter 4th SLIP-39 mnemonic: withdraw pajamas ceramic scared calcium says spew fake blue exceed actress velvet romp ounce mild smear sled kernel divorce oral
+    Enter 4th SLIP-39 mnemonic: sister acid ceramic scared domestic exact finger holy execute lift spark yoga medical grief revenue junction elite flexible inform predator
     2021-12-29 13:25:14 slip39.recovery  Recovered SLIP-39 secret with 3 (1st, 3rd, 4th) of 4 supplied mnemonics
     2021-12-29 13:25:14 slip39.recovery  Recovered SLIP-39 secret; To re-generate, send it to: python3 -m slip39 --secret -
-    9658a84b5138f63c428f6086be6e82b5
+    32448aabb50cb6b022fdf17d960720df
 
 Finally, regenerate the Ethereum wallet, perhaps including an encrypted JSON wallet file for import
-into a software wallet; note that the same Ethereum wallet address 0x8686...BaD0 is recovered:
+into a software wallet; note that the same Ethereum wallet address 0x8FBC...3bf1 is recovered:
 
-    $ python3 -m slip39 --secret 9658a84b5138f63c428f6086be6e82b5 --json -
-    2021-12-29 13:26:04 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-    2021-12-29 13:26:04 slip39           ETH m/44'/60'/0'/0/0    : 0x8686D2cb685A934233eB8a4907d17e45257eBaD0
-    JSON key file password: <enter JSON wallet password>
-    2021-12-29 13:26:29 slip39           Wrote JSON encrypted wallet for '' to: SLIP39-2021-12-29+13.26.04-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.json
-    2021-12-29 13:26:29 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2021-12-29+13.26.04-0x8686D2cb685A934233eB8a4907d17e45257eBaD0.pdf
+    $ python3 -m slip39 --secret 32448aabb50cb6b022fdf17d960720df --json -
+    2022-01-26 14:06:14 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+    2022-01-26 14:06:14 slip39           ETH    m/44'/60'/0'/0/0    : 0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1
+    2022-01-26 14:06:14 slip39           BTC    m/84'/0'/0'/0/0     : bc1q6u7qk0tepkxdm8wkhpqzwwy0w8zfls9yvghaxq
+    JSON key file password:
+    2022-01-26 14:06:21 slip39           Wrote JSON SLIP39's encrypted ETH wallet 0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1 \
+                                                derived at m/44'/60'/0'/0/0 to: SLIP39-2022-01-26+14.06.14-ETH-0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1.json
+    2022-01-26 14:06:21 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2022-01-26+14.06.14-ETH-0x8FBCe53111817DcE01F9f4C4A6319eA1Ca0c3bf1.pdf
+
 
 The whole toolchain is suitable for pipelining:
 

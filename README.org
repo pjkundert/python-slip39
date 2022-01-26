@@ -33,11 +33,11 @@ words is difficult, error-prone and time consuming.
 
 The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
 Wallet]] seeds and derived accounts, with various SLIP-39 sharing parameters.  It generates the new
-random wallet seed, and generates standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]]
-=m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at derivation path =m/44'/0'/0'/0/0 by
-default), with wallet address and QR code, produces the required SLIP-39 phrases, and outputs a
-single PDF containing all the required printable cards to document the seed (and the specified
-derived accounts).
+random wallet seed, and generates the expected standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]]
+=m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at derivation path =m/84'/0'/0'/0/0= by
+default), with wallet address and QR code (compatible with Trezor derivations).  It produces the
+required SLIP-39 phrases, and outputs a single PDF containing all the required printable cards to
+document the seed (and the specified derived accounts).
 
 On an secure (ideally air-gapped) computer, new seeds can safely be generated and the PDF saved to a
 USB drive for printing (or directly printed without the file being saved to disk.).  Presently,
@@ -136,7 +136,7 @@ by entering the mnemonics right on the device.
    The resultant PDF will be output into the designated file.
   
    This PDF file can be  printed on 3x5 index cards, or on regular paper or  card stock and the cards
-   can be cut out  (=--card credit= , =business=, and =half= or =full=  (page) are also available, as
+   can be cut out  (=--card credit= , =business=, and =half= (page) are also available, as
    well as custom ="(<h>,<w>),<margin>"=).
   
    To get the data printed on the terminal as in this example (so you could write it down on cards
