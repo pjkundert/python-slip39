@@ -16,21 +16,6 @@ from ..api		import accountgroups, RANDOM_BYTES
 log				= logging.getLogger( __package__ )
 
 
-class SerialEOF( Serial ):
-    """Converts Serial exceptions into EOFError, for compatibility w/ expectations of file-like objects.
-
-    """
-    def read( self, size=1 ):
-        while True:
-            try:
-                return super( SerialEOF, self ).read( size=size )
-            except Exception as exc:  # SerialError as exc:
-                # if "readiness" in str(exc):
-                #     time.sleep( .1 )
-                #     continue
-                raise EOFError( str( exc ))
-
-
 DtrDsr				= namedtuple( 'DtrDsr', ('dtr', 'dsr') )
 RtsCts				= namedtuple( 'RtsCts', ('rts', 'cts') )
 

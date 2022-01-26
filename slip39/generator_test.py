@@ -3,7 +3,7 @@ import logging
 import pty
 import threading
 
-from serial		import Serial  # , SerialError
+from serial		import Serial
 
 from .api		import RANDOM_BYTES, accountgroups
 from .generator		import chacha20poly1305, accountgroups_output, accountgroups_input
@@ -78,6 +78,8 @@ def generator( password, cryptopaths, fd ):
 
 
 class SerialEOF( Serial ):
+    """Convert any SerialException to an EOFError, for compatibility with PTY.  In real serial ports,
+    we'll handle detection of counterparty readiness with DTR/DSR, and flow control with RTS/CTS."""
     def read( self, size=1 ):
         while True:
             try:
@@ -105,7 +107,7 @@ def test_groups_pty():
     gen.daemon			= True
     gen.start()
 
-    ser				= SerialEOF( slave_name, 300, timeout=1, xonxoff=True )
+    ser				= SerialEOF( slave_name, timeout=1)
     for group in accountgroups_input(
         cipher		= chacha20poly1305( password=password ),
         encoding	= 'UTF-8',
