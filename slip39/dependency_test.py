@@ -6,7 +6,7 @@ import pytest
 
 import shamir_mnemonic
 
-from eth_account.hdaccount.mnemonic import Mnemonic
+from mnemonic		import Mnemonic
 
 SEED_KNOWN_HEX			= b'87e39270d1d1976e9ade9cc15a084c62'
 SEED_KNOWN			= codecs.decode( SEED_KNOWN_HEX, 'hex_codec' )
@@ -100,8 +100,8 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
     # originating Entropy) is *not* recoverable from the Seed, as the derivation function is not
     # reversible.  The process is Entropy --> BIP39 Mnemonic --> Seed
     m = Mnemonic("english")
-    mnemonic = m.to_mnemonic(bytes.fromhex(entropy))
-    assert m.is_mnemonic_valid(mnemonic)
+    mnemonic = m.to_mnemonic( bytes.fromhex( entropy ))
+    assert m.check( mnemonic )
     assert mnemonic == expected_BIP39
 
     seed = Mnemonic.to_seed(mnemonic, passphrase="TREZOR")

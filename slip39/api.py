@@ -1,6 +1,7 @@
-import codecs
 import itertools
 import logging
+import math
+import re
 import secrets
 
 from collections	import namedtuple
@@ -9,7 +10,7 @@ from typing		import Dict, List, Sequence, Tuple, Union, Callable
 from shamir_mnemonic	import generate_mnemonics
 
 from .types		import Account
-from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, cryptocurrency_supported
+from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO
 from .util		import ordinal
 
 
@@ -22,7 +23,10 @@ def path_parser(
     paths: str,
     allow_unbounded: bool	= True,
 ) -> Tuple[str, Dict[str, Callable[[], int]]]:
-    """Create a format and a dictionary of iterators to feed into it."""
+    """Create a format and a dictionary of iterators to feed into it.
+
+    Supports paths with an arbitrary prefix, eg. 'm/' or '.../'
+    """
     path_segs			= paths.split( '/' )
     unbounded			= False
     ranges			= {}
@@ -156,6 +160,37 @@ def organize_mnemonic( mnemonic, rows=None, cols=None, label="" ):
         yield line,words
 
 
+def group_parser( group_spec ):
+    """Parse a SLIP-39 group specification.
+
+        Fren6, Fren 6, Fren(6)	- A 3/6 group (default is 1/2 of group size, rounded up)
+        Fren2/6, Fren(2/6)	- A 2/6 group
+
+    """
+    match			= group_parser.RE.match( group_spec )
+    if not match:
+        raise ValueError( f"Invalid group specification: {group_spec!r}" )
+    name			= match.group( 'name' )
+    size			= match.group( 'size' )
+    require			= match.group( 'require' )
+    if not size:
+        size			= 1
+    if not require:
+        # eg. default 2/4, 3/5
+        require			= math.ceil( int( size ) * GROUP_REQUIRED_RATIO )
+    return name,(int(require),int(size))
+group_parser.RE			= re.compile( # noqa E305
+    r"""^
+        \s*
+        (?P<name> [^\d\(/]+ )
+        \s*\(?\s*
+        (:? (?P<require> \d* ) \s* / )?
+        \s*
+        (?P<size> \d* )
+        \s*\)?\s*
+        $""", re.VERBOSE )
+
+
 def create(
     name: str,
     group_threshold: int,
@@ -233,35 +268,36 @@ def mnemonics(
 def account(
     master_secret: Union[str,bytes],
     crypto: str			= None,  # default 'ETH'
-    path: str			= None,  # default to the crypto's DEFAULT_PATH
+    path: str			= None,  # default to the crypto's path_default
+    format: str			= None,  # eg. 'bech32', or use the default address format for the crypto
 ):
     """Generate an HD wallet Account from the supplied master_secret seed, at the given HD derivation
     path, for the specified cryptocurrency.
 
     """
-    if type( master_secret ) is bytes:
-        master_secret		= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
     acct			= Account(
-        symbol		= cryptocurrency_supported( crypto or 'ETH' )
+        crypto		= crypto or 'ETH',
+        format		= format,
     ).from_seed(
-        seed		= master_secret
+        seed		= master_secret,
+        path		= path,
     )
-    return acct.from_path(
-        path		= path or acct._cryptocurrency.DEFAULT_PATH
-    )
+    return acct
 
 
 def accounts(
     master_secret: Union[str,bytes],
     crypto: str			= None,  # default 'ETH'
-    paths: str			= None,  # default to the crypto's DEFAULT_PATH; allow ranges
+    paths: str			= None,  # default to the crypto's path_default; allow ranges
+    format: str			= None,
     allow_unbounded		= True,
 ):
+    """Create accounts for crypto, at the provided paths (allowing ranges), with the optionsal address format. """
     for path in [None] if paths is None else path_sequence( *path_parser(
         paths		= paths,
         allow_unbounded	= allow_unbounded,
     )):
-        yield account( master_secret, crypto, path )
+        yield account( master_secret, crypto=crypto, path=path, format=format )
 
 
 def accountgroups(
@@ -305,19 +341,22 @@ def address(
     master_secret: bytes,
     crypto: str			= None,
     path: str			= None,
+    format: str			= None,
 ):
     """Return the specified cryptocurrency HD account address at path."""
     return account(
         master_secret,
         path		= path,
-        crypto		= cryptocurrency_supported( crypto or 'ETH' ),
+        crypto		= crypto,
+        format		= format,
     ).address
 
 
 def addresses(
     master_secret: bytes,
     crypto: str	 		= None,  # default 'ETH'
-    paths: str			= None,  # default: The crypto's DEFAULT_PATH; supports ranges
+    paths: str			= None,  # default: The crypto's path_default; supports ranges
+    format: str			= None,
     allow_unbounded: bool	= True,
 ):
     """Generate a sequence of cryptocurrency account (path, address, ...)  for all designated
@@ -325,7 +364,7 @@ def addresses(
     cryptocurrencies typically have their own unique path derivations.
 
     """
-    for acct in accounts( master_secret, crypto, paths, allow_unbounded=allow_unbounded ):
+    for acct in accounts( master_secret, crypto, paths, format, allow_unbounded=allow_unbounded ):
         yield (acct.crypto, acct.path, acct.address)
 
 

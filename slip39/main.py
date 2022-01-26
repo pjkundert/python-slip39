@@ -1,151 +1,33 @@
 import argparse
-import ast
 import codecs
-
-import io
 import json
 import logging
 import math
 import os
-import re
 
 from datetime		import datetime
-from typing		import Dict, List, Tuple, Sequence
 
 import qrcode
-import eth_account
-from fpdf		import FPDF, FlexTemplate
 
-from .api		import create, random_secret, enumerate_mnemonic
+from .api		import create, random_secret, group_parser
 from .util		import log_cfg, log_level, input_secure
+from .layout		import output_pdf
 from .types		import Account
 from .defaults		import (
-    GROUPS, GROUP_THRESHOLD_RATIO, GROUP_REQUIRED_RATIO,
-    DEFAULT_PATH,
+    GROUPS, GROUP_THRESHOLD_RATIO,
     CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
     BITS, BITS_DEFAULT,
 )
-from .			import layout
+
+# Optionally support output of encrypted JSON files
+eth_account			= None
+try:
+    import eth_account
+except ImportError:
+    pass
+
 
 log				= logging.getLogger( __package__ )
-
-
-def output(
-    name: str,
-    group_threshold: int,
-    groups: Dict[str,Tuple[int,List[str]]],
-    accounts: Sequence[Sequence[Account]],
-    card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
-    paper_format: str		= PAPER,  # 'Letter', ...
-) -> Tuple[FPDF, Sequence[Sequence[Account]]]:
-    """Produces a PDF, containing a number of cards containing the provided slip39.Details if
-    card_format is not False, and pass through the supplied accounts."""
-
-    # Deduce the card size
-    try:
-        (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
-    except KeyError:
-        (card_h,card_w),card_margin = ast.literal_eval( card_format )
-    card_size			= layout.Coordinate( y=card_h, x=card_w )
-
-    # Compute how many cards per page.  Flip page portrait/landscape to match the cards'.  Use the length
-    # of the first Group's first Mnemonic to determine the number of mnemonics on each card.
-    num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
-    card			= layout.card(  # converts to mm
-        card_size, card_margin, num_mnemonics=num_mnemonics )
-    card_dim			= card.dimensions()
-
-    # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
-    page_margin_mm		= PAGE_MARGIN * 25.4
-    cards_pp,orientation,pdf,page_xy = max(
-        layout.pdf_layout( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
-        for orientation in ('portrait', 'landscape')
-    )
-    log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
-               f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
-
-    elements			= list( card.elements() )
-    if log.isEnabledFor( logging.DEBUG ):
-        log.debug( f"Card elements: {json.dumps( elements, indent=4)}" )
-    tpl				= FlexTemplate( pdf, list( card.elements() ))
-
-    group_reqs			= list(
-        f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
-        for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
-
-    # Convert all of the first group's account(s) to an address QR code
-    assert accounts and accounts[0], \
-        "At least one cryptocurrency account must be supplied"
-    qr				= {}
-    for i,acct in enumerate( accounts[0] ):
-        qrc			= qrcode.QRCode(
-            version	= None,
-            error_correction = qrcode.constants.ERROR_CORRECT_M,
-            box_size	= 10,
-            border	= 0
-        )
-        qrc.add_data( acct.address )
-        qrc.make( fit=True )
-
-        qr[i]			= qrc.make_image()
-        if log.isEnabledFor( logging.INFO ):
-            f			= io.StringIO()
-            qrc.print_ascii( out=f )
-            f.seek( 0 )
-            for line in f:
-                log.info( line.strip() )
-
-    card_n			= 0
-    page_n			= None
-    for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
-        for mn_n,mnem in enumerate( g_mnems ):
-            p,(offsetx,offsety)	= page_xy( card_n )
-            if p != page_n:
-                pdf.add_page()
-                page_n		= p
-            card_n	       += 1
-
-            tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
-            tpl['card-requires'] = requires
-            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
-            tpl['card-qr1']	= qr[0].get_image()
-            if len( accounts[0] ) > 1:
-                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
-                tpl['card-qr2']	= qr[1].get_image()
-            tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
-
-            for n,m in enumerate_mnemonic( mnem ).items():
-                tpl[f"mnem-{n}"] = m
-
-            tpl.render( offsetx=offsetx, offsety=offsety )
-
-    return pdf,accounts
-
-
-def group_parser( group_spec ):
-    match			= group_parser.RE.match( group_spec )
-    if not match:
-        raise ValueError( f"Invalid group specification: {group_spec!r}" )
-    name			= match.group( 'name' )
-    size			= match.group( 'size' )
-    require			= match.group( 'require' )
-    if not size:
-        size			= 1
-    if not require:
-        # eg. default 2/4, 3/5
-        require			= math.ceil( int( size ) * GROUP_REQUIRED_RATIO )
-    return name,(int(require),int(size))
-group_parser.RE			= re.compile( # noqa E305
-    r"""^
-        \s*
-        (?P<name> [^\d\(/]+ )
-        \s*\(?\s*
-        (:? (?P<require> \d* ) \s* / )?
-        \s*
-        (?P<size> \d* )
-        \s*\)?\s*
-        $""", re.VERBOSE )
 
 
 def main( argv=None ):
@@ -166,8 +48,12 @@ def main( argv=None ):
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
     ap.add_argument( '-g', '--group', action='append',
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Fren(3/5)' )." )
+    ap.add_argument( '-f', '--format', action='append',
+                     default=[],
+                     help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
-                     help=f"A crypto name and optional derivation path (defaults: \"ETH:{DEFAULT_PATH('ETH')}\" and \"BTC:{DEFAULT_PATH('BTC')}\")" )
+                     default=[],
+                     help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
@@ -202,6 +88,14 @@ def main( argv=None ):
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
 
+    # If any --format <crypto>:<format> address formats provided
+    for cf in args.format:
+        try:
+            Account.address_format( *cf.split( ':' ) )
+        except Exception as exc:
+            log.error( f"Invalid address format: {cf}: {exc}" )
+            raise
+
     groups			= dict(
         group_parser( g )
         for g in args.group or GROUPS
@@ -229,7 +123,7 @@ def main( argv=None ):
     if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
         raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
 
-    # Optional passphrase (utf-8 encoded bytes
+    # Optional passphrase
     passphrase			= args.passphrase or ""
     if passphrase == '-':
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
@@ -244,7 +138,7 @@ def main( argv=None ):
             crypto,paths	= crypto,None
         cryptopaths.append( (crypto,paths) )
 
-    # Generate each desired SLIP-39 wallet.  Supports --card (the default) and --text
+    # Generate each desired SLIP-39 wallet.  Supports --card (the default)
     for name in args.names or [ "" ]:
         details			= create(
             name		= name,
@@ -271,7 +165,7 @@ def main( argv=None ):
         # Unless --no-card specified, output a PDF containing the SLIP-39 mnemonic recovery cards
         pdf			= None
         if args.card is not False:
-            pdf,_		= output(
+            pdf,_		= output_pdf(
                 *details,
                 card_format	= args.card or CARD,
                 paper_format	= args.paper or PAPER )
@@ -293,6 +187,9 @@ def main( argv=None ):
             # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
+            assert eth_account, \
+                "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
+                "    python3 -m pip install eth-account"
             assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
                 "--json is only valid if '--crypto ETH' wallets are specified"
             if args.json == '-':
@@ -324,7 +221,7 @@ def main( argv=None ):
                     json_name  += '.new'
                 with open( json_name, 'w' ) as json_f:
                     json_f.write( json_str )
-                log.warning( f"Wrote JSON {name or 'SLIP39'!r}'s encrypted ETH wallet {eth.address} to: {json_name}" )
+                log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
 
                 if pdf:
                     # Add the encrypted JSON account recovery to the PDF also, if generated.

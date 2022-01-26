@@ -1,3 +1,5 @@
+import json
+
 import shamir_mnemonic
 
 from .api		import account, create, addresses, addressgroups, accountgroups
@@ -9,6 +11,39 @@ from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS
 def test_account():
     acct			= account( SEED_XMAS )
     assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
+    assert acct.path == "m/44'/60'/0'/0/0"
+
+    acct			= account( SEED_XMAS, path="m/44'/60'/0'/0/1" )
+    assert acct.address == '0x3b774e485fC818F0f377FBA657dfbF92B46f8504'
+    assert acct.path == "m/44'/60'/0'/0/1"
+
+    acct			= account( SEED_XMAS, crypto='Bitcoin' )
+    assert acct.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
+    assert acct.path == "m/84'/0'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Bitcoin', format='Legacy' )
+    assert acct.address == '19FQ983heQEBXmopVNyJKf93XG7pN7sNFa'
+    assert acct.path == "m/44'/0'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Bitcoin', format='SegWit' )
+    assert acct.address == '3HxUpD7E8Y31vDDgDq1VFdNXWViAgBjYJe'
+    assert acct.path == "m/44'/0'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Litecoin' )
+    assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
+    assert acct.path == "m/84'/2'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Litecoin', format='Legacy' )
+    assert acct.address == 'LeyK1dbc5qKdKC9TvkygMTeoHixR3z1XG3'
+    assert acct.path == "m/44'/2'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Litecoin', format='SegWit' )
+    assert acct.address == 'MPULjvY9dNjpNkgbwhfJtD7N6Lbfam1XsP'
+    assert acct.path == "m/44'/2'/0'/0/0"
+
+    acct			= account( SEED_XMAS, crypto='Dogecoin' )
+    assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
+    assert acct.path == "m/44'/3'/0'/0/0"
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
@@ -33,7 +68,7 @@ def test_create():
     assert len(details.accounts) == 1
     [(eth,btc)] = details.accounts  # The default accounts created are ETH, BTC
     assert eth.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
-    assert btc.address == '19FQ983heQEBXmopVNyJKf93XG7pN7sNFa'
+    assert btc.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
 
     assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS
 
@@ -43,7 +78,7 @@ def test_addresses():
     addrs			= list( addresses(
         master_secret	= master_secret,
         crypto		= 'ETH',
-        paths		= "m/44'/60'/0'/0/-9",
+        paths		= ".../-9",
     ))
     # print( json.dumps( addrs, indent=4, default=str ))
     assert addrs == [
@@ -101,14 +136,26 @@ def test_addresses():
     addrs			= list( addresses(
         master_secret	= master_secret,
         crypto		= 'BTC',
+        paths		= '.../0/-2',
+        format		= 'Bech32',
     ))
-    # print( json.dumps( addrs, indent=4, default=str ))
+    print( json.dumps( addrs, indent=4, default=str ))
     assert addrs == [
         (
             "BTC",
-            "m/44'/0'/0'/0/0",
-            "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"
-        )
+            "m/84'/0'/0'/0/0",
+            "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
+        ),
+        (
+            "BTC",
+            "m/84'/0'/0'/0/1",
+            "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"
+        ),
+        (
+            "BTC",
+            "m/84'/0'/0'/0/2",
+            "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"
+        ),
     ]
 
 
@@ -117,16 +164,30 @@ def test_addressgroups():
     addrgrps			= list( enumerate( addressgroups(
         master_secret	= master_secret,
         cryptopaths	= [
-            ('ETH', "m/44'/60'/0'/0/-3"),
-            ('BTC', "m/44'/0'/0'/0/-3"),
+            ('ETH', ".../-3"),
+            ('BTC', ".../-3"),
+            ('LTC', ".../-3"),
+            ('Doge', ".../-3"),
         ],
     )))
     # print( addrgrps )
     assert addrgrps == [
-        (0, (("ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"), ("BTC", "m/44'/0'/0'/0/0", "1MAjc529bjmkC1iCXTw2XMHL2zof5StqdQ"))),
-        (1, (("ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"), ("BTC", "m/44'/0'/0'/0/1", "1BGwDuVPJeXDG9upaHvVPds5MXwkTjZoav"))),
-        (2, (("ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"), ("BTC", "m/44'/0'/0'/0/2", "1L64uW2jKB3d1mWvfzTGwZPTGg9qPCaQFM"))),
-        (3, (("ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"), ("BTC", "m/44'/0'/0'/0/3", "1NQv8w7ZNPTadaJg1KxWTC84kLMnCp6pLR"))),
+        (0, (("ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"),
+             ("BTC", "m/84'/0'/0'/0/0", "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"),
+             ('LTC', "m/84'/2'/0'/0/0", 'ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake'),
+             ('DOGE', "m/44'/3'/0'/0/0", 'DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy'))),
+        (1, (("ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"),
+             ("BTC", "m/84'/0'/0'/0/1", "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"),
+             ('LTC', "m/84'/2'/0'/0/1", 'ltc1qm0hwvvk28wlyfu3sed66e9yyvmwm35xtfexva3'),
+             ('DOGE', "m/44'/3'/0'/0/1",'DJYE9WWaCA1CbV9x23qkcgNX7Yr9YjCebA'))),
+        (2, (("ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"),
+             ("BTC", "m/84'/0'/0'/0/2", "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"),
+             ('LTC', "m/84'/2'/0'/0/2", 'ltc1qx3r3efsmupn34gmwu25fu39tn4h79cjfwvlpfu'),
+             ('DOGE', "m/44'/3'/0'/0/2",'DQfJcJzLFW9LJPJXNkLeq1WqPfLsRq47Jj'))),
+        (3, (("ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"),
+             ("BTC", "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"),
+             ('LTC', "m/84'/2'/0'/0/3", 'ltc1qnqzyear8kct0yjzupe2pxtq0mwee5kl642mj78'),
+             ('DOGE', "m/44'/3'/0'/0/3", 'DLVPiM5763cyNJfoa13cv4kV3b87FgVMCS'))),
     ]
 
 
@@ -135,8 +196,8 @@ def test_accountgroups():
     acctgrps			= list( accountgroups(
         master_secret	= master_secret,
         cryptopaths	= [
-            ('ETH', "m/44'/60'/0'/0/-3"),
-            ('BTC', "m/44'/0'/0'/0/-3"),
+            ('ETH', ".../-3"),
+            ('BTC', ".../-3"),
         ],
     ))
     # print( json.dumps( acctgrps, default=repr ))
