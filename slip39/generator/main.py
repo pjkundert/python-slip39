@@ -206,15 +206,19 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
             def healthy_reset( file ):
                 file.dtr		= False
-                # Wait for a server to de-assert DTR, discarding input.  Server will always send a couple of newlines after reset.
-                while ( flow := serial_flow( file ) ) and flow[0].dsr:
+                # Wait for a server to de-assert DTR, discarding input.  After the Server has de-asserted, we still need to drain
+                # the Server's output / Client's input buffers, so keep flushing 'til input buffer empty...
+                while ( flow := serial_flow( file ) ) and ( flow[0].dsr or read ):
                     log.warning( f"{file!r:.36} {serial_status(*flow)}; Client lowered DTR -- awaiting Server reset" )
                     read		= file.readline()       # could block for timeout
                     if read:
                         log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
+                # Server done sending after it has reset its DTR.  Initiate Client ready!
                 file.dtr		= True
-                # Server has reset; assert DTR, and discard input 'til Server asserts DTR
+
+                # Server has reset; Client has run it out of output/input, and asserted DTR; discard
+                # input 'til Server asserts DTR; will always send a few newlines after reset.
                 while ( flow := serial_flow( file ) ) and not flow[0].dsr:
                     log.warning( f"{file!r:.36} {serial_status(*flow)}; Client asserts DTR -- awaiting Server active" )
                     read		= file.readline()       # could block for timeout
