@@ -188,6 +188,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         encoding		= None
         healthy			= None
         healthy_reset		= None
+        file_opener		= None
         if args.device:
             # Await the appearance of a healthy connection to a live (DTR-asserting) peer.
             healthy		= serial_connected
@@ -246,7 +247,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 if index and group:
                     accountgroups_output( group, index=index )
                     continue
-                if healthy( file ):
+                if healthy and healthy( file ):
                     continue
                 # Bad connection, awaiting health...
                 if healthy_reset:
