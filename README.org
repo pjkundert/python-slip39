@@ -113,19 +113,20 @@ by entering the mnemonics right on the device.
 
 ** Creating New SLIP-39 Recoverable Seeds
 
-   This is what the output SLIP-39 mnemonic cards PDF looks like:
+   This is what the first page of the output SLIP-39 mnemonic cards PDF looks like:
 
-   #+CAPTION: SLIP39 Mnemonic Cards PDF
+   #+CAPTION: SLIP39 Cards PDF (from =--secret ffff...ffff=)
+   #+ATTR_LATEX: :height 6in :options angle=90
    [[./images/slip39-pdf.png]]
 
    Run the following to obtain a PDF file containing index cards with the default SLIP-39 groups for
-   the account named "Personal"; insert a USB drive to collect the output, and run:
+   a new account seed named "Personal"; insert a USB drive to collect the output, and run:
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
-   $ python3 -m pip install slip39  # Install slip39 in Python3
-   $ cd /Volumes/USBDRIVE/          # Change current directory to USB
-   $ python3 -m slip39 Personal     # Or just run "slip39 Personal"
+   $ python3 -m pip install slip39        # Install slip39 in Python3
+   $ cd /Volumes/USBDRIVE/                # Change current directory to USB
+   $ python3 -m slip39 Personal           # Or just run "slip39 Personal"
    2021-12-25 11:10:38 slip39           ETH m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
    2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Personal' to:\
      Personal-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
