@@ -208,6 +208,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 file.dtr		= False
                 # Wait for a server to de-assert DTR, discarding input.  After the Server has de-asserted, we still need to drain
                 # the Server's output / Client's input buffers, so keep flushing 'til input buffer empty...
+                read			= None
                 while ( flow := serial_flow( file ) ) and ( flow[0].dsr or read ):
                     log.warning( f"{file!r:.36} {serial_status(*flow)}; Client lowered DTR -- awaiting Server reset" )
                     read		= file.readline()       # could block for timeout
