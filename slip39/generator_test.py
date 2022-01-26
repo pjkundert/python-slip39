@@ -107,8 +107,9 @@ def test_groups_pty():
 
     ser				= SerialEOF( slave_name, 300, timeout=1, xonxoff=True )
     for group in accountgroups_input(
-        cipher	= chacha20poly1305( password=password ),
-        file	= ser
+        cipher		= chacha20poly1305( password=password ),
+        encoding	= 'UTF-8',
+        file		= ser
     ):
         logging.info( f"Receive: {group}" )
 
