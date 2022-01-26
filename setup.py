@@ -143,5 +143,5 @@ setup(
     keywords			= "Ethereum cryptocurrency SLIP39 BIP39 seed recovery",
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
-    python_requires		= ">=3.6",
+    python_requires		= ">=3.9",
 )

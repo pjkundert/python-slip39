@@ -33,7 +33,7 @@ doctest:
 
 analyze:
 	flake8 -j 1 --max-line-length=200 \
-	  --ignore=E201,E202,E221,E223,E226,E231,E242,E251,E265,E272,E274 \
+	  --ignore=W503,E201,E202,E221,E223,E226,E231,E242,E251,E265,E272,E274 \
 	  slip39
 
 pylint:

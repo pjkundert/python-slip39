@@ -4,7 +4,6 @@ import logging
 import sys
 import json
 import random
-import time
 
 # Optionally, we can provide ChaCha20Poly1305 to support securing the channel.  Required if the
 # --en/decrypt option is used.
@@ -14,7 +13,6 @@ except ImportError:
     pass
 
 from ..types		import Account
-from ..util		import input_secure
 
 log				= logging.getLogger( __package__ )
 
@@ -87,21 +85,20 @@ def accountgroups_input(
                 log.warning( f"Discarding invalid record {record!r}: {exc!r}" )
                 yield None, None
                 continue
-                
+
         # Ignore empty records
         record			= record.strip()
         if not record:
             continue
 
         # See if records are indexed.  Only int or 'nonce' is accepted for index.
+        index			= None
         try:
-            index,payload	= record.split( ':', 1 )
-            try:
-                index		= int( index )
-            except ValueError:
-                assert index == 'nonce'
-        except:
-            index,payload	= None,record
+            index,payload	= record.split( ':', 1 )        # ValueError if not <index>:<payload>
+            index		= int( index )			# ValueError if <index> not int
+        except ValueError:
+            if index != 'nonce':				# Otherwise, only 'nonce': <payload> acceptable
+                index,payload	= None,record			# ...if not; then records are not indexed.
 
         try:
             if cipher:
@@ -149,7 +146,7 @@ def file_outputline(
     """
     if file is None:
         file			= sys.stdout
-    
+
     output		       += '\n'
     if encoding:
         output			= output.encode( encoding )
@@ -201,11 +198,11 @@ def accountgroups_output(
     a sequence of tuples of (<crypto>, <path>, <address>), (ie. recovered via accountgroups_input.
 
     Supports binary file-like objects (eg pyserial.Serial) w/ the encoding parameter.  Outputs one line,
-    blocking forever -- the counterparty can (and likely will) block for an indeterminate amount of time, 
+    blocking forever -- the counterparty can (and likely will) block for an indeterminate amount of time,
     as it waits to use the provided account groups.
 
     Returns the health of the output before, during and after attempted output write/flush.
-    
+
     """
     assert not cipher or ( nonce and index is not None ), \
         "Encryption requires both nonce and index"

@@ -7,13 +7,14 @@ from collections	import namedtuple
 
 from serial		import Serial
 
-from .			import chacha20poly1305, accountgroups_output, accountgroups_input, file_outputline
+from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, BAUDRATE
 from ..types		import Account, path_edit
 from ..api		import accountgroups, RANDOM_BYTES
 
 log				= logging.getLogger( __package__ )
+
 
 class SerialEOF( Serial ):
     """Converts Serial exceptions into EOFError, for compatibility w/ expectations of file-like objects.
@@ -33,14 +34,15 @@ class SerialEOF( Serial ):
 DtrDsr				= namedtuple( 'DtrDsr', ('dtr', 'dsr') )
 RtsCts				= namedtuple( 'RtsCts', ('rts', 'cts') )
 
+
 def serial_flow( ser ):
     dtrdsr			= DtrDsr(
         dtr	= ser.dtr,		# Do we output an asserted DTR?
-        dsr	= ser.dsr,		#   and what is our current input DSR (our counterparty's DTR)?
+        dsr	= ser.dsr,		# ...and what is our current input DSR (our counterparty's DTR)?
     )
     rtscts			= RtsCts(
         rts	= ser.rts,		# Do we output RTS an asserted?
-        cts	= ser.cts,		#   and what is our current CTS (our counterparty's RTS)?
+        cts	= ser.cts,		# ...and what is our current CTS (our counterparty's RTS)?
     )
     return dtrdsr,rtscts
 
@@ -144,7 +146,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         "When --receive, no --path nor --secret allowed"
     if args.path:
         assert args.path.lstrip( '.' ).startswith( '/' ), \
-            f"A --path must start with '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
+            "A --path must start with '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
     # If any --format <crypto>:<format> address formats provided
     for cf in args.format:
@@ -190,6 +192,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             # Await the appearance of a healthy connection to a live (DTR-asserting) peer.
             healthy		= serial_connected
             encoding		= 'UTF-8'
+
             def file_opener():
                 ser		= Serial(
                     port	= args.device,
@@ -206,7 +209,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 # Wait for a server to de-assert DTR, discarding input.  Server will always send a couple of newlines after reset.
                 while ( flow := serial_flow( file ) ) and flow[0].dsr:
                     log.warning( f"{file!r:.36} {serial_status(*flow)}; Client lowered DTR -- awaiting Server reset" )
-                    read		= file.readline() # could block for timeout
+                    read		= file.readline()       # could block for timeout
                     if read:
                         log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
@@ -214,7 +217,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 # Server has reset; assert DTR, and discard input 'til Server asserts DTR
                 while ( flow := serial_flow( file ) ) and not flow[0].dsr:
                     log.warning( f"{file!r:.36} {serial_status(*flow)}; Client asserts DTR -- awaiting Server active" )
-                    read		= file.readline() # could block for timeout
+                    read		= file.readline()       # could block for timeout
                     if read:
                         log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
@@ -270,21 +273,21 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     # channel, which we want to avoid).
     #
     # The channel is opened by following procedure:
-    # 
+    #
     # 0. The Server (sender) starts with its DTR low, and prepares to send its new nonce.
-    # 
+    #
     # 1. The Client (receiver) sees the Server's (sender's) DTR is low by seeing a low DSR.  All
     #    input is discarded by the receiver.  The client responds by raising its DTR.
-    # 
+    #
     # 2. The Server (sender) sees its DSR asserted by the (new) client's DTR, and raises their DTR
     #    in response.  It then initiates communications by sending the initial nonce.
-    # 
+    #
     # The channel is closed by the client (ie. if it does not successfully receive a nonce within a
     # few seconds):
-    # 
+    #
     # 3c. The Client lowers its DTR.  It then goes to step 1., where consuming all input will
     #     eventually cause the Server to notice the loss of its DSR, and stop, lowering its DTR.
-    # 
+    #
     # The channel is closed by the server (ie. if it finishes sending the desired records, fails or
     # reboots):
     #
@@ -322,7 +325,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 baudrate = args.baudrate or BAUDRATE,
                 xonxoff	= False,
                 rtscts	= True,
-                dsrdtr	= False,	# We will monitor DSR and control DTR manually; it starts low
+                dsrdtr	= False,		# We will monitor DSR and control DTR manually; it starts low
             )
             return ser
 
@@ -350,8 +353,8 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             file		= file_opener()
             if healthy_waiter:
                 healthy_waiter( file )
-                
-        while not ( health := accountgroups_output(
+
+        while not accountgroups_output(
             group	= group,
             index	= index if args.enumerated else None,
             cipher	= cipher,
@@ -361,7 +364,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             corrupt	= float( args.corrupt ) if args.corrupt else 0,
             nonce_emit	= nonce_emit,
             healthy	= healthy
-        )):
+        ):
             nonce_emit		= True
             nonce		= RANDOM_BYTES( 12 )
             if healthy_waiter:
