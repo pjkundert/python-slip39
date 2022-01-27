@@ -163,8 +163,8 @@ def organize_mnemonic( mnemonic, rows=None, cols=None, label="" ):
 def group_parser( group_spec ):
     """Parse a SLIP-39 group specification.
 
-        Fren6, Fren 6, Fren(6)	- A 3/6 group (default is 1/2 of group size, rounded up)
-        Fren2/6, Fren(2/6)	- A 2/6 group
+        Frens6, Frens 6, Frens(6)	- A 3/6 group (default is 1/2 of group size, rounded up)
+        Frens2/6, Frens(2/6)		- A 2/6 group
 
     """
     match			= group_parser.RE.match( group_spec )

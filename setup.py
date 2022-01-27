@@ -19,6 +19,7 @@ console_scripts			= [
     'slip39		= slip39.main:main',
     'slip39-recovery	= slip39.recovery.main:main',
     'slip39-generator	= slip39.generator.main:main',
+    'slip39-App		= slip39.App.main:main',
 ]
 
 entry_points			= {
@@ -32,6 +33,7 @@ package_dir			= {
     "slip39":			"./slip39",
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
+    "slip39.App":		"./slip39/App",
 }
 
 long_description_content_type	= 'text/markdown'
@@ -62,7 +64,7 @@ what accounts are associated with the backed-up seed.  Recovery of the seed to a
 by entering the mnemonics right on the device.
 
     $ python3 -m slip39 -v Personal      # or run: slip39 -v Personal
-    2022-01-26 13:55:30 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
     2022-01-26 13:55:30 slip39           1st  1 sister     8 cricket   15 unhappy
     2022-01-26 13:55:30 slip39                2 acid       9 mental    16 ocean
     2022-01-26 13:55:30 slip39                3 acrobat   10 veteran   17 mayor
@@ -70,7 +72,7 @@ by entering the mnemonics right on the device.
     2022-01-26 13:55:30 slip39                5 anxiety   12 grownup   19 wrote
     2022-01-26 13:55:30 slip39                6 laser     13 skunk     20 romp
     2022-01-26 13:55:30 slip39                7 cricket   14 anatomy
-    2022-01-26 13:55:30 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
     2022-01-26 13:55:30 slip39           1st  1 sister     8 belong    15 spirit
     2022-01-26 13:55:30 slip39                2 acid       9 survive   16 royal
     2022-01-26 13:55:30 slip39                3 beard     10 home      17 often
@@ -78,7 +80,7 @@ by entering the mnemonics right on the device.
     2022-01-26 13:55:30 slip39                5 again     12 mountain  19 grocery
     2022-01-26 13:55:30 slip39                6 orbit     13 august    20 antenna
     2022-01-26 13:55:30 slip39                7 very      14 evening
-    2022-01-26 13:55:30 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+    2022-01-26 13:55:30 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
     2022-01-26 13:55:30 slip39           1st  1 sister     8 rainbow   15 husky
     2022-01-26 13:55:30 slip39                2 acid       9 swing     16 crowd
     2022-01-26 13:55:30 slip39                3 ceramic   10 credit    17 learn

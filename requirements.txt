@@ -3,5 +3,6 @@ fpdf2
 hdwallet
 mnemonic>=0.19,<1
 pyserial>=3.5
+pysimplegui
 qrcode
 shamir-mnemonic

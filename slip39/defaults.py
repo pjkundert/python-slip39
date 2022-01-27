@@ -32,7 +32,7 @@ GROUPS				= [
     "First1",
     "Second(1/1)",
     "Fam(4)",
-    "Fren2/6"
+    "Frens2/6"
 ]
 
 FONTS				= dict(

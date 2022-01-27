@@ -74,7 +74,7 @@ by entering the mnemonics right on the device.
    the key.  Then key is (conceptually) split between 1 or more groups (not really; each group's
    data alone gives away no information about the key).
 
-   For example, you might have First, Second, Fam and Fren groups, and decide that any 2 groups can
+   For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
    be combined to recover the key.  Each group has members with varying levels of trust and
    persistence, so have different number of Members, and differing numbers Required to recover that
    group's data:
@@ -86,7 +86,7 @@ by entering the mnemonics right on the device.
    | First  |        1 | / | 1       | Stored at home                        |
    | Second |        1 | / | 1       | Stored in office safe                 |
    | Fam    |        2 | / | 4       | Distributed to family members         |
-   | Fren   |        2 | / | 6       | Distributed to friends and associates |
+   | Frens  |        2 | / | 6       | Distributed to friends and associates |
    #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
@@ -100,8 +100,8 @@ by entering the mnemonics right on the device.
    card from the office safe, and 2 cards from Fam group members, and recover the wallet.
 
    If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
-   (at home) or Second (at the office), they can collect 2 Fam cards and 2 Fren cards (at the
-   funeral, for example), completing the Fam and Fren groups' data, and recover the HD Wallet
+   (at home) or Second (at the office), they can collect 2 Fam cards and 2 Frens cards (at the
+   funeral, for example), completing the Fam and Frens groups' data, and recover the HD Wallet
    account.  Since Frens are less likely to persist long term (and are also less likely to know
    each-other), we'll require a lower proportion of them to be collected.
 
@@ -177,7 +177,7 @@ by entering the mnemonics right on the device.
     :   -g GROUP, --group GROUP
     :                         A group name[[<require>/]<size>] (default: <size> = 1,
     :                         <require> = half of <size>, rounded up, eg.
-    :                         'Fren(3/5)' ).
+    :                         'Frens(3/5)' ).
     :   -f FORMAT, --format FORMAT
     :                         Specify default crypto address formats: legacy,
     :                         segwit, bech32; default ETH:legacy, BTC:bech32,
@@ -296,7 +296,7 @@ by entering the mnemonics right on the device.
    #+END_SRC
    #+RESULTS:
    #+begin_example
-   2022-01-26 13:15:04 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+   2022-01-26 13:15:04 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
    2022-01-26 13:15:04 slip39           1st  1 painting   8 luxury    15 training  
    2022-01-26 13:15:04 slip39                2 flexible   9 apart     16 welcome   
    2022-01-26 13:15:04 slip39                3 acrobat   10 mild      17 birthday  
@@ -304,7 +304,7 @@ by entering the mnemonics right on the device.
    2022-01-26 13:15:04 slip39                5 column    12 machine   19 single    
    2022-01-26 13:15:04 slip39                6 firm      13 predator  20 deny      
    2022-01-26 13:15:04 slip39                7 stick     14 pencil    
-   2022-01-26 13:15:04 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+   2022-01-26 13:15:04 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
    2022-01-26 13:15:04 slip39           1st  1 painting   8 voting    15 genius    
    2022-01-26 13:15:04 slip39                2 flexible   9 starting  16 group     
    2022-01-26 13:15:04 slip39                3 beard     10 crucial   17 alive     
@@ -312,7 +312,7 @@ by entering the mnemonics right on the device.
    2022-01-26 13:15:04 slip39                5 airline   12 intend    19 texture   
    2022-01-26 13:15:04 slip39                6 envelope  13 envy      20 herd      
    2022-01-26 13:15:04 slip39                7 trial     14 eraser    
-   2022-01-26 13:15:04 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+   2022-01-26 13:15:04 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
    2022-01-26 13:15:04 slip39           1st  1 painting   8 realize   15 furl      
    2022-01-26 13:15:04 slip39                2 flexible   9 guilt     16 fused     
    2022-01-26 13:15:04 slip39                3 ceramic   10 slush     17 decision  
@@ -341,7 +341,7 @@ by entering the mnemonics right on the device.
    2022-01-26 13:15:04 slip39                5 dining    12 starting  19 thorn     
    2022-01-26 13:15:04 slip39                6 decrease  13 inherit   20 response  
    2022-01-26 13:15:04 slip39                7 grocery   14 visitor   
-   2022-01-26 13:15:04 slip39           Fren(2/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Fren(2/6)
+   2022-01-26 13:15:04 slip39           Frens(2/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
    2022-01-26 13:15:04 slip39           1st  1 painting   8 frost     15 puny      
    2022-01-26 13:15:04 slip39                2 flexible   9 shelter   16 trip      
    2022-01-26 13:15:04 slip39                3 decision  10 dragon    17 careful   
