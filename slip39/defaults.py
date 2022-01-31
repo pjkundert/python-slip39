@@ -69,3 +69,9 @@ MNEM_ROWS_COLS			= {
 
 
 BAUDRATE			= 115200
+
+FILENAME_KEYWORDS		= [ 'name', 'date', 'time', 'crypto', 'path', 'address' ]
+FILENAME_FORMAT			= "{name}-{date}+{time}-{crypto}-{address}.pdf"
+
+# Default Crypto accounts (and optional paths) to generate
+CRYPTO_PATHS			= [ 'ETH', 'BTC' ]
