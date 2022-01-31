@@ -1,0 +1,2 @@
+pysimplegui		>=4.56
+tkinter

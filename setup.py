@@ -28,6 +28,14 @@ entry_points			= {
 
 install_requires		= open( os.path.join( HERE, "requirements.txt" )).readlines()
 tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readlines()
+extras_require			= {
+    option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+    for option in [
+        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
+        'json',		# slip39[json]:   Support output of encrypted Ethereum JSON wallets
+        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter graphical UI App
+    ]
+}
 
 package_dir			= {
     "slip39":			"./slip39",
@@ -160,11 +168,45 @@ classifiers			= [
 project_urls			= {
     "Bug Tracker": "https://github.com/pjkundert/python-slip39/issues",
 }
+
+# For py2{app,exe} App Generation
+mainscript			= "SLIP39.py"
+
+if sys.platform == 'darwin':
+    extra_options		= dict(
+        setup_requires	= [ 'py2app' ],
+        app		= [ mainscript ],
+        # Cross-platform applications generally expect sys.argv to
+        # be used for opening files.
+        # Don't use this with GUI toolkits, the argv
+        # emulator causes problems and toolkits generally have
+        # hooks for responding to file-open events.
+        options		= dict(
+            py2app	= dict(
+                argv_emulation	= True,
+                iconfile	= 'images/SLIP39.icns',
+                includes	= 'tkinter',
+            ),
+        ),
+    )
+elif sys.platform == 'win32':
+    extra_options		= dict(
+        setup_requires	= [ 'py2exe' ],
+        app		= [ mainscript ],
+    )
+else:
+    extra_options		= dict(
+        # Normally unix-like platforms will use "setup.py install"
+        # and install the main script as such
+        scripts		= [ mainscript ],
+    )
+
 setup(
     name			= "slip39",
     version			= __version__,
-    tests_require		= tests_require,
     install_requires		= install_requires,
+    tests_require		= tests_require,
+    extras_require		= extras_require,
     packages			= package_dir.keys(),
     package_dir			= package_dir,
     zip_safe			= True,
@@ -180,4 +222,5 @@ setup(
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
     python_requires		= ">=3.9",
+    **extra_options
 )

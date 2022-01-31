@@ -155,6 +155,8 @@ def app(
         status			= None
         event, values		= window.read()
         logging.info( f"{event}, {values}" )
+        if not values:
+            continue
 
         if '-TARGET-' in values:
             # A target directory has been selected;
@@ -168,7 +170,7 @@ def app(
         if event == '+':
             g			= len(groups)
             name		= f"Group {g+1}"
-            needs		= (1,2)
+            needs		= (2,3)
             groups[name] 	= needs
             window.extend_layout( window['-GROUP-NUMBER-'], [[ sg.Text(  f"{g+1}",                          **T_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-NAMES-'],  [[ sg.Input( f"{name}",     key=f"-G-NAME-{g}", **I_kwds ) ]] )  # noqa: 241
@@ -183,6 +185,7 @@ def app(
             logging.exception( f"{status}" )
             continue
 
+        # Collect up the specified Group names; ignores groups with an empty name
         g_rec			= {}
         status			= None
         for g in range( 16 ):
@@ -191,7 +194,9 @@ def app(
                 break
             grp			= '?'
             try:
-                grp		= str( values[grp_idx] )
+                grp		= str( values[grp_idx] ).strip()
+                if not grp:
+                    continue
                 g_rec[grp] 	= int( values[f"-G-NEED-{g}"] or 0 ), int( values[f"-G-SIZE-{g}"] or 0 )
             except Exception as exc:
                 status		= f"Error defining group {g+1} {grp!r}: {exc}"
@@ -207,7 +212,7 @@ def app(
         names			= [
             name.strip()
             for name in values['-NAMES-'].split( ',' )
-            if name
+            if name and name.strip()
         ]
         details			= {}
         try:

@@ -1035,8 +1035,9 @@ by entering the mnemonics right on the device.
 
 * Dependencies
 
-  Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data,
-  and the Ethereum project's [[https://github.com/ethereum/eth-account][eth-account]] to convert seeds to Ethereum accounts.
+  Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data to
+  SLIP-39 phrases, [[https://github.com/meherett/python-hdwallet.git][python-hdwallet]] to convert seeds to ETH, BTC, LTC and DOGE wallets, and the
+  Ethereum project's [[https://github.com/ethereum/eth-account][eth-account]] to produce encrypted JSON wallets for specified Ethereum accounts.
 
 ** The =python-shamir-mnemonic= API
 
