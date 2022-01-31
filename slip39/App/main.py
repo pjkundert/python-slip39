@@ -74,7 +74,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         [
             sg.Text( "Requires recovery of at least: ", size=prefix, **T_kwds ),
             sg.Input( f"{group_threshold}", key='-THRESHOLD-', **I_kwds ),
-            sg.Text( f" of {len(groups)} SLIP-39 Recovery Groups", key='-RECOVERY-', **T_kwds ),
+            sg.Text( f"of {len(groups)} SLIP-39 Recovery Groups", key='-RECOVERY-', **T_kwds ),
         ],
     ] + [
         [

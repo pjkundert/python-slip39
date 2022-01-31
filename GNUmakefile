@@ -3,23 +3,24 @@
 # 
 
 # PY[3] is the target Python interpreter.  It must have pytest installed.
-PY3=python3
+PY3		?= python3
 
 VERSION=$(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
 
 # To see all pytest output, uncomment --capture=no
-PYTESTOPTS=-vv # --capture=no --log-cli-level=INFO
+PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
 
-PY3TEST=TZ=$(TZ) $(PY3) -m pytest $(PYTESTOPTS)
+PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
-.PHONY: all test clean upload
-all:			help
+.PHONY: all help test doctest analyze pylint build-check build install upload clean FORCE
+
+all:		help
 
 help:
 	@echo "GNUmakefile for cpppo.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
-	@echo "  build			Build dist packages under Python3"
+	@echo "  build			Build dist wheel and app under Python3"
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  clean			Remove build artifacts"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
@@ -43,25 +44,39 @@ pylint:
 
 build-check:
 	@$(PY3) -m build --version \
-	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools build\n" \
+	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
-build:	build-check clean
+build:		wheel app
+
+wheel:		dist/slip39-$(VERSION)-py3-none-any.whl
+
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
 	@ls -last dist
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build
+# Install from wheel, including all optional extra dependencies
+install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
+	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
 
-install:	dist/slip39-$(VERSION)-py3-none-any.whl
-	$(PY3) -m pip install --force-reinstall $^
+# Generate, Sign and Zip the App package TODO: Code signing w/ Apple Developer ID
+app:		dist/SLIP39.app.zip
+
+dist/SLIP39.app.zip: dist/SLIP39.app
+	rm -f $@
+	(cd dist; zip -r SLIP39.app.zip SLIP39.app)
+	@ls -last dist
+
+dist/SLIP39.app: SLIP39.py FORCE
+	pyinstaller --noconfirm --windowed --onefile --collect-data shamir_mnemonic $<
 
 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
 
-upload: build
-	python3 -m twine upload --repository pypi dist/*
+upload: 	wheel
+	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '*.pyc' -o -name '__pycache__' )

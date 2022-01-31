@@ -25,3 +25,4 @@ dist/
 .pytest_cache/
 .cache/
 *.spec
+.eggs
