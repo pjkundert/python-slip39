@@ -75,7 +75,11 @@ dist/SLIP39.app: SLIP39.py FORCE
 #   o advance __version__ number in slip32/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
 
-upload: 	wheel
+upload-check:
+	@$(PY3) -m twine --version \
+	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
+	        && false )
+upload: 	upload-check wheel
 	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
