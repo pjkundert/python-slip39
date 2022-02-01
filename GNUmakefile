@@ -2,23 +2,30 @@
 # GNU 'make' file
 # 
 
+# Change to your own Apple Developer ID, if you want to code-sign the resultant .app
+DEVID		?= Developer ID Application: Perry Kundert (ZD8TVTCXDS)
+#DEVID		?= 3rd Party Mac Developer Application: Perry Kundert (ZD8TVTCXDS)
+BUNDLEID	?= ca.kundert.perry.SLIP39
+
 # PY[3] is the target Python interpreter.  It must have pytest installed.
-PY3=python3
+PY3		?= python3
 
 VERSION=$(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
 
 # To see all pytest output, uncomment --capture=no
-PYTESTOPTS=-vv # --capture=no --log-cli-level=INFO
+PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
 
-PY3TEST=TZ=$(TZ) $(PY3) -m pytest $(PYTESTOPTS)
+PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
-.PHONY: all test clean upload
-all:			help
+.PHONY: all help test doctest analyze pylint build-check build install upload clean FORCE
+
+all:		help
 
 help:
 	@echo "GNUmakefile for cpppo.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
+	@echo "  build			Build dist wheel and app under Python3"
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  clean			Remove build artifacts"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
@@ -42,25 +49,52 @@ pylint:
 
 build-check:
 	@$(PY3) -m build --version \
-	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools build\n" \
+	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
-build:	build-check clean
+build:		clean wheel app
+
+wheel:		dist/slip39-$(VERSION)-py3-none-any.whl
+
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
 	@ls -last dist
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build
+# Install from wheel, including all optional extra dependencies
+install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
+	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
 
-install:	dist/slip39-$(VERSION)-py3-none-any.whl
-	$(PY3) -m pip install --force-reinstall $^
+# Generate, Sign and Zip the App package TODO: Code signing w/ Apple Developer ID
+app:		dist/SLIP39.app-$(VERSION).zip
 
+#(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
+# Create a ZIP archive suitable for notarization.
+dist/SLIP39.app-$(VERSION).zip: dist/SLIP39.app
+	rm -f $@
+	/usr/bin/ditto -c -k --keepParent "$(PWD)/$<" "$(PWD)/$@"
+	@ls -last dist
+
+# Rebuild the app; ensure we discard any partial/prior build and app artifacts
+#	--codesign-identity "$(DEVID)"     # Nope; must change CFBundleShottVersionString before signing?  Also different team IDs?
+dist/SLIP39.app: SLIP39.py FORCE
+	rm -rf build $@*
+	pyinstaller --noconfirm --windowed --onefile \
+	    --osx-bundle-identifier "$(BUNDLEID)" \
+	    --collect-data shamir_mnemonic $<
+	sed -i "" -e "s/0.0.0/$(VERSION)/" "$@/Contents/Info.plist"
+	cat $@/Contents/Info.plist
+	codesign --force -s "$(DEVID)" $@
 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
 
-upload: build
-	python3 -m twine upload --repository pypi dist/*
+upload-check:
+	@$(PY3) -m twine --version \
+	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
+	        && false )
+upload: 	upload-check wheel
+	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '*.pyc' -o -name '__pycache__' )

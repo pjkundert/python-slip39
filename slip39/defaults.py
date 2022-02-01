@@ -32,7 +32,7 @@ GROUPS				= [
     "First1",
     "Second(1/1)",
     "Fam(4)",
-    "Fren2/6"
+    "Frens2/6"
 ]
 
 FONTS				= dict(
@@ -69,3 +69,9 @@ MNEM_ROWS_COLS			= {
 
 
 BAUDRATE			= 115200
+
+FILENAME_KEYWORDS		= [ 'name', 'date', 'time', 'crypto', 'path', 'address' ]
+FILENAME_FORMAT			= "{name}-{date}+{time}-{crypto}-{address}.pdf"
+
+# Default Crypto accounts (and optional paths) to generate
+CRYPTO_PATHS			= [ 'ETH', 'BTC' ]

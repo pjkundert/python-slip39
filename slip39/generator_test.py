@@ -3,7 +3,12 @@ import logging
 import pty
 import threading
 
-from serial		import Serial
+import pytest
+
+try:
+    from serial		import Serial
+except ImportError:
+    Serial			= None
 
 from .api		import RANDOM_BYTES, accountgroups
 from .generator		import chacha20poly1305, accountgroups_output, accountgroups_input
@@ -25,6 +30,8 @@ def listener(port):
             os.write(port, b"I don't understand\r\n")
 
 
+@pytest.mark.skipif( not Serial,
+                     reason="Serial testing needs pyserial" )
 def test_serial():
     """Start the testing"""
     master,slave = pty.openpty()		# open the pseudoterminal
@@ -77,20 +84,8 @@ def generator( password, cryptopaths, fd ):
         )
 
 
-class SerialEOF( Serial ):
-    """Convert any SerialException to an EOFError, for compatibility with PTY.  In real serial ports,
-    we'll handle detection of counterparty readiness with DTR/DSR, and flow control with RTS/CTS."""
-    def read( self, size=1 ):
-        while True:
-            try:
-                return super( SerialEOF, self ).read( size=size )
-            except Exception as exc:  # SerialError as exc:
-                # if "readiness" in str(exc):
-                #     time.sleep( .1 )
-                #     continue
-                raise EOFError( str( exc ))
-
-
+@pytest.mark.skipif( not Serial,
+                     reason="Serial testing needs pyserial" )
 def test_groups_pty():
     password			= "password"
     master,slave		= pty.openpty()
@@ -106,6 +101,22 @@ def test_groups_pty():
         args	= [password, cryptopaths, master] )
     gen.daemon			= True
     gen.start()
+
+    class SerialEOF( Serial ):
+        """Convert any SerialException to an EOFError, for compatibility with PTY.  In real serial
+        ports, we'll handle detection of counterparty readiness with DTR/DSR, and flow control with
+        RTS/CTS.
+
+        """
+        def read( self, size=1 ):
+            while True:
+                try:
+                    return super( SerialEOF, self ).read( size=size )
+                except Exception as exc:  # SerialError as exc:
+                    # if "readiness" in str(exc):
+                    #     time.sleep( .1 )
+                    #     continue
+                    raise EOFError( str( exc ))
 
     ser				= SerialEOF( slave_name, timeout=1)
     for group in accountgroups_input(

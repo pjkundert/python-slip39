@@ -2,6 +2,7 @@
 include LICENSE
 include COPYING
 include README.org
-include requirements.txt
-include requirements-tests.txt
+include README.pdf
+include README.txt
+include requirements*.txt
 global-exclude *~

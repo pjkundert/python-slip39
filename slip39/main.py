@@ -1,31 +1,18 @@
 import argparse
 import codecs
-import json
 import logging
-import math
-import os
 
-from datetime		import datetime
-
-import qrcode
-
-from .api		import create, random_secret, group_parser
+from .api		import random_secret
 from .util		import log_cfg, log_level, input_secure
-from .layout		import output_pdf
+from .layout		import write_pdfs
 from .types		import Account
-from .defaults		import (
-    GROUPS, GROUP_THRESHOLD_RATIO,
-    CARD, CARD_SIZES, PAGE_MARGIN, FONTS, PAPER,
+from .defaults		import (   # noqa: F401
+    CARD, CARD_SIZES, PAPER,
     BITS, BITS_DEFAULT,
+    FILENAME_FORMAT,
+    FILENAME_KEYWORDS,
+    CRYPTO_PATHS,
 )
-
-# Optionally support output of encrypted JSON files
-eth_account			= None
-try:
-    import eth_account
-except ImportError:
-    pass
-
 
 log				= logging.getLogger( __package__ )
 
@@ -41,13 +28,13 @@ def main( argv=None ):
                      default=0,
                      help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
-                     default="{name}-{date}+{time}-{crypto}-{address}.pdf",
-                     help="Output PDF to file or '-' (stdout); formatting w/ name, date, time, crypto, path and address allowed" )
+                     default=FILENAME_FORMAT,
+                     help="Output PDF to file or '-' (stdout); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
     ap.add_argument( '-g', '--group', action='append',
-                     help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Fren(3/5)' )." )
+                     help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-f', '--format', action='append',
                      default=[],
                      help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
@@ -96,12 +83,6 @@ def main( argv=None ):
             log.error( f"Invalid address format: {cf}: {exc}" )
             raise
 
-    groups			= dict(
-        group_parser( g )
-        for g in args.group or GROUPS
-    )
-    group_threshold		= args.threshold or math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
-
     bits_desired		= int( args.bits ) if args.bits else BITS_DEFAULT
 
     master_secret		= args.secret
@@ -130,121 +111,21 @@ def main( argv=None ):
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
-    cryptopaths			= []
-    for crypto in args.cryptocurrency or ['ETH', 'BTC']:
-        try:
-            crypto,paths	= crypto.split( ':' )
-        except ValueError:
-            crypto,paths	= crypto,None
-        cryptopaths.append( (crypto,paths) )
-
-    # Generate each desired SLIP-39 wallet.  Supports --card (the default)
-    for name in args.names or [ "" ]:
-        details			= create(
-            name		= name,
-            group_threshold	= group_threshold,
-            groups		= groups,
+    try:
+        write_pdfs(
+            names		= args.names,
             master_secret	= master_secret,
-            passphrase		= passphrase.encode( 'utf-8' ),
-            cryptopaths		= cryptopaths,
+            passphrase		= passphrase,
+            group		= args.group,
+            threshold		= args.threshold,
+            cryptocurrency	= args.cryptocurrency,
+            card		= args.card,
+            paper		= args.paper,
+            filename		= args.output,
+            json_pwd		= args.json,
+            text		= args.text,
         )
-        # Get the first group of the accountgroups in details.accounts.  Must be
-        accounts		= details.accounts
-        assert accounts and accounts[0], \
-            "At least one --cryptocurrency must be specified"
-        for account in accounts[0]:
-            log.warning( f"{account.crypto:6} {account.path:20}: {account.address}" )
-
-        if args.text:
-            # Output the SLIP-39 mnemonics as text:
-            #    name: mnemonic
-            for g_name,(g_of,g_mnems) in details.groups.items():
-                for mnem in g_mnems:
-                    print( f"{name}{name and ': ' or ''}{mnem}" )
-
-        # Unless --no-card specified, output a PDF containing the SLIP-39 mnemonic recovery cards
-        pdf			= None
-        if args.card is not False:
-            pdf,_		= output_pdf(
-                *details,
-                card_format	= args.card or CARD,
-                paper_format	= args.paper or PAPER )
-
-        now			= datetime.now()
-
-        pdf_name		= args.output.format(
-            name	= name or "SLIP39",
-            date	= datetime.strftime( now, '%Y-%m-%d' ),
-            time	= datetime.strftime( now, '%H.%M.%S'),
-            crypto	= accounts[0][0].crypto,
-            path	= accounts[0][0].path,
-            address	= accounts[0][0].address,
-        )
-        if not pdf_name.lower().endswith( '.pdf' ):
-            pdf_name	       += '.pdf'
-
-        if args.json:
-            # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
-            # password than the SLIP-39 master secret encryption passphrase.  It will be required to
-            # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
-            assert eth_account, \
-                "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
-                "    python3 -m pip install eth-account"
-            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
-                "--json is only valid if '--crypto ETH' wallets are specified"
-            if args.json == '-':
-                json_pwd	= input_secure( 'JSON key file password: ', secret=True )
-            else:
-                json_pwd	= args.json
-                log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
-
-            for eth in (
-                account
-                for group in accounts
-                for account in group
-                if account.crypto == 'ETH'
-            ):
-                json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
-                json_name	= args.output.format(
-                    name	= name or "SLIP39",
-                    date	= datetime.strftime( now, '%Y-%m-%d' ),
-                    time	= datetime.strftime( now, '%H.%M.%S'),
-                    crypto	= eth.crypto,
-                    path	= eth.path,
-                    address	= eth.address,
-                )
-                if json_name.lower().endswith( '.pdf' ):
-                    json_name	= json_name[:-4]
-                json_name      += '.json'
-                while os.path.exists( json_name ):
-                    log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
-                    json_name  += '.new'
-                with open( json_name, 'w' ) as json_f:
-                    json_f.write( json_str )
-                log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
-
-                if pdf:
-                    # Add the encrypted JSON account recovery to the PDF also, if generated.
-                    pdf.add_page()
-                    margin_mm	= PAGE_MARGIN * 25.4
-                    pdf.set_margin( 1.0 * 25.4 )
-
-                    col_width	= pdf.epw - 2 * margin_mm
-                    pdf.set_font( FONTS['sans'], size=10 )
-                    line_height	= pdf.font_size * 1.2
-                    pdf.cell( col_width, line_height, json_name )
-                    pdf.ln( line_height )
-
-                    pdf.set_font( FONTS['sans'], size=9 )
-                    line_height	= pdf.font_size * 1.1
-
-                    for line in json_str.split( '\n' ):
-                        pdf.cell( col_width, line_height, line )
-                        pdf.ln( line_height )
-                    pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
-
-        if pdf:
-            pdf.output( pdf_name )
-            log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )
-
+    except Exception as exc:
+        log.exception( f"Failed to write PDFs: {exc}" )
+        return 1
     return 0
