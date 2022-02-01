@@ -68,18 +68,19 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         [
             sg.Text( "Seed File Name(s): ", size=prefix, **T_kwds ),
             sg.Input( f"{', '.join( names )}", key='-NAMES-', **I_kwds ),
-            sg.Text( "(comma-separted)", **T_kwds ),
+            sg.Text( "(optional; comma-separated)", **T_kwds ),
         ]
     ] + [
         [
             sg.Text( "Requires recovery of at least: ", size=prefix, **T_kwds ),
             sg.Input( f"{group_threshold}", key='-THRESHOLD-', **I_kwds ),
-            sg.Text( f"of {len(groups)} SLIP-39 Recovery Groups", key='-RECOVERY-', **T_kwds ),
+            sg.Text( f"(of {len(groups)} SLIP-39 Recovery Groups)", key='-RECOVERY-', **T_kwds ),
         ],
     ] + [
         [
             sg.Text( "Passphrase to encrypt Seed: ", size=prefix, **T_kwds ),
             sg.Input( f"{passphrase or ''}", key='-PASSPHRASE-', **I_kwds ),
+            sg.Text( "(optional; must be remembered separately!!)", **T_kwds ),
         ],
     ] + [
         [
@@ -144,28 +145,20 @@ def app(
     window			= None
     status			= None
     event			= False
-    while event not in (sg.WIN_CLOSED, 'Exit',):
+    events_termination		= (sg.WIN_CLOSED, 'Exit',)
+    while event not in events_termination:
         # Create window (for initial window.read()), or update status
         if window:
             window['-STATUS-'].update( status or 'OK' )
-            window['-RECOVERY-'].update( f"of {len(groups)} SLIP-39 Recovery Groups", **T_kwds ),
+            window['-RECOVERY-'].update( f"(of {len(groups)} SLIP-39 Recovery Groups)", **T_kwds ),
         else:
-            window		= sg.Window( f"{', '.join( names )} Mnemonic Cards", layout )
+            window		= sg.Window( f"{', '.join( names or [ 'SLIP39' ] )} Mnemonic Cards", layout )
 
         status			= None
         event, values		= window.read()
         logging.info( f"{event}, {values}" )
-        if not values:
+        if not values or event in events_termination:
             continue
-
-        if '-TARGET-' in values:
-            # A target directory has been selected;
-            try:
-                os.chdir( values['-TARGET-'] )
-            except Exception as exc:
-                status		= f"Error changing to target directory {values['-TARGET-']}: {exc}"
-                logging.exception( f"{status}" )
-                continue
 
         if event == '+':
             g			= len(groups)
@@ -177,15 +170,17 @@ def app(
             window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", **I_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", **I_kwds ) ]] )  # noqa: 241
 
+        # A target directory must be selected; use it.  This is where any output will be written.
+        # It should usually be a removable volume, but we do not check for this.
         try:
-            g_thr_val		= values['-THRESHOLD-']
-            g_thr		= int( g_thr_val )
+            os.chdir( values['-TARGET-'] )
         except Exception as exc:
-            status		= f"Error defining group threshold {g_thr_val}: {exc}"
+            status		= f"Error changing to target directory {values['-TARGET-']!r}: {exc}"
             logging.exception( f"{status}" )
             continue
 
-        # Collect up the specified Group names; ignores groups with an empty name
+        # Collect up the specified Group names; ignores groups with an empty name (effectively
+        # eliminating that group)
         g_rec			= {}
         status			= None
         for g in range( 16 ):
@@ -203,20 +198,34 @@ def app(
                 logging.exception( f"{status}" )
                 continue
 
+        # Confirm the selected Group Threshold requirement
+        try:
+            g_thr_val		= values['-THRESHOLD-']
+            g_thr		= int( g_thr_val )
+            assert 0 < g_thr <= len( g_rec ), \
+                f"must be an integer between 1 and the number of groups ({len(g_rec)})"
+        except Exception as exc:
+            status		= f"Error defining group threshold {g_thr_val!r}: {exc}"
+            logging.exception( f"{status}" )
+            continue
+
         summary			= f"Require {g_thr}/{len(g_rec)} Groups, from: {f', '.join( f'{n}({need}/{size})' for n,(need,size) in g_rec.items())}"
         passphrase		= values['-PASSPHRASE-'].strip()
         if passphrase:
             summary	       += f", decrypted w/ passphrase {passphrase!r}"
         window['-SUMMARY-'].update( summary )
 
+        # Deduce the desired Seed names, defaulting to "SLIP39"
         names			= [
             name.strip()
-            for name in values['-NAMES-'].split( ',' )
+            for name in ( values['-NAMES-'].strip() or "SLIP39" ).split( ',' )
             if name and name.strip()
         ]
+
+        # Compute the SLIP39 Seed details
         details			= {}
         try:
-            for name in names or [ "SLIP39" ]:
+            for name in names:
                 details[name]	= create(
                     name		= name,
                     group_threshold	= group_threshold,
@@ -229,12 +238,20 @@ def app(
             logging.exception( f"{status}" )
             continue
 
-        # If we get here, no failure status has been detected; we could save (details is now { "<filename>": <details> })
+        # If we get here, no failure status has been detected, and SLIP39 mnemonic and account
+        # details { "name": <details> } have been created; we can now save the PDFs; converted
+        # details is now { "<filename>": <details> })
         if event == 'Save':
-            details		= write_pdfs(
-                names	= details,
-            )
+            try:
+                details		= write_pdfs(
+                    names	= details,
+                )
+            except Exception as exc:
+                status		= f"Error saving PDF(s): {exc}"
+                logging.exception( f"{status}" )
+                continue
 
+        # Finally, if all has gone well -- display the resultant <name>/<filename>, and some derived account details
         name_len		= max( len( name ) for name in details )
         status			= '\n'.join(
             f"{name:>{name_len}} == " + ', '.join( f'{a.crypto} @ {a.path}: {a.address}' for a in details[name].accounts[0] )

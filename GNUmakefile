@@ -2,6 +2,11 @@
 # GNU 'make' file
 # 
 
+# Change to your own Apple Developer ID, if you want to code-sign the resultant .app
+DEVID		?= Developer ID Application: Perry Kundert (ZD8TVTCXDS)
+#DEVID		?= 3rd Party Mac Developer Application: Perry Kundert (ZD8TVTCXDS)
+BUNDLEID	?= ca.kundert.perry.SLIP39
+
 # PY[3] is the target Python interpreter.  It must have pytest installed.
 PY3		?= python3
 
@@ -47,7 +52,7 @@ build-check:
 	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
-build:		wheel app
+build:		clean wheel app
 
 wheel:		dist/slip39-$(VERSION)-py3-none-any.whl
 
@@ -60,16 +65,25 @@ install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
 
 # Generate, Sign and Zip the App package TODO: Code signing w/ Apple Developer ID
-app:		dist/SLIP39.app.zip
+app:		dist/SLIP39.app-$(VERSION).zip
 
-dist/SLIP39.app.zip: dist/SLIP39.app
+#(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
+# Create a ZIP archive suitable for notarization.
+dist/SLIP39.app-$(VERSION).zip: dist/SLIP39.app
 	rm -f $@
-	(cd dist; zip -r SLIP39.app.zip SLIP39.app)
+	/usr/bin/ditto -c -k --keepParent "$(PWD)/$<" "$(PWD)/$@"
 	@ls -last dist
 
+# Rebuild the app; ensure we discard any partial/prior build and app artifacts
+#	--codesign-identity "$(DEVID)"     # Nope; must change CFBundleShottVersionString before signing?  Also different team IDs?
 dist/SLIP39.app: SLIP39.py FORCE
-	pyinstaller --noconfirm --windowed --onefile --collect-data shamir_mnemonic $<
-
+	rm -rf build $@*
+	pyinstaller --noconfirm --windowed --onefile \
+	    --osx-bundle-identifier "$(BUNDLEID)" \
+	    --collect-data shamir_mnemonic $<
+	sed -i "" -e "s/0.0.0/$(VERSION)/" "$@/Contents/Info.plist"
+	cat $@/Contents/Info.plist
+	codesign --force -s "$(DEVID)" $@
 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py
