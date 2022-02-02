@@ -17,6 +17,7 @@ from ..defaults		import GROUPS, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS
 log				= logging.getLogger( __package__ )
 
 font				= ('Courier', 14)
+font_small			= ('Courier', 11)
 
 I_kwds				= dict(
     change_submits	= True,
@@ -91,7 +92,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     ],                                  key='-SD-DATA-F-',      visible=False ),
                 ],
                 [
-                    sg.Frame( 'Pass', [
+                    sg.Frame( 'Passphrase (optional, if provided when Mnemonic was created)', [
                         [
                             sg.Text( "Passphrase (decrypt): ",                  size=prefix,    **T_kwds ),
                             sg.Input( "",               key='-SD-PASS-',                        **I_kwds )
@@ -99,8 +100,8 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     ],                                  key='-SD-PASS-F-',      visible=False ),
                 ],
                 [
-                    sg.Text( "Seed Data: ", size=prefix, **T_kwds ),
-                    sg.Text( f"",                       key='-SD-SEED-',        size=(128,1),   **T_kwds ),
+                    sg.Text( "Seed Data: ",                                     size=prefix,    **T_kwds ),
+                    sg.Text( "",                        key='-SD-SEED-',        size=(128,1),   **T_kwds ),
                 ],
             ] )
         ],
@@ -108,8 +109,8 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         [
             sg.Frame( '⊻ Seed Extra Entropy (eg. Die rolls, ...)', [
                 [
-                    sg.Radio( "Hex",             "SE",  key='-SE-HEX-',         default=True,   **B_kwds ),
-                    sg.Radio( "SHA-512 Stretch", "SE",  key='-SE-SHA-',         default=False,  **B_kwds ),
+                    sg.Radio( "Hex",              "SE", key='-SE-HEX-',         default=True,   **B_kwds ),
+                    sg.Radio( "SHA-512 Stretched","SE", key='-SE-SHA-',         default=False,  **B_kwds ),
                 ],
                 [
                     sg.Text( "Entropy: ",               key='-SE-DATA-T-',      size=prefix,    **T_kwds ),
@@ -117,7 +118,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                 ],
                 [
                     sg.Text( "Seed Entropy: ",                                  size=prefix,    **T_kwds ),
-                    sg.Text( f"",                       key='-SE-SEED-',        size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SE-SEED-',        size=(128,1),   **T_kwds ),
                 ],
             ] ),
         ]
@@ -126,56 +127,213 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
             sg.Frame( 'Seed Master Secret', [
                 [
                     sg.Text( "Seed: ",                                          size=prefix,    **T_kwds ),
-                    sg.Text( f"",                       key='-SEED-',           size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SEED-',           size=(128,1),   **T_kwds ),
                 ],
             ] ),
         ],
     ] + [
         [
-            sg.Text( "Save PDF to (ie. USB drive): ", size=prefix, **T_kwds ),
-            sg.Input( sg.user_settings_get_entry( "-target folder-", ""),  size=inputs, key='-TARGET-', **I_kwds ),
+            sg.Text( "Save PDF to (ie. USB drive): ",                           size=prefix,    **T_kwds ),
+            sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
+                                                        key='-TARGET-',         size=inputs,    **I_kwds ),  # noqa: E127
             sg.FolderBrowse( **B_kwds ),
         ],
     ] + [
         [
-            sg.Text( "Seed File Name(s): ", size=prefix, **T_kwds ),
-            sg.Input( f"{', '.join( names )}",  size=inputs, key='-NAMES-', **I_kwds ),
-            sg.Text( "(optional; comma-separated)", **T_kwds ),
+            sg.Text( "Seed File Name(s): ",                                     size=prefix,    **T_kwds ),
+            sg.Input( f"{', '.join( names )}",          key='-NAMES-',          size=inputs,    **I_kwds ),
+            sg.Text( "(optional; comma-separated)",                                             **T_kwds ),
         ]
     ] + [
         [
-            sg.Text( "Requires recovery of at least: ",        size=prefix, **T_kwds ),
-            sg.Input( f"{group_threshold}", key='-THRESHOLD-', size=inputs, **I_kwds ),
-            sg.Text( f"(of {len(groups)} SLIP-39 Recovery Groups)", key='-RECOVERY-', **T_kwds ),
+            sg.Text( "Requires recovery of at least: ",                         size=prefix,    **T_kwds ),
+            sg.Input( f"{group_threshold}",             key='-THRESHOLD-',      size=inputs,    **I_kwds ),
+            sg.Text( f"(of {len(groups)} SLIP-39 Recovery Groups)",
+                                                        key='-RECOVERY-',                       **T_kwds ),  # noqa: E127
         ],
     ] + [
         [
-            sg.Text( "Passphrase (encrypt): ",		size=prefix, **T_kwds ),
-            sg.Input( f"{passphrase or ''}", key='-PASSPHRASE-', size=inputs, **I_kwds ),
-            sg.Text( "(optional; must be remembered separately!!)", **T_kwds ),
+            sg.Text( "Passphrase (encrypt): ",                                  size=prefix,    **T_kwds ),
+            sg.Input( f"{passphrase or ''}", key='-PASSPHRASE-',                size=inputs,    **I_kwds ),
+            sg.Text( "(optional; must be remembered separately!!)",                             **T_kwds ),
         ],
     ] + [
         [
-            sg.Frame( 'Groups', [group_body], key='-GROUPS-' ),
+            sg.Frame( 'Groups', [
+                group_body
+            ],                                          key='-GROUPS-' ),
         ],
     ] + [
         [
             sg.Button( '+', **B_kwds ), sg.Button( 'Save', **B_kwds ), sg.Exit()
         ],
         [
-            sg.Frame(
-                'Summary',
-                [[ sg.Text( key='-SUMMARY-', **T_kwds ), ]]
-            ),
+            sg.Frame( 'Summary', [
+                [
+                    sg.Text(                            key='-SUMMARY-',                        **T_kwds ),
+                ]
+            ] ),
         ],
         [
-            sg.Frame(
-                'Status',
-                [[ sg.Text( key='-STATUS-', **T_kwds ), ]]
-            ),
+            sg.Frame( 'Status', [
+                [
+                    sg.Text(                            key='-STATUS-',                         **T_kwds ),
+                ]
+            ] ),
+        ],
+    ] + [
+        [
+            sg.Frame( 'SLIP39 Mnemonics Output', [
+                [
+                    sg.Multiline( "",                   key='-MNEMONICS-',      size=(190,10),   font=font_small )
+                ]
+            ] ),
+        ],
+    ] + [
+        [
+            sg.Frame( 'Seed Recovery from SLIP39 Mnemonics', [
+                [
+                    sg.Text( "Seed Verified: ",                                 size=prefix,    **T_kwds ),
+                    sg.Text( "",                        key='-SEED-RECOVERED-', size=(128,1),   **T_kwds ),
+                ],
+            ] ),
         ],
     ]
     return layout
+
+
+def update_seed_data( window, values ):
+    """Respond to changes in the desired Seed Data source, and recover/generate and update the
+    -SD-SEED-.  Stores the last known state of the -SD-... radio buttons.
+
+    """
+    for seed_data_source in [
+            '-SD-128-RND-',
+            '-SD-256-RND-',
+            '-SD-512-RND-',
+            '-SD-128-FIX-',
+            '-SD-256-FIX-',
+            '-SD-512-FIX-',
+            '-SD-BIP-',
+            '-SD-SLIP-',
+    ]:
+        if values.get( seed_data_source ) and update_seed_data.seed_data != seed_data_source:
+            # Changed Seed Data source!
+            update_seed_data.seed_data = seed_data_source
+            if 'FIX' in update_seed_data.seed_data:
+                window['-SD-DATA-T-'].update( "Hex data: " )
+                window['-SD-DATA-F-'].update( visible=True  )
+                window['-SD-PASS-F-'].update( visible=False )
+            elif 'RND' in update_seed_data.seed_data:
+                window['-SD-DATA-F-'].update( visible=False )
+                window['-SD-PASS-F-'].update( visible=False )
+            elif 'BIP' in update_seed_data.seed_data:
+                window['-SD-DATA-T-'].update( "BIP-39 Mnemonic: " )
+                window['-SD-DATA-F-'].update( visible=True )
+                window['-SD-PASS-F-'].update( visible=True )
+            elif 'SLIP' in update_seed_data.seed_data:
+                window['-SD-DATA-T-'].update( "SLIP-39 Mnemonics: " )
+                window['-SD-DATA-F-'].update( visible=True )
+                window['-SD-PASS-F-'].update( visible=True )
+    if 'BIP' in update_seed_data.seed_data:
+        try:
+            master_secret	= recover_bip39(
+                mnemonic	= values['-SD-DATA-'].strip(),
+                passphrase	= values['-SD-PASS-'].strip().encode( 'UTF-8' )
+            )
+        except Exception as exc:
+            return f"Invalid BIP-39 recovery mnemonic: {exc}"
+    elif 'SLIP' in update_seed_data.seed_data:
+        try:
+            master_secret	= recover(
+                mnemonics	= values['-SD-DATA-'].strip().split( '\n' ),
+                passphrase	= values['-SD-PASS-'].strip().encode( 'UTF-8' )
+            )
+        except Exception as exc:
+            return f"Invalid SLIP-39 recovery mnemonics: {exc}"
+    elif 'FIX' in update_seed_data.seed_data:
+        bits			= int( update_seed_data.seed_data.split( '-' )[2] )
+        try:
+            # 0-fill and truncate any supplied hex data to the desired bit length
+            data		= f"{values['-SD-DATA-']:<0{bits//4}.{bits//4}}"
+            master_secret 	= codecs.decode( data, 'hex_codec' )
+        except Exception as exc:
+            return f"Invalid Hex for {bits}-bit fixed seed: {exc}"
+    else:  # Random.  Regenerated each time through.
+        bits			= int( update_seed_data.seed_data.split( '-' )[2] )
+        master_secret		= random_secret( bits // 8 )
+    # Compute the Seed Data as hex.  Will be 128-, 256- or 512-bit hex data.
+    window['-SD-SEED-'].update( codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ))
+update_seed_data.seed_data	= None  # noqa: E305
+
+
+def update_seed_entropy( window, values ):
+    """Respond to changes in the Seed Entropy, and recover/generate the -SE-SEED-.  It is expected
+    to be exactly the same size as the -SD-SEED- data.  Stores the last known state of the
+    -SE-... radio buttons, updating visibilties on change.
+
+    """
+    for seed_entr_source in [
+        '-SE-HEX-',
+        '-SE-SHA-',
+    ]:
+        if values.get( seed_entr_source ) and update_seed_entropy.seed_entr != seed_entr_source:
+            update_seed_entropy.seed_entr = seed_entr_source
+            # Changed Seed Entropy source!
+            if 'HEX' in update_seed_entropy.seed_entr:
+                window['-SE-DATA-T-'].update( "Entropy (hex): " )
+            else:
+                window['-SE-DATA-T-'].update( "Entropy (die rolls, etc.): " )
+
+    bits			= len( window['-SD-SEED-'].get() ) * 4
+    if 'HEX' in update_seed_entropy.seed_entr:
+        try:
+            # 0-fill and truncate any supplied hex data to the desired bit length
+            data		= f"{values['-SE-DATA-']:<0{bits//4}.{bits//4}}"
+            master_entropy	= codecs.decode( data, 'hex_codec' )
+        except Exception as exc:
+            return f"Invalid Hex for {bits}-bit extra seed entropy: {exc}"
+    else:
+        try:
+            # SHA-512 stretch and possibly truncate
+            stretch		= hashlib.sha512()
+            stretch.update( values['-SE-DATA-'].encode( 'UTF-8' ))
+            master_entropy	= stretch.digest()[:bits//8]
+        except Exception as exc:
+            return f"Invalid data for {bits}-bit extra seed entropy: {exc}"
+
+    # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.
+    window['-SE-SEED-'].update( codecs.encode( master_entropy, 'hex_codec' ).decode( 'ascii' ))
+update_seed_entropy.seed_entr	= None  # noqa: E305
+
+
+def update_seed_recovered( window, values, details ):
+    """Display the SLIP39 Mnemonics.  Each mnemonic word is maximum 8 characters in length, separated
+    by a single space.  The length of each Mnemonic is:
+
+        bits words
+        ---- -----
+        128  20
+        256  33
+        512  59
+
+    """
+    mnemonics			= []
+    rows			= []
+    for g,(g_of,g_mnems) in details.groups.items():
+        for i,mnem in enumerate( g_mnems, start=1 ):
+            mnemonics.append( mnem )
+            mset		= mnem.split()
+            while mrow := mset[:20]:
+                mset		= mset[20:]
+                rows.append( f"{g:<8.8}" + f"{i:2} " + ' '.join( f"{m:<8}" for m in mrow ))
+                g		= ''
+                i		= ''
+
+    window['-MNEMONICS-'].update( '\n'.join( rows ))
+
+    reco			= recover( mnemonics )
+    window['-SEED-RECOVERED-'].update( codecs.encode( reco, 'hex_codec' ).decode( 'ascii' ))
 
 
 def app(
@@ -185,7 +343,8 @@ def app(
     cryptocurrency		= None,
     passphrase			= None,
 ):
-    # Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }
+    """Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }"""
+
     if isinstance( group, dict ):
         groups			= group
     else:
@@ -219,8 +378,6 @@ def app(
     event			= False
     events_termination		= (sg.WIN_CLOSED, 'Exit',)
     master_secret		= None		# default to produce randomly
-    seed_data			= None
-    seed_entr			= None
     while event not in events_termination:
         # Create window (for initial window.read()), or update status
         if window:
@@ -246,104 +403,10 @@ def app(
             window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", **I_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", **I_kwds ) ]] )  # noqa: 241
 
-        # Respond to changes in the desired Seed Data source, and recover/generate and update the -SD-SEED-
-        for seed_data_source in [
-                '-SD-128-RND-',
-                '-SD-256-RND-',
-                '-SD-512-RND-',
-                '-SD-128-FIX-',
-                '-SD-256-FIX-',
-                '-SD-512-FIX-',
-                '-SD-BIP-',
-                '-SD-SLIP-',
-        ]:
-            if values.get( seed_data_source ) and seed_data != seed_data_source:
-                seed_data	= seed_data_source
-                # Changed Seed Data source!
-                if 'FIX' in seed_data:
-                    window['-SD-DATA-T-'].update( f"Hex data: " )
-                    window['-SD-DATA-F-'].update( visible=True  )
-                    window['-SD-PASS-F-'].update( visible=False )
-                elif 'RND' in seed_data:
-                    window['-SD-DATA-F-'].update( visible=False )
-                    window['-SD-PASS-F-'].update( visible=False )
-                elif 'BIP' in seed_data:
-                    window['-SD-DATA-T-'].update( f"BIP-39 Mnemonic: " )
-                    window['-SD-DATA-F-'].update( visible=True )
-                    window['-SD-PASS-F-'].update( visible=True )
-                elif 'SLIP' in seed_data:
-                    window['-SD-DATA-T-'].update( f"SLIP-39 Mnemonics: " )
-                    window['-SD-DATA-F-'].update( visible=True )
-                    window['-SD-PASS-F-'].update( visible=True )
-        if 'FIX' in seed_data:
-            bits		= int( seed_data.split( '-' )[2] )
-            try:
-                # 0-fill and truncate any supplied hex data to the desired bit length
-                data		= f"{values['-SD-DATA-']:<0{bits//4}.{bits//4}}"
-                master_secret = codecs.decode( data, 'hex_codec' )
-            except Exception as exc:
-                status		= f"Invalid Hex for {bits}-bit fixed seed: {exc}"
-                continue
-        elif 'BIP' in seed_data:
-            try:
-                master_secret	= recover_bip39(
-                    mnemonic	= values['-SD-DATA-'].strip(),
-                    passphrase	= values['-SD-PASS-'].strip().encode( 'UTF-8' )
-                )
-            except Exception as exc:
-                status	= f"Invalid BIP-39 recovery mnemonic: {exc}"
-                continue
-        elif 'SLIP' in seed_data:
-            try:
-                master_secret	= recover(
-                    mnemonics	= values['-SD-DATA-'].strip().split( '\n' ),
-                    passphrase	= values['-SD-PASS-'].strip().encode( 'UTF-8' )
-                )
-            except Exception as exc:
-                status	= f"Invalid SLIP-39 recovery mnemonics: {exc}"
-                continue
-        else: # Random.  Regenerated each time through.
-            bits		= int( seed_data.split( '-' )[2] )
-            master_secret	= random_secret( bits // 8 )
-
-        # Compute the Seed Data as hex.  Will be 128-, 256- or 512-bit hex data.
-        window['-SD-SEED-'].update( codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ))
-
-        # Respond to changes in the Seed Entropy, and recover/generate the -SE-SEED-.  It is
-        # expected to be exactly the same size as the -SD-SEED- data.
-        for seed_entr_source in [
-            '-SE-HEX-',
-            '-SE-SHA-',
-        ]:
-            if values.get( seed_entr_source ) and seed_entr != seed_entr_source:
-                seed_entr	= seed_entr_source
-                # Changed Seed Entropy source!
-                if 'HEX' in seed_entr:
-                    window['-SE-DATA-T-'].update( f"Entropy (hex): " )
-                else:
-                    window['-SE-DATA-T-'].update( f"Entropy (die rolls, etc.): " )
-
-        bits			= len( window['-SD-SEED-'].get() ) * 4
-        if 'HEX' in seed_entr:
-            try:
-                # 0-fill and truncate any supplied hex data to the desired bit length
-                data		= f"{values['-SE-DATA-']:<0{bits//4}.{bits//4}}"
-                master_entropy	= codecs.decode( data, 'hex_codec' )
-            except Exception as exc:
-                status		= f"Invalid Hex for {bits}-bit extra seed entropy: {exc}"
-                continue
-        else:
-            try:
-                # SHA-512 stretch and possibly truncate
-                stretch		= hashlib.sha512()
-                stretch.update( values['-SE-DATA-'].encode( 'UTF-8' ))
-                master_entropy	= stretch.digest()[:bits//8]
-            except Exception as exc:
-                status		= f"Invalid data for {bits}-bit extra seed entropy: {exc}"
-                continue
-
-        # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.
-        window['-SE-SEED-'].update( codecs.encode( master_entropy, 'hex_codec' ).decode( 'ascii' ))
+        if status := update_seed_data( window, values ):
+            continue
+        if status := update_seed_entropy( window, values ):
+            continue
 
         # Compute the Master Secret Seed, from the supplied Seed Data and any extra Seed Entropy
         data			= codecs.decode( window['-SD-SEED-'].get(), 'hex_codec' )
@@ -403,20 +466,28 @@ def app(
             if name and name.strip()
         ]
 
-        # Compute the SLIP39 Seed details
+        # Compute the SLIP39 Seed details.  For multiple names, each subsequent slip39.create uses a
+        # master_secret produced by hashing the prior master_secret entropy.
         details			= {}
         try:
+            master_secret	= codecs.decode( window['-SEED-'].get(), 'hex_codec' )
             for name in names:
+                log.info( f"SLIP39 for {name} from master_secret: {codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )}" )
                 details[name]	= create(
                     name		= name,
                     group_threshold	= group_threshold,
+                    master_secret	= master_secret,
                     groups		= g_rec,
                     cryptopaths		= cryptopaths,
                     passphrase		= passphrase.encode( 'utf-8' ) if passphrase else b'',
                 )
+                master_secret	= hashlib.sha512( master_secret ).digest()[:len(master_secret)]
         except Exception as exc:
             status		= f"Error creating: {exc}"
             logging.exception( f"{status}" )
+            continue
+
+        if status := update_seed_recovered( window, values, details[names[0]] ):
             continue
 
         # If we get here, no failure status has been detected, and SLIP39 mnemonic and account
