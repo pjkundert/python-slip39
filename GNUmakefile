@@ -25,7 +25,7 @@ help:
 	@echo "GNUmakefile for cpppo.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
-	@echo "  build			Build dist wheel and app under Python3"
+	@echo "  build			Build dist wheel and gui under Python3"
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  clean			Remove build artifacts"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
@@ -40,7 +40,7 @@ doctest:
 
 analyze:
 	flake8 -j 1 --max-line-length=200 \
-	  --ignore=W503,E201,E202,E221,E223,E226,E231,E242,E251,E265,E272,E274 \
+	  --ignore=W503,E201,E202,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
 	  slip39
 
 pylint:
@@ -52,7 +52,7 @@ build-check:
 	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
-build:		clean wheel app
+build:		clean wheel gui
 
 wheel:		dist/slip39-$(VERSION)-py3-none-any.whl
 
@@ -64,8 +64,8 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
 
-# Generate, Sign and Zip the App package TODO: Code signing w/ Apple Developer ID
-app:		dist/SLIP39.app-$(VERSION).zip
+# Generate, Sign and Zip the gui SLIP39.app package
+gui:		dist/SLIP39.app-$(VERSION).zip
 
 #(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
 # Create a ZIP archive suitable for notarization.
@@ -74,7 +74,7 @@ dist/SLIP39.app-$(VERSION).zip: dist/SLIP39.app
 	/usr/bin/ditto -c -k --keepParent "$(PWD)/$<" "$(PWD)/$@"
 	@ls -last dist
 
-# Rebuild the app; ensure we discard any partial/prior build and app artifacts
+# Rebuild the gui; ensure we discard any partial/prior build and gui artifacts
 #	--codesign-identity "$(DEVID)"     # Nope; must change CFBundleShottVersionString before signing?  Also different team IDs?
 dist/SLIP39.app: SLIP39.py FORCE
 	rm -rf build $@*
