@@ -143,6 +143,26 @@ by entering the mnemonics right on the device.
    instead), add a =-v= (to see it logged in a tabular format), or =--text= to have it printed to
    stdout in full lines (ie. for pipelining to other programs).
 
+** The MacOS =SLIP39.app= GUI
+
+   If you prefer a graphical user-interface, try the MacOS app.  You can run it directly if you
+   install Python 3.9+ from [[https://python.org/downloads][python.org/downlaods]] or using homebrew =brew install python-tk@3.9= (or
+   higher, eg. =@3.10=).  Then, start the GUI in a variety of ways:
+
+   #+LATEX: {\scriptsize
+   #+BEGIN_EXAMPLE
+   slip39-App
+   python -m slip39.App
+   #+END_EXAMPLE
+
+   Alternatively, download and install the MacOS App: [[https://github.com/pjkundert/python-slip39/releases/latest][github.com/pjkundert/python-slip-39/releases]].
+
+   You will need to authorize it to run in System Preferences / Security & Privacy / Privacy.
+   
+** The Python =slip39= CLI
+
+   From the command line, you can create SLIP-39 seed Mnemonic card PDFs.
+
 *** =slip39= Synopsis
 
     The full command-line argument synopsis for =slip39= is:
@@ -1061,7 +1081,7 @@ by entering the mnemonics right on the device.
    : $ python3 -m slip39.App     # Execute the python slip39.App module main method
    : $ slip39-App                # Run the script provided by the slip39 module
    
-*** The MacOS =SLIP39.app=
+*** The MacOS =SLIP39.app= GUI
 
     You can build the native MacOS =SLIP39.app=.
 
