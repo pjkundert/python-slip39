@@ -307,7 +307,7 @@ def update_seed_entropy( window, values ):
 update_seed_entropy.seed_entr	= None  # noqa: E305
 
 
-def update_seed_recovered( window, values, details ):
+def update_seed_recovered( window, values, details, passphrase=None ):
     """Display the SLIP39 Mnemonics.  Each mnemonic word is maximum 8 characters in length, separated
     by a single space.  The length of each Mnemonic is:
 
@@ -316,6 +316,8 @@ def update_seed_recovered( window, values, details ):
         128  20
         256  33
         512  59
+
+    There must always be a passphrase; it may be empty (b'')
 
     """
     mnemonics			= []
@@ -332,7 +334,7 @@ def update_seed_recovered( window, values, details ):
 
     window['-MNEMONICS-'].update( '\n'.join( rows ))
 
-    reco			= recover( mnemonics )
+    reco			= recover( mnemonics, passphrase=passphrase or b'' )
     window['-SEED-RECOVERED-'].update( codecs.encode( reco, 'hex_codec' ).decode( 'ascii' ))
 
 
@@ -453,10 +455,13 @@ def app(
             logging.exception( f"{status}" )
             continue
 
+        # Produce a summary of the recovered SLIP39 Groups, including any passphrase needed for decryption
         summary			= f"Require {g_thr}/{len(g_rec)} Groups, from: {f', '.join( f'{n}({need}/{size})' for n,(need,size) in g_rec.items())}"
         passphrase		= values['-PASSPHRASE-'].strip()
         if passphrase:
             summary	       += f", decrypted w/ passphrase {passphrase!r}"
+        passphrase		= passphrase.encode( 'utf-8' ) if passphrase else b''
+
         window['-SUMMARY-'].update( summary )
 
         # Deduce the desired Seed names, defaulting to "SLIP39"
@@ -479,7 +484,7 @@ def app(
                     master_secret	= master_secret,
                     groups		= g_rec,
                     cryptopaths		= cryptopaths,
-                    passphrase		= passphrase.encode( 'utf-8' ) if passphrase else b'',
+                    passphrase		= passphrase,
                 )
                 master_secret	= hashlib.sha512( master_secret ).digest()[:len(master_secret)]
         except Exception as exc:
@@ -487,7 +492,7 @@ def app(
             logging.exception( f"{status}" )
             continue
 
-        if status := update_seed_recovered( window, values, details[names[0]] ):
+        if status := update_seed_recovered( window, values, details[names[0]], passphrase=passphrase ):
             continue
 
         # If we get here, no failure status has been detected, and SLIP39 mnemonic and account
