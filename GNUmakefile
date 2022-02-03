@@ -25,17 +25,13 @@ help:
 	@echo "GNUmakefile for cpppo.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
-	@echo "  build			Build dist wheel and gui under Python3"
+	@echo "  build			Build dist wheel and app under Python3"
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  clean			Remove build artifacts"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
 
 test:
 	$(PY3TEST)
-
-
-doctest:
-	$(PY3TEST) --doctest-modules
 
 
 analyze:
@@ -52,7 +48,7 @@ build-check:
 	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
-build:		clean wheel gui
+build:		clean wheel app
 
 wheel:		dist/slip39-$(VERSION)-py3-none-any.whl
 
@@ -64,8 +60,8 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
 
-# Generate, Sign and Zip the gui SLIP39.app package
-gui:		dist/SLIP39.app-$(VERSION).zip
+# Generate, Sign and Zip the macOS SLIP39.app GUI package
+app:		dist/SLIP39.app-$(VERSION).zip
 
 #(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
 # Create a ZIP archive suitable for notarization.

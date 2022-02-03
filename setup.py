@@ -19,7 +19,7 @@ console_scripts			= [
     'slip39		= slip39.main:main',
     'slip39-recovery	= slip39.recovery.main:main',
     'slip39-generator	= slip39.generator.main:main',
-    'slip39-App		= slip39.App.main:main',
+    'slip39-gui		= slip39.gui.main:main',
 ]
 
 entry_points			= {
@@ -33,7 +33,7 @@ extras_require			= {
     for option in [
         'serial',	# slip39[serial]: Support serial I/O of generated wallet data
         'json',		# slip39[json]:   Support output of encrypted Ethereum JSON wallets
-        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter graphical UI App
+        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
     ]
 }
 
@@ -41,7 +41,7 @@ package_dir			= {
     "slip39":			"./slip39",
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
-    "slip39.App":		"./slip39/App",
+    "slip39.gui":		"./slip39/gui",
 }
 
 long_description_content_type	= 'text/markdown'
@@ -169,7 +169,8 @@ project_urls			= {
     "Bug Tracker": "https://github.com/pjkundert/python-slip39/issues",
 }
 
-# For py2{app,exe} App Generation
+'''
+# For py2{app,exe} App Generation.  TODO: Does not work; use PyInstaller instead
 mainscript			= "SLIP39.py"
 
 if sys.platform == 'darwin':
@@ -200,6 +201,7 @@ else:
         # and install the main script as such
         scripts		= [ mainscript ],
     )
+'''
 
 setup(
     name			= "slip39",
@@ -222,5 +224,5 @@ setup(
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
     python_requires		= ">=3.9",
-    **extra_options
+    #**extra_options
 )

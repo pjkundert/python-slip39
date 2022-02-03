@@ -143,19 +143,19 @@ by entering the mnemonics right on the device.
    instead), add a =-v= (to see it logged in a tabular format), or =--text= to have it printed to
    stdout in full lines (ie. for pipelining to other programs).
 
-** The MacOS =SLIP39.app= GUI
+** The macOS =SLIP39.app= GUI App
 
-   If you prefer a graphical user-interface, try the MacOS app.  You can run it directly if you
+   If you prefer a graphical user-interface, try the macOS app.  You can run it directly if you
    install Python 3.9+ from [[https://python.org/downloads][python.org/downlaods]] or using homebrew =brew install python-tk@3.9= (or
    higher, eg. =@3.10=).  Then, start the GUI in a variety of ways:
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
-   slip39-App
-   python -m slip39.App
+   slip39-gui
+   python -m slip39.gui
    #+END_EXAMPLE
 
-   Alternatively, download and install the MacOS App: [[https://github.com/pjkundert/python-slip39/releases/latest][github.com/pjkundert/python-slip-39/releases]].
+   Alternatively, download and install the macOS GUI App: [[https://github.com/pjkundert/python-slip39/releases/latest][github.com/pjkundert/python-slip-39/releases]].
 
    You will need to authorize it to run in System Preferences / Security & Privacy / Privacy.
    
@@ -1060,7 +1060,7 @@ by entering the mnemonics right on the device.
   and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].
 
   Either of these methods will get you a =python3= executable running version 3.9+, usable for
-  running the =slip39= module, and the =slip39.App= GUI.
+  running the =slip39= module, and the =slip39.gui= GUI.
 
 ** The =slip39= Module
 
@@ -1078,14 +1078,14 @@ by entering the mnemonics right on the device.
    : $ python3 -m pip install slip39[gui]
 
    Then, there are several ways to run the GUI:
-   : $ python3 -m slip39.App     # Execute the python slip39.App module main method
-   : $ slip39-App                # Run the script provided by the slip39 module
+   : $ python3 -m slip39.gui     # Execute the python slip39.gui module main method
+   : $ slip39-gui                # Run the main function provided by the slip39.gui module
    
-*** The MacOS =SLIP39.app= GUI
+*** The macOS =SLIP39.app= GUI
 
-    You can build the native MacOS =SLIP39.app=.
+    You can build the native macOS =SLIP39.app= App.
 
-    This requires the official python.org/downloads installer; the homebrew python-tk@3.9 will not
+    This requires the official [[https://python.org/downloads][python.org/downloads]] installer; the homebrew python-tk@3.9 will not
     work for building the native app using either =PyInstaller=. (The =py2app= approach doesn't work
     in either version of Python).
 
