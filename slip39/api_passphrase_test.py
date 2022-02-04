@@ -81,14 +81,14 @@ def test_passphrase():
             ]
         ),
         "Frens": (
-            2,
+            3,
             [
-                "academic acid decision roster alto density aircraft wavy pistol capacity receiver username dismiss famous walnut lunch acquire counter fused step",
-                "academic acid decision scared bike sunlight explain render emphasis activity exotic verdict machine enforce facility grasp husband warmth famous club",
-                "academic acid decision shadow deadline wildlife warmth smell device clogs craft volume cargo item scramble easy grumpy budget easy forward",
-                "academic acid decision sister dragon belong python marathon stay dismiss snapshot victim process holiday hesitate presence both sidewalk exclude petition",
-                "academic acid decision smug beard resident modify much minister hesitate memory expand depend alarm unwrap analysis envelope pickup raspy lunar",
-                "academic acid decision spew aircraft false stilt stadium lawsuit idle intend example library bike energy ticket discuss island resident jerky"
+                "academic acid decision round academic academic academic academic academic academic academic academic academic academic academic academic academic ranked flame amount",
+                "academic acid decision scatter biology trial escape element unfair cage wavy afraid provide blind pitch ultimate hybrid gravity formal voting",
+                "academic acid decision shaft crunch glance exclude stilt grill numb smug stick obtain raisin force theater duke taught license scramble",
+                "academic acid decision skin disaster mama alive nylon mansion listen cowboy suitable crisis pancake velvet aviation exhaust decent medal dominant",
+                "academic acid decision snake aunt frozen flip crystal crystal observe equip maximum maiden dragon wine crazy nervous crystal profile fiction",
+                "academic acid decision spider bulge receiver behavior humidity ruler luck public math distance cylinder fantasy seafood training withdraw payment playoff"
             ]
         )
     }
@@ -101,7 +101,7 @@ def test_passphrase():
 
     # Ensure we can recover it w/ no passphrase
     assert recover(
-        details_nonpass.groups['Fam'][1][:2] + details_nonpass.groups['Frens'][1][:2],
+        details_nonpass.groups['Fam'][1][:2] + details_nonpass.groups['Frens'][1][:-3],
     ) == SEED_FF
 
     # Now, ensure that we see a different set of Mnemonics w/ a SLIP39 passphrase.
@@ -116,7 +116,7 @@ def test_passphrase():
     badpass			= "password".encode( 'UTF-8' )
 
     assert recover(
-        details_nonpass.groups['Fam'][1][:2] + details_nonpass.groups['Frens'][1][:2],
+        details_nonpass.groups['Fam'][1][:2] + details_nonpass.groups['Frens'][1][:-3],
         passphrase	= badpass,
     ) != SEED_FF
 
@@ -151,14 +151,14 @@ def test_passphrase():
             ]
         ),
         "Frens": (
-            2,
+            3,
             [
-                "academic acid decision roster alien carbon machine home valuable parking soul ounce disaster smart much hour prisoner script alpha extend",
-                "academic acid decision scared both episode phantom award pacific spirit clock index memory evaluate mule epidemic very eraser evaluate lying",
-                "academic acid decision shadow closet prospect result primary hawk equation fawn thorn soldier taste welcome mild blimp blue glad crush",
-                "academic acid decision sister desert tracks metric sister again drink peaceful analysis grin forecast webcam reaction entrance oasis damage victim",
-                "academic acid decision smug alarm focus medical treat season harvest style silver hobo ultimate exercise deal garbage harvest paper junior",
-                "academic acid decision spew boundary auction peanut luxury platform carbon cultural cluster sugar hamster exclude bracelet adequate ting uncover party"
+                "academic acid decision round academic academic academic academic academic academic academic academic academic academic academic academic academic ranked flame amount",
+                "academic acid decision scatter become flavor crystal genuine hour infant voice unfair recall living afraid company froth distance bundle soldier",
+                "academic acid decision shaft display headset level prevent verdict genius preach glad makeup element twin scene hunting smoking rival mortgage",
+                "academic acid decision skin course dress prisoner skunk ordinary blind freshman member drink scroll traffic thank deliver frequent velvet evoke",
+                "academic acid decision snake burden unknown guard peaceful artwork snapshot teaspoon literary move spray saver voice august maximum hazard negative",
+                "academic acid decision spider ancestor regular evaluate salon glasses penalty blue guitar check extra roster snapshot fantasy adjust coastal eclipse"
             ]
         )
     }
@@ -169,10 +169,10 @@ def test_passphrase():
     # design -- you can supply an attacker with a "duress" seed passphrase leading to wallet(s) with
     # a small sacrificial amount of funds.
     assert recover(
-        details_badpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:2],
+        details_badpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:3],
     ) != SEED_FF
     assert recover(
-        details_badpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:2],
+        details_badpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:3],
         passphrase	= badpass,
     ) == SEED_FF
 
@@ -180,11 +180,11 @@ def test_passphrase():
     # since SLIP39 confirms the digest of the recovered "encrypted" seed, before decryption.
     with pytest.raises( shamir_mnemonic.utils.MnemonicError ):
         assert recover(
-            details_nonpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:2],
+            details_nonpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:3],
         ) != SEED_FF
     with pytest.raises( shamir_mnemonic.utils.MnemonicError ):
         assert recover(
-            details_nonpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:2],
+            details_nonpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:3],
             passphrase	= badpass,
         ) != SEED_FF
 

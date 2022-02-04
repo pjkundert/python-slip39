@@ -58,7 +58,7 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 
 # Install from wheel, including all optional extra dependencies
 install:	dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $^[gui,serial,json]
+	$(PY3) -m pip install --force-reinstall $<[gui,serial,json]
 
 # Generate, Sign and Zip the macOS SLIP39.app GUI package
 app:		dist/SLIP39.app-$(VERSION).zip

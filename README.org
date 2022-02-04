@@ -86,7 +86,7 @@ by entering the mnemonics right on the device.
    | First  |        1 | / | 1       | Stored at home                        |
    | Second |        1 | / | 1       | Stored in office safe                 |
    | Fam    |        2 | / | 4       | Distributed to family members         |
-   | Frens  |        2 | / | 6       | Distributed to friends and associates |
+   | Frens  |        3 | / | 6       | Distributed to friends and associates |
    #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
@@ -100,7 +100,7 @@ by entering the mnemonics right on the device.
    card from the office safe, and 2 cards from Fam group members, and recover the wallet.
 
    If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
-   (at home) or Second (at the office), they can collect 2 Fam cards and 2 Frens cards (at the
+   (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (at the
    funeral, for example), completing the Fam and Frens groups' data, and recover the HD Wallet
    account.  Since Frens are less likely to persist long term (and are also less likely to know
    each-other), we'll require a lower proportion of them to be collected.
@@ -184,13 +184,13 @@ by entering the mnemonics right on the device.
     : positional arguments:
     :   names                 Account names to produce
     : 
-    : optional arguments:
+    : options:
     :   -h, --help            show this help message and exit
     :   -v, --verbose         Display logging information.
     :   -q, --quiet           Reduce logging output.
     :   -o OUTPUT, --output OUTPUT
     :                         Output PDF to file or '-' (stdout); formatting w/
-    :                         name, date, time, crypto, path and address allowed
+    :                         name, date, time, crypto, path, address allowed
     :   -t THRESHOLD, --threshold THRESHOLD
     :                         Number of groups required for recovery (default: half
     :                         of groups, rounded up)
@@ -252,12 +252,12 @@ by entering the mnemonics right on the device.
   #+END_SRC
 
   #+RESULTS:
-  : 2022-01-31 14:09:10 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  : 2022-01-31 14:09:10 slip39           ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  : 2022-01-31 14:09:10 slip39           BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
-  : 2022-01-31 14:09:11 slip39           It is recommended to not use '-j|--json <password>'; specify '-' to read from input
-  : 2022-01-31 14:09:11 slip39           Wrote JSON SLIP39's encrypted ETH wallet 0xb44A2011A99596671d5952CdC22816089f142FB3 derived at m/44'/60'/0'/0/0 to: SLIP39-2022-01-31+14.09.11-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.json
-  : 2022-01-31 14:09:12 slip39           Wrote SLIP39-encoded wallet for '' to: SLIP39-2022-01-31+14.09.11-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  : 2022-02-04 08:19:15 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  : 2022-02-04 08:19:15 slip39           ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  : 2022-02-04 08:19:15 slip39           BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
+  : 2022-02-04 08:19:15 slip39           It is recommended to not use '-j|--json <password>'; specify '-' to read from input
+  : 2022-02-04 08:19:16 slip39           Wrote JSON SLIP39's encrypted ETH wallet 0xb44A2011A99596671d5952CdC22816089f142FB3 derived at m/44'/60'/0'/0/0 to: SLIP39-2022-02-04+08.19.15-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.json
+  : 2022-02-04 08:19:16 slip39           Wrote SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-02-04+08.19.15-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
 
   #+LATEX: }
 
@@ -273,7 +273,7 @@ by entering the mnemonics right on the device.
     : 
     : Recover and output secret seed from SLIP39 or BIP39 mnemonics
     : 
-    : optional arguments:
+    : options:
     :   -h, --help            show this help message and exit
     :   -v, --verbose         Display logging information.
     :   -q, --quiet           Reduce logging output.
@@ -316,97 +316,97 @@ by entering the mnemonics right on the device.
    #+END_SRC
    #+RESULTS:
    #+begin_example
-   2022-01-31 14:09:30 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
-   2022-01-31 14:09:30 slip39           1st  1 vegan      8 hunting   15 mixed     
-   2022-01-31 14:09:30 slip39                2 discuss    9 taste     16 hospital  
-   2022-01-31 14:09:30 slip39                3 acrobat   10 voter     17 total     
-   2022-01-31 14:09:30 slip39                4 romp      11 froth     18 quiet     
-   2022-01-31 14:09:30 slip39                5 charity   12 lobe      19 universe  
-   2022-01-31 14:09:30 slip39                6 enemy     13 climate   20 strike    
-   2022-01-31 14:09:30 slip39                7 juice     14 branch    
-   2022-01-31 14:09:30 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
-   2022-01-31 14:09:30 slip39           1st  1 vegan      8 spill     15 minister  
-   2022-01-31 14:09:30 slip39                2 discuss    9 elegant   16 parking   
-   2022-01-31 14:09:30 slip39                3 beard     10 guilt     17 judicial  
-   2022-01-31 14:09:30 slip39                4 romp      11 valuable  18 screw     
-   2022-01-31 14:09:30 slip39                5 carbon    12 intimate  19 that      
-   2022-01-31 14:09:30 slip39                6 home      13 acrobat   20 spider    
-   2022-01-31 14:09:30 slip39                7 debut     14 exclude   
-   2022-01-31 14:09:30 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
-   2022-01-31 14:09:30 slip39           1st  1 vegan      8 scatter   15 imply     
-   2022-01-31 14:09:30 slip39                2 discuss    9 solution  16 spew      
-   2022-01-31 14:09:30 slip39                3 ceramic   10 cylinder  17 holy      
-   2022-01-31 14:09:30 slip39                4 roster    11 pumps     18 clock     
-   2022-01-31 14:09:30 slip39                5 divorce   12 peanut    19 hanger    
-   2022-01-31 14:09:30 slip39                6 strike    13 sled      20 science   
-   2022-01-31 14:09:30 slip39                7 moment    14 enjoy     
-   2022-01-31 14:09:30 slip39           2nd  1 vegan      8 railroad  15 fluff     
-   2022-01-31 14:09:30 slip39                2 discuss    9 dismiss   16 false     
-   2022-01-31 14:09:30 slip39                3 ceramic   10 answer    17 sack      
-   2022-01-31 14:09:30 slip39                4 scared    11 evoke     18 trend     
-   2022-01-31 14:09:30 slip39                5 debut     12 calcium   19 subject   
-   2022-01-31 14:09:30 slip39                6 prisoner  13 often     20 anxiety   
-   2022-01-31 14:09:30 slip39                7 fumes     14 overall   
-   2022-01-31 14:09:30 slip39           3rd  1 vegan      8 morning   15 cause     
-   2022-01-31 14:09:30 slip39                2 discuss    9 elegant   16 guitar    
-   2022-01-31 14:09:30 slip39                3 ceramic   10 grasp     17 include   
-   2022-01-31 14:09:30 slip39                4 shadow    11 estimate  18 view      
-   2022-01-31 14:09:30 slip39                5 darkness  12 skin      19 glimpse   
-   2022-01-31 14:09:30 slip39                6 dilemma   13 papa      20 crush     
-   2022-01-31 14:09:30 slip39                7 gums      14 unhappy   
-   2022-01-31 14:09:30 slip39           4th  1 vegan      8 therapy   15 answer    
-   2022-01-31 14:09:30 slip39                2 discuss    9 platform  16 universe  
-   2022-01-31 14:09:30 slip39                3 ceramic   10 educate   17 tadpole   
-   2022-01-31 14:09:30 slip39                4 sister    11 rapids    18 dive      
-   2022-01-31 14:09:30 slip39                5 clogs     12 index     19 smoking   
-   2022-01-31 14:09:30 slip39                6 ecology   13 volume    20 texture   
-   2022-01-31 14:09:30 slip39                7 patrol    14 dilemma   
-   2022-01-31 14:09:30 slip39           Frens(2/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(2/6)
-   2022-01-31 14:09:30 slip39           1st  1 vegan      8 scatter   15 pipeline  
-   2022-01-31 14:09:30 slip39                2 discuss    9 length    16 pile      
-   2022-01-31 14:09:30 slip39                3 decision  10 knit      17 warn      
-   2022-01-31 14:09:30 slip39                4 roster    11 isolate   18 amount    
-   2022-01-31 14:09:30 slip39                5 crazy     12 envelope  19 aviation  
-   2022-01-31 14:09:30 slip39                6 else      13 hour      20 crowd     
-   2022-01-31 14:09:30 slip39                7 western   14 fiction   
-   2022-01-31 14:09:30 slip39           2nd  1 vegan      8 webcam    15 hybrid    
-   2022-01-31 14:09:30 slip39                2 discuss    9 hunting   16 mortgage  
-   2022-01-31 14:09:30 slip39                3 decision  10 antenna   17 mixture   
-   2022-01-31 14:09:30 slip39                4 scared    11 axis      18 entrance  
-   2022-01-31 14:09:30 slip39                5 duration  12 clinic    19 render    
-   2022-01-31 14:09:30 slip39                6 practice  13 discuss   20 penalty   
-   2022-01-31 14:09:30 slip39                7 says      14 lilac     
-   2022-01-31 14:09:30 slip39           3rd  1 vegan      8 promise   15 injury    
-   2022-01-31 14:09:30 slip39                2 discuss    9 task      16 ruler     
-   2022-01-31 14:09:30 slip39                3 decision  10 mineral   17 hawk      
-   2022-01-31 14:09:30 slip39                4 shadow    11 scatter   18 syndrome  
-   2022-01-31 14:09:30 slip39                5 adult     12 lend      19 shaped    
-   2022-01-31 14:09:30 slip39                6 lecture   13 afraid    20 column    
-   2022-01-31 14:09:30 slip39                7 lunch     14 unkind    
-   2022-01-31 14:09:30 slip39           4th  1 vegan      8 mixed     15 priority  
-   2022-01-31 14:09:30 slip39                2 discuss    9 deliver   16 vanish    
-   2022-01-31 14:09:30 slip39                3 decision  10 tolerate  17 acne      
-   2022-01-31 14:09:30 slip39                4 sister    11 presence  18 pacific   
-   2022-01-31 14:09:30 slip39                5 boundary  12 unusual   19 kidney    
-   2022-01-31 14:09:30 slip39                6 home      13 finance   20 pipeline  
-   2022-01-31 14:09:30 slip39                7 pumps     14 easel     
-   2022-01-31 14:09:30 slip39           5th  1 vegan      8 quick     15 lair      
-   2022-01-31 14:09:30 slip39                2 discuss    9 webcam    16 havoc     
-   2022-01-31 14:09:30 slip39                3 decision  10 rhyme     17 surprise  
-   2022-01-31 14:09:30 slip39                4 smug      11 hobo      18 style     
-   2022-01-31 14:09:30 slip39                5 dwarf     12 single    19 holy      
-   2022-01-31 14:09:30 slip39                6 spine     13 deliver   20 bedroom   
-   2022-01-31 14:09:30 slip39                7 burning   14 dismiss   
-   2022-01-31 14:09:30 slip39           6th  1 vegan      8 medal     15 physics   
-   2022-01-31 14:09:30 slip39                2 discuss    9 birthday  16 forbid    
-   2022-01-31 14:09:30 slip39                3 decision  10 shame     17 raspy     
-   2022-01-31 14:09:30 slip39                4 spew      11 aircraft  18 obtain    
-   2022-01-31 14:09:30 slip39                5 credit    12 parcel    19 step      
-   2022-01-31 14:09:30 slip39                6 divorce   13 grant     20 ounce     
-   2022-01-31 14:09:30 slip39                7 chest     14 trial     
-   2022-01-31 14:09:30 slip39           ETH    m/44'/60'/0'/0/0    : 0xC955Dc4626E44e6767E88ECaB28DeC1abB857d13
-   2022-01-31 14:09:30 slip39           BTC    m/84'/0'/0'/0/0     : bc1qylzsqs4t7umjru2mx6dfcm4za9zfwfxmpk6ufz
-   2022-01-31 14:09:30 slip39.recovery  Recovered 128-bit SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
+   2022-02-04 08:19:28 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+   2022-02-04 08:19:28 slip39           1st  1 theory     8 vitamins  15 satoshi   
+   2022-02-04 08:19:28 slip39                2 acid       9 spew      16 rebuild   
+   2022-02-04 08:19:28 slip39                3 acrobat   10 smear     17 float     
+   2022-02-04 08:19:28 slip39                4 romp      11 ounce     18 penalty   
+   2022-02-04 08:19:28 slip39                5 argue     12 guest     19 yoga      
+   2022-02-04 08:19:28 slip39                6 crisis    13 taxi      20 equip     
+   2022-02-04 08:19:28 slip39                7 health    14 careful   
+   2022-02-04 08:19:28 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+   2022-02-04 08:19:28 slip39           1st  1 theory     8 view      15 forecast  
+   2022-02-04 08:19:28 slip39                2 acid       9 revenue   16 lair      
+   2022-02-04 08:19:28 slip39                3 beard     10 royal     17 hobo      
+   2022-02-04 08:19:28 slip39                4 romp      11 radar     18 seafood   
+   2022-02-04 08:19:28 slip39                5 display   12 saver     19 uncover   
+   2022-02-04 08:19:28 slip39                6 deadline  13 orange    20 learn     
+   2022-02-04 08:19:28 slip39                7 dance     14 safari    
+   2022-02-04 08:19:28 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+   2022-02-04 08:19:28 slip39           1st  1 theory     8 jerky     15 says      
+   2022-02-04 08:19:28 slip39                2 acid       9 toxic     16 making    
+   2022-02-04 08:19:28 slip39                3 ceramic   10 western   17 election  
+   2022-02-04 08:19:28 slip39                4 roster    11 benefit   18 result    
+   2022-02-04 08:19:28 slip39                5 chubby    12 wolf      19 transfer  
+   2022-02-04 08:19:28 slip39                6 presence  13 story     20 exceed    
+   2022-02-04 08:19:28 slip39                7 presence  14 scholar   
+   2022-02-04 08:19:28 slip39           2nd  1 theory     8 arcade    15 loud      
+   2022-02-04 08:19:28 slip39                2 acid       9 finger    16 mayor     
+   2022-02-04 08:19:28 slip39                3 ceramic   10 modify    17 union     
+   2022-02-04 08:19:28 slip39                4 scared    11 timely    18 ladybug   
+   2022-02-04 08:19:28 slip39                5 clay      12 hybrid    19 typical   
+   2022-02-04 08:19:28 slip39                6 oasis     13 overall   20 branch    
+   2022-02-04 08:19:28 slip39                7 crowd     14 diet      
+   2022-02-04 08:19:28 slip39           3rd  1 theory     8 chemical  15 club      
+   2022-02-04 08:19:28 slip39                2 acid       9 scramble  16 lift      
+   2022-02-04 08:19:28 slip39                3 ceramic   10 course    17 frequent  
+   2022-02-04 08:19:28 slip39                4 shadow    11 wealthy   18 biology   
+   2022-02-04 08:19:28 slip39                5 cultural  12 vintage   19 easel     
+   2022-02-04 08:19:28 slip39                6 round     13 museum    20 aviation  
+   2022-02-04 08:19:28 slip39                7 short     14 disease   
+   2022-02-04 08:19:28 slip39           4th  1 theory     8 flavor    15 glad      
+   2022-02-04 08:19:28 slip39                2 acid       9 iris      16 loud      
+   2022-02-04 08:19:28 slip39                3 ceramic   10 either    17 upstairs  
+   2022-02-04 08:19:28 slip39                4 sister    11 aquatic   18 square    
+   2022-02-04 08:19:28 slip39                5 crazy     12 jewelry   19 dominant  
+   2022-02-04 08:19:28 slip39                6 visitor   13 sniff     20 forecast  
+   2022-02-04 08:19:28 slip39                7 exchange  14 silver    
+   2022-02-04 08:19:28 slip39           Frens(3/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+   2022-02-04 08:19:28 slip39           1st  1 theory     8 impulse   15 cards     
+   2022-02-04 08:19:28 slip39                2 acid       9 unwrap    16 carve     
+   2022-02-04 08:19:28 slip39                3 decision  10 filter    17 impact    
+   2022-02-04 08:19:28 slip39                4 round     11 should    18 legend    
+   2022-02-04 08:19:28 slip39                5 divorce   12 switch    19 camera    
+   2022-02-04 08:19:28 slip39                6 rainbow   13 phantom   20 pecan     
+   2022-02-04 08:19:28 slip39                7 hush      14 lyrics    
+   2022-02-04 08:19:28 slip39           2nd  1 theory     8 include   15 rebuild   
+   2022-02-04 08:19:28 slip39                2 acid       9 estate    16 already   
+   2022-02-04 08:19:28 slip39                3 decision  10 piece     17 fiscal    
+   2022-02-04 08:19:28 slip39                4 scatter   11 chest     18 news      
+   2022-02-04 08:19:28 slip39                5 camera    12 scramble  19 downtown  
+   2022-02-04 08:19:28 slip39                6 reunion   13 ultimate  20 ruler     
+   2022-02-04 08:19:28 slip39                7 injury    14 both      
+   2022-02-04 08:19:28 slip39           3rd  1 theory     8 method    15 provide   
+   2022-02-04 08:19:28 slip39                2 acid       9 coding    16 sunlight  
+   2022-02-04 08:19:28 slip39                3 decision  10 emphasis  17 frost     
+   2022-02-04 08:19:28 slip39                4 shaft     11 typical   18 frequent  
+   2022-02-04 08:19:28 slip39                5 born      12 victim    19 advance   
+   2022-02-04 08:19:28 slip39                6 squeeze   13 victim    20 staff     
+   2022-02-04 08:19:28 slip39                7 desire    14 aquatic   
+   2022-02-04 08:19:28 slip39           4th  1 theory     8 mild      15 bucket    
+   2022-02-04 08:19:28 slip39                2 acid       9 length    16 satisfy   
+   2022-02-04 08:19:28 slip39                3 decision  10 receiver  17 jerky     
+   2022-02-04 08:19:28 slip39                4 skin      11 agree     18 emission  
+   2022-02-04 08:19:28 slip39                5 deal      12 type      19 closet    
+   2022-02-04 08:19:28 slip39                6 tackle    13 review    20 purchase  
+   2022-02-04 08:19:28 slip39                7 decorate  14 minister  
+   2022-02-04 08:19:28 slip39           5th  1 theory     8 facility  15 hobo      
+   2022-02-04 08:19:28 slip39                2 acid       9 hunting   16 become    
+   2022-02-04 08:19:28 slip39                3 decision  10 therapy   17 picture   
+   2022-02-04 08:19:28 slip39                4 snake     11 teacher   18 spend     
+   2022-02-04 08:19:28 slip39                5 dream     12 wavy      19 response  
+   2022-02-04 08:19:28 slip39                6 penalty   13 erode     20 exercise  
+   2022-02-04 08:19:28 slip39                7 lamp      14 clothes   
+   2022-02-04 08:19:28 slip39           6th  1 theory     8 fact      15 scene     
+   2022-02-04 08:19:28 slip39                2 acid       9 sidewalk  16 anatomy   
+   2022-02-04 08:19:28 slip39                3 decision  10 bolt      17 likely    
+   2022-02-04 08:19:28 slip39                4 spider    11 always    18 skin      
+   2022-02-04 08:19:28 slip39                5 bundle    12 tenant    19 obesity   
+   2022-02-04 08:19:28 slip39                6 premium   13 advance   20 crisis    
+   2022-02-04 08:19:28 slip39                7 justice   14 regret    
+   2022-02-04 08:19:28 slip39           ETH    m/44'/60'/0'/0/0    : 0xc6EDaE376a0fc5C69e1461Ae85501F5C1053a697
+   2022-02-04 08:19:28 slip39           BTC    m/84'/0'/0'/0/0     : bc1qvttmne42u54c07rdtmv7cuefzrh7kq5elkjds4
+   2022-02-04 08:19:28 slip39.recovery  Recovered 128-bit SLIP-39 secret with 5 (1st, 2nd, 3rd, 7th, 8th) of 8 supplied mnemonics
    #+end_example
    #+LATEX: }
 
@@ -432,7 +432,7 @@ by entering the mnemonics right on the device.
     : 
     : Generate public wallet address(es) from a secret seed
     : 
-    : optional arguments:
+    : options:
     :   -h, --help            show this help message and exit
     :   -v, --verbose         Display logging information.
     :   -q, --quiet           Reduce logging output.
@@ -503,6 +503,7 @@ by entering the mnemonics right on the device.
     | passphrase         | An optional additional passphrase required to recover secret (default: "") |
     | iteration_exponent | For encrypted secret, exponentially increase PBKDF2 rounds (default: 1)    |
     | cryptopaths        | A number of crypto names, and their derivation paths ]                     |
+    | strength           | Desired master_secret strength, in bits (default: 128)                     |
     #+LATEX: }
 
     Outputs a =slip39.Details= namedtuple containing:
@@ -554,7 +555,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[1]:
+    # Out[81]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -602,7 +603,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[2]:
+    # Out[82]:
     | 0                | 1                                          |
     |------------------+--------------------------------------------|
     | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
@@ -682,7 +683,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[3]:
+    # Out[83]:
     | 0                                           |
     |---------------------------------------------|
     | 128-bit secret w/ decoy password recovered: |
@@ -727,7 +728,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[4]:
+    # Out[84]:
     | 0                                                 |
     |---------------------------------------------------|
     | zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong |
@@ -763,12 +764,12 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[5]:
+    # Out[85]:
     | 0                               |
     |---------------------------------|
     | Valid random 12-word mnemonics: |
-    | 6.44%                           |
-    | ~ 1/15.5                        |
+    | 6.32%                           |
+    | ~ 1/15.8                        |
     :end:
 
     #+LATEX: }
@@ -796,7 +797,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[7]:
+    # Out[86]:
     | 0                                |
     |----------------------------------|
     | 512-bit seed:                    |
@@ -832,7 +833,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[8]:
+    # Out[87]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -869,7 +870,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[10]:
+    # Out[88]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -922,7 +923,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[12]:
+    # Out[89]:
     | 0      | 1                | 2                                          |
     |--------+------------------+--------------------------------------------|
     | Crypto | HD Wallet Path:  | Ethereum Address:                          |
@@ -958,7 +959,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[13]:
+    # Out[90]:
     | 0                                |
     |----------------------------------|
     | 128-bit seed:                    |
@@ -985,7 +986,7 @@ by entering the mnemonics right on the device.
 
     #+RESULTS:
     :results:
-    # Out[14]:
+    # Out[91]:
     | 0                                                                |
     |------------------------------------------------------------------|
     | 256-bit derived key at path "m/44'/60'/0'/0/0":                  |
@@ -1028,11 +1029,11 @@ by entering the mnemonics right on the device.
    #+LATEX: {\scriptsize
    #+BEGIN_SRC bash :exports both :results output
    ( python3 -m slip39.recovery --bip39 \
-         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
-    ) 2>&1
+       --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
+   ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-01-31 15:31:08 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : 2022-02-04 08:24:31 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
    : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
    #+LATEX: }
 
@@ -1041,13 +1042,14 @@ by entering the mnemonics right on the device.
    #+LATEX: {\scriptsize
    #+BEGIN_SRC bash :exports both :results output
    ( python3 -m slip39.recovery --bip39 \
-         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-       | python3 -m slip39 --secret - --no-card ) 2>&1
+       --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+     | python3 -m slip39 --secret - --no-card
+   ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-01-31 15:31:11 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-   : 2022-01-31 15:31:11 slip39           ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-   : 2022-01-31 15:31:11 slip39           BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+   : 2022-02-04 08:24:33 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+   : 2022-02-04 08:24:33 slip39           ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+   : 2022-02-04 08:24:33 slip39           BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
    #+LATEX: }
 
    This =0xfc20..1B5E= address is the same Ethereum address as is recovered on a Trezor using this

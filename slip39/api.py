@@ -247,14 +247,16 @@ def mnemonics(
     master_secret: Union[str,bytes] = None,
     passphrase: bytes		= b"",
     iteration_exponent: int	= 1,
+    strength: int		= 128,
 ) -> List[List[str]]:
     """Generate SLIP39 mnemonics for the supplied group_threshold of the given groups.  Will generate a
      random master_secret, if necessary.
 
     """
     if master_secret is None:
-        master_secret		= random_secret()
-    if len( master_secret ) not in (16, 32, 64):
+        assert strength in BITS, f"Invalid {strength}-bit secret length specified"
+        master_secret		= random_secret( strength // 8 )
+    if len( master_secret ) * 8 not in BITS:
         raise ValueError(
             f"Only 128-, 256- and 512bit seeds supported; {len(master_secret)*8}-bit master_secret supplied" )
     return generate_mnemonics(

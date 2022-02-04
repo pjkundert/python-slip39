@@ -32,7 +32,7 @@ GROUPS				= [
     "First1",
     "Second(1/1)",
     "Fam(4)",
-    "Frens2/6"
+    "Frens3/6"
 ]
 
 FONTS				= dict(
@@ -48,8 +48,8 @@ HALF_LETTER			= (4+1/2, 8),     1/4   # noqa: E241 (actually, 2/letter, 3/legal)
 
 CARD				= 'index'
 CARD_SIZES			= dict(
-    credit	= CREDIT_CARD,
     index	= INDEX_CARD,
+    credit	= CREDIT_CARD,
     business	= BUSINESS_CARD,
     half	= HALF_LETTER,
 )

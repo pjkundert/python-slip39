@@ -171,20 +171,20 @@ def layout_card(
         f = "FF"
         color			= [
             # Primary
-            f"0x{f}{o}{o}",  # Red
-            f"0x{o}{f}{o}",  # Green
             f"0x{o}{o}{f}",  # Blue
+            f"0x{o}{f}{o}",  # Green
+            f"0x{f}{o}{o}",  # Red
             # Secondary
             f"0x{o}{f}{f}",  # Cyan,
             f"0x{f}{o}{f}",  # Magenta
             f"0x{f}{f}{o}",  # Yellow
             # Tertiary
-            f"0x{f}{h}{o}",  # Orange
-            f"0x{h}{f}{o}",  # Lime
-            f"0x{h}{o}{f}",  # Violet
-            f"0x{f}{o}{h}",  # Red-Magenta
             f"0x{o}{h}{f}",  # Ocean
             f"0x{o}{f}{h}",  # Turquoise
+            f"0x{f}{o}{h}",  # Red-Magenta
+            f"0x{h}{o}{f}",  # Violet
+            f"0x{h}{f}{o}",  # Lime
+            f"0x{f}{h}{o}",  # Orange
             # Other
             f"0x{o}{h}{h}",  # Light Cyan
             f"0x{h}{o}{h}",  # Light Magenta
@@ -192,7 +192,7 @@ def layout_card(
             f"0x{h}{h}{h}",  # Light grey,
         ]
         card_interior.add_region_proportional(
-            Text( f'card-g{g_n}', x1=1/8, y1=-1/8, x2=7/8, y2=3/8, foreground=int( color[g_n], 16 ), rotate=-45 )
+            Text( f'card-g{g_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16, foreground=int( color[g_n], 16 ), rotate=-45 )
         )
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
@@ -359,7 +359,7 @@ def output_pdf(
             if len( accounts[0] ) > 1:
                 tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 tpl['card-qr2']	= qr[1].get_image()
-            tpl[f'card-g{g_n}']	= f"{g_name:5.5}..{mn_n+1}" if len(g_name) > 6 else f"{g_name} {mn_n+1}"
+            tpl[f'card-g{g_n}']	= f"{g_name:6.6}..{mn_n+1}" if len(g_name) > 7 else f"{g_name} {mn_n+1}"
 
             for n,m in enumerate_mnemonic( mnem ).items():
                 tpl[f"mnem-{n}"] = m

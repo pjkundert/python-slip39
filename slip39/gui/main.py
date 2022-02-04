@@ -12,7 +12,7 @@ from ..api		import create, group_parser, random_secret
 from ..recovery		import recover, recover_bip39
 from ..util		import log_level, log_cfg
 from ..layout		import write_pdfs
-from ..defaults		import GROUPS, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS
+from ..defaults		import GROUPS, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS, CARD, CARD_SIZES
 
 log				= logging.getLogger( __package__ )
 
@@ -48,7 +48,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
             ], key='-GROUP-NUMBER-' ) ]], **F_kwds
         ),
         sg.Frame(
-            'Group Recovery', [[ sg.Column( [
+            'Recovery Group', [[ sg.Column( [
                 [ sg.Input( f'{g_name}', key=f'-G-NAME-{g}', **I_kwds ) ]
                 for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
             ], key='-GROUP-NAMES-' ) ]], **F_kwds
@@ -79,17 +79,20 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                 ],
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
-                    sg.Input( f"{', '.join( names )}",          key='-NAMES-',  size=inputs,    **I_kwds ),
+                    sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
                     sg.Text( "(default is 'SLIP39...'; comma-separated)",                       **T_kwds ),
                 ],
                 [
-                    sg.Button( 'Save', **B_kwds ), sg.Button( 'Exit', **B_kwds ),
+                    sg.Text( "Card size: ",                                     size=prefix,    **T_kwds ),
+                ] + [
+                    sg.Radio( f"{card}", "CS",          key=f"-CS-{card}", default=(card == CARD), **B_kwds )
+                    for card in CARD_SIZES
                 ],
             ],                                                  key='-OUTPUT-F-',               **F_kwds ),
         ],
     ] + [
         [
-            sg.Frame( 'Seed Data Source', [
+            sg.Frame( 'Seed Data Source (256-bit seeds produce more Mnemonic words to type into your Trezor; 512-bit seeds aren\'t Trezor compatible)', [
                 [
                     sg.Radio( "128-bit Random", "SD",   key='-SD-128-RND-',     default=True,   **B_kwds ),
                     sg.Radio( "256-bit Random", "SD",   key='-SD-256-RND-',     default=False,  **B_kwds ),
@@ -101,7 +104,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     sg.Radio( "512-bit Fixed ", "SD",   key='-SD-512-FIX-',     default=False,  **B_kwds ),
                 ],
                 [
-                    sg.Radio( "BIP-39",         "SD",   key='-SD-BIP-',         default=False,  **B_kwds ),
+                    sg.Radio( "512-bit BIP-39", "SD",   key='-SD-BIP-',         default=False,  **B_kwds ),
                     sg.Radio( "SLIP-39",        "SD",   key='-SD-SLIP-',        default=False,  **B_kwds ),
                 ],
                 [
@@ -113,11 +116,10 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],
                 [
-                    sg.Frame( 'Passphrase (optional, if provided when Mnemonic was created)', [
+                    sg.Frame( 'Passphrase (if provided when Mnemonic was created)', [
                         [
                             sg.Text( "Passphrase (decrypt): ",                  size=prefix,    **T_kwds ),
                             sg.Input( "",               key='-SD-PASS-',        size=inputs,    **I_kwds ),
-                            sg.Text( "(NOT Trezor compatible)",                                 **T_kwds ),
                         ],
                     ],                                  key='-SD-PASS-F-',      visible=False,  **F_kwds ),
                 ],
@@ -170,10 +172,10 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                                                         key='-PASSPHRASE-',     size=inputs,    **I_kwds ),  # noqa: E127
                             sg.Text( "(NOT Trezor compatible, and must be saved separately!!)", **T_kwds ),
                         ],
-                        group_body,
                         [
                             sg.Button( '+', **B_kwds ),
                         ],
+                        group_body,
                     ] ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds ),
@@ -185,6 +187,9 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     sg.Text(                            key='-SUMMARY-',                        **T_kwds ),
                 ]
             ],                                          key='-SUMMARY-F-',                      **F_kwds ),
+        ],
+        [
+            sg.Button( 'Save', **B_kwds ), sg.Button( 'Exit', **B_kwds ),
         ],
         [
             sg.Frame( 'Status', [
@@ -443,10 +448,10 @@ def app(
         if not values or event in events_termination:
             continue
 
-        if event == '+':
-            # Add a SLIP39 Groups row
-            g			= len(groups)
-            name		= f"Group {g+1}"
+        if event == '+' and len( groups ) < 16:
+            # Add a SLIP39 Groups row (if not already at limit)
+            g			= len( groups )
+            name		= f"Group{g+1}"
             needs		= (2,3)
             groups[name] 	= needs
             values[f"-G-NAME-{g}"] = name
@@ -567,8 +572,10 @@ def app(
         # details is now { "<filename>": <details> })
         if event == 'Save':
             try:
+                card		= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
                 details		= write_pdfs(
                     names	= details,
+                    card	= card,	
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
@@ -611,7 +618,8 @@ recoverable SLIP-39 Mnemonic encoding.
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+                     help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:" \
+                     f" {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )

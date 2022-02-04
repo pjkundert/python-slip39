@@ -29,7 +29,7 @@ def main( argv=None ):
                      help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
                      default=FILENAME_FORMAT,
-                     help="Output PDF to file or '-' (stdout); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
+                     help=f"Output PDF to file or '-' (stdout); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
