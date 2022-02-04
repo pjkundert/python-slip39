@@ -2,6 +2,6 @@
 
 import sys
 
-from slip39.App.main import main
+from slip39.gui.main import main
 
 sys.exit( main() )
