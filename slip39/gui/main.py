@@ -76,17 +76,15 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
                                                         key='-TARGET-',         size=inputs,    **I_kwds ),  # noqa: E127
                     sg.FolderBrowse( **B_kwds ),
+                    sg.Text( "Card size: ",                                                     **T_kwds ),
+                ] + [
+                    sg.Radio( f"{cs}", "CS",            key=f"-CS-{cs}", default=(cs == CARD),  **B_kwds )
+                    for cs in CARD_SIZES
                 ],
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
                     sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
                     sg.Text( "(default is 'SLIP39...'; comma-separated)",                       **T_kwds ),
-                ],
-                [
-                    sg.Text( "Card size: ",                                     size=prefix,    **T_kwds ),
-                ] + [
-                    sg.Radio( f"{card}", "CS",          key=f"-CS-{card}", default=(card == CARD), **B_kwds )
-                    for card in CARD_SIZES
                 ],
             ],                                                  key='-OUTPUT-F-',               **F_kwds ),
         ],
@@ -163,6 +161,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                         [
                             sg.Text( "Requires recovery of at least: ",         size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=inputs,    **I_kwds ),
+                            sg.Button( '+', **B_kwds ),
                             sg.Text( f"(of {len(groups)} SLIP-39 Recovery Groups)",
                                                         key='-RECOVERY-',                       **T_kwds ),  # noqa: E127
                         ],
@@ -172,9 +171,6 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                                                         key='-PASSPHRASE-',     size=inputs,    **I_kwds ),  # noqa: E127
                             sg.Text( "(NOT Trezor compatible, and must be saved separately!!)", **T_kwds ),
                         ],
-                        [
-                            sg.Button( '+', **B_kwds ),
-                        ],
                         group_body,
                     ] ),
                 ],
@@ -182,14 +178,13 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         ],
     ] + [
         [
+            sg.Button( 'Save', **B_kwds ),
+            sg.Button( 'Exit', **B_kwds ),
             sg.Frame( 'Summary', [
                 [
                     sg.Text(                            key='-SUMMARY-',                        **T_kwds ),
                 ]
             ],                                          key='-SUMMARY-F-',                      **F_kwds ),
-        ],
-        [
-            sg.Button( 'Save', **B_kwds ), sg.Button( 'Exit', **B_kwds ),
         ],
         [
             sg.Frame( 'Status', [
@@ -202,7 +197,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         [
             sg.Frame( 'SLIP39 Mnemonics Output', [
                 [
-                    sg.Multiline( "",                   key='-MNEMONICS-',      size=(190,10),   font=font_small )
+                    sg.Multiline( "",                   key='-MNEMONICS-',      size=(190,6),   font=font_small )
                 ]
             ], **F_kwds ),
         ],
@@ -575,7 +570,7 @@ def app(
                 card		= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
                 details		= write_pdfs(
                     names	= details,
-                    card	= card,	
+                    card	= card,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
@@ -618,7 +613,7 @@ recoverable SLIP-39 Mnemonic encoding.
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:" \
+                     help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:"
                      f" {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
     ap.add_argument( '--passphrase',
                      default=None,
