@@ -69,6 +69,7 @@ app-zip:		dist/SLIP39-$(VERSION).app.zip
 
 # Generate, Sign and Pacakage the macOS SLIP39.app GUI package for App Store
 app-pkg:		dist/SLIP39-$(VERSION).pkg
+app-pkg-signed:		dist/SLIP39-$(VERSION)-signed.pkg
 
 #
 # Build a deployable macOS App
@@ -78,21 +79,23 @@ app-upload:	dist/SLIP39-$(VERSION).app.zip
 	xcrun altool --validate-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
 	&& xcrun altool --upload-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
 
+# dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
+# 	pkgbuild --install-location /Applications --component $< $@
+
 dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
-	grep -q "CFBundleVersion" "$</Contents/Info.plist" || sed -i "" -e 's:<dict>:<dict>\n\t<key>CFBundleVersion</key>\n\t<string>0.0.0</string>:' "$</Contents/Info.plist"
-	sed -i "" -e "s:0.0.0:$(VERSION):" "$</Contents/Info.plist"
-	codesign --deep --force --options=runtime --timestamp \
-	    --entitlements ./SLIP39.metatdata/entitlements.plist \
-	    --sign "$(DEVID)" \
-	    $<
-	codesign -dv -r- $<
-	codesign -vv $<
-	xcrun altool --validate-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
-	pkgbuild --install-location /Applications --component $< $@
+	rm -rf   dist/SLIP39-$(VERSION)
+	mkdir -p dist/SLIP39-$(VERSION)/Applications
+	ditto $< dist/SLIP39-$(VERSION)/Applications/SLIP39.app
+	ls -l dist/SLIP39-$(VERSION)/Applications/
+	productbuild --identifier "$(BUNDLEID)" --sign "$(PKGID)" --timestamp --root \
+	         dist/SLIP39-$(VERSION) $@
+	xcrun altool --validate-app -f $@ -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
 
 dist/SLIP39-$(VERSION)-signed.pkg:  dist/SLIP39-$(VERSION).pkg
 	productsign --timestamp --sign "$(PKGID)" $< $@
 	spctl -vv --assess --type install $@
+
+
 
 
 #(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
@@ -117,10 +120,11 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 # The --onefile approach doesn't seem to work, as we need to sign things after packaging.
 # We need to customize the SLIP39.spec file (eg. for version), so we do not target SLIP39.py
 # 
-dist/SLIP39.app: SLIP39.spec
+dist/SLIP39.app: SLIP39.spec images/SLIP39.icns
 	rm -rf build $@*
 	grep "version='$(VERSION)'" $< || sed -i "" -e "s/version='[0-9.]*'/version='$(VERSION)'/" $<
-	pyinstaller $<
+	grep "'CFBundleVersion':'$(VERSION)'" $< || sed -i "" -e "s/'CFBundleVersion:'[0-9.]*'/CFBundleVersion:'$(VERSION)'/" $<
+	pyinstaller --noconfirm $<
 
 # Only used for initial creation of SLIP39.spec.  
 SLIP39.spec: SLIP39.py
@@ -130,6 +134,23 @@ SLIP39.spec: SLIP39.py
 	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 		$<
+
+images/SLIP39.icns: images/SLIP39.iconset
+	( cd images && iconutil -c icns SLIP39.iconset )
+
+images/SLIP39.iconset: images/SLIP39.png
+	mkdir $@
+	sips -z 16 16     $< --out $@/icon_16x16.png
+	sips -z 32 32     $< --out $@/icon_16x16@2x.png
+	sips -z 32 32     $< --out $@/icon_32x32.png
+	sips -z 64 64     $< --out $@/icon_32x32@2x.png
+	sips -z 128 128   $< --out $@/icon_128x128.png
+	sips -z 256 256   $< --out $@/icon_128x128@2x.png
+	sips -z 256 256   $< --out $@/icon_256x256.png
+	sips -z 512 512   $< --out $@/icon_256x256@2x.png
+	sips -z 512 512   $< --out $@/icon_512x512.png
+	cp                $<       $@/icon_512x512@2x.png
+
 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py

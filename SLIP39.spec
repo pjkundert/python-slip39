@@ -37,7 +37,7 @@ exe = EXE(pyz,
           disable_windowed_traceback=False,
           target_arch=None,
           codesign_identity='Developer ID Application: Perry Kundert (ZD8TVTCXDS)',
-          entitlements_file=None )
+          entitlements_file='SLIP39.metadata/entitlements.plist' )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -50,5 +50,11 @@ app = BUNDLE(coll,
              name='SLIP39.app',
              icon='images/SLIP39.icns',
              bundle_identifier='ca.kundert.perry.SLIP39',
-             version='6.2.0',
-             )
+             version='6.3.0',
+             info_plist={
+                 'CFBundleVersion':'6.2.0',
+                 'LSApplicationCategoryType':'public.app-category.utilities',
+                 #'LSRequiresNativeExecution': True,
+                 'LSMinimumSystemVersion':'10.10.0',
+             })
+
