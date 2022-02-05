@@ -116,10 +116,10 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 	/usr/bin/ditto -c -k --keepParent "$<" "$@"
 	@ls -last dist
 
-# Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts
-# The --onefile approach doesn't seem to work, as we need to sign things after packaging.
-# We need to customize the SLIP39.spec file (eg. for version), so we do not target SLIP39.py
-# 
+# Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts The --onefile
+# approach doesn't seem to work, as we need to sign things after packaging.  We need to customize
+# the SLIP39.spec file (eg. for version), so we do not target SLIP39.py (which would re-generate it
+# without our additions)
 dist/SLIP39.app: SLIP39.spec images/SLIP39.icns
 	rm -rf build $@*
 	grep "version='$(VERSION)'" $< || sed -i "" -e "s/version='[0-9.]*'/version='$(VERSION)'/" $<
@@ -135,21 +135,22 @@ SLIP39.spec: SLIP39.py
 	    --collect-data shamir_mnemonic \
 		$<
 
-images/SLIP39.icns: images/SLIP39.iconset
-	( cd images && iconutil -c icns SLIP39.iconset )
+# See: https://stackoverflow.com/questions/12306223/how-to-manually-create-icns-files-using-iconutil
+images/SLIP39.icns: images/SLIP39.iconset 
+	iconutil --convert icns -o $@ $<
 
 images/SLIP39.iconset: images/SLIP39.png
 	mkdir $@
-	sips -z 16 16     $< --out $@/icon_16x16.png
-	sips -z 32 32     $< --out $@/icon_16x16@2x.png
-	sips -z 32 32     $< --out $@/icon_32x32.png
-	sips -z 64 64     $< --out $@/icon_32x32@2x.png
-	sips -z 128 128   $< --out $@/icon_128x128.png
-	sips -z 256 256   $< --out $@/icon_128x128@2x.png
-	sips -z 256 256   $< --out $@/icon_256x256.png
-	sips -z 512 512   $< --out $@/icon_256x256@2x.png
-	sips -z 512 512   $< --out $@/icon_512x512.png
-	cp                $<       $@/icon_512x512@2x.png
+	sips -z   16   16 $< --out $@/icon_16x16.png
+	sips -z   32   32 $< --out $@/icon_16x16@2x.png
+	sips -z   32   32 $< --out $@/icon_32x32.png
+	sips -z   64   64 $< --out $@/icon_32x32@2x.png
+	sips -z  128  128 $< --out $@/icon_128x128.png
+	sips -z  256  256 $< --out $@/icon_128x128@2x.png
+	sips -z  256  256 $< --out $@/icon_256x256.png
+	sips -z  512  512 $< --out $@/icon_256x256@2x.png
+	sips -z  512  512 $< --out $@/icon_512x512.png
+	sips -z 1024 1024 $< --out $@/icon_512x512@2x.png
 
 
 # Support uploading a new version of slip32 to pypi.  Must:
