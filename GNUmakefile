@@ -82,19 +82,34 @@ app-upload:	dist/SLIP39-$(VERSION).app.zip
 # dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
 # 	pkgbuild --install-location /Applications --component $< $@
 
+#--identifier $(BUNDLEID) 
+
 dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
-	rm -rf   dist/SLIP39-$(VERSION)
-	mkdir -p dist/SLIP39-$(VERSION)/Applications
-	ditto $< dist/SLIP39-$(VERSION)/Applications/SLIP39.app
-	ls -l dist/SLIP39-$(VERSION)/Applications/
-	productbuild --identifier "$(BUNDLEID)" --sign "$(PKGID)" --timestamp --root \
-	         dist/SLIP39-$(VERSION) $@
+	productbuild --sign "$(PKGID)" --timestamp \
+	    --identifier "$(BUNDLEID).pkg" \
+	    --version $(VERSION) \
+	    --component $< /Applications \
+	    $@
 	xcrun altool --validate-app -f $@ -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
 
 dist/SLIP39-$(VERSION)-signed.pkg:  dist/SLIP39-$(VERSION).pkg
 	productsign --timestamp --sign "$(PKGID)" $< $@
 	spctl -vv --assess --type install $@
 
+
+dist/SLIP39-$(VERSION).notarization: dist/SLIP39-$(VERSION).pkg
+	xcrun altool --notarize-app -f $< \
+	    --team-id ZD8TVTCXDS \
+	    --primary-bundle-id ca.kundert.perry.SLIP39 \
+	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	    --output-format json \
+		> $@
+
+dist/SLIP39-$(VERSION).status: FORCE # dist/SLIP39-$(VERSION).notarization
+	xcrun altool \
+	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	    --notarization-info $$( jq -r '.["RequestUUID"]' < dist/SLIP39-$(VERSION).notarization ) \
+		| tee -a $@
 
 
 
@@ -120,10 +135,13 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 # approach doesn't seem to work, as we need to sign things after packaging.  We need to customize
 # the SLIP39.spec file (eg. for version), so we do not target SLIP39.py (which would re-generate it
 # without our additions)
+#
+# Additional .spec file configurations:
+# - https://developer.apple.com/documentation/bundleresources/information_property_list/lsminimumsystemversion
 dist/SLIP39.app: SLIP39.spec images/SLIP39.icns
 	rm -rf build $@*
-	grep "version='$(VERSION)'" $< || sed -i "" -e "s/version='[0-9.]*'/version='$(VERSION)'/" $<
-	grep "'CFBundleVersion':'$(VERSION)'" $< || sed -i "" -e "s/'CFBundleVersion:'[0-9.]*'/CFBundleVersion:'$(VERSION)'/" $<
+	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
+	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
 	pyinstaller --noconfirm $<
 
 # Only used for initial creation of SLIP39.spec.  
