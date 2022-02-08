@@ -31,6 +31,8 @@ Table of Contents
 
 1. Security with Availability
 .. 1. SLIP-39 Mnemonic Recovery Cards
+2. Affiliate Links
+.. 1. Trezor
 
 
 1 Security with Availability
@@ -64,3 +66,21 @@ Table of Contents
   Instead, generate a number of SLIP-39 Mnemonic cards, which can be
   collected to recover the Seed:
   <./images/slip39-pdf.png>
+
+
+2 Affiliate Links
+═════════════════
+
+  To assist you in obtaining various SLIP39 compatible components, we
+  have established some relationship with reliable vendors.
+
+
+2.1 Trezor
+──────────
+
+  The [Trezor Model T hardware wallet] has built-in SLIP39 generation
+  and recovery capability.
+
+
+[Trezor Model T hardware wallet]
+<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>

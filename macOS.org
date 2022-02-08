@@ -63,3 +63,24 @@ of the cards and regain access to the account.
    #+ATTR_LATEX: :width 5in
    [[./images/slip39-pdf.png]]
    
+
+* Affiliate Links
+
+  To assist you in obtaining various SLIP39 compatible components, we have established some
+  relationship with reliable vendors.
+
+** Trezor
+
+   The [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor Model T hardware wallet]] has built-in SLIP39 generation and recovery capability.
+
+   #+BEGIN_EXPORT html
+   <a href="https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388&file_id=534" target="_blank"><img src="https://media.go2speed.org/brand/files/trezor/15/20210707060206-T1TT_banner_728x90_3.png" width="728" height="90" border="0" /></a><img src="http://trezor.go2cloud.org/aff_i?offer_id=15&file_id=534&aff_id=10388" width="0" height="0" style="position:absolute;visibility:hidden;" border="0" />
+   #+END_EXPORT
+
+   #+BEGIN_EXPORT html
+   <!-- Javascript Ad Tag: 1083 -->
+   <div id="trezor1083SycVfv"></div>
+   <script src="http://trezor.go2cloud.org/aff_ad?campaign_id=1083&aff_id=10388&format=js&divid=trezor1083SycVfv" type="text/javascript"></script>
+   <!-- // End Ad Tag -->
+   #+END_EXPORT
+   
