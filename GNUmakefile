@@ -82,8 +82,16 @@ app-upload:	dist/SLIP39-$(VERSION).app.zip
 # dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
 # 	pkgbuild --install-location /Applications --component $< $@
 
-#--identifier $(BUNDLEID) 
+#--identifier $(BUNDLEID)
+# codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python \
+#     || codesign --deep --force --options=runtime --timestamp \
+# 	--entitlements ./SLIP39.metadata/entitlements.plist \
+# 	--sign "$(DEVID)" \
+# 	$< \
+# 	    && codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python
+# codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python
 
+# doesn't work...  code is not signed by an apple-anchored Dev. ID
 dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
 	productbuild --sign "$(PKGID)" --timestamp \
 	    --identifier "$(BUNDLEID).pkg" \
