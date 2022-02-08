@@ -678,7 +678,7 @@ def app(
         # If we get here, no failure status has been detected, and SLIP39 mnemonic and account
         # details { "name": <details> } have been created; we can now save the PDFs; converted
         # details is now { "<filename>": <details> })
-        if event == 'Save':
+        if event == '-SAVE-':
             try:
                 card		= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
                 details		= write_pdfs(

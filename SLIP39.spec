@@ -50,9 +50,9 @@ app = BUNDLE(coll,
              name='SLIP39.app',
              icon='images/SLIP39.icns',
              bundle_identifier='ca.kundert.perry.SLIP39',
-             version='6.4.0',
+             version='6.4.1',
              info_plist={
-                 'CFBundleVersion':'6.4.0',
+                 'CFBundleVersion':'6.4.1',
                  'LSApplicationCategoryType':'public.app-category.utilities',
                  'LSMinimumSystemVersion':'10.15.0',
              })
