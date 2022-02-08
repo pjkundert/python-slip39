@@ -258,7 +258,7 @@ def mnemonics(
         master_secret		= random_secret( strength // 8 )
     if len( master_secret ) * 8 not in BITS:
         raise ValueError(
-            f"Only 128-, 256- and 512bit seeds supported; {len(master_secret)*8}-bit master_secret supplied" )
+            f"Only {', '.join( f'{b}-' for b in BITS )}bit seeds supported; {len(master_secret)*8}-bit master_secret supplied" )
     return generate_mnemonics(
         group_threshold	= group_threshold,
         groups		= groups,

@@ -69,6 +69,7 @@ app-zip:		dist/SLIP39-$(VERSION).app.zip
 
 # Generate, Sign and Pacakage the macOS SLIP39.app GUI package for App Store
 app-pkg:		dist/SLIP39-$(VERSION).pkg
+app-pkg-signed:		dist/SLIP39-$(VERSION)-signed.pkg
 
 #
 # Build a deployable macOS App
@@ -78,21 +79,46 @@ app-upload:	dist/SLIP39-$(VERSION).app.zip
 	xcrun altool --validate-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
 	&& xcrun altool --upload-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
 
+# dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
+# 	pkgbuild --install-location /Applications --component $< $@
+
+#--identifier $(BUNDLEID)
+# codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python \
+#     || codesign --deep --force --options=runtime --timestamp \
+# 	--entitlements ./SLIP39.metadata/entitlements.plist \
+# 	--sign "$(DEVID)" \
+# 	$< \
+# 	    && codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python
+# codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python
+
+# doesn't work...  code is not signed by an apple-anchored Dev. ID
 dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
-	grep -q "CFBundleVersion" "$</Contents/Info.plist" || sed -i "" -e 's:<dict>:<dict>\n\t<key>CFBundleVersion</key>\n\t<string>0.0.0</string>:' "$</Contents/Info.plist"
-	sed -i "" -e "s:0.0.0:$(VERSION):" "$</Contents/Info.plist"
-	codesign --deep --force --options=runtime --timestamp \
-	    --entitlements ./SLIP39.metatdata/entitlements.plist \
-	    --sign "$(DEVID)" \
-	    $<
-	codesign -dv -r- $<
-	codesign -vv $<
-	xcrun altool --validate-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
-	pkgbuild --install-location /Applications --component $< $@
+	productbuild --sign "$(PKGID)" --timestamp \
+	    --identifier "$(BUNDLEID).pkg" \
+	    --version $(VERSION) \
+	    --component $< /Applications \
+	    $@
+	xcrun altool --validate-app -f $@ -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
 
 dist/SLIP39-$(VERSION)-signed.pkg:  dist/SLIP39-$(VERSION).pkg
 	productsign --timestamp --sign "$(PKGID)" $< $@
 	spctl -vv --assess --type install $@
+
+
+dist/SLIP39-$(VERSION).notarization: dist/SLIP39-$(VERSION).pkg
+	xcrun altool --notarize-app -f $< \
+	    --team-id ZD8TVTCXDS \
+	    --primary-bundle-id ca.kundert.perry.SLIP39 \
+	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	    --output-format json \
+		> $@
+
+dist/SLIP39-$(VERSION).status: FORCE # dist/SLIP39-$(VERSION).notarization
+	xcrun altool \
+	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	    --notarization-info $$( jq -r '.["RequestUUID"]' < dist/SLIP39-$(VERSION).notarization ) \
+		| tee -a $@
+
 
 
 #(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
@@ -113,14 +139,18 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 	/usr/bin/ditto -c -k --keepParent "$<" "$@"
 	@ls -last dist
 
-# Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts
-# The --onefile approach doesn't seem to work, as we need to sign things after packaging.
-# We need to customize the SLIP39.spec file (eg. for version), so we do not target SLIP39.py
-# 
-dist/SLIP39.app: SLIP39.spec
+# Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts The --onefile
+# approach doesn't seem to work, as we need to sign things after packaging.  We need to customize
+# the SLIP39.spec file (eg. for version), so we do not target SLIP39.py (which would re-generate it
+# without our additions)
+#
+# Additional .spec file configurations:
+# - https://developer.apple.com/documentation/bundleresources/information_property_list/lsminimumsystemversion
+dist/SLIP39.app: SLIP39.spec images/SLIP39.icns
 	rm -rf build $@*
-	grep "version='$(VERSION)'" $< || sed -i "" -e "s/version='[0-9.]*'/version='$(VERSION)'/" $<
-	pyinstaller $<
+	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
+	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
+	pyinstaller --noconfirm $<
 
 # Only used for initial creation of SLIP39.spec.  
 SLIP39.spec: SLIP39.py
@@ -130,6 +160,24 @@ SLIP39.spec: SLIP39.py
 	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 		$<
+
+# See: https://stackoverflow.com/questions/12306223/how-to-manually-create-icns-files-using-iconutil
+images/SLIP39.icns: images/SLIP39.iconset 
+	iconutil --convert icns -o $@ $<
+
+images/SLIP39.iconset: images/SLIP39.png
+	mkdir $@
+	sips -z   16   16 $< --out $@/icon_16x16.png
+	sips -z   32   32 $< --out $@/icon_16x16@2x.png
+	sips -z   32   32 $< --out $@/icon_32x32.png
+	sips -z   64   64 $< --out $@/icon_32x32@2x.png
+	sips -z  128  128 $< --out $@/icon_128x128.png
+	sips -z  256  256 $< --out $@/icon_128x128@2x.png
+	sips -z  256  256 $< --out $@/icon_256x256.png
+	sips -z  512  512 $< --out $@/icon_256x256@2x.png
+	sips -z  512  512 $< --out $@/icon_512x512.png
+	sips -z 1024 1024 $< --out $@/icon_512x512@2x.png
+
 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py

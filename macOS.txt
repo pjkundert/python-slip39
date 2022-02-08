@@ -11,26 +11,39 @@
 Creating Ethereum, Bitcoin and other accounts is complex and fraught
 with potential for loss of funds.
 
-All Crypto wallets start with a "Seed": a large, random number that is
-used to generate all of the actual Bitcoin, Ethereum, etc. wallets.
+All Crypto wallets start with a "Seed": a large, random number used to
+generate all of the actual Bitcoin, Ethereum, etc. wallets.
 
 The best practice for using these wallets is to load this "Seed" into a
-secure hardware device, like a Trezor hardware wallet.
+secure hardware device, like a Trezor hardware wallet.  SLIP39 Mnemonic
+cards contain the recovery words, which are typed directly into the
+Trezor device to recover the Seed, and all of its accounts.
+
+The macOS SLIP39 app helps you generate Mnemonic cards and back up this
+seed, securely and reliably, by distributing Mnemonic cards for the seed
+to partners, family and friends.
+
+Later, if you (or your heirs!) need to recover the accounts, they can
+collect a sufficient threshold of the cards and regain access to the
+account.
 Table of Contents
 ─────────────────
 
 1. Security with Availability
+.. 1. SLIP-39 Mnemonic Recovery Cards
+2. Affiliate Links
+.. 1. Trezor
 
 
 1 Security with Availability
 ════════════════════════════
 
-  For both BIP-39 and SLIP-39, a 128-bit random "seed" is the source of
-  an unlimited sequence of Ethereum HD Wallet accounts.  Anyone who can
-  obtain this seed gains control of all Ethereum, Bitcoin (and other)
-  accounts derived from it, so it must be securely stored.
+  For both BIP-39 and SLIP-39, a 128-bit or 256-bit random "Seed" is the
+  source of an unlimited sequence of Ethereum HD Wallet accounts.
+  Anyone who can obtain this Seed gains control of all Ethereum, Bitcoin
+  (and other) accounts derived from it, so it must be securely stored.
 
-  Losing this seed means that all of the HD Wallet accounts are
+  Losing this Seed means that all of the HD Wallet accounts are
   permanently lost.  Therefore, it must be backed up reliably, and be
   readily accessible.
 
@@ -41,3 +54,33 @@ Table of Contents
     untrustworthy) people.
 
   How can we address these conflicting requirements?
+
+
+1.1 SLIP-39 Mnemonic Recovery Cards
+───────────────────────────────────
+
+  We don't recommend writing down one BIP-39 12-word or 24-word Mnemonic
+  phrase, and hoping that *you* can find it, but that nobody else *ever*
+  finds it!
+
+  Instead, generate a number of SLIP-39 Mnemonic cards, which can be
+  collected to recover the Seed:
+  <./images/slip39-pdf.png>
+
+
+2 Affiliate Links
+═════════════════
+
+  To assist you in obtaining various SLIP39 compatible components, we
+  have established some relationship with reliable vendors.
+
+
+2.1 Trezor
+──────────
+
+  The [Trezor Model T hardware wallet] has built-in SLIP39 generation
+  and recovery capability.
+
+
+[Trezor Model T hardware wallet]
+<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>

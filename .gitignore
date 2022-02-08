@@ -20,9 +20,9 @@ build/
 MANIFEST
 dist/
 *.egg-info/
-*.svg
 .vagrant
 .pytest_cache/
 .cache/
 .eggs
 private_keys
+images/SLIP39.iconset
