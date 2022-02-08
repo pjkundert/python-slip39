@@ -166,6 +166,7 @@ images/SLIP39.icns: images/SLIP39.iconset
 	iconutil --convert icns -o $@ $<
 
 images/SLIP39.iconset: images/SLIP39.png
+	rm -rf $@
 	mkdir $@
 	sips -z   16   16 $< --out $@/icon_16x16.png
 	sips -z   32   32 $< --out $@/icon_16x16@2x.png
