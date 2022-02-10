@@ -84,3 +84,11 @@ of the cards and regain access to the account.
    <!-- // End Ad Tag -->
    #+END_EXPORT
    
+* Privacy Policy
+:PROPERTIES:
+:CUSTOM_ID: privacy
+:END:
+
+  SLIP39 does not save or store any data input to or output from the app. Any SLIP39 Mnemonic card
+  PDFs exported by the app are saved on your device in the location that you specify after clicking
+  the 'Save' button.

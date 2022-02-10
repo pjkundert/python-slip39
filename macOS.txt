@@ -33,6 +33,7 @@ Table of Contents
 .. 1. SLIP-39 Mnemonic Recovery Cards
 2. Affiliate Links
 .. 1. Trezor
+3. Privacy Policy
 
 
 1 Security with Availability
@@ -84,3 +85,12 @@ Table of Contents
 
 [Trezor Model T hardware wallet]
 <https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+
+
+3 Privacy Policy
+════════════════
+
+  SLIP39 does not save or store any data input to or output from the
+  app. Any SLIP39 Mnemonic card PDFs exported by the app are saved on
+  your device in the location that you specify after clicking the 'Save'
+  button.
