@@ -4,9 +4,12 @@
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
 TEAMID		?= ZD8TVTCXDS
-DEVID		?= Developer ID Application: Perry Kundert ($(TEAMID))
+DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
+DEVIDLOC	?= Developer ID Application: Perry Kundert ($(TEAMID))
 PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
 BUNDLEID	?= ca.kundert.perry.SLIP39
+APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
+APIKEY		?= 5H98J7LKPC
 
 # PY[3] is the target Python interpreter.  It must have pytest installed.
 PY3		?= python3
@@ -61,6 +64,8 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,serial,json]
 
+# Building a macOS App
+
 
 app:			dist/SLIP39.app
 
@@ -76,8 +81,8 @@ app-pkg-signed:		dist/SLIP39-$(VERSION)-signed.pkg
 #     See: https://gist.github.com/txoof/0636835d3cc65245c6288b2374799c43
 #     See: https://wiki.lazarus.freepascal.org/Code_Signing_for_macOS
 app-upload:	dist/SLIP39-$(VERSION).app.zip
-	xcrun altool --validate-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
-	&& xcrun altool --upload-app -f $< -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	xcrun altool --validate-app -f $< -t osx --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
+	&& xcrun altool --upload-app -f $< -t osx --apiKey $(APIKEY) --apiIssuer $(APIISSUER)
 
 # dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
 # 	pkgbuild --install-location /Applications --component $< $@
@@ -92,38 +97,95 @@ app-upload:	dist/SLIP39-$(VERSION).app.zip
 # codesign -vvvv -R="anchor apple" $</Contents/MacOS/Python
 
 # doesn't work...  code is not signed by an apple-anchored Dev. ID
-dist/SLIP39-$(VERSION).pkg: dist/SLIP39.app FORCE
+# 
+# Create the .pkg, ensuring that the App was created and signed appropriately
+# o Sign this w/ the ...Developer ID?
+#   - Nope: "...An installer signing identity (not an application signing identity) is required for signing flat-style products."
+# See: https://lessons.livecode.com/m/4071/l/876834-signing-and-uploading-apps-to-the-mac-app-store
+# o Need ... --product <path-to-app-bundle-Info.plist>
+dist/SLIP39-$(VERSION).pkg:	dist/SLIP39.app		\
+				dist/SLIP39.app-signed
 	productbuild --sign "$(PKGID)" --timestamp \
 	    --identifier "$(BUNDLEID).pkg" \
 	    --version $(VERSION) \
 	    --component $< /Applications \
 	    $@
-	xcrun altool --validate-app -f $@ -t osx --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290
+	xcrun altool --validate-app -f $@ -t osx --apiKey $(APIKEY) --apiIssuer $(APIISSUER)
 
-dist/SLIP39-$(VERSION)-signed.pkg:  dist/SLIP39-$(VERSION).pkg
+dist/SLIP39.pkg:		dist/SLIP39.app # dist/SLIP39.app-signed
+	echo "Checking signature..."; ./SLIP39.metadata/check-signature $<
+	productbuild --sign "$(PKGID)" --timestamp \
+	    --identifier "$(BUNDLEID).pkg" \
+	    --version $(VERSION) \
+	    --component $< /Applications \
+	    $@
+	xcrun altool --validate-app -f $@ -t osx --apiKey $(APIKEY) --apiIssuer $(APIISSUER)
+
+.PHONY: dist/SLIP39.pkg-verify
+dist/SLIP39.pkg-verify: dist/SLIP39.pkg
+	@echo "\n\n*** Verifying signing of $<..."
+	#codesign --verify -v $< \
+	#    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
+	spctl --assess --type install --context context:primary-signature -vvv $< || \
+	spctl --assess --type execute --context context:primary-signature -vvv $< || \
+	spctl --assess --type open    --context context:primary-signature -vvv $< || \
+	spctl --assess --type install  -vvv $< || \
+	spctl --assess --type execute  -vvv $< || \
+	spctl --assess --type open     -vvv $<
+
+
+# 
+# Sign the pkg with the Installer ID, if not already done.
+#  
+# o doesn't work -- notarization complains:  "The binary is not signed with a valid Developer ID certificate."
+# 
+dist/SLIP39-signed.pkg:  dist/SLIP39.pkg FORCE
+	@echo "\n\n*** Signing $<..."
 	productsign --timestamp --sign "$(PKGID)" $< $@
-	spctl -vv --assess --type install $@
 
 
-dist/SLIP39-$(VERSION).notarization: dist/SLIP39-$(VERSION).pkg
-	xcrun altool --notarize-app -f $< \
+
+# macOS Package Notarization
+# See: https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/resolving_common_notarization_issues
+
+dist/SLIP39.pkg.notarization: dist/SLIP39.pkg
+	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
+	|| xcrun altool --notarize-app -f $< \
 	    --team-id ZD8TVTCXDS \
 	    --primary-bundle-id ca.kundert.perry.SLIP39 \
-	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
+	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
 	    --output-format json \
 		> $@
 
-dist/SLIP39-$(VERSION).status: FORCE # dist/SLIP39-$(VERSION).notarization
+dist/SLIP39.pkg.notarization-status:  dist/SLIP39.pkg.notarization FORCE
 	xcrun altool \
-	    --apiKey 5H98J7LKPC --apiIssuer 5f3b4519-83ae-4e01-8d31-f7db26f68290 \
-	    --notarization-info $$( jq -r '.["RequestUUID"]' < dist/SLIP39-$(VERSION).notarization ) \
+	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
+	    --notarization-info $$( jq -r '.["notarization-upload"]["RequestUUID"]' $< ) \
+		| tee -a $@
+
+dist/SLIP39.zip.notarization: dist/SLIP39.zip
+	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
+	|| xcrun altool --notarize-app -f $< \
+	    --team-id ZD8TVTCXDS \
+	    --primary-bundle-id ca.kundert.perry.SLIP39 \
+	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
+	    --output-format json \
+		> $@
+
+dist/SLIP39.zip.notarization-status:  dist/SLIP39.zip.notarization FORCE
+	xcrun altool \
+	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
+	    --notarization-info $$( jq -r '.["notarization-upload"]["RequestUUID"]' $< ) \
 		| tee -a $@
 
 
 
-#(cd dist; zip -r SLIP39.app-$(VERSION).zip SLIP39.app)
-# Create a ZIP archive suitable for notarization.
-dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
+# 
+# Package the macOS App as a Zip file for Notarization
+# 
+# o Create a ZIP archive suitable for notarization.
+# 
+dist/SLIP39.zip:		dist/SLIP39.app
 	rm -f $@
 	# grep -q "CFBundleVersion" "$</Contents/Info.plist" || sed -i "" -e 's:<dict>:<dict>\n\t<key>CFBundleVersion</key>\n\t<string>0.0.0</string>:' "$</Contents/Info.plist"
 	# sed -i "" -e "s:0.0.0:$(VERSION):" "$</Contents/Info.plist"
@@ -139,6 +201,17 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 	/usr/bin/ditto -c -k --keepParent "$<" "$@"
 	@ls -last dist
 
+# Submit the macOS App Zip for notarization
+# o Must first set up an app-specific password at appleid.apple.com/account/manage
+# o This will produce a UUID; produces the same log of errors as the pkg flow, above...
+#   - For each binary/library: "The binary is not signed with a valid Developer ID certificate."
+dist/SLIP39.zip-submit: dist/SLIP39.zip
+	xcrun notarytool submit $< --wait --apple-id perry@kundert.ca --team-id ZD8TVTCXDS --password efzr-sigp-muun-oowc
+	xcrun notarytool log 0bcc1c61-f5bb-4131-b412-557c3c027e9b --apple-id perry@kundert.ca --team-id ZD8TVTCXDS --password efzr-sigp-muun-oowc
+
+#
+# The macOS gui APP 
+# 
 # Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts The --onefile
 # approach doesn't seem to work, as we need to sign things after packaging.  We need to customize
 # the SLIP39.spec file (eg. for version), so we do not target SLIP39.py (which would re-generate it
@@ -146,22 +219,108 @@ dist/SLIP39-$(VERSION).app.zip: dist/SLIP39.app FORCE
 #
 # Additional .spec file configurations:
 # - https://developer.apple.com/documentation/bundleresources/information_property_list/lsminimumsystemversion
-dist/SLIP39.app: SLIP39.spec images/SLIP39.icns
+#
+# o The codesign --verify succeeds w/ the '3rd Party Mac Developer Application ...', but not the spctl --assess?
+# 
+.PHONY: dist/SLIP39.app-signed
+dist/SLIP39.app-signed: 	dist/SLIP39.app		\
+				dist/SLIP39.app-checkids
+	@echo "\n\n*** Verifying codesigning of $<..."
+	codesign --verify -v $< \
+	    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
+	spctl --assess --type install --context context:primary-signature -vvv $< || \
+	spctl --assess --type execute --context context:primary-signature -vvv $< || \
+	spctl --assess --type open    --context context:primary-signature -vvv $< || true
+
+.PHONY: dist/SLIP39.app-checkids
+dist/SLIP39.app-checkids:	SLIP39.spec
+	@echo "\n\n*** Checking Developer/Installer IDs for $(TEAMID) in $<..."
+	security find-identity -vp macappstore
+	security find-identity -vp macappstore | grep "$(DEVID)" \
+	    || ( echo "!!! Unable to find Developer ID for signing: $(DEVID)"; false )
+	security find-identity -vp macappstore | grep "$(PKGID)" \
+	    || ( echo "!!! Unable to find Installer ID for signing: $(PKGID)"; false )
+
+# Not necessary?
+# 	    --options=runtime --timestamp
+# 
+# For details on Signing Apps:
+# See: https://developer.apple.com/library/archive/technotes/tn2318/_index.html
+
+# * In order for code signing to succeed, your code signing key(s) MUST have all of their dependent
+#   (issuer) keys downloaded to your Keychain, from https://www.apple.com/certificateauthority.
+#   - Use Keychain Access, right-click on your signing key and click Evaluate "...".
+#   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
+#     that one in your System keychain, downloading all the named keys from apple 'til
+#     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
+dist/SLIP39.app: 		SLIP39.spec		\
+				SLIP39.metadata/entitlements.plist \
+				images/SLIP39.icns
+	@echo "\n\n*** Rebuilding $@..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
 	pyinstaller --noconfirm $<
+	echo "Checking signature (pyinstaller signed)..."; ./SLIP39.metadata/check-signature $@ || true
+	codesign --verify $@
+	codesign --deep --force \
+	    --all-architectures --options=runtime --timestamp \
+	    --sign "$(DEVID)" \
+	    $@
+	echo "Checking signature (app code signed)..."; ./SLIP39.metadata/check-signature $@ || true
+	codesign --verify $@
+	codesign --deep --force \
+	    --all-architectures --options=runtime --timestamp \
+	    --entitlements ./SLIP39.metadata/entitlements.plist \
+	    --sign "$(DEVID)" \
+	    $@
+	echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP39.metadata/check-signature $@ || true
+	codesign --verify $@
+	codesign --deep --force \
+	    --all-architectures --options=runtime --timestamp \
+	    --entitlements ./SLIP39.metadata/entitlements.plist \
+	    --sign "$(DEVIDLOC)" \
+	    $@
+	echo "Checking signature (app code + entitlements signed w/ $(DEVIDLOC))..."; ./SLIP39.metadata/check-signature $@ || true
+	codesign --verify $@
+	touch $@  # try to avoid unnecessary rebuilding
 
-# Only used for initial creation of SLIP39.spec.  
+#
+# Only used for initial creation of SLIP39.spec; it must be customized, so this target cannot be
+# used to achieve a complete, operational SLIP39.spec file!
+#
+# Roughly, change:
+# 
+#     app = BUNDLE(coll,
+#                  name='SLIP39.app',
+#    -             icon=None,
+#    +             icon='images/SLIP39.icns',
+#    +             version='6.4.1',
+#    +             info_plist={
+#    +                 'CFBundleVersion':'6.4.1',
+#    +                 'LSApplicationCategoryType':'public.app-category.utilities',
+#    +                 'LSMinimumSystemVersion':'10.15.0',
+#    +             })
+#    +
+#                 bundle_identifier='ca.kundert.perry.SLIP39')
+
 SLIP39.spec: SLIP39.py
+	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
 	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 		$<
+	false
 
+# 
+# macOS Icons
+# 
+# Requires a source images/SLIP39.png at least 1024x1024
+# 
 # See: https://stackoverflow.com/questions/12306223/how-to-manually-create-icns-files-using-iconutil
+#
 images/SLIP39.icns: images/SLIP39.iconset 
 	iconutil --convert icns -o $@ $<
 
@@ -180,10 +339,13 @@ images/SLIP39.iconset: images/SLIP39.png
 	sips -z 1024 1024 $< --out $@/icon_512x512@2x.png
 
 
+#
+# Pypi pip packaging
+# 
 # Support uploading a new version of slip32 to pypi.  Must:
 #   o advance __version__ number in slip32/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
-
+#
 upload-check:
 	@$(PY3) -m twine --version \
 	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \

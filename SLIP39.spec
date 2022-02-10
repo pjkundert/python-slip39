@@ -36,7 +36,7 @@ exe = EXE(pyz,
           console=False,
           disable_windowed_traceback=False,
           target_arch=None,
-          codesign_identity='Developer ID Application: Perry Kundert (ZD8TVTCXDS)',
+          codesign_identity='3rd Party Mac Developer Application: Perry Kundert (ZD8TVTCXDS)',
           entitlements_file='SLIP39.metadata/entitlements.plist' )
 coll = COLLECT(exe,
                a.binaries,
@@ -49,11 +49,11 @@ coll = COLLECT(exe,
 app = BUNDLE(coll,
              name='SLIP39.app',
              icon='images/SLIP39.icns',
-             bundle_identifier='ca.kundert.perry.SLIP39',
-             version='6.4.1',
+             version='6.5.3',
              info_plist={
-                 'CFBundleVersion':'6.4.1',
-                 'LSApplicationCategoryType':'public.app-category.utilities',
+                 'CFBundleVersion':'6.5.3',
+                 'LSApplicationCategoryType':'public.app-category.finance',
                  'LSMinimumSystemVersion':'10.15.0',
-             })
+             },
+             bundle_identifier='ca.kundert.perry.SLIP39')
 
