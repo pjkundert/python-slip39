@@ -151,7 +151,7 @@ dist/SLIP39-signed.pkg:  dist/SLIP39.pkg FORCE
 dist/SLIP39.pkg.notarization: dist/SLIP39.pkg
 	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
 	|| xcrun altool --notarize-app -f $< \
-	    --team-id ZD8TVTCXDS \
+	    --team-id $(TEAMID) \
 	    --primary-bundle-id ca.kundert.perry.SLIP39 \
 	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
 	    --output-format json \
@@ -166,7 +166,7 @@ dist/SLIP39.pkg.notarization-status:  dist/SLIP39.pkg.notarization FORCE
 dist/SLIP39.zip.notarization: dist/SLIP39.zip
 	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
 	|| xcrun altool --notarize-app -f $< \
-	    --team-id ZD8TVTCXDS \
+	    --team-id $(TEAMID) \
 	    --primary-bundle-id ca.kundert.perry.SLIP39 \
 	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
 	    --output-format json \
@@ -194,13 +194,6 @@ dist/SLIP39.zip:		dist/SLIP39.app
 	/usr/bin/ditto -c -k --keepParent "$<" "$@"
 	@ls -last dist
 
-# Submit the macOS App Zip for notarization
-# o Must first set up an app-specific password at appleid.apple.com/account/manage
-# o This will produce a UUID; produces the same log of errors as the pkg flow, above...
-#   - For each binary/library: "The binary is not signed with a valid Developer ID certificate."
-dist/SLIP39.zip-submit: dist/SLIP39.zip
-	xcrun notarytool submit $< --wait --apple-id perry@kundert.ca --team-id ZD8TVTCXDS --password efzr-sigp-muun-oowc
-	xcrun notarytool log 0bcc1c61-f5bb-4131-b412-557c3c027e9b --apple-id perry@kundert.ca --team-id ZD8TVTCXDS --password efzr-sigp-muun-oowc
 
 #
 # The macOS gui APP 
