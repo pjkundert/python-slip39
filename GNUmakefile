@@ -4,8 +4,8 @@
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
 TEAMID		?= ZD8TVTCXDS
-DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
-DEVIDLOC	?= Developer ID Application: Perry Kundert ($(TEAMID))
+#DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
+DEVID		?= Developer ID Application: Perry Kundert ($(TEAMID))
 PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
 BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
@@ -186,18 +186,11 @@ dist/SLIP39.zip.notarization-status:  dist/SLIP39.zip.notarization FORCE
 # o Create a ZIP archive suitable for notarization.
 # 
 dist/SLIP39.zip:		dist/SLIP39.app
-	rm -f $@
-	# grep -q "CFBundleVersion" "$</Contents/Info.plist" || sed -i "" -e 's:<dict>:<dict>\n\t<key>CFBundleVersion</key>\n\t<string>0.0.0</string>:' "$</Contents/Info.plist"
-	# sed -i "" -e "s:0.0.0:$(VERSION):" "$</Contents/Info.plist"
-	# cat $</Contents/Info.plist
-	# codesign -dv -r- $<
-	# codesign -vv $<
-	# codesign --deep --force --options=runtime --timestamp \
-	#     --entitlements ./SLIP39.metadata/entitlements.plist \
-	#     --sign "$(DEVID)" \
-	#     $<
+	echo "Checking signature..."; ./SLIP39.metadata/check-signature $<
+	codesign --verify $<
 	codesign -dv -r- $<
 	codesign -vv $<
+	rm -f $@
 	/usr/bin/ditto -c -k --keepParent "$<" "$@"
 	@ls -last dist
 
@@ -260,29 +253,23 @@ dist/SLIP39.app: 		SLIP39.spec		\
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
+	sed -I "" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
 	pyinstaller --noconfirm $<
 	echo "Checking signature (pyinstaller signed)..."; ./SLIP39.metadata/check-signature $@ || true
 	codesign --verify $@
-	codesign --deep --force \
-	    --all-architectures --options=runtime --timestamp \
-	    --sign "$(DEVID)" \
-	    $@
-	echo "Checking signature (app code signed)..."; ./SLIP39.metadata/check-signature $@ || true
-	codesign --verify $@
-	codesign --deep --force \
-	    --all-architectures --options=runtime --timestamp \
-	    --entitlements ./SLIP39.metadata/entitlements.plist \
-	    --sign "$(DEVID)" \
-	    $@
-	echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP39.metadata/check-signature $@ || true
-	codesign --verify $@
-	codesign --deep --force \
-	    --all-architectures --options=runtime --timestamp \
-	    --entitlements ./SLIP39.metadata/entitlements.plist \
-	    --sign "$(DEVIDLOC)" \
-	    $@
-	echo "Checking signature (app code + entitlements signed w/ $(DEVIDLOC))..."; ./SLIP39.metadata/check-signature $@ || true
-	codesign --verify $@
+	# codesign --deep --force \
+	#     --all-architectures --options=runtime --timestamp \
+	#     --sign "$(DEVID)" \
+	#     $@
+	# echo "Checking signature (app code signed)..."; ./SLIP39.metadata/check-signature $@ || true
+	# codesign --verify $@
+	# codesign --deep --force \
+	#     --all-architectures --options=runtime --timestamp \
+	#     --entitlements ./SLIP39.metadata/entitlements.plist \
+	#     --sign "$(DEVID)" \
+	#     $@
+	# echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP39.metadata/check-signature $@ || true
+	# codesign --verify $@
 	touch $@  # try to avoid unnecessary rebuilding
 
 #
