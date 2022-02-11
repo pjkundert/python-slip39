@@ -542,7 +542,10 @@ $(LOCAL)/$(VENV_NAME):
 	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
 	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
 
-# Activate a given VirtualEnv
+# Activate a given VirtualEnv, and go to its python-slip39 installation
+# o Creates a custom venv-activate.sh script in the venv, and uses it start
+#   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
 $(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
 	@echo; echo "*** Activating $@ VirtualEnv"
-	. $</bin/activate
+	[ -s $</start ] || echo ". $</bin/activate; cd $</$(GHUB_NAME)" > $</venv-activate.sh
+	bash --init-file $</venv-activate.sh -i
