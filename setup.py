@@ -34,6 +34,7 @@ extras_require			= {
         'serial',	# slip39[serial]: Support serial I/O of generated wallet data
         'json',		# slip39[json]:   Support output of encrypted Ethereum JSON wallets
         'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
+        'dev',		# slip39[dev]:    All modules to support development
     ]
 }
 

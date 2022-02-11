@@ -28,6 +28,16 @@ PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
+# VirtualEnv: Build them in ~/src/python-slip39-1.2.3/
+LOCAL		?= ~/src/
+
+GHUB_NAME	= python-slip39
+GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
+GHUB_BRCH	= -b feature-dmg
+VENV_NAME	= $(GHUB_NAME)-$(VERSION)
+VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
+
+
 .PHONY: all help test doctest analyze pylint build-check build install upload clean FORCE
 
 all:			help
@@ -68,6 +78,9 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	@ls -last dist
 
 # Install from wheel, including all optional extra dependencies
+install-dev:
+	$(PY3) -m pip install --upgrade -r requirements-dev.txt
+
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,serial,json]
 
@@ -405,7 +418,7 @@ dist/SLIP39.app: 		SLIP39.spec		\
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
 	sed -I "" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
-	pyinstaller --noconfirm $<
+	pyinstaller --noconfirm --windowed --onefile $<
 	echo "Checking signature (pyinstaller signed)..."; ./SLIP39.metadata/check-signature $@ || true
 	codesign --verify $@
 	# codesign --deep --force \
@@ -445,13 +458,14 @@ dist/SLIP39.app: 		SLIP39.spec		\
 
 SLIP39.spec: SLIP39.py
 	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
-	pyinstaller --noconfirm --windowed \
+	pyinstaller --noconfirm --windowed --onefile \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
 	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 		$<
-	false
+	@echo "!!! Regenerated $@: must be manually corrected!"
+	false  # Make the build fail if we've regenerated the .spec
 
 # 
 # macOS Icons
@@ -512,3 +526,23 @@ unit-%:
 print-%:
 	@echo $* = $($*)
 	@echo $*\'s origin is $(origin $*)
+
+
+# 
+# VirtualEnv build, install and activate
+#
+
+venv:			$(LOCAL)/$(VENV_NAME)
+venv-activate:		$(LOCAL)/$(VENV_NAME)-activate
+
+
+$(LOCAL)/$(VENV_NAME):
+	@echo; echo "*** Building $@ VirtualEnv..."
+	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
+	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
+	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
+
+# Activate a given VirtualEnv
+$(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
+	@echo; echo "*** Activating $@ VirtualEnv"
+	. $</bin/activate
