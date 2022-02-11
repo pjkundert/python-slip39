@@ -46,10 +46,12 @@ help:
 	@echo "GNUmakefile for cpppo.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
-	@echo "  build			Build dist wheel and app under Python3"
-	@echo "  install		Install in /usr/local for Python3"
 	@echo "  clean			Remove build artifacts"
+	@echo "  build			Build clean dist wheel and app under Python3"
+	@echo "  install		Install in /usr/local for Python3"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
+	@echo "  app			Build the macOS SLIP39.app"
+	@echo "  app-packages		Build and sign the macOSSLIP39.app, and all App zip, dmg and pkg format packages"
 
 test:
 	$(PY3TEST)
@@ -71,6 +73,30 @@ build-check:
 
 build:			clean wheel app
 
+
+# 
+# VirtualEnv build, install and activate
+#
+
+venv:			$(LOCAL)/$(VENV_NAME)
+venv-activate:		$(LOCAL)/$(VENV_NAME)-activate
+
+
+$(LOCAL)/$(VENV_NAME):
+	@echo; echo "*** Building $@ VirtualEnv..."
+	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
+	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
+	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
+
+# Activate a given VirtualEnv, and go to its python-slip39 installation
+# o Creates a custom venv-activate.sh script in the venv, and uses it start
+#   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
+$(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
+	@echo; echo "*** Activating $@ VirtualEnv"
+	[ -s $</start ] || echo ". $</bin/activate; cd $</$(GHUB_NAME)" > $</venv-activate.sh
+	bash --init-file $</venv-activate.sh -i
+
+
 wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
 
 dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
@@ -84,9 +110,12 @@ install-dev:
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,serial,json]
 
-# Building / Upload a macOS App
+# Building / Signing / Notarizing and Uploading the macOS App
+# o TODO: no signed and notarized package yet accepted for upload by macOS App Store
 app:			dist/SLIP39.app
-app-upload:		app-pkg-upload
+app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
+app-upload:		app-dmg-upload
+
 
 # Generate, Sign and Package the macOS SLIP39.app GUI for App Store or local/manual installation
 # o Try all the approaches of packaging a macOS App for App Store upload
@@ -526,26 +555,3 @@ unit-%:
 print-%:
 	@echo $* = $($*)
 	@echo $*\'s origin is $(origin $*)
-
-
-# 
-# VirtualEnv build, install and activate
-#
-
-venv:			$(LOCAL)/$(VENV_NAME)
-venv-activate:		$(LOCAL)/$(VENV_NAME)-activate
-
-
-$(LOCAL)/$(VENV_NAME):
-	@echo; echo "*** Building $@ VirtualEnv..."
-	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
-	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
-	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
-
-# Activate a given VirtualEnv, and go to its python-slip39 installation
-# o Creates a custom venv-activate.sh script in the venv, and uses it start
-#   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
-$(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
-	@echo; echo "*** Activating $@ VirtualEnv"
-	[ -s $</start ] || echo ". $</bin/activate; cd $</$(GHUB_NAME)" > $</venv-activate.sh
-	bash --init-file $</venv-activate.sh -i
