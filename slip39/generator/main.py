@@ -234,7 +234,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 encoding	= encoding,
                 healthy		= healthy,
             ):
-                if index and group:
+                if index is not None and group:
                     accountgroups_output( group, index=index )
                     continue
                 if healthy and healthy( file ):

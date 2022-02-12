@@ -96,8 +96,10 @@ def accountgroups_input(
         if not record:
             continue
 
-        # See if records are indexed.  Only int or 'nonce' is accepted for index.
+        # See if records are indexed.  Only int or 'nonce' is accepted for index.  Ignore any
+        # (strange) empty '<index>: ' records (anything possible w/ corruption on a serial link...)
         index			= None
+        payload			= ''
         try:
             index,payload	= record.split( ':', 1 )        # ValueError if not <index>:<payload>
             index		= int( index )			# ValueError if <index> not int
@@ -105,6 +107,12 @@ def accountgroups_input(
             if index != 'nonce':				# Otherwise, only 'nonce': <payload> acceptable
                 index,payload	= None,record			# ...if not; then records are not indexed.
 
+        payload			= payload.strip()
+        log.debug( f"Detect record {index:>5}: {payload!r}" )
+        if not payload:
+            continue
+
+        # Non-empty payload; process as either encrypted or raw JSON.
         try:
             if cipher:
                 if nonce is None or index == 'nonce':
@@ -113,7 +121,7 @@ def accountgroups_input(
                     try:
                         assert index == 'nonce', \
                             f"Failed to find 'nonce' enumeration prefix on first record: {record!r}"
-                        ciphertext	= bytearray( codecs.decode( payload.strip(), 'hex_codec' ))
+                        ciphertext	= bytearray( codecs.decode( payload, 'hex_codec' ))
                         nonce		= bytes( cipher.decrypt( b'\x00' * 12, ciphertext ))
                     except Exception as exc:
                         message		= f"Failed to recover nonce from {record!r}; cannot proceed: {exc}"
@@ -122,6 +130,7 @@ def accountgroups_input(
                     log.info( f"Decrypting accountgroups with nonce: {nonce.hex()}" )
                     continue
 
+                log.debug( f"Decrypt index {index:>5}: {payload!r}" )
                 nonce_now	= nonce_add( nonce, index )
                 ciphertext	= bytearray( bytes.fromhex( payload ))
                 plaintext 	= bytes( cipher.decrypt( nonce_now, ciphertext ))
@@ -131,6 +140,7 @@ def accountgroups_input(
             log.warning( f"Discarding invalid record {record!r}: {exc!r}" )
             yield None, None
         else:
+            log.debug( f"Decoded index {index:>5}: {group!r}" )
             yield int(index), group
 
 
