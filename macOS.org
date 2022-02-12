@@ -29,7 +29,7 @@ The best practice for using these wallets is to load this "Seed" into a secure h
 a Trezor hardware wallet.  SLIP39 Mnemonic cards contain the recovery words, which are typed directly
 into the Trezor device to recover the Seed, and all of its accounts.
 
-The macOS SLIP39 app helps you generate Mnemonic cards and back up this seed, securely and reliably,
+The [[https://github.com/pjkundert/python-slip39/releases][macOS SLIP39 App]] helps you generate Mnemonic cards and back up this seed, securely and reliably,
 by distributing Mnemonic cards for the seed to partners, family and friends.
 
 Later, if you (or your heirs!) need to recover the accounts, they can collect a sufficient threshold
