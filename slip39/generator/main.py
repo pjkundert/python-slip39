@@ -123,15 +123,15 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
-
     # Confirm sanity of args
+    log.debug( f"args: {args!r}" )
     assert not args.encrypt or args.enumerate, \
         "When --encrypt is specified, --enumerated is required"
     assert not args.receive or not ( args.path or args.secret ), \
         "When --receive, no --path nor --secret allowed"
     if args.path:
-        assert args.path.lstrip( '.' ).startswith( '/' ), \
-            "A --path must start with '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
+        assert args.path.startswith( 'm/' ) or ( args.path.startswith( '..' ) and args.path.lstrip( '.' ).startswith( '/' )), \
+            "A --path must start with 'm/', or '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
     # If any --format <crypto>:<format> address formats provided
     for cf in args.format:
