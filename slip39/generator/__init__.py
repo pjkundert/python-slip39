@@ -56,6 +56,7 @@ def accountgroups_input(
     nonce			= None
     while True:
         # Attempt to receive a record, while connection is healthy
+        health			= True
         try:
             record		= None
             while not record or not record.endswith( b'\n' if type(record) is bytes else '\n' ):
@@ -70,9 +71,13 @@ def accountgroups_input(
                         record	= recv
                     else:
                         record += recv
-        except EOFError:
+                else:
+                    raise EOFError( f"No input: {recv!r}" )
+        except EOFError as exc:
             # Session has terminated; TODO: yield the EOFError to signal no more inputs (ever) available?
+            log.debug( f"Detected EOF: {exc}" )
             return
+        log.debug( f"Received I/O: {record}" )
         if not health:
             yield None,None
             continue

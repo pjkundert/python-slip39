@@ -212,9 +212,14 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                     if read:
                         log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
-        # Continually attempt to receive records.
-        while True:
-            # Establish a session.
+        # Continually attempt to receive records.  If a file_opener is provided, we'll continue
+        # indefinitely (eg. a Serial connection, which may present multiple connections and
+        # disconnections.)  However, the default (sys.stdin) only continues 'til the first EOF.
+        first			= True
+        while first or file_opener:
+            first		= False
+
+            # (Re-)establish a session, if None established and a file_opener is provided.
             if file is None and file_opener:
                 file		= file_opener()
             if healthy_reset:

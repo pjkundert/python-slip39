@@ -516,7 +516,8 @@ by entering the mnemonics right on the device.
     :     2: [["ETH", "m/44'/60'/0'/0/2", "0x578270B5E5B53336baC354756b763b309eCA90Ef"], ["BTC", "m/84'/0'/0'/0/2", "bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w"]]
     :     3: [["ETH", "m/44'/60'/0'/0/3", "0x909f59835A5a120EafE1c60742485b7ff0e305da"], ["BTC", "m/84'/0'/0'/0/3", "bc1q6t9vhestkcfgw4nutnm8y2z49n30uhc0kyjl0d"]]
 
-    We can encrypt the output, to secure the sequence (and ensure no errors occur over an insecure channel like a serial cable):
+    We can encrypt the output, to secure the sequence (and due to integrated MACs, ensures no errors
+    occur over an insecure channel like a serial cable):
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results raw
@@ -533,19 +534,19 @@ by entering the mnemonics right on the device.
     :     2: 279dcb069fe37f33547f0a2bc763f6d1852733b94686807ef5dbe854326fc1a6e1e097afa3a52be48f75bf6c821a3cdebd2f2be228dfa36b0e9787f4234170bdc835afd96767e26f7f11796f376e546fdb67810bbdacf957b7bdee64fbfdf85abaf72a6d8eeb9508828931674b3e3db386ca923c13a8298d4835462af6cb1141c8021d753d28a88254d9c3997457d705f705328ba7ff507266745417381a70b3344d20ad84
     :     3: 0a044f98e88fe4c038d86710e6d128e173d6f5a42ff95647dd894868b0bb5d323ce0a1754327241b2c85458c22640d3401c343cdd94869cc86f250384ae642c01822b0ba91aa4a6c4635cd9bcd8f47ecf4396445c3a9af93419f4bf6ff773fa19d67c5ac10d2bd4da63b94a2128921aafa93b0133271db50c7fc6657f850daf9396f16aa71f491b0f472512144d7b02b98e3a0a6c4153505b3f8999b24b55585225c020f92
 
-    On the receiving computer, we can decrypt and recover the stream of accounts from the wallet seed:
+    On the receiving computer, we can decrypt and recover the stream of accounts from the wallet
+    seed; any rows with errors are ignored:
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results raw
     slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | slip39-generator --secret - --path '../-' --encrypt 'password' \
-        | slip39-generator --receive --decrypt 'password' | head -3                   | sed 's/^/: /' # (just so output formatting looks correct)
+        | slip39-generator --secret - --path '../-3' --encrypt 'password' \
+        | slip39-generator --receive --decrypt 'password'                             | sed 's/^/: /' # (just so output formatting looks correct)
     #+END_SRC
 
     #+RESULTS:
     :     1: [["ETH", "m/44'/60'/0'/0/1", "0xd1a7451beB6FE0326b4B78e3909310880B781d66"], ["BTC", "m/84'/0'/0'/0/1", "bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug"]]
     :     2: [["ETH", "m/44'/60'/0'/0/2", "0x578270B5E5B53336baC354756b763b309eCA90Ef"], ["BTC", "m/84'/0'/0'/0/2", "bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w"]]
     :     3: [["ETH", "m/44'/60'/0'/0/3", "0x909f59835A5a120EafE1c60742485b7ff0e305da"], ["BTC", "m/84'/0'/0'/0/3", "bc1q6t9vhestkcfgw4nutnm8y2z49n30uhc0kyjl0d"]]
-
 
 ** The =slip39= module API
    
