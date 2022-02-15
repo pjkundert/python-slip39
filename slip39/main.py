@@ -2,12 +2,12 @@ import argparse
 import codecs
 import logging
 
+from .			import Account
 from .api		import random_secret
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
-from .types		import Account
 from .defaults		import (   # noqa: F401
-    CARD, CARD_SIZES, PAPER,
+    CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
     BITS, BITS_DEFAULT,
     FILENAME_FORMAT,
     FILENAME_KEYWORDS,
@@ -44,6 +44,12 @@ def main( argv=None ):
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
+    ap.add_argument( '-w', '--wallet',
+                     default=None,
+                     help="Product paper wallets in output PDF; each wallet private key is encrypted this password" )
+    ap.add_argument( '--wallet-format',
+                     default=None,
+                     help=f"Paper wallet size; {', '.join(WALLET_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {WALLET})" )
     ap.add_argument( '-s', '--secret',
                      default=None,
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
@@ -124,6 +130,8 @@ def main( argv=None ):
             filename		= args.output,
             json_pwd		= args.json,
             text		= args.text,
+            wallet_pwd		= args.wallet,
+            wallet_format	= args.wallet_format,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )

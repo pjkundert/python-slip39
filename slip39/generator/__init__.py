@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-from ..types		import Account
+from ..			import Account
 
 log				= logging.getLogger( __package__ )
 

@@ -9,7 +9,7 @@ from itertools import islice
 
 import PySimpleGUI as sg
 
-from ..types		import Account
+from ..			import Account
 from ..api		import create, group_parser, random_secret
 from ..recovery		import recover, recover_bip39
 from ..util		import log_level, log_cfg, ordinal

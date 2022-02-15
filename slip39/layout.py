@@ -13,11 +13,11 @@ from typing		import Dict, List, Tuple, Sequence
 import qrcode
 from fpdf		import FPDF, FlexTemplate
 
+from .			import Account
 from .api		import create, enumerate_mnemonic, group_parser
-from .util		import input_secure
-from .types		import Account
+from .util		import input_secure, ordinal
 from .defaults		import (
-    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN,
+    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, WALLET, WALLET_SIZES, COLOR,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
     CRYPTO_PATHS,
@@ -58,6 +58,15 @@ class Region:
 
     def __str__( self ):
         return f"({self.name:16}: ({float(self.x1):8}, {float( self.y1):8}) - ({float(self.x2):8} - {float(self.y2):8})"
+
+    def add_region( self, region ):
+        region.x1		= self.x1 if region.x1 is None else region.x1
+        region.y1		= self.y1 if region.y1 is None else region.y1
+        region.x2		= self.x2 if region.x2 is None else region.x2
+        region.y2		= self.y2 if region.y2 is None else region.y2
+
+        self.regions.append( region )
+        return region
 
     def add_region_relative( self, region ):
         region.x1	       += self.x1
@@ -165,34 +174,9 @@ def layout_card(
     card_interior		= card.add_region_relative(
         Region( 'card-interior', x1=+card_margin, y1=+card_margin, x2=-card_margin, y2=-card_margin )
     )
-    for g_n in range( 16 ):
-        o = "BB"
-        h = "DD"
-        f = "FF"
-        color			= [
-            # Primary
-            f"0x{o}{o}{f}",  # Blue
-            f"0x{o}{f}{o}",  # Green
-            f"0x{f}{o}{o}",  # Red
-            # Secondary
-            f"0x{o}{f}{f}",  # Cyan,
-            f"0x{f}{o}{f}",  # Magenta
-            f"0x{f}{f}{o}",  # Yellow
-            # Tertiary
-            f"0x{o}{h}{f}",  # Ocean
-            f"0x{o}{f}{h}",  # Turquoise
-            f"0x{f}{o}{h}",  # Red-Magenta
-            f"0x{h}{o}{f}",  # Violet
-            f"0x{h}{f}{o}",  # Lime
-            f"0x{f}{h}{o}",  # Orange
-            # Other
-            f"0x{o}{h}{h}",  # Light Cyan
-            f"0x{h}{o}{h}",  # Light Magenta
-            f"0x{h}{h}{o}",  # Light Yellow
-            f"0x{h}{h}{h}",  # Light grey,
-        ]
+    for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
         card_interior.add_region_proportional(
-            Text( f'card-g{g_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16, foreground=int( color[g_n], 16 ), rotate=-45 )
+            Text( f'card-g{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16, foreground=int( COLOR[c_n % len( COLOR )], 16 ), rotate=-45 )
         )
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
@@ -245,12 +229,143 @@ def layout_card(
     return card
 
 
+def layout_wallet(
+    wallet_size: Coordinate,
+    wallet_margin: int,
+):
+    """Produce a template format for a Paper Wallet.  """
+    wallet			= Box( 'wallet', 0, 0, wallet_size.x, wallet_size.y )
+    wallet_background		= wallet.add_region_proportional(  # noqa: F841
+        Image( 'wallet-bg' ),
+    )
+
+    # Most of the Paper Wallet is visible (contains public address information).  The right-most
+    # portion can be folded over, and displays private key information
+    show			= wallet.add_region_proportional(
+        Region( 'wallet-show', x2=5/8 )
+    )
+    fold			= wallet.add_region_proportional(
+        Region( 'wallet-fold', x1=5/8 )
+    )
+
+    public			= show.add_region_relative(
+        Box( 'wallet-public', x1=+wallet_margin, y1=+wallet_margin, x2=-wallet_margin, y2=-wallet_margin )
+    )
+    private			= fold.add_region_relative(
+        Box( 'wallet-private', x1=+wallet_margin, y1=+wallet_margin, x2=-wallet_margin, y2=-wallet_margin )
+    )
+
+    # Assign each different Crypto name a different color, in template labels crypto-{f,b}1, crypto-{f,b}2, ...
+    for c_n in range( len( COLOR )):
+        public.add_region_proportional(
+            Text( f'crypto-f{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=8/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
+        )
+        private.add_region_proportional(
+            Text( f'crypto-b{c_n}', x1=2/8, y1=-1/16, x2=7/8, y2=8/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
+        )
+
+    # Public addresses are vertical on left- and right-hand of public Region.  In order to fit the
+    # longer ETH addresses into a space with a fixed-width font, we know that the ratio of the width
+    # to the height has to be about 1/20.  Rotation is downward around upper-left corner; so,
+    # lower-left corner will shift 1 height leftward and upward; so start 1 height right and down.
+
+    address_length		= public.y2 - public.y1
+    address_height		= address_length * 1/19
+    public.add_region(
+        Image(
+            'address-l-bg',
+            x1		= public.x1 + address_height,
+            y1		= public.y1,
+            x2		= public.x1 + address_height + address_length,
+            y2		= public.y1 + address_height,
+            rotate	= -90,
+        )
+    ).add_region(
+        Text(
+            'address-l',
+            rotate	= -90,
+        )
+    )
+
+    # Rotation is upward around the upper-left corner, so lower-left corner will shift 1 height
+    # upward and right; so start 1 height leftward and down.
+    public.add_region(
+        Image(
+            'address-r-bg',
+            x1		= public.x2 - address_height,
+            y1		= public.y2,
+            x2		= public.x2 - address_height + address_length,
+            y2		= public.y2 + address_height,
+            rotate	= +90,
+        )
+    ).add_region(
+        Text(
+            'address-r',
+            rotate	= +90,
+        )
+    )
+
+    # Make Public QR Code square w/ min of height, width, anchored at lower-left corner
+    public.add_region_proportional(
+        Text( 'address-qr-top',	x1=1/16, y1=8/16, x2=1, y2=9/16 )
+    )
+    public_qr			= public.add_region_proportional(
+        Image( 'address-qr', 	x1=1/16, y1=9/16, x2=1, y2=15/16 )
+    )
+    public_qr_size		= min( public_qr.x2 - public_qr.x1, public_qr.y2 - public_qr.y1 )
+    public_qr.x2		= public_qr.x1 + public_qr_size
+    public_qr.y1		= public_qr.y2 - public_qr_size
+    public.add_region_proportional(
+        Text( 'address-qr-bot',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
+    )
+
+    private.add_region_proportional(
+        Text( 'private-qr-top',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
+    )
+    private_qr			= private.add_region_proportional(
+        Image( 'private-qr',	x1=1/16, y1=6/16, x2=1, y2=15/16 )
+    )
+    private_qr_size		= min( private_qr.x2 - private_qr.x1, private_qr.y2 - private_qr.y1 )
+    private_qr.x2		= private_qr.x1 + private_qr_size
+    private_qr.y1		= private_qr.y2 - private_qr_size
+    private.add_region_proportional(
+        Text( 'private-qr-bot',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
+    )
+    return wallet
+
+
+def layout_components(
+    pdf: FPDF,
+    comp_dim: Coordinate,
+    page_margin_mm: float	= .25 * 25.4,   # 1/4" in mm.
+) -> Tuple[int, Callable[[int],[int, Coordinate]]]:
+    """Compute the number of components per pdf page, and a function returning the page # and
+    component (x,y) for the num'th component."""
+
+    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    # Allow 5% bleed over into page margins (to allow for slight error in paper vs. comp sizes)
+    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // comp_dim.x )
+    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // comp_dim.y )
+    comps_pp			= comp_rows * comp_cols
+
+    def page_xy( num ):
+        """Returns the page, and the coordinates within that page of the num'th component"""
+        page,nth		= divmod( num, comps_pp )
+        page_rows,page_cols	= divmod( nth, comp_cols )
+        offsetx			= page_margin_mm + page_cols * comp_dim.x
+        offsety			= page_margin_mm + page_rows * comp_dim.y
+        log.debug( f"{ordinal(num)} {comp_dim.x:7.5f}mm x {comp_dim.y:7.5f}mm component on page {page}, offset {offsetx:7.5f}mm x {offsety:7.5f}mm" )
+        return (page, Coordinate( x=offsetx, y=offsety ))
+
+    return (comps_pp, page_xy)
+
+
 def layout_pdf(
         card_dim: Coordinate,                   # mm.
-        page_margin_mm: float	= .25 * 25.4,   # mm.
+        page_margin_mm: float	= .25 * 25.4,   # 1/4" in mm.
         orientation: str	= 'portrait',
         paper_format: str	= 'Letter'
-) -> Tuple[int, FPDF, Callable[[int],[int, Coordinate]]]:
+) -> Tuple[int, Callable[[int],[int, Coordinate]], FPDF, str]:
     """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
     cards per page, the FPDF, and a function useful for laying out templates on the pages of the
     PDF."""
@@ -260,20 +375,9 @@ def layout_pdf(
     )
     pdf.set_margin( 0 )
 
-    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
-    # Allow 5% bleed over into page margins (to allow for slight error in paper vs. card sizes)
-    card_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // card_dim.x )
-    card_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // card_dim.y )
-    cards_pp			= card_rows * card_cols
-
-    def page_xy( num ):
-        """Returns the page, and the coordinates within that page"""
-        page,nth		= divmod( num, cards_pp )
-        page_rows,page_cols	= divmod( nth, card_cols )
-        return (page, Coordinate( page_margin_mm + page_cols * card_dim.x,
-                                  page_margin_mm + page_rows * card_dim.y ))
-
-    return (cards_pp, orientation, pdf, page_xy)
+    return layout_components(
+        pdf, comp_dim=card_dim, page_margin_mm=page_margin_mm
+    ) + (pdf, orientation)
 
 
 def output_pdf(
@@ -303,7 +407,7 @@ def output_pdf(
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
     page_margin_mm		= PAGE_MARGIN * 25.4
-    cards_pp,orientation,pdf,page_xy = max(
+    cards_pp,page_xy,pdf,orientation = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in ('portrait', 'landscape')
     )
@@ -379,8 +483,10 @@ def write_pdfs(
     card		= None,		# False outputs no PDF
     paper		= None,
     filename		= None,
-    json_pwd		= None,		# If JSON wallet output desired, supply '-' or password
+    json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
+    wallet_pwd		= None,		# If paper wallet images desired, supply password
+    wallet_format	= None,		# ... and a format (eg. 'third')
 ):
     """Writes a PDF containing a unique SLIP-39 encoded seed for each of the names specified.
 
@@ -446,9 +552,9 @@ def write_pdfs(
                 for mnem in g_mnems:
                     print( f"{name}{name and ': ' or ''}{mnem}" )
 
-        # Unless --no-card specified, output a PDF containing the SLIP-39 mnemonic recovery cards
+        # Unless no card or paper wallets specified, output a PDF containing the SLIP-39 mnemonic recovery cards
         pdf			= None
-        if card is not False:
+        if card is not False or wallet_pwd:
             pdf,_		= output_pdf(
                 *details,
                 card_format	= card or CARD,
@@ -525,6 +631,72 @@ def write_pdfs(
                         pdf.cell( col_width, line_height, line )
                         pdf.ln( line_height )
                     pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
+
+        if wallet_pwd:
+            # Deduce the paper wallet size and create a template.  All layouts are in specified in
+            # inches; template dimensions are in mm.
+            try:
+                (wall_h,wall_w),wall_margin = WALLET_SIZES[wallet_format.lower() if wallet_format else WALLET]
+            except KeyError:
+                (wall_h,wall_w),wall_margin = ast.literal_eval( wallet_format )
+            log.warning( f"Producing {wall_w:.3f}in x {wall_h:.3f}in Paper Wallets" )
+            wall		= layout_wallet( Coordinate( y=wall_h, x=wall_w ), wall_margin )  # converts to mm
+            wall_dim		= wall.dimensions()
+
+            # Lay out wallets, always in Portrait orientation
+            pdf.add_page( orientation='P' )
+            page_margin_mm	= PAGE_MARGIN * 25.4
+
+            walls_pp,page_xy	= layout_components( pdf, comp_dim=wall_dim, page_margin_mm=page_margin_mm )
+            elements		= list( wall.elements() )
+            if log.isEnabledFor( logging.DEBUG ):
+                log.debug( f"Wallet elements: {json.dumps( elements, indent=4)}" )
+            wall_tpl		= FlexTemplate( pdf, elements )
+
+            # Place each Paper Wallet adding pages as necessary (we already have the first fresh page).
+            wall_n		= 0
+            page_n		= 0
+            for account_group in accounts:
+                for c_n,account in enumerate( account_group ):
+                    p,(offsetx,offsety) = page_xy( wall_n )
+                    if p != page_n:
+                        pdf.add_page( orientation='P' )
+                        page_n	= p
+                    wall_n     += 1
+                    log.info( f"{ordinal(wall_n):5} {account.crypto} Paper Wallet at {offsetx:5},{offsety:5}" )
+                    images			= os.path.join( os.path.dirname( __file__ ), '..', 'images' )
+                    wall_tpl['wallet-bg']	= os.path.join( images, 'paper-wallet-background.png' )
+                    wall_tpl[f"crypto-f{c_n}"]	= account.crypto
+                    wall_tpl[f"crypto-b{c_n}"]	= account.crypto
+
+                    public_qr	= qrcode.QRCode(
+                        version		= None,
+                        error_correction = qrcode.constants.ERROR_CORRECT_M,
+                        box_size	= 10,
+                        border		= 2,
+                    )
+                    public_qr.add_data( account.address )
+                    wall_tpl['address-l-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['address-l']	= account.address
+                    wall_tpl['address-r-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['address-r']	= account.address
+                    wall_tpl['address-qr-top']	= 'PUBLIC ADDRESS'
+                    wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
+                    wall_tpl['address-qr-bot']	= 'DEPOSIT/VERIFY'
+
+                    private_qr	= qrcode.QRCode(
+                        version		= None,
+                        error_correction = qrcode.constants.ERROR_CORRECT_M,
+                        box_size	= 10,
+                        border		= 2,
+                    )
+                    private_qr.add_data( account.key )
+                    #wall_tpl['private']		= # TODO: Get BIP-38 encrypted private key
+                    wall_tpl['private-qr-top']	= 'PRIVATE KEY'
+                    wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()
+                    wall_tpl['private-qr-bot']	= 'SPEND'
+
+                    wall_tpl.render( offsetx=offsetx, offsety=offsety )
 
         if pdf:
             pdf.output( pdf_name )

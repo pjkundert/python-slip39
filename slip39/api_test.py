@@ -2,7 +2,7 @@ import json
 
 import shamir_mnemonic
 
-from .api		import account, create, addresses, addressgroups, accountgroups
+from .			import account, create, addresses, addressgroups, accountgroups, Account
 from .recovery		import recover
 
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS
@@ -44,6 +44,23 @@ def test_account():
     acct			= account( SEED_XMAS, crypto='Dogecoin' )
     assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
     assert acct.path == "m/44'/3'/0'/0/0"
+
+
+def test_account_bip38():
+    """Ensure BIP-38 encryption and recovery works"""
+
+    acct			= account( SEED_XMAS, crypto='Bitcoin' )
+    assert acct.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
+    assert acct.crypto == 'BTC'
+    assert acct.path == "m/84'/0'/0'/0/0"
+    assert acct.legacy_address() == "134t1ktyF6e4fNrJR8L6nXtaTENJx9oGcF"
+
+    bip38_encrypted		= acct.bip38( 'password' )
+    assert bip38_encrypted == '6PYKmUhfJa5m1NR2zUaeHC3wUzGDmb1seSEgQHK7PK5HaVRHQSp7N4ytVf'
+
+    acct_reco			= Account( crypto='Bitcoin' ).from_bip38( bip38_encrypted, 'password' )
+    assert acct_reco.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
+    assert acct_reco.legacy_address() == "134t1ktyF6e4fNrJR8L6nXtaTENJx9oGcF"
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )

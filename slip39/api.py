@@ -1,15 +1,21 @@
+import base58
+import codecs
+import hashlib
 import itertools
 import logging
 import math
 import re
 import secrets
 
+from Crypto.Cipher import AES
 from collections	import namedtuple
 from typing		import Dict, List, Sequence, Tuple, Union, Callable
 
 from shamir_mnemonic	import generate_mnemonics
 
-from .types		import Account
+import hdwallet
+import scrypt
+
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO
 from .util		import ordinal
 
@@ -17,6 +23,244 @@ from .util		import ordinal
 RANDOM_BYTES			= secrets.token_bytes
 
 log				= logging.getLogger( __package__ )
+
+
+def path_edit(
+    path: str,
+    edit: str,
+):
+    """Replace the current path w/ the new path, either entirely, or if only partially if a continuation
+    '.../' followed by some new path segments is provided.
+
+    """
+    if edit.startswith( '..' ):
+        new_segs	= edit.lstrip( './' ).split( '/' )
+        cur_segs	= path.split( '/' )
+        log.info( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
+        if len( new_segs ) >= len( cur_segs ):
+            raise ValueError( f"Cannot use {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
+        res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + new_segs
+        return '/'.join( res_segs )
+    else:
+        return edit
+
+
+class Account( hdwallet.HDWallet ):
+
+    """Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
+    addresses use standard BIP44 derivation.
+
+
+    | Crypto | Semantic | Path             | Address |
+    |        |          |                  | <       |
+    |--------+----------+------------------+---------|
+    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
+    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |
+    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |
+    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |
+    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |
+    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |
+    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |
+    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |
+
+    """
+    CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'DOGE',)  # Currently supported
+    CRYPTO_NAMES		= dict(
+        ethereum	= 'ETH',
+        bitcoin		= 'BTC',
+        litecoin	= 'LTC',
+        dogecoin	= 'DOGE',
+    )
+
+    BIP38_CAPABLE		= ('BTC',)
+
+    CRYPTO_FORMAT		= dict(
+        ETH		= "legacy",
+        BTC		= "bech32",
+        LTC		= "bech32",
+        DOGE		= "legacy",
+    )
+    FORMATS		= ("legacy", "segwit", "bech32")
+
+    CRYPTO_FORMAT_PATH		= dict(
+        ETH		= dict(
+            legacy	= "m/44'/60'/0'/0/0",
+        ),
+        BTC		= dict(
+            legacy	= "m/44'/0'/0'/0/0",
+            segwit	= "m/44'/0'/0'/0/0",
+            bech32	= "m/84'/0'/0'/0/0",
+        ),
+        LTC		= dict(
+            legacy	= "m/44'/2'/0'/0/0",
+            segwit	= "m/44'/2'/0'/0/0",
+            bech32	= "m/84'/2'/0'/0/0",
+        ),
+        DOGE		= dict(
+            legacy	="m/44'/3'/0'/0/0",
+        )
+    )
+
+    @classmethod
+    def path_default( cls, crypto, format=None ):
+        """Return the default derivation path for the given crypto, based on its currently selected default
+        address format.
+
+        """
+        crypto			= cls.supported( crypto )
+        format			= format.lower() if format else cls.address_format( crypto )
+        if format not in cls.CRYPTO_FORMAT_PATH[crypto]:
+            raise ValueError( f"{format} not supported for {crypto}; specify one of {', '.join( cls.CRYPTO_FORMAT_PATH[crypto].keys() )}" )
+        return cls.CRYPTO_FORMAT_PATH[crypto][format]
+
+    @classmethod
+    def address_format( cls, crypto, format=None ):
+        """Get or set the desired default address format for the specified supported crypto.  Future
+        instances of Address created for the crypto will use the specified address format and its
+        default derivation path.
+
+        """
+        crypto			= cls.supported( crypto )
+        if format is None:
+            return cls.CRYPTO_FORMAT[crypto]
+
+        format			= format.lower() if format else None
+        if format not in cls.FORMATS:
+            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {', '.join( cls.FORMATS )}" )
+        cls.CRYPTO_FORMAT[crypto]	= format
+
+    @classmethod
+    def supported( cls, crypto ):
+        """Validates that the specified cryptocurrency is supported and returns the normalized short name
+        for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
+
+        """
+        validated			= cls.CRYPTO_NAMES.get(
+            crypto.lower(),
+            crypto.upper() if crypto.upper() in cls.CRYPTOCURRENCIES else None
+        )
+        if validated:
+            return validated
+        raise ValueError( f"{crypto} not presently supported; specify {', '.join( cls.CRYPTOCURRENCIES )}" )
+
+    def __init__( self, crypto, format=None ):
+        crypto			= Account.supported( crypto )
+        self.format		= format.lower() if format else Account.address_format( crypto )
+        if self.format in ("legacy", "segwit",):
+            self.hdwallet	= hdwallet.BIP44HDWallet( symbol=crypto )
+        elif self.format in ("bech32",):
+            self.hdwallet	= hdwallet.BIP84HDWallet( symbol=crypto )
+        else:
+            raise ValueError( f"{crypto} does not support address format {self.format}" )
+
+    def from_seed( self, seed: str, path: str = None ) -> "Account":
+        """Derive the Account from the supplied seed and (optionally) path; uses the default derivation path
+        for the Account address format, if None provided.
+
+        """
+        if type( seed ) is bytes:
+            seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+        self.hdwallet.from_seed( seed )
+        self.from_path( path )
+        return self
+
+    def from_path( self, path: str = None ) -> "Account":
+        """Change the Account to derive from the provided path.
+
+        If a partial path is provided (eg "...1'/0/3"), then use it to replace the given segments in
+        current account path, leaving the remainder alone.
+
+        """
+        if path:
+            path		= path_edit( self.path, path )
+        else:
+            path		= Account.path_default( self.crypto, self.format )
+        self.hdwallet.clean_derivation()
+        self.hdwallet.from_path( path )
+        return self
+
+    @property
+    def address( self ):
+        if self.format == "legacy":
+            return self.legacy_address()
+        elif self.format == "segwit":
+            return self.segwit_address()
+        elif self.format == "bech32":
+            return self.bech32_address()
+        raise ValueError( f"Unknown addresses semantic: {self.format}" )
+
+    def legacy_address( self ):
+        return self.hdwallet.p2pkh_address()
+
+    def segwit_address( self ):
+        return self.hdwallet.p2sh_address()
+
+    def bech32_address( self ):
+        return self.hdwallet.p2wpkh_address()
+
+    @property
+    def crypto( self ):
+        return self.hdwallet._cryptocurrency.SYMBOL
+
+    @property
+    def path( self ):
+        return self.hdwallet.path()
+
+    @property
+    def key( self ):
+        return self.hdwallet.private_key()
+
+    def from_private_key( self, private_key ):
+        self.hdwallet.from_private_key( private_key )
+        return self
+
+    def bip38( self, passphrase, flagbyte=b'\xe0' ):
+        """BIP-38 encrypt the private key"""
+        if self.crypto not in self.BIP38_CAPABLE:
+            raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key encryption" )
+        private_hex		= self.key
+        addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
+        addrhash		= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
+        if isinstance( passphrase, str ):
+            passphrase		= passphrase.encode( 'UTF-8' )
+        key			= scrypt.hash( passphrase, addrhash, 16384, 8, 8, 64 )
+        derivedhalf1		= key[0:32]
+        derivedhalf2		= key[32:64]
+        aes			= AES.new( derivedhalf2, AES.MODE_ECB )
+        enchalf1		= aes.encrypt( ( int( private_hex[ 0:32], 16 ) ^ int.from_bytes( derivedhalf1[ 0:16], 'big' )).to_bytes( 16, 'big' ))
+        enchalf2		= aes.encrypt( ( int( private_hex[32:64], 16 ) ^ int.from_bytes( derivedhalf1[16:32], 'big' )).to_bytes( 16, 'big' ))
+        prefix			= b'\x01\x42'
+        encrypted_privkey	= prefix + flagbyte + addrhash + enchalf1 + enchalf2
+        return base58.b58encode_check( encrypted_privkey ).decode( 'UTF-8' )
+
+    def from_bip38( self, encrypted_privkey, passphrase ):
+        # Decode the encrypted private key, discarding the 4-byte check suffix
+        d			= base58.b58decode_check( encrypted_privkey )
+        assert len( d ) == 43 - 4, \
+            f"BIP-38 encrypted key should be 43 bytes long, not {len( d ) + 4} bytes"
+        pre,flag,ahash,eh1,eh2	= d[0:2],d[2:3],d[3:7],d[7:7+16],d[7+16:7+32]
+        assert pre == b'\x01\x42', \
+            f"Unrecognized BIP-38 encryption prefix: {pre!r}"
+        assert flag in ( b'\xc0', b'\xe0' ), \
+            f"Unrecognized BIP-38 flagbyte: {flag!r}"
+        if isinstance( passphrase, str ):
+            passphrase		= passphrase.encode( 'UTF-8' )
+        key			= scrypt.hash( passphrase, ahash, 16384, 8, 8, 64 )
+        derivedhalf1		= key[0:32]
+        derivedhalf2		= key[32:64]
+        aes			= AES.new( derivedhalf2, AES.MODE_ECB )
+        dechalf2		= aes.decrypt( eh2 )
+        dechalf1		= aes.decrypt( eh1 )
+        priv			= dechalf1 + dechalf2
+        priv			= ( int.from_bytes( priv, 'big' ) ^ int.from_bytes( derivedhalf1, 'big' )).to_bytes( 32, 'big' )
+        # OK, we have the Private Key; we can recover the account, then verify the
+        # remainder of the checks
+        private_hex		= codecs.encode( priv, 'hex_codec' ).decode( 'ascii' )
+        self.from_private_key( private_hex )
+        addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
+        assert hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4] == ahash, \
+            "BIP-38 verification failed; password is incorrect."
+        return self
 
 
 def path_parser(

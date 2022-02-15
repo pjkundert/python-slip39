@@ -10,7 +10,7 @@ from serial		import Serial
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, BAUDRATE
-from ..types		import Account, path_edit
+from ..			import Account, path_edit
 from ..api		import accountgroups, RANDOM_BYTES
 
 log				= logging.getLogger( __package__ )
