@@ -117,7 +117,7 @@ class Text( Region ):
         d			= super().element()
         d['type']		= 'T'
         d['font']		= FONTS.get( self.font ) or self.font or FONTS.get( 'sans' )
-        line_height		= (self.y2 - self.y1) * 72      # points
+        line_height		= (self.y2 - self.y1) * 72  # Postscript point == 1/72 inch
         d['size']		= self.size or ( line_height * self.size_ratio )  # No need for int(round(..))
         if self.text is not None:
             d['text']		= self.text
@@ -307,10 +307,10 @@ def layout_wallet(
 
     # Make Public QR Code square w/ min of height, width, anchored at lower-left corner
     public.add_region_proportional(
-        Text( 'address-qr-top',	x1=1/16, y1=8/16, x2=1, y2=9/16 )
+        Text( 'address-qr-top',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
     )
     public_qr			= public.add_region_proportional(
-        Image( 'address-qr', 	x1=1/16, y1=9/16, x2=1, y2=15/16 )
+        Image( 'address-qr', 	x1=1/16, y1=6/16, x2=1, y2=15/16 )
     )
     public_qr_size		= min( public_qr.x2 - public_qr.x1, public_qr.y2 - public_qr.y1 )
     public_qr.x2		= public_qr.x1 + public_qr_size
@@ -319,17 +319,42 @@ def layout_wallet(
         Text( 'address-qr-bot',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
     )
 
+    # Private region
     private.add_region_proportional(
-        Text( 'private-qr-top',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
+        Text( 'private-qr-top',	x1=0/16, y1=5/16, x2=1, y2=6/16 )
     )
     private_qr			= private.add_region_proportional(
-        Image( 'private-qr',	x1=1/16, y1=6/16, x2=1, y2=15/16 )
+        Image( 'private-qr',	x1=0/16, y1=6/16, x2=1, y2=15/16 )
     )
     private_qr_size		= min( private_qr.x2 - private_qr.x1, private_qr.y2 - private_qr.y1 )
     private_qr.x2		= private_qr.x1 + private_qr_size
     private_qr.y1		= private_qr.y2 - private_qr_size
     private.add_region_proportional(
-        Text( 'private-qr-bot',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
+        Text( 'private-qr-bot',	x1=0/16, y1=15/16, x2=1, y2=16/16 )
+    )
+
+    # We'll use the right side of the private region, rotated down and right.  So, we need the
+    # upper-left corner of the private-bg anchored at the upper-right corner of private.
+    private_length		= private.y2 - private.y1
+    private_height		= private.x2 - private_qr.x2
+    private_fontsize		= 8   # points == 1/72 inch
+    private_fontwidth		= private_length
+
+    public.add_region(
+        Image(
+            'private-bg',
+            x1		= private.x2,
+            y1		= private.y1,
+            x2		= private.x2 + private_height,
+            y2		= private.y1 - private_length,
+            rotate	= -180,
+        )
+    ).add_region(
+        Text(
+            'private',
+            size	= private_fontsize,
+            rotate	= -180,
+        )
     )
     return wallet
 
@@ -662,8 +687,15 @@ def write_pdfs(
                     if p != page_n:
                         pdf.add_page( orientation='P' )
                         page_n	= p
+                    try:
+                        private_bip38		= account.bip38( 'password' )
+                    except NotImplementedError as exc:
+                        log.exception( f"{account.crypto} doesn't support BIP-38: {exc}" )
+                        continue
+
                     wall_n     += 1
-                    log.info( f"{ordinal(wall_n):5} {account.crypto} Paper Wallet at {offsetx:5},{offsety:5}" )
+                    log.info( f"{ordinal( wall_n ):5} {account.crypto} Paper Wallet at {offsetx:5},{offsety:5}" )
+
                     images			= os.path.join( os.path.dirname( __file__ ), '..', 'images' )
                     wall_tpl['wallet-bg']	= os.path.join( images, 'paper-wallet-background.png' )
                     wall_tpl[f"crypto-f{c_n}"]	= account.crypto
@@ -673,7 +705,7 @@ def write_pdfs(
                         version		= None,
                         error_correction = qrcode.constants.ERROR_CORRECT_M,
                         box_size	= 10,
-                        border		= 2,
+                        border		= 1,
                     )
                     public_qr.add_data( account.address )
                     wall_tpl['address-l-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
@@ -684,14 +716,17 @@ def write_pdfs(
                     wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['address-qr-bot']	= 'DEPOSIT/VERIFY'
 
+
                     private_qr	= qrcode.QRCode(
                         version		= None,
                         error_correction = qrcode.constants.ERROR_CORRECT_M,
                         box_size	= 10,
-                        border		= 2,
+                        border		= 1,
                     )
-                    private_qr.add_data( account.key )
-                    #wall_tpl['private']		= # TODO: Get BIP-38 encrypted private key
+                    private_qr.add_data( private_bip38 )
+
+                    wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['private']		= private_bip38
                     wall_tpl['private-qr-top']	= 'PRIVATE KEY'
                     wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['private-qr-bot']	= 'SPEND'
