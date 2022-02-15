@@ -268,7 +268,6 @@ def layout_wallet(
     # longer ETH addresses into a space with a fixed-width font, we know that the ratio of the width
     # to the height has to be about 1/20.  Rotation is downward around upper-left corner; so,
     # lower-left corner will shift 1 height leftward and upward; so start 1 height right and down.
-
     address_length		= public.y2 - public.y1
     address_height		= address_length * 1/19
     public.add_region(
@@ -333,11 +332,12 @@ def layout_wallet(
         Text( 'private-qr-bot',	x1=0/16, y1=15/16, x2=1, y2=16/16 )
     )
 
-    # We'll use the right side of the private region, rotated down and right.  So, we need the
-    # upper-left corner of the private-bg anchored at the upper-right corner of private.
-    private_length		= private.y2 - private.y1
-    private_height		= private.x2 - private_qr.x2
+    # We'll use the right side of the private region, each line rotated 90 degrees down and right.
+    # So, we need the upper-left corner of the private-bg anchored at the upper-right corner of
+    # private.
+    private_length		= private.y2 - private.y1	# line length is y-height
     private_fontsize		= 8   # points == 1/72 inch
+    private_height		= private.x2 - private_qr.x2	# line height is 
     private_fontwidth		= private_length
 
     public.add_region(
@@ -345,15 +345,15 @@ def layout_wallet(
             'private-bg',
             x1		= private.x2,
             y1		= private.y1,
-            x2		= private.x2 + private_height,
-            y2		= private.y1 - private_length,
-            rotate	= -180,
+            x2		= private.x2 + private_length + private_height,
+            y2		= private.y1 + private_height,
+            rotate	= -90,
         )
     ).add_region(
         Text(
             'private',
             size	= private_fontsize,
-            rotate	= -180,
+            rotate	= -90,
         )
     )
     return wallet
@@ -598,65 +598,6 @@ def write_pdfs(
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
 
-        if json_pwd:
-            # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
-            # password than the SLIP-39 master secret encryption passphrase.  It will be required to
-            # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
-            assert eth_account, \
-                "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
-                "    python3 -m pip install eth-account"
-            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
-                "--json is only valid if '--crypto ETH' wallets are specified"
-            if json_pwd == '-':
-                json_pwd	= input_secure( 'JSON key file password: ', secret=True )
-            else:
-                log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
-
-            for eth in (
-                account
-                for group in accounts
-                for account in group
-                if account.crypto == 'ETH'
-            ):
-                json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
-                json_name	= ( filename or FILENAME_FORMAT ).format(
-                    name	= name or "SLIP39",
-                    date	= datetime.strftime( now, '%Y-%m-%d' ),
-                    time	= datetime.strftime( now, '%H.%M.%S'),
-                    crypto	= eth.crypto,
-                    path	= eth.path,
-                    address	= eth.address,
-                )
-                if json_name.lower().endswith( '.pdf' ):
-                    json_name	= json_name[:-4]
-                json_name      += '.json'
-                while os.path.exists( json_name ):
-                    log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
-                    json_name  += '.new'
-                with open( json_name, 'w' ) as json_f:
-                    json_f.write( json_str )
-                log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
-
-                if pdf:
-                    # Add the encrypted JSON account recovery to the PDF also, if generated.
-                    pdf.add_page()
-                    margin_mm	= PAGE_MARGIN * 25.4
-                    pdf.set_margin( 1.0 * 25.4 )
-
-                    col_width	= pdf.epw - 2 * margin_mm
-                    pdf.set_font( FONTS['sans'], size=10 )
-                    line_height	= pdf.font_size * 1.2
-                    pdf.cell( col_width, line_height, json_name )
-                    pdf.ln( line_height )
-
-                    pdf.set_font( FONTS['sans'], size=9 )
-                    line_height	= pdf.font_size * 1.1
-
-                    for line in json_str.split( '\n' ):
-                        pdf.cell( col_width, line_height, line )
-                        pdf.ln( line_height )
-                    pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
-
         if wallet_pwd:
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
             # inches; template dimensions are in mm.
@@ -726,12 +667,76 @@ def write_pdfs(
                     private_qr.add_data( private_bip38 )
 
                     wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
-                    wall_tpl['private']		= private_bip38
+                    def chunker( sequence, size ):
+                        while sequence:
+                            yield sequence[:size]
+                            sequence		= sequence[size:]
+                    
+                    wall_tpl['private']		= '\n    '.join( chunker( private_bip38, 32 ))
                     wall_tpl['private-qr-top']	= 'PRIVATE KEY'
                     wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['private-qr-bot']	= 'SPEND'
 
                     wall_tpl.render( offsetx=offsetx, offsety=offsety )
+
+        if json_pwd:
+            # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
+            # password than the SLIP-39 master secret encryption passphrase.  It will be required to
+            # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
+            assert eth_account, \
+                "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
+                "    python3 -m pip install eth-account"
+            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
+                "--json is only valid if '--crypto ETH' wallets are specified"
+            if json_pwd == '-':
+                json_pwd	= input_secure( 'JSON key file password: ', secret=True )
+            else:
+                log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
+
+            for eth in (
+                account
+                for group in accounts
+                for account in group
+                if account.crypto == 'ETH'
+            ):
+                json_str	= json.dumps( eth_account.Account.encrypt( eth.key, json_pwd ), indent=4 )
+                json_name	= ( filename or FILENAME_FORMAT ).format(
+                    name	= name or "SLIP39",
+                    date	= datetime.strftime( now, '%Y-%m-%d' ),
+                    time	= datetime.strftime( now, '%H.%M.%S'),
+                    crypto	= eth.crypto,
+                    path	= eth.path,
+                    address	= eth.address,
+                )
+                if json_name.lower().endswith( '.pdf' ):
+                    json_name	= json_name[:-4]
+                json_name      += '.json'
+                while os.path.exists( json_name ):
+                    log.error( "ERROR: Will NOT overwrite {json_name}; adding '.new'!" )
+                    json_name  += '.new'
+                with open( json_name, 'w' ) as json_f:
+                    json_f.write( json_str )
+                log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
+
+                if pdf:
+                    # Add the encrypted JSON account recovery to the PDF also, if generated.
+                    pdf.add_page()
+                    margin_mm	= PAGE_MARGIN * 25.4
+                    pdf.set_margin( 1.0 * 25.4 )
+
+                    col_width	= pdf.epw - 2 * margin_mm
+                    pdf.set_font( FONTS['sans'], size=10 )
+                    line_height	= pdf.font_size * 1.2
+                    pdf.cell( col_width, line_height, json_name )
+                    pdf.ln( line_height )
+
+                    pdf.set_font( FONTS['sans'], size=9 )
+                    line_height	= pdf.font_size * 1.1
+
+                    for line in json_str.split( '\n' ):
+                        pdf.cell( col_width, line_height, line )
+                        pdf.ln( line_height )
+                    pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
 
         if pdf:
             pdf.output( pdf_name )

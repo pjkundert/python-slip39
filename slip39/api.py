@@ -2,6 +2,7 @@ import base58
 import codecs
 import hashlib
 import itertools
+import json
 import logging
 import math
 import re
@@ -15,6 +16,10 @@ from shamir_mnemonic	import generate_mnemonics
 
 import hdwallet
 import scrypt
+try:
+    import eth_account
+except ImportError:
+    eth_account			= None
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO
 from .util		import ordinal
@@ -64,15 +69,16 @@ class Account( hdwallet.HDWallet ):
     | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |
 
     """
-    CRYPTOCURRENCIES		= ('ETH', 'BTC', 'LTC', 'DOGE',)  # Currently supported
-    CRYPTO_NAMES		= dict(
+    CRYPTO_NAMES		= dict(				# Currently supported
         ethereum	= 'ETH',
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
         dogecoin	= 'DOGE',
     )
+    CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
 
-    BIP38_CAPABLE		= ('BTC',)
+    ETHJS_ENCRYPT		= set( ('ETH',) )			# Can be encrypted w/ Ethereum JSON wallet
+    BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT	# Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
         ETH		= "legacy",
@@ -214,9 +220,29 @@ class Account( hdwallet.HDWallet ):
         self.hdwallet.from_private_key( private_key )
         return self
 
+    def encrypted( self, passphrase ):
+        """Output the appropriately encrypted private key for this cryptocurrency.  Ethereum uses
+        encrypted JSON wallet standard, Bitcoin et.al. use BIP-38 encrypted private keys."""
+        if self.crypto in self.ETHJS_ENCRYPT:
+            if not eth_account:
+                raise NotImplementedError( "The eth-account package is required to support Ethereum JSON wallet encryption" )
+            wallet_dict		= eth_account.Account.encrypt( self.key, passphrase )
+            return json.dumps( wallet_dict, separators=(',',':') )
+        return self.bip38( passphrase )
+
+    def from_encrypted( self, encrypted_privkey, passphrase, strict=True ):
+        """Import the appropriately decrypted private key for this cryptocurrency."""
+        if self.crypto in self.ETHJS_ENCRYPT:
+            if not eth_account:
+                raise NotImplementedError( "The eth-account package is required to support Ethereum JSON wallet decryption" )
+            private_hex		= bytes( eth_account.Account.decrypt( encrypted_privkey, passphrase )).hex()
+            self.from_private_key( private_hex )
+            return self
+        return self.from_bip38( encrypted_privkey, passphrase=passphrase, strict=strict )
+
     def bip38( self, passphrase, flagbyte=b'\xe0' ):
         """BIP-38 encrypt the private key"""
-        if self.crypto not in self.BIP38_CAPABLE:
+        if self.crypto not in self.BIP38_ENCRYPT:
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key encryption" )
         private_hex		= self.key
         addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
@@ -231,10 +257,14 @@ class Account( hdwallet.HDWallet ):
         enchalf2		= aes.encrypt( ( int( private_hex[32:64], 16 ) ^ int.from_bytes( derivedhalf1[16:32], 'big' )).to_bytes( 16, 'big' ))
         prefix			= b'\x01\x42'
         encrypted_privkey	= prefix + flagbyte + addrhash + enchalf1 + enchalf2
+        # Encode the encrypted private key to base58, adding the 4-byte base58 check suffix
         return base58.b58encode_check( encrypted_privkey ).decode( 'UTF-8' )
 
-    def from_bip38( self, encrypted_privkey, passphrase ):
-        # Decode the encrypted private key, discarding the 4-byte check suffix
+    def from_bip38( self, encrypted_privkey, passphrase, strict=True ):
+        """Bip-38 decrypt and import the private key."""
+        if self.crypto not in self.BIP38_ENCRYPT:
+            raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key decryption" )
+        # Decode the encrypted private key from base58, discarding the 4-byte base58 check suffix
         d			= base58.b58decode_check( encrypted_privkey )
         assert len( d ) == 43 - 4, \
             f"BIP-38 encrypted key should be 43 bytes long, not {len( d ) + 4} bytes"
@@ -258,8 +288,13 @@ class Account( hdwallet.HDWallet ):
         private_hex		= codecs.encode( priv, 'hex_codec' ).decode( 'ascii' )
         self.from_private_key( private_hex )
         addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
-        assert hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4] == ahash, \
-            "BIP-38 verification failed; password is incorrect."
+        ahash_confirm		= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
+        if ahash_confirm != ahash:
+            warning		= f"BIP-38 address hash verification failed ({ahash_confirm.hex()} != {ahash.hex()}); password may be incorrect." 
+            if strict:
+                raise AssertionError( warning )
+            else:
+                log.warning( warning )
         return self
 
 
