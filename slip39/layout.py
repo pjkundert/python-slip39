@@ -98,13 +98,15 @@ class Region:
 
 
 class Text( Region ):
+    SIZE_RATIO			= 3/4
+
     def __init__( self, *args, font=None, text=None, size=None, size_ratio=None, align=None,
                   foreground=None, background=None, bold=None, italic=None, underline=None,
                   **kwds ):
         self.font		= font
         self.text		= text
         self.size		= size
-        self.size_ratio		= size_ratio or 3/4
+        self.size_ratio		= size_ratio or self.SIZE_RATIO
         self.align		= align
         self.foreground		= foreground
         self.background		= background
@@ -258,10 +260,10 @@ def layout_wallet(
     # Assign each different Crypto name a different color, in template labels crypto-{f,b}1, crypto-{f,b}2, ...
     for c_n in range( len( COLOR )):
         public.add_region_proportional(
-            Text( f'crypto-f{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=8/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
+            Text( f'crypto-f{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=7/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
         )
         private.add_region_proportional(
-            Text( f'crypto-b{c_n}', x1=2/8, y1=-1/16, x2=7/8, y2=8/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
+            Text( f'crypto-b{c_n}', x1=2/8, y1=-1/16, x2=7/8, y2=7/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
         )
 
     # Public addresses are vertical on left- and right-hand of public Region.  In order to fit the
@@ -269,7 +271,7 @@ def layout_wallet(
     # to the height has to be about 1/20.  Rotation is downward around upper-left corner; so,
     # lower-left corner will shift 1 height leftward and upward; so start 1 height right and down.
     address_length		= public.y2 - public.y1
-    address_height		= address_length * 1/19
+    address_height		= address_length * 1/20
     public.add_region(
         Image(
             'address-l-bg',
@@ -282,6 +284,7 @@ def layout_wallet(
     ).add_region(
         Text(
             'address-l',
+            font	= 'mono',
             rotate	= -90,
         )
     )
@@ -300,13 +303,14 @@ def layout_wallet(
     ).add_region(
         Text(
             'address-r',
+            font	= 'mono',
             rotate	= +90,
         )
     )
 
     # Make Public QR Code square w/ min of height, width, anchored at lower-left corner
     public.add_region_proportional(
-        Text( 'address-qr-top',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
+        Text( 'address-qr-t',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
     )
     public_qr			= public.add_region_proportional(
         Image( 'address-qr', 	x1=1/16, y1=6/16, x2=1, y2=15/16 )
@@ -315,12 +319,13 @@ def layout_wallet(
     public_qr.x2		= public_qr.x1 + public_qr_size
     public_qr.y1		= public_qr.y2 - public_qr_size
     public.add_region_proportional(
-        Text( 'address-qr-bot',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
+        Text( 'address-qr-b',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
     )
 
     # Private region
+
     private.add_region_proportional(
-        Text( 'private-qr-top',	x1=0/16, y1=5/16, x2=1, y2=6/16 )
+        Text( 'private-qr-t',	x1=0/16, y1=5/16, x2=1, y2=6/16 )
     )
     private_qr			= private.add_region_proportional(
         Image( 'private-qr',	x1=0/16, y1=6/16, x2=1, y2=15/16 )
@@ -329,33 +334,56 @@ def layout_wallet(
     private_qr.x2		= private_qr.x1 + private_qr_size
     private_qr.y1		= private_qr.y2 - private_qr_size
     private.add_region_proportional(
-        Text( 'private-qr-bot',	x1=0/16, y1=15/16, x2=1, y2=16/16 )
+        Text( 'private-qr-b',	x1=0/16, y1=15/16, x2=1, y2=16/16 )
     )
+
+    # Hint above; but same computed width as private_qr
+    private_h_t			= private.add_region_proportional(
+        Text( 'private-hint-t',	x1=0/16, y1=0/16, x2=1, y2=1/16 )
+    )
+    private_h_t.x2		= private_qr.x2
+    private_h_bg		= private.add_region_proportional(
+        Image( 'private-hint-bg',x1=0/16, y1=1/16, x2=1, y2=4/16 )
+    )
+    private_h_bg.x2		= private_qr.x2
+    private_h			= private.add_region_proportional(
+        Text( 'private-hint',	x1=0/16, y1=1/16, x2=1, y2=3/16 )
+    )
+    private_h.x2		= private_qr.x2
 
     # We'll use the right side of the private region, each line rotated 90 degrees down and right.
     # So, we need the upper-left corner of the private-bg anchored at the upper-right corner of
     # private.
     private_length		= private.y2 - private.y1	# line length is y-height
-    private_fontsize		= 8   # points == 1/72 inch
-    private_height		= private.x2 - private_qr.x2	# line height is 
-    private_fontwidth		= private_length
+    private_fontsize		= 6.8   # points == 1/72 inch
+    private_height		= private.x2 - private_qr.x2 - .05
+    private_lineheight		= private_fontsize / 72 / Text.SIZE_RATIO * .9  # in.
 
-    public.add_region(
+    private.add_region(
         Image(
             'private-bg',
             x1		= private.x2,
             y1		= private.y1,
-            x2		= private.x2 + private_length + private_height,
+            x2		= private.x2 + private_length,
             y2		= private.y1 + private_height,
             rotate	= -90,
         )
-    ).add_region(
-        Text(
-            'private',
-            size	= private_fontsize,
-            rotate	= -90,
-        )
     )
+    # Now, add private key lines down the edge from right to left, rotating each into place
+    for l in range( int( private_height // private_lineheight )):
+        private.add_region(
+            Text(
+                f"private-{l}",
+                font	= 'mono',
+                x1	= private.x2 - private_lineheight * l,
+                y1	= private.y1,
+                x2	= private.x2 + private_length,
+                y2	= private.y1 + private_lineheight,
+                size	= private_fontsize,
+                rotate	= -90,
+            )
+        )
+
     return wallet
 
 
@@ -511,7 +539,8 @@ def write_pdfs(
     json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
     wallet_pwd		= None,		# If paper wallet images desired, supply password
-    wallet_format	= None,		# ... and a format (eg. 'third')
+    wallet_pwd_hint	= None,		# an optional password hint
+    wallet_format	= None,		# and a paper wallet format (eg. 'third')
 ):
     """Writes a PDF containing a unique SLIP-39 encoded seed for each of the names specified.
 
@@ -629,9 +658,9 @@ def write_pdfs(
                         pdf.add_page( orientation='P' )
                         page_n	= p
                     try:
-                        private_bip38		= account.bip38( 'password' )
+                        private_enc		= account.encrypted( 'password' )
                     except NotImplementedError as exc:
-                        log.exception( f"{account.crypto} doesn't support BIP-38: {exc}" )
+                        log.exception( f"{account.crypto} doesn't support BIP-38 or JSON wallet encryption: {exc}" )
                         continue
 
                     wall_n     += 1
@@ -653,9 +682,9 @@ def write_pdfs(
                     wall_tpl['address-l']	= account.address
                     wall_tpl['address-r-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
                     wall_tpl['address-r']	= account.address
-                    wall_tpl['address-qr-top']	= 'PUBLIC ADDRESS'
+                    wall_tpl['address-qr-t']	= 'PUBLIC ADDRESS'
                     wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
-                    wall_tpl['address-qr-bot']	= 'DEPOSIT/VERIFY'
+                    wall_tpl['address-qr-b']	= 'DEPOSIT/VERIFY'
 
 
                     private_qr	= qrcode.QRCode(
@@ -664,18 +693,24 @@ def write_pdfs(
                         box_size	= 10,
                         border		= 1,
                     )
-                    private_qr.add_data( private_bip38 )
+                    private_qr.add_data( private_enc )
 
                     wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
                     def chunker( sequence, size ):
                         while sequence:
                             yield sequence[:size]
                             sequence		= sequence[size:]
-                    
-                    wall_tpl['private']		= '\n    '.join( chunker( private_bip38, 32 ))
-                    wall_tpl['private-qr-top']	= 'PRIVATE KEY'
+
+                    # If not enough lines, will throw Exception, as it should!  We don't want
+                    # to emit a Paper Wallet without the entire encrypted private key present.
+                    for l,line in enumerate( chunker( private_enc, 40 )):
+                        wall_tpl[f"private-{l}"]= line
+                    wall_tpl['private-hint-t']	= 'PASSPHRASE HINT:'
+                    wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['private-hint']	= wallet_pwd_hint
+                    wall_tpl['private-qr-t']	= 'PRIVATE KEY'
                     wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()
-                    wall_tpl['private-qr-bot']	= 'SPEND'
+                    wall_tpl['private-qr-b']	= 'SPEND'
 
                     wall_tpl.render( offsetx=offsetx, offsety=offsety )
 

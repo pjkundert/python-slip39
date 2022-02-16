@@ -31,9 +31,8 @@ tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readline
 extras_require			= {
     option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
     for option in [
-        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
-        'wallet',	# slip39[wallet]: Support output of encrypted BIP-38 and Ethereum JSON wallets
         'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
+        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
         'dev',		# slip39[dev]:    All modules to support development
     ]
 }

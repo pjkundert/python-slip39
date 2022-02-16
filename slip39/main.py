@@ -46,7 +46,10 @@ def main( argv=None ):
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
     ap.add_argument( '-w', '--wallet',
                      default=None,
-                     help="Product paper wallets in output PDF; each wallet private key is encrypted this password" )
+                     help="Produce paper wallets in output PDF; each wallet private key is encrypted this password" )
+    ap.add_argument( '--wallet-hint',
+                     default=None,
+                     help="Paper wallets password hint" )
     ap.add_argument( '--wallet-format',
                      default=None,
                      help=f"Paper wallet size; {', '.join(WALLET_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {WALLET})" )
@@ -117,6 +120,12 @@ def main( argv=None ):
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
+    wallet_pwd			= args.wallet
+    if wallet_pwd == '-':
+        wallet_pwd		= input_secure( 'Paper wallet passphrase: ', secret=True )
+    wallet_pwd_hint		= args.wallet_hint
+    wallet_format		= args.wallet_format
+
     try:
         write_pdfs(
             names		= args.names,
@@ -130,8 +139,9 @@ def main( argv=None ):
             filename		= args.output,
             json_pwd		= args.json,
             text		= args.text,
-            wallet_pwd		= args.wallet,
-            wallet_format	= args.wallet_format,
+            wallet_pwd		= wallet_pwd,
+            wallet_pwd_hint	= wallet_pwd_hint,
+            wallet_format	= wallet_format,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )
