@@ -556,7 +556,7 @@ def app(
     while event not in events_termination:
         # Create window (for initial window.read()), or update status
         if window:
-            window['-STATUS-'].update( status or 'OK', font=font_bold if status_error else font )
+            window['-STATUS-'].update( f"{status or 'OK':.145}{'...' if len(status)>145 else ''}", font=font_bold if status_error else font )
             window['-SAVE-'].update( disabled=status_error )
             window['-RECOVERY-'].update( f"of {len(groups)}" )
             window['-SD-SEED-F-'].expand( expand_x=True )
