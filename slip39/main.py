@@ -2,12 +2,12 @@ import argparse
 import codecs
 import logging
 
+from .			import Account
 from .api		import random_secret
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
-from .types		import Account
 from .defaults		import (   # noqa: F401
-    CARD, CARD_SIZES, PAPER,
+    CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
     BITS, BITS_DEFAULT,
     FILENAME_FORMAT,
     FILENAME_KEYWORDS,
@@ -41,9 +41,21 @@ def main( argv=None ):
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
                      help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+    ap.add_argument( '-p', '--path',
+                     default=None,
+                     help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
+    ap.add_argument( '-w', '--wallet',
+                     default=None,
+                     help="Produce paper wallets in output PDF; each wallet private key is encrypted this password" )
+    ap.add_argument( '--wallet-hint',
+                     default=None,
+                     help="Paper wallets password hint" )
+    ap.add_argument( '--wallet-format',
+                     default=None,
+                     help=f"Paper wallet size; {', '.join(WALLET_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {WALLET})" )
     ap.add_argument( '-s', '--secret',
                      default=None,
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
@@ -74,6 +86,12 @@ def main( argv=None ):
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+
+    # Confirm sanity of args
+    log.debug( f"args: {args!r}" )
+    if args.path:
+        assert args.path.startswith( 'm/' ) or ( args.path.startswith( '..' ) and args.path.lstrip( '.' ).startswith( '/' )), \
+            "A --path must start with 'm/', or '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
     # If any --format <crypto>:<format> address formats provided
     for cf in args.format:
@@ -111,6 +129,12 @@ def main( argv=None ):
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
 
+    wallet_pwd			= args.wallet
+    if wallet_pwd == '-':
+        wallet_pwd		= input_secure( 'Paper wallet passphrase: ', secret=True )
+    wallet_pwd_hint		= args.wallet_hint
+    wallet_format		= args.wallet_format
+
     try:
         write_pdfs(
             names		= args.names,
@@ -119,11 +143,15 @@ def main( argv=None ):
             group		= args.group,
             threshold		= args.threshold,
             cryptocurrency	= args.cryptocurrency,
+            edit		= args.path,
             card		= args.card,
             paper		= args.paper,
             filename		= args.output,
             json_pwd		= args.json,
             text		= args.text,
+            wallet_pwd		= wallet_pwd,
+            wallet_pwd_hint	= wallet_pwd_hint,
+            wallet_format	= wallet_format,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )

@@ -19,9 +19,9 @@ secure hardware device, like a Trezor hardware wallet.  SLIP39 Mnemonic
 cards contain the recovery words, which are typed directly into the
 Trezor device to recover the Seed, and all of its accounts.
 
-The macOS SLIP39 app helps you generate Mnemonic cards and back up this
-seed, securely and reliably, by distributing Mnemonic cards for the seed
-to partners, family and friends.
+The [macOS SLIP39 App] helps you generate Mnemonic cards and back up
+this seed, securely and reliably, by distributing Mnemonic cards for the
+seed to partners, family and friends.
 
 Later, if you (or your heirs!) need to recover the accounts, they can
 collect a sufficient threshold of the cards and regain access to the
@@ -34,6 +34,9 @@ Table of Contents
 2. Affiliate Links
 .. 1. Trezor
 3. Privacy Policy
+
+
+[macOS SLIP39 App] <https://github.com/pjkundert/python-slip39/releases>
 
 
 1 Security with Availability

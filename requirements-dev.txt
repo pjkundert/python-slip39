@@ -1,4 +1,6 @@
+build
+flake89
 pip
+pytest
 setuptools
 wheel
-build

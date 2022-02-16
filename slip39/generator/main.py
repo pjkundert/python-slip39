@@ -10,7 +10,7 @@ from serial		import Serial
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, BAUDRATE
-from ..types		import Account, path_edit
+from ..			import Account, cryptopaths_parser
 from ..api		import accountgroups, RANDOM_BYTES
 
 log				= logging.getLogger( __package__ )
@@ -125,13 +125,14 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         logging.getLogger().setLevel( log_cfg['level'] )
 
     # Confirm sanity of args
+    log.debug( f"args: {args!r}" )
     assert not args.encrypt or args.enumerate, \
         "When --encrypt is specified, --enumerated is required"
     assert not args.receive or not ( args.path or args.secret ), \
         "When --receive, no --path nor --secret allowed"
     if args.path:
-        assert args.path.lstrip( '.' ).startswith( '/' ), \
-            "A --path must start with '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
+        assert args.path.startswith( 'm/' ) or ( args.path.startswith( '..' ) and args.path.lstrip( '.' ).startswith( '/' )), \
+            "A --path must start with 'm/', or '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
     # If any --format <crypto>:<format> address formats provided
     for cf in args.format:
@@ -212,9 +213,14 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                     if read:
                         log.warning( f"{file!r:.36} {serial_status(*flow)}; Discarded {len(read)} input: {read!r:.32}{'...' if len(read) > 32 else ''}{read[-3:]!r}" )
 
-        # Continually attempt to receive records.
-        while True:
-            # Establish a session.
+        # Continually attempt to receive records.  If a file_opener is provided, we'll continue
+        # indefinitely (eg. a Serial connection, which may present multiple connections and
+        # disconnections.)  However, the default (sys.stdin) only continues 'til the first EOF.
+        first			= True
+        while first or file_opener:
+            first		= False
+
+            # (Re-)establish a session, if None established and a file_opener is provided.
             if file is None and file_opener:
                 file		= file_opener()
             if healthy_reset:
@@ -229,7 +235,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 encoding	= encoding,
                 healthy		= healthy,
             ):
-                if index and group:
+                if index is not None and group:
                     accountgroups_output( group, index=index )
                     continue
                 if healthy and healthy( file ):
@@ -245,18 +251,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
     # ...else...
     # Transmitting.
-    cryptopaths			= []
-    for crypto in args.cryptocurrency or ['ETH', 'BTC']:
-        try:
-            crypto,paths	= crypto.split( ':' )
-        except ValueError:
-            crypto,paths	= crypto,None
-        crypto			= Account.supported( crypto )
-        if paths is None:
-            paths		= Account.path_default( crypto )
-        if args.path:
-            paths		= path_edit( paths, args.path )
-        cryptopaths.append( (crypto,paths) )
+    cryptopaths			= cryptopaths_parser( args.cryptocurency, edit=args.path )
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow

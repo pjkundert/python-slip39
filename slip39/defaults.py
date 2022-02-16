@@ -41,17 +41,26 @@ FONTS				= dict(
 )
 
 #                                  Y      X       Margin
-CREDIT_CARD			= (2+1/4, 3+3/8), 1/16
-INDEX_CARD			= (3,     5),     1/8   # noqa: E241
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
-HALF_LETTER			= (4+1/2, 8),     1/4   # noqa: E241 (actually, 2/letter, 3/legal)
+CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
+INDEX_CARD			= (3,     5),     1/16  # noqa: E241
+HALF_LETTER			= (4+1/2, 8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
+THIRD_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
 
+# SLIP-39 Mnemonic Card Sizes
 CARD				= 'index'
 CARD_SIZES			= dict(
     index	= INDEX_CARD,
     credit	= CREDIT_CARD,
     business	= BUSINESS_CARD,
     half	= HALF_LETTER,
+    third	= THIRD_LETTER,
+)
+
+# Paper Wallet Bill Sizes
+WALLET				= 'third'
+WALLET_SIZES			= dict(
+    third	= THIRD_LETTER,
 )
 
 PAGE_MARGIN			= 1/4  # Typical printers cannot print within 1/4" of edge
@@ -64,14 +73,44 @@ BITS_DEFAULT			= 128
 MNEM_ROWS_COLS			= {
     20:	( 7, 3),		# 128-bit seed
     33:	(11, 3),		# 256-bit seed
-    59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor hardware wallet)
+    59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor)
 }
-
+MNEM_PREFIX			= {
+    20: '=',
+    33: '/\\',
+    59: '/|\\',
+}
 
 BAUDRATE			= 115200
 
-FILENAME_KEYWORDS		= [ 'name', 'date', 'time', 'crypto', 'path', 'address' ]
+FILENAME_KEYWORDS		= ['name', 'date', 'time', 'crypto', 'path', 'address']
 FILENAME_FORMAT			= "{name}-{date}+{time}-{crypto}-{address}.pdf"
 
 # Default Crypto accounts (and optional paths) to generate
-CRYPTO_PATHS			= [ 'ETH', 'BTC' ]
+CRYPTO_PATHS			= ('ETH', 'BTC')
+
+__o				= "BB"
+__h				= "DD"
+__f				= "FF"
+COLOR				= [
+    # Primary
+    f"0x{__o}{__o}{__f}",  # Blue
+    f"0x{__o}{__f}{__o}",  # Green
+    f"0x{__f}{__o}{__o}",  # Red
+    # Secondary
+    f"0x{__o}{__f}{__f}",  # Cyan,
+    f"0x{__f}{__o}{__f}",  # Magenta
+    f"0x{__f}{__f}{__o}",  # Yellow
+    # Tertiary
+    f"0x{__o}{__h}{__f}",  # Ocean
+    f"0x{__o}{__f}{__h}",  # Turquoise
+    f"0x{__f}{__o}{__h}",  # Red-Magenta
+    f"0x{__h}{__o}{__f}",  # Violet
+    f"0x{__h}{__f}{__o}",  # Lime
+    f"0x{__f}{__h}{__o}",  # Orange
+    # Other
+    f"0x{__o}{__h}{__h}",  # Light Cyan
+    f"0x{__h}{__o}{__h}",  # Light Magenta
+    f"0x{__h}{__h}{__o}",  # Light Yellow
+    f"0x{__h}{__h}{__h}",  # Light grey,
+]

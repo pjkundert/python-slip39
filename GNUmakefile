@@ -1,6 +1,7 @@
 #
 # GNU 'make' file
 # 
+SHELL		= /bin/bash
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
 
@@ -33,7 +34,7 @@ LOCAL		?= ~/src/
 
 GHUB_NAME	= python-slip39
 GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
-GHUB_BRCH	= -b feature-dmg
+GHUB_BRCH	= -b feature-invoicing
 VENV_NAME	= $(GHUB_NAME)-$(VERSION)
 VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
 
@@ -93,8 +94,14 @@ $(LOCAL)/$(VENV_NAME):
 #   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
 $(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
 	@echo; echo "*** Activating $@ VirtualEnv"
-	[ -s $</start ] || echo ". $</bin/activate; cd $</$(GHUB_NAME)" > $</venv-activate.sh
-	bash --init-file $</venv-activate.sh -i
+	@[ -s $</venv-activate.sh ] || (	\
+	    echo "PS1='[\u@\h \W)]\\$$ '";	\
+	    echo "[ ! -r ~/.git-completion.bash ] || source ~/.git-completion.bash"; \
+	    echo "[ ! -r ~/.git-prompt.sh ] || source ~/.git-prompt.sh && PS1='[\u@\h \W\$$(__git_ps1 \" (%s)\")]\\$$ '"; \
+	    echo "source $</bin/activate";	\
+	    echo "cd $</$(GHUB_NAME)";		\
+	) > $</venv-activate.sh
+	@bash --init-file $</venv-activate.sh -i
 
 
 wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
