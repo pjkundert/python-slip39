@@ -43,10 +43,10 @@ def path_edit(
     edit: str,
 ):
     """Replace the current path w/ the new path, either entirely, or if only partially if a continuation
-    '.../' followed by some new path segments is provided.
+    '../' followed by some new path segments is provided.
 
     """
-    if edit.startswith( '..' ):
+    if edit.startswith( '.' ):
         new_segs	= edit.lstrip( './' ).split( '/' )
         cur_segs	= path.split( '/' )
         log.info( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )

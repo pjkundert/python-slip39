@@ -189,15 +189,21 @@ def layout_card(
     card_mnemonics		= card_bottom.add_region_proportional(
         Region( 'card-mnemonics', x1=0, y1=0, x2=13/16, y2=1 )
     )
+
+    # QR codes sqaare, and anchored to top and bottom of card.
     card_qr1			= card_bottom.add_region_proportional(
         Image( 'card-qr1', x1=13/16, y1=0, x2=1, y2=1/2 )
     )
-    card_qr1.y2			= card_qr1.y1 + (card_qr1.x2 - card_qr1.x1)  # make height same as width
+    card_qr1_size		= min( card_qr1.x2 - card_qr1.x1, card_qr1.y2 - card_qr1.y1 )
+    card_qr1.x1			= card_qr1.x2 - card_qr1_size
+    card_qr1.y2			= card_qr1.y1 + card_qr1_size
 
     card_qr2			= card_bottom.add_region_proportional(
         Image( 'card-qr2', x1=13/16, y1=1/2, x2=1, y2=1 )
     )
-    card_qr2.y1			= card_qr2.y2 - (card_qr2.x2 - card_qr2.x1)  # make height same as width
+    card_qr2_size		= min( card_qr2.x2 - card_qr2.x1, card_qr2.y2 - card_qr2.y1 )
+    card_qr2.x1			= card_qr2.x2 - card_qr2_size
+    card_qr2.y1			= card_qr2.y2 - card_qr2_size
 
     card_top.add_region_proportional(
         Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
@@ -265,6 +271,18 @@ def layout_wallet(
         private.add_region_proportional(
             Text( f'crypto-b{c_n}', x1=2/8, y1=-1/16, x2=7/8, y2=7/16, foreground=int( COLOR[c_n], 16 ), rotate=-45 )
         )
+
+    # # The background rosette and cryptocurrency symbol in the center
+    # public_center_size		= min( public.x2 - public.x1, public.y2 - public.y1 )
+    # public.add_region(
+    #     Image(
+    #         'center-bg',
+    #         x1		= public.x1 + ( public.x2 - public.x1 ) / 2 - public_center_size / 2,
+    #         y1		= public.y1 + ( public.y2 - public.y1 ) / 2 - public_center_size / 2,
+    #         x2		= public.x1 + ( public.x2 - public.x1 ) / 2 + public_center_size / 2,
+    #         y2		= public.y1 + ( public.y2 - public.y1 ) / 2 + public_center_size / 2,
+    #     )
+    # )
 
     # Public addresses are vertical on left- and right-hand of public Region.  In order to fit the
     # longer ETH addresses into a space with a fixed-width font, we know that the ratio of the width
@@ -510,7 +528,7 @@ def output_pdf(
             version	= None,
             error_correction = qrcode.constants.ERROR_CORRECT_M,
             box_size	= 10,
-            border	= 0
+            border	= 1
         )
         qrc.add_data( acct.address )
         qrc.make( fit=True )
@@ -688,8 +706,10 @@ def write_pdfs(
                     wall_tpl[f"crypto-b{c_n}"]	= account.crypto
 
                     wall_tpl['name-label']	= "Wallet name:"
-                    wall_tpl['name-bg']		= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['name-bg']		= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['name']		= name
+
+                    # wall_tpl['center-bg']	= os.path.join( images, 'guilloche-center.png' )
 
                     public_qr	= qrcode.QRCode(
                         version		= None,
@@ -698,9 +718,9 @@ def write_pdfs(
                         border		= 1,
                     )
                     public_qr.add_data( account.address )
-                    wall_tpl['address-l-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['address-l-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['address-l']	= account.address
-                    wall_tpl['address-r-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['address-r-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['address-r']	= account.address
 
                     wall_tpl['address-qr-t']	= 'PUBLIC ADDRESS'
@@ -716,14 +736,14 @@ def write_pdfs(
                     )
                     private_qr.add_data( private_enc )
 
-                    wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff54.png' )
 
                     # If not enough lines, will throw Exception, as it should!  We don't want
                     # to emit a Paper Wallet without the entire encrypted private key present.
                     for ln,line in enumerate( chunker( private_enc, 40 )):
                         wall_tpl[f"private-{ln}"] = line
                     wall_tpl['private-hint-t']	= 'PASSPHRASE HINT:'
-                    wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['private-hint']	= wallet_pwd_hint
                     wall_tpl['private-qr-t']	= 'PRIVATE KEY'
                     wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()

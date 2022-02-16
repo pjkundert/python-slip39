@@ -63,4 +63,3 @@ def chunker( sequence, size ):
     while sequence:
         yield sequence[:size]
         sequence		= sequence[size:]
-

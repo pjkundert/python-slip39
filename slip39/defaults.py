@@ -41,9 +41,9 @@ FONTS				= dict(
 )
 
 #                                  Y      X       Margin
-CREDIT_CARD			= (2+1/4, 3+3/8), 1/16
-INDEX_CARD			= (3,     5),     1/8   # noqa: E241
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
+CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
+INDEX_CARD			= (3,     5),     1/16  # noqa: E241
 HALF_LETTER			= (4+1/2, 8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
 THIRD_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
 
@@ -81,15 +81,13 @@ MNEM_PREFIX			= {
     59: '/|\\',
 }
 
-
-
 BAUDRATE			= 115200
 
-FILENAME_KEYWORDS		= [ 'name', 'date', 'time', 'crypto', 'path', 'address' ]
+FILENAME_KEYWORDS		= ['name', 'date', 'time', 'crypto', 'path', 'address']
 FILENAME_FORMAT			= "{name}-{date}+{time}-{crypto}-{address}.pdf"
 
 # Default Crypto accounts (and optional paths) to generate
-CRYPTO_PATHS			= [ 'ETH', 'BTC' ]
+CRYPTO_PATHS			= ('ETH', 'BTC')
 
 __o				= "BB"
 __h				= "DD"
