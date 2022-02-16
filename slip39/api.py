@@ -8,13 +8,18 @@ import math
 import re
 import secrets
 
-from Crypto.Cipher import AES
 from collections	import namedtuple
 from typing		import Dict, List, Sequence, Tuple, Union, Callable
 
 from shamir_mnemonic	import generate_mnemonics
 
 import hdwallet
+
+# Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
+try:
+    from Crypto.Cipher	import AES
+except ImportError:
+    AES				= None
 try:
     import scrypt
 except ImportError:
@@ -245,7 +250,7 @@ class Account( hdwallet.HDWallet ):
 
     def bip38( self, passphrase, flagbyte=b'\xe0' ):
         """BIP-38 encrypt the private key"""
-        if not scrypt:
+        if not scrypt or not AES:
             raise NotImplementedError( "The scrypt module is required to support BIP-38 encryption; pip install slip39[wallet]" )
         if self.crypto not in self.BIP38_ENCRYPT:
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key encryption" )
@@ -267,7 +272,7 @@ class Account( hdwallet.HDWallet ):
 
     def from_bip38( self, encrypted_privkey, passphrase, strict=True ):
         """Bip-38 decrypt and import the private key."""
-        if not scrypt:
+        if not scrypt or not AES:
             raise NotImplementedError( "The scrypt module is required to support BIP-38 decryption; pip install slip39[wallet]" )
         if self.crypto not in self.BIP38_ENCRYPT:
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key decryption" )
