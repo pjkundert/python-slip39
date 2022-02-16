@@ -41,6 +41,9 @@ def main( argv=None ):
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
                      help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+    ap.add_argument( '-p', '--path',
+                     default=None,
+                     help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
     ap.add_argument( '-j', '--json',
                      default=None,
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
@@ -83,6 +86,12 @@ def main( argv=None ):
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+
+    # Confirm sanity of args
+    log.debug( f"args: {args!r}" )
+    if args.path:
+        assert args.path.startswith( 'm/' ) or ( args.path.startswith( '..' ) and args.path.lstrip( '.' ).startswith( '/' )), \
+            "A --path must start with 'm/', or '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
     # If any --format <crypto>:<format> address formats provided
     for cf in args.format:
@@ -134,6 +143,7 @@ def main( argv=None ):
             group		= args.group,
             threshold		= args.threshold,
             cryptocurrency	= args.cryptocurrency,
+            edit		= args.path,
             card		= args.card,
             paper		= args.paper,
             filename		= args.output,

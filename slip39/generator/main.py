@@ -10,7 +10,7 @@ from serial		import Serial
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BITS, BAUDRATE
-from ..			import Account, path_edit
+from ..			import Account, cryptopaths_parser
 from ..api		import accountgroups, RANDOM_BYTES
 
 log				= logging.getLogger( __package__ )
@@ -123,6 +123,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+
     # Confirm sanity of args
     log.debug( f"args: {args!r}" )
     assert not args.encrypt or args.enumerate, \
@@ -250,18 +251,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
     # ...else...
     # Transmitting.
-    cryptopaths			= []
-    for crypto in args.cryptocurrency or ['ETH', 'BTC']:
-        try:
-            crypto,paths	= crypto.split( ':' )
-        except ValueError:
-            crypto,paths	= crypto,None
-        crypto			= Account.supported( crypto )
-        if paths is None:
-            paths		= Account.path_default( crypto )
-        if args.path:
-            paths		= path_edit( paths, args.path )
-        cryptopaths.append( (crypto,paths) )
+    cryptopaths			= cryptopaths_parser( args.cryptocurency, edit=args.path )
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow

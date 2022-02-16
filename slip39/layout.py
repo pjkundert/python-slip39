@@ -13,14 +13,14 @@ from typing		import Dict, List, Tuple, Sequence
 import qrcode
 from fpdf		import FPDF, FlexTemplate
 
-from .			import Account
+from .			import Account, cryptopaths_parser
 from .api		import create, enumerate_mnemonic, group_parser
-from .util		import input_secure, ordinal
+from .util		import input_secure, ordinal, chunker
 from .defaults		import (
-    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, WALLET, WALLET_SIZES, COLOR,
+    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN,
+    WALLET, WALLET_SIZES, COLOR,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
-    CRYPTO_PATHS,
 )
 
 # Optionally support output of encrypted JSON files
@@ -308,6 +308,27 @@ def layout_wallet(
         )
     )
 
+    # Wallet name, amount
+    public.add_region_proportional(
+        Text( 'name-label',	x1=1/16, y1=0/16, x2=4/16, y2=1/16 )
+    )
+    public.add_region_proportional(
+        Image( 'name-bg',	x1=4/16, y1=0/16, x2=15/16, y2=1/16 )
+    )
+    public.add_region_proportional(
+        Text( 'name',		x1=4/16, y1=0/16, x2=15/16, y2=1/16 )
+    )
+
+    public.add_region_proportional(
+        Text( 'amount-label',	x1=1/16, y1=3/16, x2=4/16, y2=1/16 )
+    )
+    public.add_region_proportional(
+        Image( 'amount-bg',	x1=4/16, y1=0/16, x2=15/16, y2=1/16 )
+    )
+    public.add_region_proportional(
+        Text( 'amount',		x1=4/16, y1=0/16, x2=15/16, y2=1/16 )
+    )
+
     # Make Public QR Code square w/ min of height, width, anchored at lower-left corner
     public.add_region_proportional(
         Text( 'address-qr-t',	x1=1/16, y1=5/16, x2=1, y2=6/16 )
@@ -320,6 +341,9 @@ def layout_wallet(
     public_qr.y1		= public_qr.y2 - public_qr_size
     public.add_region_proportional(
         Text( 'address-qr-b',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
+    )
+    public.add_region_proportional(
+        Text( 'address-qr-l',	x1=1/16, y1=6/16, x2=1, y2=7/16, rotate=-90 )
     )
 
     # Private region
@@ -533,6 +557,7 @@ def write_pdfs(
     group		= None,		# Group specifications, [ "Frens(3/6)", ... ]
     threshold		= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
+    edit		= None,		# Adjust crypto paths according to the provided path edit
     card		= None,		# False outputs no PDF
     paper		= None,
     filename		= None,
@@ -562,16 +587,7 @@ def write_pdfs(
 
     group_threshold		= int( threshold ) if threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    cryptopaths			= []
-    for crypto in cryptocurrency or CRYPTO_PATHS:
-        try:
-            if isinstance( crypto, str ):
-                crypto,paths	= crypto.split( ':' )   # Find the  <crypto>,<path> tuple
-            else:
-                crypto,paths	= crypto		# Already a <crypto>,<path> tuple?
-        except ValueError:
-            crypto,paths	= crypto,None
-        cryptopaths.append( (crypto,paths) )
+    cryptopaths			= cryptopaths_parser( cryptocurrency, edit=edit )
 
     # If account details not provided in names, generate them.
     if not isinstance( names, dict ):
@@ -671,6 +687,10 @@ def write_pdfs(
                     wall_tpl[f"crypto-f{c_n}"]	= account.crypto
                     wall_tpl[f"crypto-b{c_n}"]	= account.crypto
 
+                    wall_tpl['name-label']	= "Wallet name:"
+                    wall_tpl['name-bg']		= os.path.join( images, '1x1-ffffff7f.png' )
+                    wall_tpl['name']		= name
+
                     public_qr	= qrcode.QRCode(
                         version		= None,
                         error_correction = qrcode.constants.ERROR_CORRECT_M,
@@ -682,9 +702,11 @@ def write_pdfs(
                     wall_tpl['address-l']	= account.address
                     wall_tpl['address-r-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
                     wall_tpl['address-r']	= account.address
+
                     wall_tpl['address-qr-t']	= 'PUBLIC ADDRESS'
                     wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['address-qr-b']	= 'DEPOSIT/VERIFY'
+                    wall_tpl['address-qr-l']	= account.path
 
                     private_qr	= qrcode.QRCode(
                         version		= None,
@@ -695,11 +717,6 @@ def write_pdfs(
                     private_qr.add_data( private_enc )
 
                     wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
-
-                    def chunker( sequence, size ):
-                        while sequence:
-                            yield sequence[:size]
-                            sequence		= sequence[size:]
 
                     # If not enough lines, will throw Exception, as it should!  We don't want
                     # to emit a Paper Wallet without the entire encrypted private key present.

@@ -73,8 +73,14 @@ BITS_DEFAULT			= 128
 MNEM_ROWS_COLS			= {
     20:	( 7, 3),		# 128-bit seed
     33:	(11, 3),		# 256-bit seed
-    59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor hardware wallet)
+    59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor)
 }
+MNEM_PREFIX			= {
+    20: '=',
+    33: '/\\',
+    59: '/|\\',
+}
+
 
 
 BAUDRATE			= 115200

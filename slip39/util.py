@@ -57,3 +57,10 @@ def input_secure( prompt, secret=True, file=None ):
         if file:
             return file.readline()
         return input()
+
+
+def chunker( sequence, size ):
+    while sequence:
+        yield sequence[:size]
+        sequence		= sequence[size:]
+

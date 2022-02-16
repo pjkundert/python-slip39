@@ -29,7 +29,7 @@ try:
 except ImportError:
     eth_account			= None
 
-from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO
+from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
 from .util		import ordinal
 
 
@@ -316,7 +316,7 @@ def path_parser(
 ) -> Tuple[str, Dict[str, Callable[[], int]]]:
     """Create a format and a dictionary of iterators to feed into it.
 
-    Supports paths with an arbitrary prefix, eg. 'm/' or '.../'
+    Supports paths with an arbitrary prefix, eg. 'm/' or '../'
     """
     path_segs			= paths.split( '/' )
     unbounded			= False
@@ -390,6 +390,27 @@ def path_sequence(
             if i+1 < len( ranges ):
                 viters[k]	= iter( ranges[k]() )
                 values[k]	= next( viters[k], None )
+
+
+def cryptopaths_parser( cryptocurrency, edit=None ):
+    """
+    Generate a standard cryptopaths list, from the given list of "<crypto>[:<paths>]"
+    cryptocurrencies (default: CRYPTO_PATHS).
+
+    Adjusts the provided derivation paths by an optional eg. "../-" path adjustment."""
+    cryptopaths 		= []
+    for crypto in cryptocurrency or CRYPTO_PATHS:
+        try:
+            crypto,paths	= crypto.split( ':' )
+        except ValueError:
+            crypto,paths	= crypto,None
+        crypto			= Account.supported( crypto )
+        if paths is None:
+            paths		= Account.path_default( crypto )
+        if edit:
+            paths		= path_edit( paths, edit )
+        cryptopaths.append( (crypto,paths) )
+    return cryptopaths
 
 
 def random_secret(

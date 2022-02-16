@@ -9,17 +9,16 @@ from itertools import islice
 
 import PySimpleGUI as sg
 
-from ..			import Account
-from ..api		import create, group_parser, random_secret
+from ..			import Account, create, group_parser, random_secret, cryptopaths_parser
 from ..recovery		import recover, recover_bip39
-from ..util		import log_level, log_cfg, ordinal
+from ..util		import log_level, log_cfg, ordinal, chunker
 from ..layout		import write_pdfs
-from ..defaults		import GROUPS, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS, CARD, CARD_SIZES
+from ..defaults		import GROUPS, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS, CARD, CARD_SIZES, MNEM_PREFIX
 
 log				= logging.getLogger( __package__ )
 
 font				= ('Courier', 14)
-font_small			= ('Courier', 11)
+font_small			= ('Courier', 10)
 font_bold			= ('Courier', 16, 'bold italic')
 
 I_kwds				= dict(
@@ -37,8 +36,9 @@ B_kwds				= dict(
     enable_events	= True,
 )
 
-prefix				= (32, 1)
-inputs				= (32, 1)
+prefix				= (20, 1)
+inputs				= (40, 1)
+inlong				= (128,1)  # 512-bit seeds require 128 hex nibbles
 number				= (10, 1)
 
 
@@ -90,13 +90,13 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
                     sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
-                    sg.Text( "(default is 'SLIP39...'; multiple Seed names, comma-separated)",  **T_kwds ),
+                    sg.Text( "(default is 'SLIP39...'; enter Seed names, comma-separated)",     **T_kwds ),
                 ],
             ],                                                  key='-OUTPUT-F-',               **F_kwds ),
         ],
     ] + [
         [
-            sg.Frame( '2. Seed Data Source (128-bit is fine; 256-bit produces many Mnemonic recovery words to type into your Trezor; 512-bit seeds aren\'t Trezor compatible)', [
+            sg.Frame( '2. Seed Data Source (128-bit is fine; 256-bit produces many Mnemonic words to type into your Trezor; 512-bit aren\'t Trezor compatible)', [
                 [
                     sg.Radio( "128-bit Random", "SD",   key='-SD-128-RND-',     default=True,   **B_kwds ),
                     sg.Radio( "256-bit Random", "SD",   key='-SD-256-RND-',     default=False,  **B_kwds ),
@@ -117,7 +117,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     sg.Frame( 'From', [
                         [
                             sg.Text( "Mnemonic(s): ",   key='-SD-DATA-T-',      size=prefix,    **T_kwds ),
-                            sg.Multiline( "",           key='-SD-DATA-',        size=(128,1),   **I_kwds ),
+                            sg.Multiline( "",           key='-SD-DATA-',        size=inlong,    **I_kwds ),
                         ],
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],
@@ -131,7 +131,7 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                 ],
                 [
                     sg.Text( "Seed Data: ",                                     size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SD-SEED-',        size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SD-SEED-',        size=inlong,    **T_kwds ),
                 ],
             ],                                           key='-SD-SEED-F-',                      **F_kwds ),
         ],
@@ -147,13 +147,13 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
                     sg.Frame( 'Entropy', [
                         [
                             sg.Text( "Hex digits: ",    key='-SE-DATA-T-',      size=prefix,    **T_kwds ),
-                            sg.Input( "",               key='-SE-DATA-',        size=(128,1),   **I_kwds ),
+                            sg.Input( "",               key='-SE-DATA-',        size=inlong,    **I_kwds ),
                         ],
                     ],                                  key='-SE-DATA-F-',      visible=False,  **F_kwds ),
                 ],
                 [
                     sg.Text( "Seed Entropy: ",                                  size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SE-SEED-',        size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SE-SEED-',        size=inlong,    **T_kwds ),
                 ],
             ],                                          key='-SE-SEED-F-',                      **F_kwds ),
         ]
@@ -162,17 +162,17 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
             sg.Frame( '4. Master Secret; produced by XOR of Seed Data and Extra Entropy', [
                 [
                     sg.Text( "Seed: ",                                          size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SEED-',           size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
                 ],
             ],                                          key='-SEED-F-',                         **F_kwds ),
         ],
     ] + [
         [
-            sg.Frame( '5. Recover Groups. Customize up to 16 groups, for your situation.', [
+            sg.Frame( '5. Recovery Groups. Customize up to 16 groups, for your situation.', [
                 [
                     sg.Column( [
                         [
-                            sg.Text( "Requires recovery of at least: ",         size=prefix,    **T_kwds ),
+                            sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=number,    **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
@@ -215,16 +215,16 @@ def groups_layout( names, group_threshold, groups, passphrase=None ):
         [
             sg.Frame( '8. SLIP-39 Recovery Mnemonics produced.  These will be saved to the PDF on cards.', [
                 [
-                    sg.Multiline( "",                   key='-MNEMONICS-',      size=(190,6),   font=font_small )
+                    sg.Multiline( "",                   key='-MNEMONICS-',      size=(195,6),   font=font_small )
                 ]
-            ], **F_kwds ),
+            ],                                          key='-MNEMONICS-F-',                    **F_kwds ),
         ],
     ] + [
         [
             sg.Frame( '9. Seed Recovered from SLIP-39 Mnemonics, proving that we can actually use the Mnemonics to recover the Seed', [
                 [
                     sg.Text( "Seed Verified: ",                                 size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SEED-RECOVERED-', size=(128,1),   **T_kwds ),
+                    sg.Text( "",                        key='-SEED-RECOVERED-', size=inlong,    **T_kwds ),
                 ],
             ],                                          key='-RECOVERED-F-',                    **F_kwds ),
         ],
@@ -448,10 +448,15 @@ def update_seed_recovered( window, values, details, passphrase=None ):
     for g,(g_of,g_mnems) in details.groups.items() if details else []:
         for i,mnem in enumerate( g_mnems, start=1 ):
             mnemonics.append( mnem )
+            # Display Mnemonics in rows of 20 words
+            # 
+            #  / word something ...
+            #  | another more ...
+            #  \ last line of mnemonic ...
             mset		= mnem.split()
-            while mrow := mset[:20]:
-                mset		= mset[20:]
-                rows.append( f"{g:<8.8}" + f"{i:2} " + ' '.join( f"{m:<8}" for m in mrow ))
+            for mri,mout in enumerate( chunker( mset, 20 )):
+                p		= MNEM_PREFIX.get( len(mset), '' )[mri:mri+1] or ':'
+                rows.append( f"{g:<8.8}" + f"{i:2}{p} " + ' '.join( f"{m:<8}" for m in mout ))
                 g		= ''
                 i		= ''
 
@@ -473,6 +478,7 @@ def app(
     group			= None,
     threshold			= None,
     cryptocurrency		= None,
+    edit			= None,
     passphrase			= None,
 ):
     """Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }"""
@@ -488,17 +494,6 @@ def app(
         f"Each group member specification must be a '<group>': (<needs>, <size>) pair, not {type(next(groups.items()))}"
 
     group_threshold		= int( threshold ) if threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
-
-    cryptopaths			= []
-    for crypto in cryptocurrency or CRYPTO_PATHS:
-        try:
-            if isinstance( crypto, str ):
-                crypto,paths	= crypto.split( ':' )   # Find the  <crypto>,<path> tuple
-            else:
-                crypto,paths	= crypto		# Already a <crypto>,<path> tuple?
-        except ValueError:
-            crypto,paths	= crypto,None
-        cryptopaths.append( (crypto,paths) )
 
     sg.theme( 'DarkAmber' )
 
@@ -524,6 +519,7 @@ def app(
             window['-SUMMARY-F-'].expand( expand_x=True )
             window['-STATUS-F-'].expand( expand_x=True )
             window['-RECOVERED-F-'].expand( expand_x=True )
+            window['-MNEMONICS-F-'].expand( expand_x=True )
             window['-GROUPS-F-'].expand( expand_x=True )
             timeout		= None 		# Subsequently, block indefinitely
         else:
@@ -643,9 +639,11 @@ def app(
         # master_secret produced by hashing the prior master_secret entropy.  For the 1st Seed,
         # we've computed the master_secret, above.  Each master_secret_n contains the computed Seed
         # combining Seed Data and (any) Seed Entropy, stretched for the n'th Seed.  If there is no
-        # extra Seed Entropy, we will fail to produce subsequent seeds.
+        # extra Seed Entropy, we will fail to produce subsequent seeds.  Recompute the desired
+        # cryptocurrencies, and any path adjusts, in case Paper Wallets are desired.
         details			= {}
         try:
+            cryptopaths		= cryptopaths_parser( cryptocurrency, edit=edit )
             for n,name in enumerate( names ):
                 master_secret_n		= compute_master_secret( window, values, n=n )
                 assert n > 0 or master_secret_n == master_secret, \
@@ -730,6 +728,9 @@ recoverable SLIP-39 Mnemonic encoding.
                      default=[],
                      help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:"
                      f" {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+    ap.add_argument( '-p', '--path',
+                     default=None,
+                     help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -750,6 +751,7 @@ recoverable SLIP-39 Mnemonic encoding.
             threshold		= args.threshold,
             group		= args.group,
             cryptocurrency	= args.cryptocurrency,
+            edit		= args.path,
             passphrase		= args.passphrase,
         )
     except Exception as exc:
