@@ -15,7 +15,10 @@ from typing		import Dict, List, Sequence, Tuple, Union, Callable
 from shamir_mnemonic	import generate_mnemonics
 
 import hdwallet
-import scrypt
+try:
+    import scrypt
+except ImportError:
+    scrypt			= None
 try:
     import eth_account
 except ImportError:
@@ -78,7 +81,7 @@ class Account( hdwallet.HDWallet ):
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
 
     ETHJS_ENCRYPT		= set( ('ETH',) )			# Can be encrypted w/ Ethereum JSON wallet
-    BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT	# Can be encrypted w/ BIP-38
+    BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
         ETH		= "legacy",
@@ -225,7 +228,7 @@ class Account( hdwallet.HDWallet ):
         encrypted JSON wallet standard, Bitcoin et.al. use BIP-38 encrypted private keys."""
         if self.crypto in self.ETHJS_ENCRYPT:
             if not eth_account:
-                raise NotImplementedError( "The eth-account package is required to support Ethereum JSON wallet encryption" )
+                raise NotImplementedError( "The eth-account module is required to support Ethereum JSON wallet encryption; pip install slip39[wallet]" )
             wallet_dict		= eth_account.Account.encrypt( self.key, passphrase )
             return json.dumps( wallet_dict, separators=(',',':') )
         return self.bip38( passphrase )
@@ -234,7 +237,7 @@ class Account( hdwallet.HDWallet ):
         """Import the appropriately decrypted private key for this cryptocurrency."""
         if self.crypto in self.ETHJS_ENCRYPT:
             if not eth_account:
-                raise NotImplementedError( "The eth-account package is required to support Ethereum JSON wallet decryption" )
+                raise NotImplementedError( "The eth-account module is required to support Ethereum JSON wallet decryption; pip install slip39[wallet]" )
             private_hex		= bytes( eth_account.Account.decrypt( encrypted_privkey, passphrase )).hex()
             self.from_private_key( private_hex )
             return self
@@ -242,6 +245,8 @@ class Account( hdwallet.HDWallet ):
 
     def bip38( self, passphrase, flagbyte=b'\xe0' ):
         """BIP-38 encrypt the private key"""
+        if not scrypt:
+            raise NotImplementedError( "The scrypt module is required to support BIP-38 encryption; pip install slip39[wallet]" )
         if self.crypto not in self.BIP38_ENCRYPT:
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key encryption" )
         private_hex		= self.key
@@ -262,6 +267,8 @@ class Account( hdwallet.HDWallet ):
 
     def from_bip38( self, encrypted_privkey, passphrase, strict=True ):
         """Bip-38 decrypt and import the private key."""
+        if not scrypt:
+            raise NotImplementedError( "The scrypt module is required to support BIP-38 decryption; pip install slip39[wallet]" )
         if self.crypto not in self.BIP38_ENCRYPT:
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key decryption" )
         # Decode the encrypted private key from base58, discarding the 4-byte base58 check suffix
@@ -290,7 +297,7 @@ class Account( hdwallet.HDWallet ):
         addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
         ahash_confirm		= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
         if ahash_confirm != ahash:
-            warning		= f"BIP-38 address hash verification failed ({ahash_confirm.hex()} != {ahash.hex()}); password may be incorrect." 
+            warning		= f"BIP-38 address hash verification failed ({ahash_confirm.hex()} != {ahash.hex()}); password may be incorrect."
             if strict:
                 raise AssertionError( warning )
             else:

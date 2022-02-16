@@ -354,8 +354,8 @@ def layout_wallet(
     # We'll use the right side of the private region, each line rotated 90 degrees down and right.
     # So, we need the upper-left corner of the private-bg anchored at the upper-right corner of
     # private.
-    private_length		= private.y2 - private.y1	# line length is y-height
-    private_fontsize		= 6.8   # points == 1/72 inch
+    private_length		= private.y2 - private.y1       # line length is y-height
+    private_fontsize		= 6.8				# points == 1/72 inch
     private_height		= private.x2 - private_qr.x2 - .05
     private_lineheight		= private_fontsize / 72 / Text.SIZE_RATIO * .9  # in.
 
@@ -370,12 +370,12 @@ def layout_wallet(
         )
     )
     # Now, add private key lines down the edge from right to left, rotating each into place
-    for l in range( int( private_height // private_lineheight )):
+    for ln in range( int( private_height // private_lineheight )):
         private.add_region(
             Text(
-                f"private-{l}",
+                f"private-{ln}",
                 font	= 'mono',
-                x1	= private.x2 - private_lineheight * l,
+                x1	= private.x2 - private_lineheight * ln,
                 y1	= private.y1,
                 x2	= private.x2 + private_length,
                 y2	= private.y1 + private_lineheight,
@@ -686,7 +686,6 @@ def write_pdfs(
                     wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['address-qr-b']	= 'DEPOSIT/VERIFY'
 
-
                     private_qr	= qrcode.QRCode(
                         version		= None,
                         error_correction = qrcode.constants.ERROR_CORRECT_M,
@@ -696,6 +695,7 @@ def write_pdfs(
                     private_qr.add_data( private_enc )
 
                     wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
+
                     def chunker( sequence, size ):
                         while sequence:
                             yield sequence[:size]
@@ -703,8 +703,8 @@ def write_pdfs(
 
                     # If not enough lines, will throw Exception, as it should!  We don't want
                     # to emit a Paper Wallet without the entire encrypted private key present.
-                    for l,line in enumerate( chunker( private_enc, 40 )):
-                        wall_tpl[f"private-{l}"]= line
+                    for ln,line in enumerate( chunker( private_enc, 40 )):
+                        wall_tpl[f"private-{ln}"] = line
                     wall_tpl['private-hint-t']	= 'PASSPHRASE HINT:'
                     wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff7f.png' )
                     wall_tpl['private-hint']	= wallet_pwd_hint

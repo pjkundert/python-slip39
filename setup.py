@@ -32,8 +32,9 @@ extras_require			= {
     option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
     for option in [
         'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
-        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
         'dev',		# slip39[dev]:    All modules to support development
+        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
+        'wallet',	# slip39[wallet]: Paper Wallet and BIP-38/Ethereum wallet encryption
     ]
 }
 

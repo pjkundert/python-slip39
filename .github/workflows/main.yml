@@ -32,7 +32,7 @@ jobs:
       run: |
         python3 -m pip install -r requirements.txt
         python3 -m pip install -r requirements-serial.txt
-        python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -r requirements-tests.txt
     - name: Lint with flake8
       run: |
         make analyze || true

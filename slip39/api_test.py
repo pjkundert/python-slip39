@@ -1,5 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 import json
+import pytest
+
+try:
+    import eth_account
+except ImportError:
+    eth_account			= None
+try:
+    import scrypt
+except ImportError:
+    scrypt			= None
 
 import shamir_mnemonic
 
@@ -48,6 +58,8 @@ def test_account():
     assert acct.path == "m/44'/3'/0'/0/0"
 
 
+@pytest.mark.skipif( not scrypt or not eth_account,
+                     reason="pip install slip39[wallet] to support private key encryption" )
 def test_account_encrypt():
     """Ensure BIP-38 and Ethereum JSON wallet encryption and recovery works."""
 
@@ -66,7 +78,6 @@ def test_account_encrypt():
     assert acct.path == "m/84'/0'/0'/0/0"  # The default; assumed...
     assert acct_reco.legacy_address() == "134t1ktyF6e4fNrJR8L6nXtaTENJx9oGcF"
 
-
     acct			= account( SEED_XMAS, crypto='Ethereum' )
     assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
     assert acct.crypto == 'ETH'
@@ -74,7 +85,7 @@ def test_account_encrypt():
 
     json_encrypted		= acct.encrypted( 'password' )
     assert json.loads( json_encrypted ).get( 'address' ) == '336cbeab83accdb2541e43d514b62dc6c53675f4'
-        
+
     acct_reco			= Account( crypto='ETH' ).from_encrypted( json_encrypted, 'password' )
     assert acct_reco.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
     assert acct.crypto == 'ETH'
@@ -97,7 +108,7 @@ def test_account_encrypt():
     ).key.upper() == '09C2686880095B1A4C249EE3AC4EEA8A014F11E6F986D0B5025AC1F39AFBD9AE'
 
     # This weird UTF-8 test I cannot get to pass, regardless of what format I supply the passphrase in..
-    
+
     # acct_reco			= Account( crypto='BTC' ).from_encrypted(
     #     '6PRW5o9FLp4gJDDVqJQKJFTpMvdsSGJxMYHtHaQBF3ooa8mwD69bapcDQn',
     #      bytes.fromhex('cf9300f0909080f09f92a9'), # '\u03D2\u0301\u0000\U00010400\U0001F4A9'

@@ -4,5 +4,4 @@ fpdf2			>=2.5,	<3
 hdwallet		>=2.1,	<3
 mnemonic		>=0.19,	<1
 qrcode			>=7.3
-scrypt			>=0.8.17
 shamir-mnemonic		>=0.2,	<1
