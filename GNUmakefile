@@ -34,7 +34,7 @@ LOCAL		?= ~/src/
 
 GHUB_NAME	= python-slip39
 GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
-GHUB_BRCH	= -b feature-invoicing
+GHUB_BRCH	= -b master
 VENV_NAME	= $(GHUB_NAME)-$(VERSION)
 VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
 
