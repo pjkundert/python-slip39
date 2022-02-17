@@ -9,7 +9,7 @@ from itertools import islice
 
 import PySimpleGUI as sg
 
-from ..			import Account, create, group_parser, random_secret, cryptopaths_parser
+from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
 from ..recovery		import recover, recover_bip39
 from ..util		import log_level, log_cfg, ordinal, chunker
 from ..layout		import write_pdfs
@@ -48,6 +48,7 @@ def groups_layout(
     groups,
     passphrase		= None,
     cryptocurrency	= None,
+    paper_wallet	= True,  # Should we include Paper Wallet config in layout?
 ):
     """Return a layout for the specified number of SLIP-39 groups.
 
@@ -79,6 +80,9 @@ def groups_layout(
             ], key='-GROUP-SIZES-' ) ]], **F_kwds
         ),
     ]
+
+    if not paper_wallet:
+        log.warning( "Disabling Paper Wallets capability: API unavailable" )
 
     layout                      = [
         [
@@ -229,7 +233,7 @@ def groups_layout(
                         ],
                     ],                                                                          **F_kwds ),
                 ],
-            ],                                          key='-WALLET-F-',       visible=True,   **F_kwds ),
+            ],                                          key='-WALLET-F-', visible=paper_wallet, **F_kwds ),  # noqa: E126
         ],
     ] + [
         [
@@ -535,6 +539,8 @@ def app(
 
     sg.user_settings_set_entry( '-target folder-', os.getcwd() )
 
+    paper_wallet		= paper_wallet_available()
+
     # Compute initial App window layout, from the supplied groups.
     layout			= groups_layout(
         names		= names,
@@ -542,6 +548,7 @@ def app(
         groups		= groups,
         passphrase	= passphrase,
         cryptocurrency	= cryptocurrency,
+        paper_wallet	= paper_wallet,
     )
 
     window			= None
@@ -563,7 +570,8 @@ def app(
             window['-SE-SEED-F-'].expand( expand_x=True )
             window['-SEED-F-'].expand( expand_x=True )
             window['-OUTPUT-F-'].expand( expand_x=True )
-            window['-WALLET-F-'].expand( expand_x=True )
+            if paper_wallet:
+                window['-WALLET-F-'].expand( expand_x=True )
             window['-SUMMARY-F-'].expand( expand_x=True )
             window['-STATUS-F-'].expand( expand_x=True )
             window['-RECOVERED-F-'].expand( expand_x=True )
@@ -756,6 +764,7 @@ def app(
         # time we recompute -- even without any changes -- the SLIP-39 Mnemonics will change, due to the use
         # of entropy in the SLIP-39 process.
         if slip39_update or not details:
+            log.info( f"SLIP39 details for {names}..." )
             try:
                 details		= {}
                 for n,name in enumerate( names ):
@@ -779,8 +788,15 @@ def app(
                 continue
 
         # Display the computed SLIP-39 Mnemonics for the first name.
-        if status := update_seed_recovered( window, values, details[names[0]], passphrase=passphrase ):
-            groups_recovered	= {}
+        try:
+            if status := update_seed_recovered( window, values, details[names[0]], passphrase=passphrase ):
+                groups_recovered	= {}
+                continue
+        except Exception as exc:
+            status		= f"Error recovering: {exc}"
+            logging.exception( f"{status}" )
+            update_seed_recovered( window, values, None )
+            groups_recovered = {}
             continue
 
         # If all has gone well -- display the resultant <name>/<filename>, and some derived account details
@@ -795,10 +811,10 @@ def app(
         # details is now { "<filename>": <details> })
         if event == '-SAVE-':
             try:
-                card		= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
+                card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
                 details		= write_pdfs(
                     names		= details,
-                    card		= card,
+                    card_format		= card_format,
                     cryptocurrency	= cryptocurrency,
                     edit		= edit,
                     wallet_pwd		= values['-WALLET-PASS-'],  # Produces Paper Wallet(s) iff set

@@ -7,8 +7,10 @@ try:
 except ImportError:
     eth_account			= None
 try:
-    import scrypt
+    from Crypto.Cipher	import AES
+    from Crypto.Protocol.KDF import scrypt
 except ImportError:
+    AES				= None
     scrypt			= None
 
 import shamir_mnemonic

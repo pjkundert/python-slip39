@@ -733,7 +733,7 @@ def write_pdfs(
                     wall_tpl['wallet-bg']	= os.path.join( images, 'paper-wallet-background.png' )
                     wall_tpl[f"crypto-f{c_n}"]	= account.crypto
                     wall_tpl[f"crypto-b{c_n}"]	= account.crypto
-                    
+
                     wall_tpl['center']		= os.path.join( images, account.crypto + '.png' )
 
                     wall_tpl['name-label']	= "Wallet name:"

@@ -18,11 +18,9 @@ import hdwallet
 # Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
 try:
     from Crypto.Cipher	import AES
+    from Crypto.Protocol.KDF import scrypt
 except ImportError:
     AES				= None
-try:
-    import scrypt
-except ImportError:
     scrypt			= None
 try:
     import eth_account
@@ -36,6 +34,11 @@ from .util		import ordinal
 RANDOM_BYTES			= secrets.token_bytes
 
 log				= logging.getLogger( __package__ )
+
+
+def paper_wallet_available():
+    """Determine if encrypted BIP-38 and Ethereum JSON Paper Wallets are available."""
+    return AES and scrypt and eth_account
 
 
 def path_edit(
@@ -256,17 +259,17 @@ class Account( hdwallet.HDWallet ):
             raise NotImplementedError( f"{self.crypto} does not support BIP-38 private key encryption" )
         private_hex		= self.key
         addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
-        addrhash		= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
+        ahash			= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
-        key			= scrypt.hash( passphrase, addrhash, 16384, 8, 8, 64 )
+        key			= scrypt( passphrase, salt=ahash, key_len=64, N=16384, r=8, p=8 )
         derivedhalf1		= key[0:32]
         derivedhalf2		= key[32:64]
         aes			= AES.new( derivedhalf2, AES.MODE_ECB )
         enchalf1		= aes.encrypt( ( int( private_hex[ 0:32], 16 ) ^ int.from_bytes( derivedhalf1[ 0:16], 'big' )).to_bytes( 16, 'big' ))
         enchalf2		= aes.encrypt( ( int( private_hex[32:64], 16 ) ^ int.from_bytes( derivedhalf1[16:32], 'big' )).to_bytes( 16, 'big' ))
         prefix			= b'\x01\x42'
-        encrypted_privkey	= prefix + flagbyte + addrhash + enchalf1 + enchalf2
+        encrypted_privkey	= prefix + flagbyte + ahash + enchalf1 + enchalf2
         # Encode the encrypted private key to base58, adding the 4-byte base58 check suffix
         return base58.b58encode_check( encrypted_privkey ).decode( 'UTF-8' )
 
@@ -287,7 +290,7 @@ class Account( hdwallet.HDWallet ):
             f"Unrecognized BIP-38 flagbyte: {flag!r}"
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
-        key			= scrypt.hash( passphrase, ahash, 16384, 8, 8, 64 )
+        key			= scrypt( passphrase, salt=ahash, key_len=64, N=16384, r=8, p=8 )
         derivedhalf1		= key[0:32]
         derivedhalf2		= key[32:64]
         aes			= AES.new( derivedhalf2, AES.MODE_ECB )

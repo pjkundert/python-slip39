@@ -4,3 +4,4 @@ pip
 pytest
 setuptools
 wheel
+pyinstaller	>= 4.9
