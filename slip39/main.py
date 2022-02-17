@@ -37,10 +37,10 @@ def main( argv=None ):
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-f', '--format', action='append',
                      default=[],
-                     help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in sorted(Account.CRYPTOCURRENCIES))}" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help=f"A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+                     help=f"A crypto name and optional derivation path (eg. '../<range>/<range>'); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in sorted(Account.CRYPTOCURRENCIES))}" )
     ap.add_argument( '-p', '--path',
                      default=None,
                      help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
@@ -141,11 +141,11 @@ def main( argv=None ):
             master_secret	= master_secret,
             passphrase		= passphrase,
             group		= args.group,
-            threshold		= args.threshold,
+            group_threshold	= args.threshold,
             cryptocurrency	= args.cryptocurrency,
             edit		= args.path,
-            card		= args.card,
-            paper		= args.paper,
+            card_format		= args.card,
+            paper_format	= args.paper,
             filename		= args.output,
             json_pwd		= args.json,
             text		= args.text,

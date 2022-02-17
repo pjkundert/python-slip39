@@ -21,7 +21,9 @@ Trezor device to recover the Seed, and all of its accounts.
 
 The [macOS SLIP39 App] helps you generate Mnemonic cards and back up
 this seed, securely and reliably, by distributing Mnemonic cards for the
-seed to partners, family and friends.
+seed to partners, family and friends.  Also, encrypted paper wallets can
+be output, to support software wallets such as Metamask, Brave or
+various mobile phone wallets.
 
 Later, if you (or your heirs!) need to recover the accounts, they can
 collect a sufficient threshold of the cards and regain access to the
@@ -31,8 +33,11 @@ Table of Contents
 
 1. Security with Availability
 .. 1. SLIP-39 Mnemonic Recovery Cards
+.. 2. Paper Wallets
 2. Affiliate Links
 .. 1. Trezor
+.. 2. Netcoins.app
+.. 3. Crypto.com
 3. Privacy Policy
 
 
@@ -72,6 +77,16 @@ Table of Contents
   <./images/slip39-pdf.png>
 
 
+1.2 Paper Wallets
+─────────────────
+
+  If desired, you can produce encrypted Paper Wallets, to support
+  software crypto wallets (eg. Metamask, Brave or various mobile phone
+  wallets):
+
+  <./images/slip39-wallets.png>
+
+
 2 Affiliate Links
 ═════════════════
 
@@ -88,6 +103,35 @@ Table of Contents
 
 [Trezor Model T hardware wallet]
 <https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+
+
+2.2 Netcoins.app
+────────────────
+
+  In Canada, one of the more highly regulatory-compliant Cryptocurrency
+  exchanges is [Netcoins.app]; sign up with this referral link, and we
+  both get some benefits.
+
+  They have higher than typical Interac e-transfer limits, which is very
+  nice.  However, they don't support a wide range of cryptocurrencies;
+  presently, only BTC, ETH, XRP, LTC, BCH, USDC, and a few other
+  lesser-known coins.
+
+
+[Netcoins.app] <https://netcoins.app/r?ac=5YO1MZ>
+
+
+2.3 Crypto.com
+──────────────
+
+  Use my referral link for [Crypto.com] to sign up for Crypto.com and we
+  both get $25 USD :)
+
+  The Crypto.com exchange has many more coins available, as well as a
+  crypto-funded credit card that presently works in Canada.
+
+
+[Crypto.com] <https://crypto.com/app/2x4hk92dnf>
 
 
 3 Privacy Policy

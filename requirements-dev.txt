@@ -1,5 +1,5 @@
 build
-flake89
+flake8
 pip
 pytest
 setuptools

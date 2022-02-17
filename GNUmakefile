@@ -115,7 +115,7 @@ install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
 
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[gui,serial,json]
+	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
 
 # Building / Signing / Notarizing and Uploading the macOS App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
@@ -531,8 +531,8 @@ images/SLIP39.iconset: images/SLIP39.png
 #
 # Pypi pip packaging
 # 
-# Support uploading a new version of slip32 to pypi.  Must:
-#   o advance __version__ number in slip32/version.py
+# Support uploading a new version of slip39 to pypi.  Must:
+#   o advance __version__ number in slip39/version.py
 #   o log in to your pypi account (ie. for package maintainer only)
 #
 upload-check:

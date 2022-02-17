@@ -6,6 +6,7 @@
 #+STARTUP: org-latex-tables-centered nil
 #+OPTIONS: ^:nil # Disable sub/superscripting with bare _; _{...} still works
 #+OPTIONS: toc:nil
+#+LATEX_HEADER: \usepackage[margin=1.0in]{geometry}
 
 #+BEGIN_SRC emacs-lisp :noweb no-export :exports results
 ;; Tables not centered
@@ -30,7 +31,9 @@ a Trezor hardware wallet.  SLIP39 Mnemonic cards contain the recovery words, whi
 into the Trezor device to recover the Seed, and all of its accounts.
 
 The [[https://github.com/pjkundert/python-slip39/releases][macOS SLIP39 App]] helps you generate Mnemonic cards and back up this seed, securely and reliably,
-by distributing Mnemonic cards for the seed to partners, family and friends.
+by distributing Mnemonic cards for the seed to partners, family and friends.  Also, encrypted paper
+wallets can be output, to support software wallets such as Metamask, Brave or various mobile phone
+wallets.
 
 Later, if you (or your heirs!) need to recover the accounts, they can collect a sufficient threshold
 of the cards and regain access to the account.
@@ -60,9 +63,17 @@ of the cards and regain access to the account.
 
    Instead, generate a number of SLIP-39 Mnemonic cards, which can be collected to recover the Seed:
    #+CAPTION: SLIP39 Cards PDF
-   #+ATTR_LATEX: :width 5in
+   #+ATTR_LATEX: :width 4in
    [[./images/slip39-pdf.png]]
+
+** Paper Wallets
+
+   If desired, you can produce encrypted Paper Wallets, to support software crypto wallets
+   (eg. Metamask, Brave or various mobile phone wallets):
    
+   #+CAPTION: Paper Wallets
+   #+ATTR_LATEX: :width 4in
+   [[./images/slip39-wallets.png]]
 
 * Affiliate Links
 
@@ -83,6 +94,22 @@ of the cards and regain access to the account.
    <script src="http://trezor.go2cloud.org/aff_ad?campaign_id=1083&aff_id=10388&format=js&divid=trezor1083SycVfv" type="text/javascript"></script>
    <!-- // End Ad Tag -->
    #+END_EXPORT
+
+** Netcoins.app
+
+   In Canada, one of the more highly regulatory-compliant Cryptocurrency exchanges is [[https://netcoins.app/r?ac=5YO1MZ][Netcoins.app]];
+   sign up with this referral link, and we both get some benefits.
+
+   They have higher than typical Interac e-transfer limits, which is very nice.  However, they don't
+   support a wide range of cryptocurrencies; presently, only BTC, ETH, XRP, LTC, BCH, USDC, and a
+   few other lesser-known coins.
+
+** Crypto.com
+
+   Use my referral link for [[https://crypto.com/app/2x4hk92dnf][Crypto.com]] to sign up for Crypto.com and we both get $25 USD :)
+
+   The Crypto.com exchange has many more coins available, as well as a crypto-funded credit card
+   that presently works in Canada.
    
 * Privacy Policy
 :PROPERTIES:

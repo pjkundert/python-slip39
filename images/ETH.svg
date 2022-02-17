@@ -1,1 +1,81 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2500" viewBox="0 0 32 32"><g fill="none" fill-rule="evenodd"><circle cx="16" cy="16" r="16" fill="#627EEA"/><g fill="#FFF" fill-rule="nonzero"><path fill-opacity=".602" d="M16.498 4v8.87l7.497 3.35z"/><path d="M16.498 4L9 16.22l7.498-3.35z"/><path fill-opacity=".602" d="M16.498 21.968v6.027L24 17.616z"/><path d="M16.498 27.995v-6.028L9 17.616z"/><path fill-opacity=".2" d="M16.498 20.573l7.497-4.353-7.497-3.348z"/><path fill-opacity=".602" d="M9 16.22l7.498 4.353v-7.701z"/></g></g></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="2in"
+   height="2in"
+   viewBox="0 0 2.4576001 2.4576001"
+   version="1.1"
+   id="svg20"
+   sodipodi:docname="ETH.svg"
+   inkscape:export-filename="/Users/perry/src/python-slip39/images/ETH.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   inkscape:version="1.1.2 (b8e25be8, 2022-02-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs24" />
+  <sodipodi:namedview
+     id="namedview22"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     showgrid="false"
+     inkscape:zoom="1.1835675"
+     inkscape:cx="105.19045"
+     inkscape:cy="132.22736"
+     inkscape:window-width="2068"
+     inkscape:window-height="969"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg20"
+     units="in"
+     inkscape:document-units="in" />
+  <g
+     fill="none"
+     fill-rule="evenodd"
+     id="g18"
+     transform="scale(0.07663766)"
+     inkscape:export-filename="/Users/perry/src/python-slip39/images/ETH.png"
+     inkscape:export-xdpi="300"
+     inkscape:export-ydpi="300">
+    <circle
+       cx="16"
+       cy="16"
+       r="16"
+       fill="#627eea"
+       id="circle2" />
+    <g
+       fill="#ffffff"
+       fill-rule="nonzero"
+       id="g16">
+      <path
+         fill-opacity="0.602"
+         d="m 16.498,4 v 8.87 l 7.497,3.35 z"
+         id="path4" />
+      <path
+         d="M 16.498,4 9,16.22 16.498,12.87 Z"
+         id="path6" />
+      <path
+         fill-opacity="0.602"
+         d="m 16.498,21.968 v 6.027 L 24,17.616 Z"
+         id="path8" />
+      <path
+         d="M 16.498,27.995 V 21.967 L 9,17.616 Z"
+         id="path10" />
+      <path
+         fill-opacity="0.2"
+         d="M 16.498,20.573 23.995,16.22 16.498,12.872 Z"
+         id="path12" />
+      <path
+         fill-opacity="0.602"
+         d="m 9,16.22 7.498,4.353 v -7.701 z"
+         id="path14" />
+    </g>
+  </g>
+</svg>

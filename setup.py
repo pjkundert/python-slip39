@@ -40,9 +40,14 @@ extras_require			= {
 
 package_dir			= {
     "slip39":			"./slip39",
+    "slip39.layout":		"./slip39/layout",
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
+}
+
+package_data			= {
+    'slip39': [ 'layout/*.png' ],
 }
 
 long_description_content_type	= 'text/markdown'
@@ -212,6 +217,8 @@ setup(
     extras_require		= extras_require,
     packages			= package_dir.keys(),
     package_dir			= package_dir,
+    package_data		= package_data,
+    include_package_data	= True,
     zip_safe			= True,
     entry_points		= entry_points,
     author			= "Perry Kundert",

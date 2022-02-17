@@ -85,7 +85,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' (default) reads it from stdin (eg. output from slip39.recover)" )
     ap.add_argument( '-f', '--format', action='append',
                      default=[],
-                     help=f"Specify default crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in sorted(Account.CRYPTOCURRENCIES))}" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
                      help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:../0/-" )
@@ -251,7 +251,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
     # ...else...
     # Transmitting.
-    cryptopaths			= cryptopaths_parser( args.cryptocurency, edit=args.path )
+    cryptopaths			= cryptopaths_parser( args.cryptocurrency, edit=args.path )
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow

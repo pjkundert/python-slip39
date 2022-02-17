@@ -1,1 +1,71 @@
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 82.6 82.6"><title>litecoin-ltc-logo</title><circle cx="41.3" cy="41.3" r="36.83" style="fill:#fff"/><path d="M41.3,0A41.3,41.3,0,1,0,82.6,41.3h0A41.18,41.18,0,0,0,41.54,0ZM42,42.7,37.7,57.2h23a1.16,1.16,0,0,1,1.2,1.12v.38l-2,6.9a1.49,1.49,0,0,1-1.5,1.1H23.2l5.9-20.1-6.6,2L24,44l6.6-2,8.3-28.2a1.51,1.51,0,0,1,1.5-1.1h8.9a1.16,1.16,0,0,1,1.2,1.12v.38L43.5,38l6.6-2-1.4,4.8Z" style="fill:#345d9d"/></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 191.60324 191.60283"
+   version="1.1"
+   sodipodi:docname="LTC.svg"
+   inkscape:export-filename="/Users/perry/src/python-slip39/images/LTC.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   inkscape:version="1.1.2 (b8e25be8, 2022-02-05)"
+   width="1.9160324in"
+   height="1.9160283in"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs11" />
+  <sodipodi:namedview
+     id="namedview9"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     showgrid="false"
+     inkscape:zoom="3.4127554"
+     inkscape:cx="59.922256"
+     inkscape:cy="92.447295"
+     inkscape:window-width="1926"
+     inkscape:window-height="969"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="Layer_1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     units="in"
+     inkscape:document-units="in" />
+  <title
+     id="title2">litecoin-ltc-logo</title>
+  <circle
+     cx="95.935715"
+     cy="95.935715"
+     r="91.465721"
+     style="fill:#ffffff;stroke-width:2.48346"
+     id="circle4" />
+  <path
+     d="m 95.801418,0 a 95.801416,95.801416 0 1 0 95.801412,95.801416 v 0 A 95.523059,95.523059 0 0 0 96.358133,0 Z m 1.623753,99.048922 -9.974482,33.634878 h 53.351881 a 2.6907904,2.6907904 0 0 1 2.78357,2.59801 v 0.88146 l -4.63929,16.00557 a 3.4562739,3.4562739 0 0 1 -3.47947,2.55161 H 53.81581 l 13.685916,-46.62491 -15.309669,4.6393 3.47947,-10.67038 15.30967,-4.639291 19.253069,-65.414042 a 3.5026668,3.5026668 0 0 1 3.47947,-2.551612 h 20.644854 a 2.6907904,2.6907904 0 0 1 2.78358,2.598005 v 0.881466 l -16.23753,55.207596 15.30967,-4.639294 -3.24751,11.134305 z"
+     style="fill:#345d9d;stroke-width:2.31965"
+     id="path6"
+     inkscape:export-filename="/Users/perry/src/python-slip39/images/LTC.png"
+     inkscape:export-xdpi="300"
+     inkscape:export-ydpi="300" />
+  <metadata
+     id="metadata13">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>litecoin-ltc-logo</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

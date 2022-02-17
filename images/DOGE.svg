@@ -1,1 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2000" width="2500" height="2500"><g fill="#c2a633"><path d="M1024 659H881.12v281.69h224.79v117.94H881.12v281.67H1031c38.51 0 316.16 4.35 315.73-327.72S1077.44 659 1024 659z"/><path d="M1000 0C447.71 0 0 447.71 0 1000s447.71 1000 1000 1000 1000-447.71 1000-1000S1552.29 0 1000 0zm39.29 1540.1H677.14v-481.46H549.48V940.7h127.65V459.21h310.82c73.53 0 560.56-15.27 560.56 549.48 0 574.09-509.21 531.41-509.21 531.41z"/></g></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 153.6 153.6"
+   width="2in"
+   height="2in"
+   version="1.1"
+   id="svg20"
+   sodipodi:docname="DOGE.svg"
+   inkscape:export-filename="/Users/perry/src/python-slip39/images/DOGE.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   inkscape:version="1.1.2 (b8e25be8, 2022-02-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs24" />
+  <sodipodi:namedview
+     id="namedview22"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     showgrid="false"
+     inkscape:zoom="2.6128497"
+     inkscape:cx="137.58924"
+     inkscape:cy="103.52681"
+     inkscape:window-width="2284"
+     inkscape:window-height="969"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg20"
+     units="in"
+     inkscape:document-units="in" />
+  <g
+     fill="#c2a633"
+     id="g18"
+     transform="scale(0.07681432)"
+     inkscape:export-filename="/Users/perry/src/python-slip39/images/DOGE.png"
+     inkscape:export-xdpi="300"
+     inkscape:export-ydpi="300">
+    <path
+       d="M 1024,659 H 881.12 v 281.69 h 224.79 v 117.94 H 881.12 V 1340.3 H 1031 c 38.51,0 316.16,4.35 315.73,-327.72 C 1346.3,680.51 1077.44,659 1024,659 Z"
+       id="path14" />
+    <path
+       d="M 1000,0 C 447.71,0 0,447.71 0,1000 0,1552.29 447.71,2000 1000,2000 1552.29,2000 2000,1552.29 2000,1000 2000,447.71 1552.29,0 1000,0 Z m 39.29,1540.1 H 677.14 V 1058.64 H 549.48 V 940.7 H 677.13 V 459.21 h 310.82 c 73.53,0 560.56,-15.27 560.56,549.48 0,574.09 -509.21,531.41 -509.21,531.41 z"
+       id="path16" />
+  </g>
+</svg>
