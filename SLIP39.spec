@@ -3,6 +3,7 @@ from PyInstaller.utils.hooks import collect_data_files
 
 datas = []
 datas += collect_data_files('shamir_mnemonic')
+datas += collect_data_files('slip39')
 
 
 block_cipher = None
@@ -12,7 +13,7 @@ a = Analysis(['SLIP39.py'],
              pathex=[],
              binaries=[],
              datas=datas,
-             hiddenimports=[],
+             hiddenimports=['slip39'],
              hookspath=[],
              hooksconfig={},
              runtime_hooks=[],
@@ -25,28 +26,24 @@ pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 
 exe = EXE(pyz,
-          a.scripts, 
+          a.scripts,
+          a.binaries,
+          a.zipfiles,
+          a.datas,  
           [],
-          exclude_binaries=True,
           name='SLIP39',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
+          upx_exclude=[],
+          runtime_tmpdir=None,
           console=False,
           disable_windowed_traceback=False,
           target_arch=None,
           codesign_identity='Developer ID Application: Perry Kundert (ZD8TVTCXDS)',
           entitlements_file='./SLIP39.metadata/entitlements.plist' )
-coll = COLLECT(exe,
-               a.binaries,
-               a.zipfiles,
-               a.datas, 
-               strip=False,
-               upx=True,
-               upx_exclude=[],
-               name='SLIP39')
-app = BUNDLE(coll,
+app = BUNDLE(exe,
              name='SLIP39.app',
              icon='images/SLIP39.icns',
              version='7.0.1',

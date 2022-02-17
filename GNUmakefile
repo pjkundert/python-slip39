@@ -499,6 +499,8 @@ SLIP39.spec: SLIP39.py
 	    --osx-bundle-identifier "$(BUNDLEID)" \
 	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
+	    --hidden-import slip39 \
+	    --collect-data slip39 \
 		$<
 	@echo "!!! Regenerated $@: must be manually corrected!"
 	false  # Make the build fail if we've regenerated the .spec
