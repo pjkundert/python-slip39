@@ -914,7 +914,7 @@ def app(
 
 def main( argv=None ):
     ap				= argparse.ArgumentParser(
-        description = "Create and output SLIP-39 encoded Seeds to a PDF file.",
+        description = "Graphical User Interface to create and output SLIP-39 encoded Seeds and Paper Wallets to a PDF file.",
         formatter_class = argparse.RawDescriptionHelpFormatter,
         epilog = """\
 

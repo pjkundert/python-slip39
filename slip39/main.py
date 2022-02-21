@@ -19,7 +19,7 @@ log				= logging.getLogger( __package__ )
 
 def main( argv=None ):
     ap				= argparse.ArgumentParser(
-        description = "Create and output SLIP39 encoded Ethereum wallet(s) to a PDF file.",
+        description = "Create and output SLIP-39 encoded Seeds and Paper Wallets to a PDF file.",
         epilog = "" )
     ap.add_argument( '-v', '--verbose', action="count",
                      default=0,
