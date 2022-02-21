@@ -51,8 +51,8 @@ help:
 	@echo "  build			Build clean dist wheel and app under Python3"
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
-	@echo "  app			Build the macOS SLIP39.app"
-	@echo "  app-packages		Build and sign the macOSSLIP39.app, and all App zip, dmg and pkg format packages"
+	@echo "  app			Build the macOS SLIP-39.app"
+	@echo "  app-packages		Build and sign the macOS SLIP-39.app, and all App zip, dmg and pkg format packages"
 
 test:
 	$(PY3TEST)
@@ -119,41 +119,41 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 
 # Building / Signing / Notarizing and Uploading the macOS App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
-app:			dist/SLIP39.app
+app:			dist/SLIP-39.app
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
 
 
-# Generate, Sign and Package the macOS SLIP39.app GUI for App Store or local/manual installation
+# Generate, Sign and Package the macOS SLIP-39.app GUI for App Store or local/manual installation
 # o Try all the approaches of packaging a macOS App for App Store upload
-app-dmg:		dist/SLIP39-$(VERSION).dmg
-app-zip:		dist/SLIP39-$(VERSION).zip
-app-pkg:		dist/SLIP39-$(VERSION).pkg
+app-dmg:		dist/SLIP-39-$(VERSION).dmg
+app-zip:		dist/SLIP-39-$(VERSION).zip
+app-pkg:		dist/SLIP-39-$(VERSION).pkg
 
-app-dmg-valid:		dist/SLIP39-$(VERSION).dmg.valid
-app-zip-valid:		dist/SLIP39-$(VERSION).zip.valid
-app-pkg-valid:		dist/SLIP39-$(VERSION).pkg.valid
+app-dmg-valid:		dist/SLIP-39-$(VERSION).dmg.valid
+app-zip-valid:		dist/SLIP-39-$(VERSION).zip.valid
+app-pkg-valid:		dist/SLIP-39-$(VERSION).pkg.valid
 
-app-dmg-upload:		dist/SLIP39-$(VERSION).dmg.upload-package
-app-zip-upload:		dist/SLIP39-$(VERSION).zip.upload-package
-app-pkg-upload:		dist/SLIP39-$(VERSION).pkg.upload-package
+app-dmg-upload:		dist/SLIP-39-$(VERSION).dmg.upload-package
+app-zip-upload:		dist/SLIP-39-$(VERSION).zip.upload-package
+app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 
 # 
 # Build the macOS App, and create and sign the .dmg file
 # 
 # o Uses https://github.com/sindresorhus/create-dmg
 #   - npm install --global create-dmg
-#   - Renames the resultant file from "SLIP39 1.2.3.dmg" to "SLIP39-1.2.3.dmg"
+#   - Renames the resultant file from "SLIP-39 1.2.3.dmg" to "SLIP-39-1.2.3.dmg"
 #   - It automatically finds the correct signing key (unkown)
 # 
-dist/SLIP39-$(VERSION).dmg:	dist/SLIP39.app
+dist/SLIP-39-$(VERSION).dmg:	dist/SLIP-39.app
 	@echo "\n\n*** Creating and signing DMG $@..."
 	npx create-dmg --overwrite $<
-	mv "SLIP39 $(VERSION).dmg" "$@"
-	@echo "Checking signature..."; ./SLIP39.metadata/check-signature $@
+	mv "SLIP-39 $(VERSION).dmg" "$@"
+	@echo "Checking signature..."; ./SLIP-39.metadata/check-signature $@
 
-.PHONY: dist/SLIP39-$(VERSION).dmg-verify
-dist/SLIP39-$(VERSION).dmg-verify: dist/SLIP39-$(VERSION).dmg
+.PHONY: dist/SLIP-39-$(VERSION).dmg-verify
+dist/SLIP-39-$(VERSION).dmg-verify: dist/SLIP-39-$(VERSION).dmg
 	@echo "\n\n*** Verifying signing of $<..."
 	#codesign --verify -v $< \
 	#    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
@@ -167,7 +167,7 @@ dist/SLIP39-$(VERSION).dmg-verify: dist/SLIP39-$(VERSION).dmg
 
 
 # Notarize the .dmg, unless we've already uploaded it and have a RequestUUID
-dist/SLIP39-$(VERSION).dmg.notarization: dist/SLIP39-$(VERSION).dmg
+dist/SLIP-39-$(VERSION).dmg.notarization: dist/SLIP-39-$(VERSION).dmg
 	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
 	|| xcrun altool --notarize-app -f $< \
 	    --primary-bundle-id $(BUNDLEID) \
@@ -177,7 +177,7 @@ dist/SLIP39-$(VERSION).dmg.notarization: dist/SLIP39-$(VERSION).dmg
 		> $@
 
 # Refresh the ...dmg.notariation-status, unless it is already "Status: success"
-dist/SLIP39-$(VERSION).dmg.notarization-status: dist/SLIP39-$(VERSION).dmg.notarization FORCE
+dist/SLIP-39-$(VERSION).dmg.notarization-status: dist/SLIP-39-$(VERSION).dmg.notarization FORCE
 	[ -s $@ ] && grep "Status: success" $@ \
 	    || xcrun altool \
 		    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
@@ -185,14 +185,14 @@ dist/SLIP39-$(VERSION).dmg.notarization-status: dist/SLIP39-$(VERSION).dmg.notar
 		        | tee -a $@
 
 # Check notarization status 'til Status: success, then staple it to ...dmg, and create ...dmg.valid marker file
-dist/SLIP39-$(VERSION).dmg.valid: dist/SLIP39-$(VERSION).dmg.notarization-status FORCE
+dist/SLIP-39-$(VERSION).dmg.valid: dist/SLIP-39-$(VERSION).dmg.notarization-status FORCE
 	@grep "Status: success" $< || \
 	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
 	( [ -r $@ ] ) \
 	    && ( echo "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
 	    || ( \
-		xcrun stapler staple   dist/SLIP39-$(VERSION).dmg && \
-		xcrun stapler validate dist/SLIP39-$(VERSION).dmg && \
+		xcrun stapler staple   dist/SLIP-39-$(VERSION).dmg && \
+		xcrun stapler validate dist/SLIP-39-$(VERSION).dmg && \
 	        echo "\n\n*** Notarization attached to $@" && \
 		touch $@ \
 	    )
@@ -201,11 +201,11 @@ dist/SLIP39-$(VERSION).dmg.valid: dist/SLIP39-$(VERSION).dmg.notarization-status
 # o Try either upload-package and upload-app approach
 # o NOTE that --apple-id is NOT your "Apple ID", it is the unique App ID
 # See: https://github.com/fastlane/fastlane/issues/14783
-dist/SLIP39-$(VERSION).dmg.upload-package: dist/SLIP39-$(VERSION).dmg dist/SLIP39-$(VERSION).dmg.valid FORCE
+dist/SLIP-39-$(VERSION).dmg.upload-package: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39-$(VERSION).dmg.valid FORCE
 	[ -s $@ ] || ( \
 	    echo "\n\n*** Uploading the signed DMG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
-	    echo "*** Checking signature..." && ./SLIP39.metadata/check-signature $< && \
+	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
 	    xcrun altool --upload-package $< \
 		--type macos \
@@ -215,11 +215,11 @@ dist/SLIP39-$(VERSION).dmg.upload-package: dist/SLIP39-$(VERSION).dmg dist/SLIP3
 		    | tee -a $@ \
 	)
 
-dist/SLIP39-$(VERSION).dmg.upload-app: dist/SLIP39-$(VERSION).dmg dist/SLIP39-$(VERSION).dmg.valid FORCE
+dist/SLIP-39-$(VERSION).dmg.upload-app: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39-$(VERSION).dmg.valid FORCE
 	[ -s $@ ] || ( \
 	    echo "\n\n*** Uploading the signed DMG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
-	    echo "*** Checking signature..." && ./SLIP39.metadata/check-signature $< && \
+	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
 	    xcrun altool --upload-app -f $< \
 		--type macos \
@@ -237,7 +237,7 @@ dist/SLIP39-$(VERSION).dmg.upload-app: dist/SLIP39-$(VERSION).dmg dist/SLIP39-$(
 # According to this article, a "Developer ID Installer:..." signing key is required:
 # See: https://forums.ivanti.com/s/article/Obtaining-an-Apple-Developer-ID-Certificate-for-macOS-Provisioning?language=en_US&ui-force-components-controllers-recordGlobalValueProvider.RecordGvp.getRecord=1
 # 
-dist/SLIP39-$(VERSION).pkg:	dist/SLIP39.app
+dist/SLIP-39-$(VERSION).pkg:	dist/SLIP-39.app
 	productbuild --sign "$(PKGID)" --timestamp \
 	    --identifier "$(BUNDLEID).pkg" \
 	    --version $(VERSION) \
@@ -259,8 +259,8 @@ dist/SLIP39-$(VERSION).pkg:	dist/SLIP39.app
 # o The developer.apple.com/documentation is wrong; it is directly in conflict with the error
 #   messages returned, demanding the 3rd Party Installer signing key
 
-.PHONY: dist/SLIP39-$(VERSION).pkg-verify
-dist/SLIP39-$(VERSION).pkg-verify: dist/SLIP39-$(VERSION).pkg
+.PHONY: dist/SLIP-39-$(VERSION).pkg-verify
+dist/SLIP-39-$(VERSION).pkg-verify: dist/SLIP-39-$(VERSION).pkg
 	@echo "\n\n*** Verifying signing of $<..."
 	pkgutil --check-signature $< | grep "Signed with a trusted timestamp"
 	#pkgutil --check-signature $< | grep "1. Developer ID Installer:"
@@ -269,7 +269,7 @@ dist/SLIP39-$(VERSION).pkg-verify: dist/SLIP39-$(VERSION).pkg
 # macOS Package Notarization
 # See: https://oozou.com/blog/scripting-notarization-for-macos-app-distribution-38
 # o The .pkg version doesn't work due to incorrect signing keys for the .pkg (unknown reason)
-dist/SLIP39-$(VERSION).pkg.notarization: dist/SLIP39-$(VERSION).pkg dist/SLIP39-$(VERSION).pkg-verify
+dist/SLIP-39-$(VERSION).pkg.notarization: dist/SLIP-39-$(VERSION).pkg dist/SLIP-39-$(VERSION).pkg-verify
 	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
 	|| xcrun altool --notarize-app -f $< \
 	    --primary-bundle-id $(BUNDLEID) \
@@ -278,7 +278,7 @@ dist/SLIP39-$(VERSION).pkg.notarization: dist/SLIP39-$(VERSION).pkg dist/SLIP39-
 	    --output-format json \
 		> $@
 
-dist/SLIP39-$(VERSION).pkg.notarization-status: dist/SLIP39-$(VERSION).pkg.notarization FORCE
+dist/SLIP-39-$(VERSION).pkg.notarization-status: dist/SLIP-39-$(VERSION).pkg.notarization FORCE
 	[ -s $@ ] && grep "Status: success" $@ \
 	    || xcrun altool \
 		--apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
@@ -286,14 +286,14 @@ dist/SLIP39-$(VERSION).pkg.notarization-status: dist/SLIP39-$(VERSION).pkg.notar
 		    | tee -a $@
 
 # Check notarization status 'til Status: success, then staple it to ...pkg, and create ...pkg.valid marker file
-dist/SLIP39-$(VERSION).pkg.valid: dist/SLIP39-$(VERSION).pkg.notarization-status FORCE
+dist/SLIP-39-$(VERSION).pkg.valid: dist/SLIP-39-$(VERSION).pkg.notarization-status FORCE
 	@grep "Status: success" $< || \
 	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
 	( [ -r $@ ] ) \
 	    && ( echo "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
 	    || ( \
-		xcrun stapler staple   dist/SLIP39-$(VERSION).pkg && \
-		xcrun stapler validate dist/SLIP39-$(VERSION).pkg && \
+		xcrun stapler staple   dist/SLIP-39-$(VERSION).pkg && \
+		xcrun stapler validate dist/SLIP-39-$(VERSION).pkg && \
 	        echo "\n\n*** Notarization attached to $@" && \
 		touch $@ \
 	    )
@@ -302,11 +302,11 @@ dist/SLIP39-$(VERSION).pkg.valid: dist/SLIP39-$(VERSION).pkg.notarization-status
 # o Could also use Transporter
 # o Try either upload-package and upload-app approach
 # o NOTE that --apple-id is NOT your "Apple ID", it is the unique App ID (see above)
-dist/SLIP39-$(VERSION).pkg.upload-package: dist/SLIP39-$(VERSION).pkg dist/SLIP39-$(VERSION).pkg.valid FORCE
+dist/SLIP-39-$(VERSION).pkg.upload-package: dist/SLIP-39-$(VERSION).pkg dist/SLIP-39-$(VERSION).pkg.valid FORCE
 	[ -s $@ ] || ( \
 	    echo "\n\n*** Uploading the signed PKG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
-	    echo "*** Checking signature..." && ./SLIP39.metadata/check-signature $< && \
+	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
 	    xcrun altool --upload-package $< \
 		--type macos \
@@ -323,9 +323,9 @@ dist/SLIP39-$(VERSION).pkg.upload-package: dist/SLIP39-$(VERSION).pkg dist/SLIP3
 # 
 # o Create a ZIP archive suitable for notarization.
 # 
-dist/SLIP39-$(VERSION).zip:	dist/SLIP39.app
+dist/SLIP-39-$(VERSION).zip:	dist/SLIP-39.app
 	@echo "\n\n*** Creating and signing DMG $@..."
-	@echo "Checking signature..." && ./SLIP39.metadata/check-signature $<
+	@echo "Checking signature..." && ./SLIP-39.metadata/check-signature $<
 	codesign --verify $<
 	codesign -dv -r- $<
 	codesign -vv $<
@@ -334,7 +334,7 @@ dist/SLIP39-$(VERSION).zip:	dist/SLIP39.app
 	@ls -last dist
 
 # Upload and notarize the .zip, unless we've already uploaded it and have a RequestUUID
-dist/SLIP39-$(VERSION).zip.notarization: dist/SLIP39-$(VERSION).zip
+dist/SLIP-39-$(VERSION).zip.notarization: dist/SLIP-39-$(VERSION).zip
 	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
 	|| xcrun altool --notarize-app -f $< \
 	    --primary-bundle-id $(BUNDLEID) \
@@ -344,7 +344,7 @@ dist/SLIP39-$(VERSION).zip.notarization: dist/SLIP39-$(VERSION).zip
 		> $@
 
 # Refresh the ...zip.notariation-status, unless it is already "Status: success"
-dist/SLIP39-$(VERSION).zip.notarization-status:  dist/SLIP39-$(VERSION).zip.notarization FORCE
+dist/SLIP-39-$(VERSION).zip.notarization-status:  dist/SLIP-39-$(VERSION).zip.notarization FORCE
 	[ -s $@ ] && grep "Status: success" $@ \
 	    || xcrun altool \
 		--apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
@@ -355,7 +355,7 @@ dist/SLIP39-$(VERSION).zip.notarization-status:  dist/SLIP39-$(VERSION).zip.nota
 # Check notarization status 'til Status: success, then mark the ...zip.valid
 # o We can't staple anything to a zip, but the contained app will now pass Gateway
 #   on the client system, b/c it will check w/ Apple's servers that the app was notarized.
-dist/SLIP39-$(VERSION).zip.valid: dist/SLIP39-$(VERSION).zip.notarization-status FORCE
+dist/SLIP-39-$(VERSION).zip.valid: dist/SLIP-39-$(VERSION).zip.notarization-status FORCE
 	@grep "Status: success" $< || \
 	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
 	@echo "\n\n*** Notarization complete; refreshing $@" \
@@ -363,7 +363,7 @@ dist/SLIP39-$(VERSION).zip.valid: dist/SLIP39-$(VERSION).zip.notarization-status
 
 # Submit App Zip w/o notarization stapled.
 # o Doesn't work; same "Unsupported toolchain." error as ...-notarized.zip.upload
-dist/SLIP39-$(VERSION).zip.upload-package: dist/SLIP39-$(VERSION).zip dist/SLIP39-$(VERSION).zip.valid FORCE
+dist/SLIP-39-$(VERSION).zip.upload-package: dist/SLIP-39-$(VERSION).zip dist/SLIP-39-$(VERSION).zip.valid FORCE
 	[ -s $@ ] || xcrun altool --upload-package $< \
 	    --type macos \
 	    --bundle-id $(BUNDLEID) --bundle-version $(VERSION) --bundle-short-version-string $(VERSION) \
@@ -374,10 +374,10 @@ dist/SLIP39-$(VERSION).zip.upload-package: dist/SLIP39-$(VERSION).zip dist/SLIP3
 # Check notarization status 'til Status: success, then staple it to ...app, and create ...-notarized.zip
 # o The .zip version works, but the notarization cannot be stapled to the zip;
 #   - It should usually be checked via Gatekeeper, by the recipient of the App in the .zip
-#   - We have to receive notification that the SLIP39.zip.notarization-status Status: success
+#   - We have to receive notification that the SLIP-39.zip.notarization-status Status: success
 #   - So, once we confirm notarization, just submit/publish the original .zip file
 # o For other purposes (eg. just for manual installation), we can package the Notarized app
-dist/SLIP39-$(VERSION)-notarized.zip: dist/SLIP39-$(VERSION).app dist/SLIP39-$(VERSION).zip.valid
+dist/SLIP-39-$(VERSION)-notarized.zip: dist/SLIP-39-$(VERSION).app dist/SLIP-39-$(VERSION).zip.valid
 	( [ -r $@ ] ) \
 	    && ( echo "\n\n*** Notarization compete; not re-generating $@"; true ) \
 	    || ( \
@@ -391,9 +391,9 @@ dist/SLIP39-$(VERSION)-notarized.zip: dist/SLIP39-$(VERSION).app dist/SLIP39-$(V
 # macOS ...zip App Upload: Unless the ...zip.upload file exists and is non-zero
 # o I don't think it is possible to construct, notarize and submit an App for the macOS store via Zip
 #   - We can't staple the notarization onto it.  Must use a .pkg or .dmg...
-# *** Error: Error uploading 'dist/SLIP39-6.6.4-notarized.zip'.
+# *** Error: Error uploading 'dist/SLIP-39-6.6.4-notarized.zip'.
 # *** Error: Unsupported toolchain. Packages submitted to the App Store must be created either through Xcode, or using the productbuild[1] tool, as described in "Submitting your Mac apps to the App Store." Packages created by other tools, including PackageMaker, are not acceptable. [SIS] With error code STATE_ERROR.VALIDATION_ERROR.90270 for id 39784451-3843-428b-97ec-37c1b196ca35 Asset validation failed (-19208)
-dist/SLIP39-$(VERSION)-notarized.zip.upload: dist/SLIP39-$(VERSION)-notarized.zip FORCE
+dist/SLIP-39-$(VERSION)-notarized.zip.upload: dist/SLIP-39-$(VERSION)-notarized.zip FORCE
 	[ -s $@ ] || xcrun altool --upload-package $< \
 	    --type macos \
 	    --bundle-id $(BUNDLEID) --bundle-version $(VERSION) --bundle-short-version-string $(VERSION) \
@@ -407,7 +407,7 @@ dist/SLIP39-$(VERSION)-notarized.zip.upload: dist/SLIP39-$(VERSION)-notarized.zi
 # 
 # Rebuild the gui App; ensure we discard any partial/prior build and gui artifacts The --onefile
 # approach doesn't seem to work, as we need to sign things after packaging.  We need to customize
-# the SLIP39.spec file (eg. for version), so we do not target SLIP39.py (which would re-generate it
+# the SLIP-39.spec file (eg. for version), so we do not target SLIP-39.py (which would re-generate it
 # without our additions)
 #
 # Additional .spec file configurations:
@@ -415,9 +415,9 @@ dist/SLIP39-$(VERSION)-notarized.zip.upload: dist/SLIP39-$(VERSION)-notarized.zi
 #
 # o The codesign --verify succeeds w/ the '3rd Party Mac Developer Application ...', but not the spctl --assess?
 # 
-.PHONY: dist/SLIP39.app-signed
-dist/SLIP39.app-signed: 	dist/SLIP39.app		\
-				dist/SLIP39.app-checkids
+.PHONY: dist/SLIP-39.app-signed
+dist/SLIP-39.app-signed: 	dist/SLIP-39.app		\
+				dist/SLIP-39.app-checkids
 	@echo "\n\n*** Verifying codesigning of $<..."
 	codesign --verify -v $< \
 	    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
@@ -425,8 +425,8 @@ dist/SLIP39.app-signed: 	dist/SLIP39.app		\
 	spctl --assess --type execute --context context:primary-signature -vvv $< || \
 	spctl --assess --type open    --context context:primary-signature -vvv $< || true
 
-.PHONY: dist/SLIP39.app-checkids
-dist/SLIP39.app-checkids:	SLIP39.spec
+.PHONY: dist/SLIP-39.app-checkids
+dist/SLIP-39.app-checkids:	SLIP-39.spec
 	@echo "\n\n*** Checking Developer/Installer IDs for $(TEAMID) in $<..."
 	security find-identity -vp macappstore
 	security find-identity -vp macappstore | grep "$(DEVID)" \
@@ -446,42 +446,42 @@ dist/SLIP39.app-checkids:	SLIP39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
-dist/SLIP39.app: 		SLIP39.spec		\
-				SLIP39.metadata/entitlements.plist \
-				images/SLIP39.icns
+dist/SLIP-39.app: 		SLIP-39.spec		\
+				SLIP-39.metadata/entitlements.plist \
+				images/SLIP-39.icns
 	@echo "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
 	sed -I "" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
-	pyinstaller --noconfirm --windowed --onefile $<
-	echo "Checking signature (pyinstaller signed)..."; ./SLIP39.metadata/check-signature $@ || true
+	pyinstaller --noconfirm $<
+	echo "Checking signature (pyinstaller signed)..."; ./SLIP-39.metadata/check-signature $@ || true
 	codesign --verify $@
 	# codesign --deep --force \
 	#     --all-architectures --options=runtime --timestamp \
 	#     --sign "$(DEVID)" \
 	#     $@
-	# echo "Checking signature (app code signed)..."; ./SLIP39.metadata/check-signature $@ || true
+	# echo "Checking signature (app code signed)..."; ./SLIP-39.metadata/check-signature $@ || true
 	# codesign --verify $@
 	# codesign --deep --force \
 	#     --all-architectures --options=runtime --timestamp \
-	#     --entitlements ./SLIP39.metadata/entitlements.plist \
+	#     --entitlements ./SLIP-39.metadata/entitlements.plist \
 	#     --sign "$(DEVID)" \
 	#     $@
-	# echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP39.metadata/check-signature $@ || true
+	# echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP-39.metadata/check-signature $@ || true
 	# codesign --verify $@
 	touch $@  # try to avoid unnecessary rebuilding
 
 #
-# Only used for initial creation of SLIP39.spec; it must be customized, so this target cannot be
-# used to achieve a complete, operational SLIP39.spec file!
+# Only used for initial creation of SLIP-39.spec; it must be customized, so this target cannot be
+# used to achieve a complete, operational SLIP-39.spec file!
 #
 # Roughly, change:
 # 
 #     app = BUNDLE(coll,
-#                  name='SLIP39.app',
+#                  name='SLIP-39.app',
 #    -             icon=None,
-#    +             icon='images/SLIP39.icns',
+#    +             icon='images/SLIP-39.icns',
 #    +             version='6.4.1',
 #    +             info_plist={
 #    +                 'CFBundleVersion':'6.4.1',
@@ -492,12 +492,12 @@ dist/SLIP39.app: 		SLIP39.spec		\
 #    +
 #                 bundle_identifier='ca.kundert.perry.SLIP39')
 
-SLIP39.spec: SLIP39.py
+SLIP-39.spec: SLIP-39.py
 	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onefile \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
-	    --osx-entitlements-file ./SLIP39.metadata/entitlements.plist \
+	    --osx-entitlements-file ./SLIP-39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
@@ -508,14 +508,14 @@ SLIP39.spec: SLIP39.py
 # 
 # macOS Icons
 # 
-# Requires a source images/SLIP39.png at least 1024x1024
+# Requires a source images/SLIP-39.png at least 1024x1024
 # 
 # See: https://stackoverflow.com/questions/12306223/how-to-manually-create-icns-files-using-iconutil
 #
-images/SLIP39.icns: images/SLIP39.iconset 
+images/SLIP-39.icns: images/SLIP-39.iconset 
 	iconutil --convert icns -o $@ $<
 
-images/SLIP39.iconset: images/SLIP39.png
+images/SLIP-39.iconset: images/SLIP-39.png
 	rm -rf $@
 	mkdir $@
 	sips -z   16   16 $< --out $@/icon_16x16.png

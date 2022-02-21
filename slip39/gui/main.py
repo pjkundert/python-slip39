@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import os
+import subprocess
 
 from itertools import islice
 
@@ -570,7 +571,41 @@ def app(
 
     sg.theme( 'DarkAmber' )
 
-    sg.user_settings_set_entry( '-target folder-', os.getcwd() )
+    # Try to set a sane initial CWD (for saving generated files).  If we start up in the standard
+    # macOS App's "Container" directory for this App, ie.:
+    # 
+    #    /Users/<somebody>/Library/Containers/ca.kundert.perry.SLIP39/Data
+    # 
+    # then we'll move upwards to the user's home directory.  If we change the macOS App's Bundle ID,
+    # this will change..
+    cwd				= os.getcwd()
+    if cwd.endswith( '/Library/Containers/ca.kundert.perry.SLIP39/Data' ):
+        cwd			= cwd[:-48]
+    sg.user_settings_set_entry( '-target folder-', cwd )
+
+    # 
+    # If no name(s) supplied, try to get the User's full name.
+    # 
+    if not names:
+        try:
+            scutil		= subprocess.run(
+                [ '/usr/sbin/scutil' ],
+                input		= "show State:/Users/ConsoleUser",
+                capture_output	= True,
+                encoding	= 'UTF-8',
+            )
+            print( repr( scutil ))
+            assert scutil.returncode == 0 and scutil.stdout, \
+                "'scutil' command failed, or no output returned"
+            for l in scutil.stdout.split( '\n' ):
+                if 'kCGSessionLongUserNameKey' in l:
+                    # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
+                    full_name	= l.split( ':' )[1].strip()
+                    log.info( f"Current user's full name: {full_name!r}" )
+                    names	= [ full_name ]
+                    break
+        except Exception as exc:
+            logging.exception( f"Failed to discover user full name: {exc}" )
 
     # If we cannot support the output of Paper Wallets, disable
     wallet_pwd			= None if paper_wallet_available() else False
@@ -612,7 +647,7 @@ def app(
             window['-GROUPS-F-'].expand( expand_x=True )
             timeout		= None 		# Subsequently, block indefinitely
         else:
-            window		= sg.Window( f"{', '.join( names or [ 'SLIP39' ] )} Mnemonic Cards", layout )
+            window		= sg.Window( f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout )
             timeout		= 0 		# First time through, refresh immediately
 
         status			= None
