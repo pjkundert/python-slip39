@@ -154,7 +154,7 @@ by entering the mnemonics right on the device.
     from our Seed into software wallets such as the Metamask plugin or the Brave browser, for
     example?
 
-    The =slip39.gui= (and the macOS SLIP39.App) support output of standard BIP-38 encrypted wallets
+    The =slip39.gui= (and the macOS SLIP-39.App) support output of standard BIP-38 encrypted wallets
     for Bitcoin-like cryptocurrencies such as BTC, LTC and DOGE.  It also outputs encrypted Ethereum
     JSON wallets for ETH.  Here is how to produce them (from a test secret Seed; exclude =--secret
     ffff...= for yours!):
@@ -172,9 +172,9 @@ by entering the mnemonics right on the device.
     #+ATTR_LATEX: :width 6in :options angle=0
    [[./images/slip39-wallets.png]]
 
-** The macOS =SLIP39.app= GUI App
+** The macOS =SLIP-39.app= GUI App
 
-   If you prefer a graphical user-interface, try the macOS SLIP39.App.  You can run it directly if you
+   If you prefer a graphical user-interface, try the macOS SLIP-39.App.  You can run it directly if you
    install Python 3.9+ from [[https://python.org/downloads][python.org/downlaods]] or using homebrew =brew install python-tk@3.9= (or
    higher, eg. =@3.10=).  Then, start the GUI in a variety of ways:
 
@@ -779,7 +779,7 @@ by entering the mnemonics right on the device.
     #+LATEX: {\scriptsize
     #+BEGIN_EXAMPLE
     slip39.write_pdfs( ... )
-    #+END_SRC
+    #+END_EXAMPLE
     #+LATEX: }
 
 *** =slip39.recover=
@@ -1228,9 +1228,9 @@ by entering the mnemonics right on the device.
    : $ python3 -m slip39.gui     # Execute the python slip39.gui module main method
    : $ slip39-gui                # Run the main function provided by the slip39.gui module
    
-*** The macOS =SLIP39.app= GUI
+*** The macOS =SLIP-39.app= GUI
 
-    You can build the native macOS =SLIP39.app= App.
+    You can build the native macOS =SLIP-39.app= App.
 
     This requires the official [[https://python.org/downloads][python.org/downloads]] installer; the homebrew python-tk@3.9 will not
     work for building the native app using either =PyInstaller=. (The =py2app= approach doesn't work
