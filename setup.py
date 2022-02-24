@@ -155,9 +155,15 @@ The whole toolchain is suitable for pipelining:
 
 Here's an example of PDF containing the SLIP-39 recovery mnemonic cards produced:
 
-![slip39 mnemonic cards][slip39-pdf]
+![SLIP-39 Mnemonic Cards PDF][slip39-cards]
 
-[slip39-pdf]: https://github.com/pjkundert/python-slip39/raw/master/images/slip39-pdf.png "slip39 mnemonic cards PDF"
+If desired, you can output encrypted "Paper Wallets", compatible for import into standard software
+cryptocurrency wallets (BIP-38 for Bitcoin, etc., and standard JSON wallets for Ethereum):
+
+![Encrypted Paper Wallets PDF][slip39-wallets]
+
+[slip39-cards]: https://github.com/pjkundert/python-slip39/raw/master/images/slip39-cards.png "SLIP-39 Mnemonic Cards PDF"
+[slip39-wallets]: https://github.com/pjkundert/python-slip39/raw/master/images/slip39-wallets.png "Encrypted Paper Wallets PDF"
 """
 
 classifiers			= [

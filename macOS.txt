@@ -75,7 +75,7 @@ Table of Contents
 
   Instead, generate a number of SLIP-39 Mnemonic cards, which can be
   collected to recover the Seed:
-  <./images/slip39-pdf.png>
+  <./images/slip39-cards.png>
 
 
 1.2 Paper Wallets

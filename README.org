@@ -121,7 +121,7 @@ by entering the mnemonics right on the device.
 
    #+CAPTION: SLIP-39 Cards PDF (from =--secret ffff...=)
    #+ATTR_LATEX: :width 6in :options angle=0
-   [[./images/slip39-pdf.png]]
+   [[./images/slip39-cards.png]]
 
    Run the following to obtain a PDF file containing index cards with the default SLIP-39 groups for
    a new account seed named "Personal"; insert a USB drive to collect the output, and run:
@@ -174,9 +174,9 @@ by entering the mnemonics right on the device.
 
 ** The macOS =SLIP-39.app= GUI App
 
-   If you prefer a graphical user-interface, try the macOS SLIP-39.App.  You can run it directly if you
-   install Python 3.9+ from [[https://python.org/downloads][python.org/downlaods]] or using homebrew =brew install python-tk@3.9= (or
-   higher, eg. =@3.10=).  Then, start the GUI in a variety of ways:
+   If you prefer a graphical user-interface, try the macOS SLIP-39.App.  You can run it directly if
+   you install Python 3.9+ from [[https://python.org/downloads][python.org/downloads]] or using homebrew =brew install
+   python-tk@3.10=.  Then, start the GUI in a variety of ways:
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE

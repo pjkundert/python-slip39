@@ -64,7 +64,7 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
    Instead, generate a number of SLIP-39 Mnemonic cards, which can be collected to recover the Seed:
    #+CAPTION: SLIP-39 Cards PDF
    #+ATTR_LATEX: :width 4in
-   [[./images/slip39-pdf.png]]
+   [[./images/slip39-cards.png]]
 
 ** Paper Wallets
 
