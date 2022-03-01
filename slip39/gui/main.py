@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import os
+import re
 import subprocess
 
 from itertools import islice
@@ -17,6 +18,7 @@ from ..layout		import write_pdfs
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS,
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET,
+    MNEM_CONT,
 )
 
 log				= logging.getLogger( __package__ )
@@ -28,6 +30,10 @@ font_bold			= ('Courier', 16, 'bold italic')
 I_kwds				= dict(
     change_submits	= True,
     font		= font,
+)
+I_kwds_small			= dict(
+    change_submits	= True,
+    font		= font_small,
 )
 T_kwds				= dict(
     font		= font,
@@ -42,8 +48,9 @@ B_kwds				= dict(
 
 prefix				= (20, 1)
 inputs				= (40, 1)
-inlong				= (128,1)  # 512-bit seeds require 128 hex nibbles
+inlong				= (128,1)       # 512-bit seeds require 128 hex nibbles
 shorty				= (10, 1)
+mnemos				= (195,3)
 
 
 def groups_layout(
@@ -52,37 +59,54 @@ def groups_layout(
     groups,
     passphrase		= None,
     cryptocurrency	= None,
-    wallet_pwd		= None,  # If False, disable capability
+    wallet_pwd		= None,			# If False, disable capability
+    simple		= False,		# Simplify layout by reducing complexity/choices
 ):
     """Return a layout for the specified number of SLIP-39 groups.
 
     """
 
     group_body			= [
-        sg.Frame(
-            '#', [[ sg.Column( [
-                [ sg.Text( f'{g+1}', **T_kwds ) ]
-                for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
-            ], key='-GROUP-NUMBER-' ) ]], **F_kwds
-        ),
-        sg.Frame(
-            'Group Name; Recovery requires at least...', [[ sg.Column( [
-                [ sg.Input( f'{g_name}', key=f'-G-NAME-{g}', **I_kwds ) ]
-                for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
-            ], key='-GROUP-NAMES-' ) ]], **F_kwds
-        ),
-        sg.Frame(
-            '# Needed', [[ sg.Column( [
-                [ sg.Input( f'{g_need}', key=f'-G-NEED-{g}', size=shorty, **I_kwds ) ]
-                for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
-            ], key='-GROUP-NEEDS-' ) ]], **F_kwds
-        ),
-        sg.Frame(
-            'of # in Group', [[ sg.Column( [
-                [ sg.Input( f'{g_size}', key=f'-G-SIZE-{g}', size=shorty, **I_kwds ) ]
-                for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
-            ], key='-GROUP-SIZES-' ) ]], **F_kwds
-        ),
+        sg.Frame( '#', [
+            [
+                sg.Column( [
+                    [
+                        sg.Text( f'{g+1}',                                                      **T_kwds ),
+                    ]
+                    for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
+                ],                                      key='-GROUP-NUMBER-' )
+            ]
+        ],                                                                                      **F_kwds ),
+        sg.Frame( 'Group Name; Recovery requires at least...', [
+            [
+                sg.Column( [
+                    [
+                        sg.Input( f'{g_name}',          key=f'-G-NAME-{g}',                     **I_kwds ),
+                    ]
+                    for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
+                ],                                      key='-GROUP-NAMES-' )
+            ]
+        ],                                                                                      **F_kwds ),
+        sg.Frame( '# Needed', [
+            [
+                sg.Column( [
+                    [
+                        sg.Input( f'{g_need}',          key=f'-G-NEED-{g}',     size=shorty,   **I_kwds )
+                    ]
+                    for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
+                ],                                      key='-GROUP-NEEDS-' )
+            ]
+        ],                                                                                     **F_kwds ),
+        sg.Frame( 'of # in Group', [
+            [
+                sg.Column( [
+                    [
+                        sg.Input( f'{g_size}',          key=f'-G-SIZE-{g}',     size=shorty,   **I_kwds )
+                    ]
+                    for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
+                ],                                      key='-GROUP-SIZES-' )
+            ]
+        ],                                                                                     **F_kwds ),
     ]
 
     if wallet_pwd is False:
@@ -104,7 +128,7 @@ def groups_layout(
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
                     sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
-                    sg.Text( "(comma-separated).  Paper size: ",                                **T_kwds ),
+                    sg.Text( ", ...   Paper size: ",                                **T_kwds ),
                 ] + [
                     sg.Radio( f"{pf}", "PF",            key=f"-PF-{pf}", default=(pf == PAPER), **B_kwds )
                     for pf in PAPER_FORMATS
@@ -135,10 +159,10 @@ def groups_layout(
                     ],                                  key='-SD-PASS-F-',      visible=False,  **F_kwds ),
                 ],
                 [
-                    sg.Frame( 'From', [
+                    sg.Frame( 'From Mnemonic(s):', [
                         [
-                            sg.Text( "Mnemonic(s): ",   key='-SD-DATA-T-',      size=prefix,    **T_kwds ),
-                            sg.Multiline( "",           key='-SD-DATA-',        size=inlong,    **I_kwds ),
+                            #sg.Text( "Mnemonic(s): ",   key='-SD-DATA-T-',      size=prefix,    **T_kwds ),
+                            sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,    **I_kwds_small ),
                         ],
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],
@@ -146,7 +170,7 @@ def groups_layout(
                     sg.Text( "Seed Data: ",                                     size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SD-SEED-',        size=inlong,    **T_kwds ),
                 ],
-            ],                                           key='-SD-SEED-F-',                      **F_kwds ),
+            ],                                          key='-SD-SEED-F-',                      **F_kwds ),
         ],
     ] + [
         [
@@ -178,7 +202,7 @@ def groups_layout(
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
                 ],
                 [
-                   sg.Column( [
+                    sg.Column( [
                         [
                             sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=shorty,    **I_kwds ),
@@ -265,7 +289,8 @@ def groups_layout(
         [
             sg.Frame( '8. SLIP-39 Recovery Mnemonics produced.  These will be saved to the PDF on cards.', [
                 [
-                    sg.Multiline( "",                   key='-MNEMONICS-'+sg.WRITE_ONLY_KEY, size=(195,6),   font=font_small )
+                    sg.Multiline( "",                   key='-MNEMONICS-'+sg.WRITE_ONLY_KEY,
+                                                                                size=mnemos,    **I_kwds_small )  # noqa: E127
                 ]
             ],                                          key='-MNEMONICS-F-',                    **F_kwds ),
         ],
@@ -280,6 +305,51 @@ def groups_layout(
         ],
     ]
     return layout
+
+
+def mnemonic_continuation( lines ):
+    """Filter out any prefixes consisting of word/space symbols followed by a single non-word/space
+    symbol, before any number of Mnemonic word/space symbols:
+
+                    Group  1 { word word ...
+                    Group  2 ╭ word word ...
+                             ╰ word word ...
+                    Group  3 ┌ word word ...
+                             ├ word word ...
+                             └ word word ...
+                    ^^^^^^^^ ^ ^^^^^^^^^^...
+                           | | |
+           word/digit/space* | word/space*
+                             |
+                  single non-word/digit/space
+
+    Any joining lines w/ a recognized MNEM_CONT prefix symbol (a UTF-8 square/curly bracket top or
+    center segment) are concatenated.  Any other non-prefixed or unrecognized word/space symbols are
+    considered complete mnemonic lines.
+
+    """
+    mnemonic			= []
+    for li in lines:
+        m			= re.match( r"([\w\d\s]*[^\w\d\s])?([\w\s]*)", li )
+        assert m, \
+            f"Invalid BIP-39 or SLIP-39 Mnemonic [prefix:]phrase: {li}"
+        pref,mnem		= m.groups()
+        if not pref and not mnem:  # blank lines ignored
+            continue
+        mnemonic.append( mnem.strip() )
+        continuation		= pref and ( pref[-1] in MNEM_CONT )
+        log.debug( f"Prefix: {pref!r:10}, Phrase: {mnem!r}" + ( "..." if continuation else "" ))
+        if continuation:
+            continue
+        if mnemonic:
+            phrase		= ' '.join( mnemonic )
+            log.info( f"Mnemonic phrase: {phrase!r}" )
+            yield phrase
+        mnemonic		= []
+    if mnemonic:
+        phrase			= ' '.join( mnemonic )
+        log.info( f"Mnemonic phrase: {phrase!r}" )
+        yield phrase
 
 
 def update_seed_data( event, window, values ):
@@ -320,17 +390,17 @@ def update_seed_data( event, window, values ):
             window['-SD-PASS-'].update( pwd )
             # And change visibility of Seed Data source controls
             if 'FIX' in update_seed_data.src:
-                window['-SD-DATA-T-'].update( "Hex data: " )
+                window['-SD-DATA-F-'].update( "Hex data: " )
                 window['-SD-DATA-F-'].update( visible=True  )
                 window['-SD-PASS-C-'].update( visible=False )
                 window['-SD-PASS-F-'].update( visible=False )
             elif 'BIP' in update_seed_data.src:
-                window['-SD-DATA-T-'].update( "BIP-39 Mnemonic: " )
+                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
                 window['-SD-DATA-F-'].update( visible=True )
                 window['-SD-PASS-C-'].update( visible=False )
                 window['-SD-PASS-F-'].update( visible=True )
             elif 'SLIP' in update_seed_data.src:
-                window['-SD-DATA-T-'].update( "SLIP-39 Mnemonics: " )
+                window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
                 window['-SD-DATA-F-'].update( visible=True )
                 window['-SD-PASS-C-'].update( visible=True )
                 window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
@@ -359,7 +429,7 @@ def update_seed_data( event, window, values ):
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
             seed_data		= recover(
-                mnemonics	= dat.strip().split( '\n' ),
+                mnemonics	= list( mnemonic_continuation( dat.strip().split( '\n' ))),
                 passphrase	= pwd.strip().encode( 'UTF-8' )
             )
             bits		= len( seed_data ) * 4
@@ -497,7 +567,7 @@ def compute_master_secret( window, values, n=0 ):
 
     This is a critical feature -- without this visual confirmation, it is NOT POSSIBLE to trust any
     cryptocurrency seed generation algorithm.
-    
+
     This function must have knowledge of the extra Seed Entropy settings, so it inspects the
     -SE-{NON/HEX}- checkbox values.
     """
@@ -538,10 +608,15 @@ def update_seed_recovered( window, values, details, passphrase=None ):
     for g,(g_of,g_mnems) in details.groups.items() if details else []:
         for i,mnem in enumerate( g_mnems, start=1 ):
             mnemonics.append( mnem )
-            # Display Mnemonics in rows of 20 words:
-            #   / word something ...
-            #   | another more ...
-            #   \ last line of mnemonic ...
+            # Display Mnemonics in rows of 20, 33 or 59 words:
+            #    1: single line mnemonic ...
+            # or
+            #    2/ word something another ...
+            #     \ last line of mnemonic ...
+            # or
+            #    3/ word something another ...
+            #     | another more ...
+            #     \ last line of mnemonic ...
             mset		= mnem.split()
             for mri,mout in enumerate( chunker( mset, 20 )):
                 p		= MNEM_PREFIX.get( len(mset), '' )[mri:mri+1] or ':'
@@ -588,9 +663,9 @@ def app(
 
     # Try to set a sane initial CWD (for saving generated files).  If we start up in the standard
     # macOS App's "Container" directory for this App, ie.:
-    # 
+    #
     #    /Users/<somebody>/Library/Containers/ca.kundert.perry.SLIP39/Data
-    # 
+    #
     # then we'll move upwards to the user's home directory.  If we change the macOS App's Bundle ID,
     # this will change..
     cwd				= os.getcwd()
@@ -598,9 +673,9 @@ def app(
         cwd			= cwd[:-48]
     sg.user_settings_set_entry( '-target folder-', cwd )
 
-    # 
+    #
     # If no name(s) supplied, try to get the User's full name.
-    # 
+    #
     if not names:
         try:
             scutil		= subprocess.run(
@@ -612,10 +687,10 @@ def app(
             print( repr( scutil ))
             assert scutil.returncode == 0 and scutil.stdout, \
                 "'scutil' command failed, or no output returned"
-            for l in scutil.stdout.split( '\n' ):
-                if 'kCGSessionLongUserNameKey' in l:
+            for li in scutil.stdout.split( '\n' ):
+                if 'kCGSessionLongUserNameKey' in li:
                     # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
-                    full_name	= l.split( ':' )[1].strip()
+                    full_name	= li.split( ':' )[1].strip()
                     log.info( f"Current user's full name: {full_name!r}" )
                     names	= [ full_name ]
                     break
@@ -640,6 +715,7 @@ def app(
     status_error		= False
     event			= False
     events_termination		= (sg.WIN_CLOSED, 'Exit',)
+    events_ignored		= ('-MNEMONICS-'+sg.WRITE_ONLY_KEY,)
     master_secret		= None		# default to produce randomly
     groups_recovered		= None		# The last SLIP-39 groups recovered from user input
     details			= None		# ..and the SLIP-39 details produced; make None to force SLIP-39 Mnemonic update
@@ -647,7 +723,7 @@ def app(
     while event not in events_termination:
         # Create window (for initial window.read()), or update status
         if window:
-            window['-STATUS-'].update( f"{status or 'OK':.145}{'...' if len(status)>145 else ''}", font=font_bold if status_error else font )
+            window['-STATUS-'].update( f"{status or 'OK':.145}{'...' if len(status or 'OK')>145 else ''}", font=font_bold if status_error else font )
             window['-SAVE-'].update( disabled=status_error )
             window['-RECOVERY-'].update( f"of {len(groups)}" )
             window['-SD-SEED-F-'].expand( expand_x=True )
@@ -665,12 +741,15 @@ def app(
             window		= sg.Window( f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout )
             timeout		= 0 		# First time through, refresh immediately
 
+        # Block (except for first loop) and obtain current event and input values. Until we get a
+        # new event, retain the current status
+        event, values		= window.read( timeout=timeout )
+        logging.debug( f"{event}, {values}" )
+        if not values or event in events_termination or event in events_ignored:
+            continue
+
         status			= None
         status_error		= True
-        event, values		= window.read( timeout=timeout )
-        logging.info( f"{event}, {values}" )
-        if not values or event in events_termination:
-            continue
 
         if event == '+' and len( groups ) < 16:
             # Add a SLIP39 Groups row (if not already at limit)
@@ -741,7 +820,7 @@ def app(
         if g_rec != groups_recovered:  # eg. group name or details changed
             log.info( "Updating SLIP-39 due to changing Groups" )
             groups_recovered	= g_rec
-            detail		= None
+            details		= None
 
         # Confirm the selected Group Threshold requirement
         try:

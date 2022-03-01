@@ -59,7 +59,7 @@ class Region:
     @property
     def w( self ):
         return self.x2 - self.x1
-    
+
     def element( self ):
         "Converts to mm.  Optionally returns a specified priority."
         d			= dict(
@@ -794,10 +794,10 @@ def write_pdfs(
                     line_elm			= next( e for e in elements if e['name'] == 'private-0' )
                     line_points			= ( line_elm['x2'] - line_elm['x1'] ) / MM_IN * PT_IN
                     line_fontsize		= line_elm['size']
-                    line_chars			= int( line_points / line_fontsize / ( 5 / 8 )) # Chars ~ 5/8 width vs. height
+                    line_chars			= int( line_points / line_fontsize / ( 5 / 8 ))  # Chars ~ 5/8 width vs. height
                     log.debug( f"Private key line length: {line_chars} chars" )
                     for ln,line in enumerate( chunker( private_enc, line_chars )):
-                        wall_tpl[f"private-{ln}"]= line
+                        wall_tpl[f"private-{ln}"] = line
                     wall_tpl['private-hint-t']	= 'PASSWORD HINT:'
                     wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['private-hint']	= wallet_pwd_hint

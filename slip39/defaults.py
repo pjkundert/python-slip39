@@ -90,11 +90,15 @@ MNEM_ROWS_COLS			= {
     33:	(11, 3),		# 256-bit seed
     59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor)
 }
+
+# Separators for groups of Mnemonics, and those that indicate the continuation/last line of a Mnemonic phrase
 MNEM_PREFIX			= {
-    20: '=',
-    33: '/\\',
-    59: '/|\\',
+    20: '{',
+    33: '╭╰',
+    59: '┌├└',
 }
+MNEM_LAST			= '╰└{'
+MNEM_CONT			= '╭┌├'
 
 BAUDRATE			= 115200
 

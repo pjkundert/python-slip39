@@ -5,7 +5,7 @@ from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
-from .default		import MM_IN
+from .defaults		import MM_IN
 
 
 def test_Region():
