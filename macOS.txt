@@ -38,6 +38,7 @@ Table of Contents
 .. 1. Trezor
 .. 2. Netcoins.app
 .. 3. Crypto.com
+.. 4. Protecting your SLIP-39 Cards
 3. Privacy Policy
 
 
@@ -99,7 +100,9 @@ Table of Contents
 ──────────
 
   The [Trezor Model T hardware wallet] has built-in SLIP-39 generation
-  and recovery capability.
+  and recovery capability.  Enter the words on the SLIP-39 cards
+  directly into the screen of the Trezor to recover your Cryptocurrency
+  accounts.
 
 
 [Trezor Model T hardware wallet]
@@ -133,6 +136,36 @@ Table of Contents
 
 
 [Crypto.com] <https://crypto.com/app/2x4hk92dnf>
+
+
+2.4 Protecting your SLIP-39 Cards
+─────────────────────────────────
+
+  Protect your printed SLIP-39 cards from water damage by laminating
+  them in plastic or storing them in [zip-loc bags] before [mailing
+  them].
+  Print the SLIP-39 cards and cut them out, and then lay them out with
+  1/2" margins (so you can cut them out after lamination and retain 1/4"
+  borders), either with [self-adhesive full-page laminating sheets - no
+  laminating machine required] (or [index-card size]),
+  or with a [heat-laminating machine] in [full-page pouches] (or in
+  [index-card size pouches]).
+
+
+[zip-loc bags] <https://amzn.to/346xBU8>
+
+[mailing them] <https://amzn.to/35m4>
+
+[self-adhesive full-page laminating sheets - no laminating machine
+required] <https://amzn.to/3K6wp2p>
+
+[index-card size] <https://amzn.to/3vyyKPw>
+
+[heat-laminating machine] <https://amzn.to/3IyMkGt>
+
+[full-page pouches] <https://amzn.to/3C1N3NI>
+
+[index-card size pouches] <https://amzn.to/35z7RA5>
 
 
 3 Privacy Policy

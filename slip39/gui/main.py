@@ -15,7 +15,8 @@ from ..recovery		import recover, recover_bip39
 from ..util		import log_level, log_cfg, ordinal, chunker
 from ..layout		import write_pdfs
 from ..defaults		import (
-    GROUPS, GROUP_THRESHOLD_RATIO, CARD, CARD_SIZES, MNEM_PREFIX, CRYPTO_PATHS, BITS
+    GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS,
+    CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET,
 )
 
 log				= logging.getLogger( __package__ )
@@ -42,7 +43,7 @@ B_kwds				= dict(
 prefix				= (20, 1)
 inputs				= (40, 1)
 inlong				= (128,1)  # 512-bit seeds require 128 hex nibbles
-number				= (10, 1)
+shorty				= (10, 1)
 
 
 def groups_layout(
@@ -72,13 +73,13 @@ def groups_layout(
         ),
         sg.Frame(
             '# Needed', [[ sg.Column( [
-                [ sg.Input( f'{g_need}', key=f'-G-NEED-{g}', size=number, **I_kwds ) ]
+                [ sg.Input( f'{g_need}', key=f'-G-NEED-{g}', size=shorty, **I_kwds ) ]
                 for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
             ], key='-GROUP-NEEDS-' ) ]], **F_kwds
         ),
         sg.Frame(
             'of # in Group', [[ sg.Column( [
-                [ sg.Input( f'{g_size}', key=f'-G-SIZE-{g}', size=number, **I_kwds ) ]
+                [ sg.Input( f'{g_size}', key=f'-G-SIZE-{g}', size=shorty, **I_kwds ) ]
                 for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
             ], key='-GROUP-SIZES-' ) ]], **F_kwds
         ),
@@ -103,7 +104,10 @@ def groups_layout(
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
                     sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
-                    sg.Text( "(default is 'SLIP39...'; enter Seed names, comma-separated)",     **T_kwds ),
+                    sg.Text( "(comma-separated).  Paper size: ",                                **T_kwds ),
+                ] + [
+                    sg.Radio( f"{pf}", "PF",            key=f"-PF-{pf}", default=(pf == PAPER), **B_kwds )
+                    for pf in PAPER_FORMATS
                 ],
             ],                                                  key='-OUTPUT-F-',               **F_kwds ),
         ],
@@ -177,7 +181,7 @@ def groups_layout(
                    sg.Column( [
                         [
                             sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
-                            sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=number,    **I_kwds ),
+                            sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=shorty,    **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
                             sg.Text( "SLIP-39 Recovery Groups",                                **T_kwds ),
@@ -212,20 +216,31 @@ def groups_layout(
                                               int( round( math.sqrt( len( Account.CRYPTOCURRENCIES )))))
                     ] )
                 ] + [
-                    sg.Frame( 'Paper Wallet Passphrase/Hint (leave empty, if no Paper Wallets desired)', [
+                    sg.Frame( 'Paper Wallet Password/Hint (empty, if no Paper Wallets desired)', [
                         [
                             sg.Input( f"{wallet_pwd or ''}",
                                                         key='-WALLET-PASS-',    size=inputs,    **I_kwds ),  # noqa: E127
                             sg.Text( "Hint: ",                                                  **T_kwds ),
                             sg.Input( "",
-                                                        key='-WALLET-HINT-',    size=inputs,    **I_kwds ),  # noqa: E127
+                                                        key='-WALLET-HINT-',    size=shorty,    **I_kwds ),  # noqa: E127
                         ],
                     ],                                                                          **F_kwds ),
                     sg.Frame( '# to Derive:', [
                         [
-                            sg.Input( "1",              key='-WALLET-DERIVE-',  size=number,    **I_kwds ),  # noqa: E127
+                            sg.Input( "1",              key='-WALLET-DERIVE-',  size=shorty,    **I_kwds ),  # noqa: E127
                         ],
                     ],                                                                          **F_kwds ),
+                ] + [
+                    sg.Column( [
+                        [
+                            sg.Text( 'Paper wallets / page:',                                   **T_kwds )
+                        ],
+                        [
+                            sg.Radio( f"{ws}", "WS",    default=ws == WALLET,
+                                                        key=f"-WALLET-SIZE-{ws}-",              **B_kwds )  # noqa: E127
+                            for ws in WALLET_SIZES
+                        ],
+                    ] )
                 ],
             ],                                          key='-WALLET-F-', visible=wallet_pwd is not False, **F_kwds ),  # noqa: E126
         ],
@@ -638,7 +653,7 @@ def app(
             window['-SD-SEED-F-'].expand( expand_x=True )
             window['-SE-SEED-F-'].expand( expand_x=True )
             window['-OUTPUT-F-'].expand( expand_x=True )
-            if wallet_pwd is not None:
+            if wallet_pwd is not False:
                 window['-WALLET-F-'].expand( expand_x=True )
             window['-SUMMARY-F-'].expand( expand_x=True )
             window['-STATUS-F-'].expand( expand_x=True )
@@ -668,8 +683,8 @@ def app(
             values[f"-G-SIZE-{g}"] = needs[1]
             window.extend_layout( window['-GROUP-NUMBER-'], [[ sg.Text(  f"{g+1}",                                       **T_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-NAMES-'],  [[ sg.Input( f"{name}",     key=f"-G-NAME-{g}",              **I_kwds ) ]] )  # noqa: 241
-            window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", size=number, **I_kwds ) ]] )  # noqa: 241
-            window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", size=number, **I_kwds ) ]] )  # noqa: 241
+            window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
+            window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
 
         # Attempt to compute the 1st Master Secret Seed, collecting any failure status detected.
         # Compute the Master Secret Seed, from the supplied Seed Data and any extra Seed Entropy.
@@ -896,6 +911,7 @@ def app(
                     edit		= edit,
                     wallet_pwd		= values['-WALLET-PASS-'],  # Produces Paper Wallet(s) iff set
                     wallet_pwd_hint	= values['-WALLET-HINT-'],
+                    wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"

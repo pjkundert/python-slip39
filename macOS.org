@@ -83,6 +83,8 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
 ** Trezor
 
    The [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor Model T hardware wallet]] has built-in SLIP-39 generation and recovery capability.
+   Enter the words on the SLIP-39 cards directly into the screen of the Trezor to recover your
+   Cryptocurrency accounts.
 
    #+BEGIN_EXPORT html
    <a href="https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388&file_id=534" target="_blank"><img src="https://media.go2speed.org/brand/files/trezor/15/20210707060206-T1TT_banner_728x90_3.png" width="728" height="90" border="0" /></a><img src="http://trezor.go2cloud.org/aff_i?offer_id=15&file_id=534&aff_id=10388" width="0" height="0" style="position:absolute;visibility:hidden;" border="0" />
@@ -110,6 +112,29 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
 
    The Crypto.com exchange has many more coins available, as well as a crypto-funded credit card
    that presently works in Canada.
+
+** Protecting your SLIP-39 Cards
+
+   Protect your printed SLIP-39 cards from water damage by laminating them in plastic or storing
+   them in [[https://amzn.to/346xBU8][zip-loc bags]] before [[https://amzn.to/35m4][mailing them]].
+   #+BEGIN_EXPORT html
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07X9GWPH1&linkId=69a3c4648067d4268b83e20be281ebb4"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=06e0f5d889c93f5427c379ddc5fa6857"></iframe>
+   #+END_EXPORT
+
+   Print the SLIP-39 cards and cut them out, and then lay them out with 1/2" margins (so you can cut
+   them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3K6wp2p][self-adhesive full-page
+   laminating sheets - no laminating machine required]] (or [[https://amzn.to/3vyyKPw][index-card size]]),
+   #+BEGIN_EXPORT html
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00007E7D2&linkId=608ce5dd44a7a227327c9000d6442c92"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=4ef3861c37b523826fcf6d3a87349890"></iframe>
+   #+END_EXPORT
+   or with a [[https://amzn.to/3IyMkGt][heat-laminating machine]] in [[https://amzn.to/3C1N3NI][full-page pouches]] (or in [[https://amzn.to/35z7RA5][index-card size pouches]]).
+   #+BEGIN_EXPORT html
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=12211cd757266604642e6fb78d04377d"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=dcc0671406aa42d30b3e09a1cc08154f"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=6c8f34fe77e3b87e6f8c53e3485bf594"></iframe>
+   #+END_EXPORT
    
 * Privacy Policy
 :PROPERTIES:

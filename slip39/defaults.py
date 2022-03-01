@@ -44,28 +44,43 @@ FONTS				= dict(
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
 CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
 INDEX_CARD			= (3,     5),     1/16  # noqa: E241
-HALF_LETTER			= (4+1/2, 8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
-THIRD_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
+PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default outer border
+HALF_LETTER			= (13.5/3,8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
+THIRD_LETTER			= (13.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
+QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 4/letter, 5/legal)
 
 # SLIP-39 Mnemonic Card Sizes
 CARD				= 'index'
 CARD_SIZES			= dict(
     index	= INDEX_CARD,
+    photo	= PHOTO_CARD,
     credit	= CREDIT_CARD,
     business	= BUSINESS_CARD,
     half	= HALF_LETTER,
     third	= THIRD_LETTER,
+    quarter	= THIRD_LETTER,
 )
 
-# Paper Wallet Bill Sizes
-WALLET				= 'third'
+# Paper Wallet Bill Sizes, by default on PAPER format paper
+WALLET				= 'quarter'
 WALLET_SIZES			= dict(
+    half	= HALF_LETTER,
     third	= THIRD_LETTER,
+    quarter	= QUARTER_LETTER,
 )
 
 PAGE_MARGIN			= 1/4  # Typical printers cannot print within 1/4" of edge
 
+MM_IN				= 25.4
+PT_IN				= 72
+
 PAPER				= 'Letter'
+PAPER_FORMATS			= dict(
+    Letter	= 'Letter',
+    Legal	= 'Legal',
+    A4		= 'A4',
+    Photo	= (int( 4 * MM_IN ), int( 6 * MM_IN )),
+)
 
 BITS				= (128, 256, 512)
 BITS_DEFAULT			= 128

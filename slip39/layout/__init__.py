@@ -16,7 +16,7 @@ from fpdf		import FPDF, FlexTemplate
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
 from ..util		import input_secure, ordinal, chunker
 from ..defaults		import (
-    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN,
+    FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES, COLOR,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
@@ -52,14 +52,22 @@ class Region:
         self.priority		= priority
         self.regions		= []
 
+    @property
+    def h( self ):
+        return self.y2 - self.y1
+
+    @property
+    def w( self ):
+        return self.x2 - self.x1
+    
     def element( self ):
         "Converts to mm.  Optionally returns a specified priority."
         d			= dict(
             name	= self.name,
-            x1		= self.x1 * 25.4,
-            y1		= self.y1 * 25.4,
-            x2		= self.x2 * 25.4,
-            y2		= self.y2 * 25.4,
+            x1		= self.x1 * MM_IN,
+            y1		= self.y1 * MM_IN,
+            x2		= self.x2 * MM_IN,
+            y2		= self.y2 * MM_IN,
             rotate	= self.rotate or 0.0
         )
         if self.priority:
@@ -87,16 +95,16 @@ class Region:
         return region
 
     def add_region_proportional( self, region ):
-        region.x1		= self.x1 + ( self.x2 - self.x1 ) * ( 0 if region.x1 is None else region.x1 )
-        region.y1		= self.y1 + ( self.y2 - self.y1 ) * ( 0 if region.y1 is None else region.y1 )
-        region.x2		= self.x1 + ( self.x2 - self.x1 ) * ( 1 if region.x2 is None else region.x2 )
-        region.y2		= self.y1 + ( self.y2 - self.y1 ) * ( 1 if region.y2 is None else region.y2 )
+        region.x1		= self.x1 + self.w * ( 0 if region.x1 is None else region.x1 )
+        region.y1		= self.y1 + self.h * ( 0 if region.y1 is None else region.y1 )
+        region.x2		= self.x1 + self.w * ( 1 if region.x2 is None else region.x2 )
+        region.y2		= self.y1 + self.h * ( 1 if region.y2 is None else region.y2 )
         self.regions.append( region )
         return region
 
     def dimensions( self ):
         "Converts to mm."
-        return Coordinate( (self.x2 - self.x1) * 25.4, (self.y2 - self.y1) * 25.4 )
+        return Coordinate( self.w * MM_IN, self.h * MM_IN )
 
     def elements( self ):
         """Yield a sequence of { 'name': "...", 'x1': #,  ... }."""
@@ -129,7 +137,7 @@ class Text( Region ):
         d			= super().element()
         d['type']		= 'T'
         d['font']		= FONTS.get( self.font ) or self.font or FONTS.get( 'sans' )
-        line_height		= (self.y2 - self.y1) * 72  # Postscript point == 1/72 inch
+        line_height		= self.h * PT_IN  # Postscript point == 1/72 inch
         d['size']		= self.size or ( line_height * self.size_ratio )  # No need for int(round(..))
         if self.text is not None:
             d['text']		= self.text
@@ -204,14 +212,14 @@ def layout_card(
     card_qr1			= card_bottom.add_region_proportional(
         Image( 'card-qr1', x1=13/16, y1=0, x2=1, y2=1/2 )
     )
-    card_qr1_size		= min( card_qr1.x2 - card_qr1.x1, card_qr1.y2 - card_qr1.y1 )
+    card_qr1_size		= min( card_qr1.w, card_qr1.h )
     card_qr1.x1			= card_qr1.x2 - card_qr1_size
     card_qr1.y2			= card_qr1.y1 + card_qr1_size
 
     card_qr2			= card_bottom.add_region_proportional(
         Image( 'card-qr2', x1=13/16, y1=1/2, x2=1, y2=1 )
     )
-    card_qr2_size		= min( card_qr2.x2 - card_qr2.x1, card_qr2.y2 - card_qr2.y1 )
+    card_qr2_size		= min( card_qr2.w, card_qr2.h )
     card_qr2.x1			= card_qr2.x2 - card_qr2_size
     card_qr2.y1			= card_qr2.y2 - card_qr2_size
 
@@ -244,6 +252,7 @@ def layout_card(
                     size_ratio	= 9/16,
                 )
             )
+
     return card
 
 
@@ -274,7 +283,7 @@ def layout_wallet(
         Region( 'wallet-show', x2=5/8 )
     )
     fold			= wallet.add_region_proportional(
-        Region( 'wallet-fold', x1=5/8 )
+        Box( 'wallet-fold', x1=5/8 )
     )
 
     public			= show.add_region_relative(
@@ -294,14 +303,14 @@ def layout_wallet(
         )
 
     # The background rosette and cryptocurrency symbol in the center
-    public_center_size		= min( public.x2 - public.x1, public.y2 - public.y1 )
+    public_center_size		= min( public.w, public.h )
     public.add_region(
         Image(
             'center',
-            x1		= public.x1 + ( public.x2 - public.x1 ) * 2/3 - public_center_size / 3,
-            y1		= public.y1 + ( public.y2 - public.y1 ) * 1/2 - public_center_size / 3,
-            x2		= public.x1 + ( public.x2 - public.x1 ) * 2/3 + public_center_size / 3,
-            y2		= public.y1 + ( public.y2 - public.y1 ) * 1/2 + public_center_size / 3,
+            x1		= public.x1 + public.w * 2/3 - public_center_size / 3,
+            y1		= public.y1 + public.h * 1/2 - public_center_size / 3,
+            x2		= public.x1 + public.w * 2/3 + public_center_size / 3,
+            y2		= public.y1 + public.h * 1/2 + public_center_size / 3,
         )
     )
 
@@ -309,7 +318,7 @@ def layout_wallet(
     # longer ETH addresses into a space with a fixed-width font, we know that the ratio of the width
     # to the height has to be about 1/20.  Rotation is downward around upper-left corner; so,
     # lower-left corner will shift 1 height leftward and upward; so start 1 height right and down.
-    address_length		= public.y2 - public.y1
+    address_length		= public.h
     address_height		= address_length * 1/20
     public.add_region(
         Image(
@@ -377,7 +386,7 @@ def layout_wallet(
     public_qr			= public.add_region_proportional(
         Image( 'address-qr-bg',	x1=1/16, y1=6/16, x2=1, y2=15/16 )
     )
-    public_qr_size		= min( public_qr.x2 - public_qr.x1, public_qr.y2 - public_qr.y1 )
+    public_qr_size		= min( public_qr.w, public_qr.h )
     public_qr.x2		= public_qr.x1 + public_qr_size
     public_qr.y1		= public_qr.y2 - public_qr_size
     public_qr.add_region(
@@ -387,9 +396,11 @@ def layout_wallet(
     public.add_region_proportional(
         Text( 'address-qr-b',	x1=1/16, y1=15/16, x2=1, y2=16/16 )
     )
-    public.add_region_proportional(
-        Text( 'address-qr-l',	x1=1/16, y1=6/16, x2=1, y2=7/16, rotate=-90 )
+    public_qr_r			= public.add_region_proportional(
+        Text( 'address-qr-r',	x1=1/16, y1=6/16, x2=1, y2=7/16, rotate=-90 )
     )
+    public_qr_r.x1	       += public_qr_size + public_qr_r.h
+    public_qr_r.x2	       += public_qr_size
 
     # Private region
 
@@ -399,7 +410,9 @@ def layout_wallet(
     private_qr			= private.add_region_proportional(
         Image( 'private-qr-bg',	x1=0/16, y1=6/16, x2=1, y2=15/16, priority=prio_contrast )
     )
-    private_qr_size		= min( private_qr.x2 - private_qr.x1, private_qr.y2 - private_qr.y1 )
+    # QR code at most 5/8 the width, to retain sufficient space for large Ethereum encrypted JSON
+    # wallet private keys
+    private_qr_size		= min( private_qr.w, private_qr.h, private.w * 5 / 8 )
     private_qr.x2		= private_qr.x1 + private_qr_size
     private_qr.y1		= private_qr.y2 - private_qr_size
     private_qr.add_region(
@@ -426,10 +439,10 @@ def layout_wallet(
     # We'll use the right side of the private region, each line rotated 90 degrees down and right.
     # So, we need the upper-left corner of the private-bg anchored at the upper-right corner of
     # private.
-    private_length		= private.y2 - private.y1       # line length is y-height
-    private_fontsize		= 6.8				# points == 1/72 inch
+    private_length		= private.h                     # line length is y-height
+    private_fontsize		= 6.5				# points == 1/72 inch
     private_height		= private.x2 - private_qr.x2 - .05
-    private_lineheight		= private_fontsize / 72 / Text.SIZE_RATIO * .9  # in.
+    private_lineheight		= private_fontsize / PT_IN / Text.SIZE_RATIO * .9  # in.
 
     private.add_region(
         Image(
@@ -463,7 +476,7 @@ def layout_wallet(
 def layout_components(
     pdf: FPDF,
     comp_dim: Coordinate,
-    page_margin_mm: float	= .25 * 25.4,   # 1/4" in mm.
+    page_margin_mm: float	= .25 * MM_IN,   # 1/4" in mm.
 ) -> Tuple[int, Callable[[int],[int, Coordinate]]]:
     """Compute the number of components per pdf page, and a function returning the page # and
     component (x,y) for the num'th component."""
@@ -488,7 +501,7 @@ def layout_components(
 
 def layout_pdf(
         card_dim: Coordinate,                   # mm.
-        page_margin_mm: float	= .25 * 25.4,   # 1/4" in mm.
+        page_margin_mm: float	= .25 * MM_IN,   # 1/4" in mm.
         orientation: str	= 'portrait',
         paper_format: str	= 'Letter'
 ) -> Tuple[int, Callable[[int],[int, Coordinate]], FPDF, str]:
@@ -532,7 +545,7 @@ def output_pdf(
     card_dim			= card.dimensions()
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
-    page_margin_mm		= PAGE_MARGIN * 25.4
+    page_margin_mm		= PAGE_MARGIN * MM_IN
     cards_pp,page_xy,pdf,orientation = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in ('portrait', 'landscape')
@@ -614,7 +627,8 @@ def write_pdfs(
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
     wallet_pwd		= None,		# If paper wallet images desired, supply password
     wallet_pwd_hint	= None,		# an optional password hint
-    wallet_format	= None,		# and a paper wallet format (eg. 'third')
+    wallet_format	= None,		# and a paper wallet format (eg. 'quarter')
+    wallet_paper	= None,		# default Wallets to output on Letter format paper
 ):
     """Writes a PDF containing a unique SLIP-39 encoded seed for each of the names specified.
 
@@ -702,9 +716,9 @@ def write_pdfs(
             wall		= layout_wallet( Coordinate( y=wall_h, x=wall_w ), wall_margin )  # converts to mm
             wall_dim		= wall.dimensions()
 
-            # Lay out wallets, always in Portrait orientation
-            pdf.add_page( orientation='P' )
-            page_margin_mm	= PAGE_MARGIN * 25.4
+            # Lay out wallets, always in Portrait orientation, defaulting to "Letter" paper
+            pdf.add_page( orientation='P', format=wallet_paper or PAPER )
+            page_margin_mm	= PAGE_MARGIN * MM_IN
 
             walls_pp,page_xy	= layout_components( pdf, comp_dim=wall_dim, page_margin_mm=page_margin_mm )
             elements		= list( wall.elements() )
@@ -719,7 +733,7 @@ def write_pdfs(
                 for c_n,account in enumerate( account_group ):
                     p,(offsetx,offsety) = page_xy( wall_n )
                     if p != page_n:
-                        pdf.add_page( orientation='P' )
+                        pdf.add_page( orientation='P', format=wallet_paper or PAPER )
                         page_n	= p
                     try:
                         private_enc		= account.encrypted( 'password' )
@@ -736,7 +750,7 @@ def write_pdfs(
 
                     wall_tpl['center']		= os.path.join( images, account.crypto + '.png' )
 
-                    wall_tpl['name-label']	= "Wallet name:"
+                    wall_tpl['name-label']	= "Wallet:"
                     wall_tpl['name-bg']		= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['name']		= name
 
@@ -758,7 +772,7 @@ def write_pdfs(
                     wall_tpl['address-qr-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['address-qr']	= public_qr.make_image( back_color="transparent" ).get_image()
                     wall_tpl['address-qr-b']	= 'DEPOSIT/VERIFY'
-                    wall_tpl['address-qr-l']	= account.path
+                    wall_tpl['address-qr-r']	= account.path
 
                     private_qr	= qrcode.QRCode(
                         version		= None,
@@ -770,11 +784,21 @@ def write_pdfs(
 
                     wall_tpl['private-bg']	= os.path.join( images, '1x1-ffffff54.png' )
 
-                    # If not enough lines, will throw Exception, as it should!  We don't want
-                    # to emit a Paper Wallet without the entire encrypted private key present.
-                    for ln,line in enumerate( chunker( private_enc, 40 )):
-                        wall_tpl[f"private-{ln}"] = line
-                    wall_tpl['private-hint-t']	= 'PASSPHRASE HINT:'
+                    # If not enough lines, will throw Exception, as it should!  We don't want to
+                    # emit a Paper Wallet without the entire encrypted private key present.  This is
+                    # primarily an issue for Ethereum encrypted JSON wallets, which are very large.
+                    # As the vertical aspect ratio of the Paper Wallet increases (eg. for half- or
+                    # third-page vs. quarter-page Paper Wallets), the line length increases, but the
+                    # number of lines available decreases.  Estimate the number of characters on
+                    # each line.
+                    line_elm			= next( e for e in elements if e['name'] == 'private-0' )
+                    line_points			= ( line_elm['x2'] - line_elm['x1'] ) / MM_IN * PT_IN
+                    line_fontsize		= line_elm['size']
+                    line_chars			= int( line_points / line_fontsize / ( 5 / 8 )) # Chars ~ 5/8 width vs. height
+                    log.debug( f"Private key line length: {line_chars} chars" )
+                    for ln,line in enumerate( chunker( private_enc, line_chars )):
+                        wall_tpl[f"private-{ln}"]= line
+                    wall_tpl['private-hint-t']	= 'PASSWORD HINT:'
                     wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['private-hint']	= wallet_pwd_hint
                     wall_tpl['private-qr-t']	= 'PRIVATE KEY'
@@ -826,8 +850,8 @@ def write_pdfs(
                 if pdf:
                     # Add the encrypted JSON account recovery to the PDF also, if generated.
                     pdf.add_page()
-                    margin_mm	= PAGE_MARGIN * 25.4
-                    pdf.set_margin( 1.0 * 25.4 )
+                    margin_mm	= PAGE_MARGIN * MM_IN
+                    pdf.set_margin( 1.0 * MM_IN )
 
                     col_width	= pdf.epw - 2 * margin_mm
                     pdf.set_font( FONTS['sans'], size=10 )

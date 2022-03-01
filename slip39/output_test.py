@@ -5,6 +5,7 @@ from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
+from .default		import MM_IN
 
 
 def test_Region():
@@ -58,6 +59,6 @@ def test_Region():
 
     tpl['card-qr']		= qrcode.make( 'abc' ).get_image()
     tpl['card-title']		= 'Xyz'
-    tpl.render( offsetx = card_size.x * 25.4, offsety = card_size.y * 25.4 )
+    tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
