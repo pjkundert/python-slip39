@@ -1240,6 +1240,24 @@ by entering the mnemonics right on the device.
     : $ git clone git@github.com:pjkundert/python-slip39.git
     : $ make -C python-slip39 app
 
+*** The Windows 10 =SLIP-39= GUI
+
+    Install Python from https://python.org/downloads, and the [[https://visualstudio.microsoft.com/visual-cpp-build-tools][Microsoft C++ Build Tools]] via the
+    Visual Studio Installer (required for installing some =slip39= package dependencies).
+
+    To run the GUI, just install =slip39= package from Pypi using pip, including the =gui= and
+    =wallet= options.  Building the Windows =SLIP-39= executable GUI application requires the =dev=
+    option.
+    : PS C:\Users\IEUser> pip install slip39[gui,wallet,dev]
+
+    To work with the [[https://github.com/pjkundert/python-slip39.git][python-slip39 Git repo on Github]], you'll also need to install [[https://git-scm.com/download/win][Git from
+    git-scm.com]]. Once installed, run "Git bash", and
+    : $ ssh-keygen.exe -t ed25519
+    to create an =id_ed25519.pub= SSH identity, and import it into your Git Settings SSH keys.  Then,
+    : $ mkdir src
+    : $ cd src
+    : $ git clone git@github.com:pjkundert/python-slip39.git
+
 * Dependencies
 
   Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data to

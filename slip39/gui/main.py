@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import re
+import sys
 import subprocess
 
 from itertools import islice
@@ -415,24 +416,26 @@ def update_seed_data( event, window, values ):
     if 'BIP' in update_seed_data.src:
         bits			= 512
         try:
+            passphrase		= pwd.strip().encode( 'UTF-8' )
             seed_data		= recover_bip39(
                 mnemonic	= dat.strip(),
-                passphrase	= pwd.strip().encode( 'UTF-8' )
+                passphrase	= passphrase,
             )
         except Exception as exc:
-            log.exception( f"BIP-39 recovery failed w/ {dat!r} ({pwd!r}): {exc}" )
+            log.exception( f"BIP-39 recovery failed w/ {dat!r} w/ passphrase: {pwd!r}: {exc}" )
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
     elif 'SLIP' in update_seed_data.src:
         bits			= 128
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
+            passphrase		= pwd.strip().encode( 'UTF-8' )
             seed_data		= recover(
                 mnemonics	= list( mnemonic_continuation( dat.strip().split( '\n' ))),
-                passphrase	= pwd.strip().encode( 'UTF-8' )
+                passphrase	= passphrase,
             )
             bits		= len( seed_data ) * 4
         except Exception as exc:
-            log.exception( f"SLIP-39 recovery failed w/ {dat!r} ({pwd!r}): {exc}" )
+            log.exception( f"SLIP-39 recovery failed w/ {dat!r} w/ passphrase: {pwd!r}: {exc}" )
             status		= f"Invalid SLIP-39 recovery mnemonics: {exc}"
     elif 'FIX' in update_seed_data.src:
         bits			= int( update_seed_data.src.split( '-' )[2] )
@@ -674,7 +677,7 @@ def app(
     #
     # If no name(s) supplied, try to get the User's full name.
     #
-    if not names:
+    if not names and sys.platform == 'darwin':
         try:
             scutil		= subprocess.run(
                 [ '/usr/sbin/scutil' ],
@@ -735,7 +738,9 @@ def app(
             window['-MNEMONICS-F-'].expand( expand_x=True )
             window['-GROUPS-F-'].expand( expand_x=True )
         else:
-            window		= sg.Window( f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout )
+            window		= sg.Window(
+                f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout, grab_anywhere=True,
+            )
             timeout		= 0 		# First time through w/ new window, refresh immediately
 
         # Block (except for first loop) and obtain current event and input values. Until we get a
@@ -898,17 +903,24 @@ def app(
             details		= None
 
         # Produce a summary of the SLIP-39 recovery groups, including any passphrase needed for
-        # decryption, and how few/many cards will need to be collected to recover the Seed.  If the
-        # SLIP-39 passphrase has changed, force regeneration of SLIP-39.  NOTE: this passphrase is
-        # NOT Trezor-compatible; use the Trezor "hidden wallet" feature instead.
+        # decryption of the SLIP-39 seed, and how few/many cards will need to be collected to
+        # recover the Seed.  If the SLIP-39 passphrase has changed, force regeneration of SLIP-39.
+        # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; use the Trezor "hidden
+        # wallet" feature instead.
         summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups_recovered.items())
         summary			= f"Requires collecting {group_threshold} of {len(groups_recovered)} the Groups: {summary_groups}"
+
+        tot_cards		= sum( size for _,size in groups_recovered.values() )
+        min_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=False ), group_threshold ))
+        max_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=True  ), group_threshold ))
+        summary		       += f" (from {min_req}-{max_req} of {tot_cards} Mnemonic cards)"
+
         if values['-PASSPHRASE-C-']:
             window['-PASSPHRASE-F-'].update( visible=True )
             passphrase_now	= values['-PASSPHRASE-'].strip()
             if passphrase_now:
-                summary	       += f", decrypted w/ passphrase {passphrase_now!r}"
-            passphrase_now	= passphrase.encode( 'utf-8' )
+                summary	       += f", w/ passphrase: {passphrase_now!r})"
+            passphrase_now	= passphrase_now.encode( 'UTF-8' )
             if passphrase != passphrase_now:
                 passphrase	= passphrase_now
                 details		= None
@@ -917,11 +929,6 @@ def app(
             if passphrase:
                 details		= None
             passphrase		= b''
-
-        tot_cards		= sum( size for _,size in groups_recovered.values() )
-        min_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=False ), group_threshold ))
-        max_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=True  ), group_threshold ))
-        summary		       += f", and {min_req}-{max_req} of all {tot_cards} Mnemonics cards produced"
 
         window['-SUMMARY-'].update( summary )
 
@@ -943,7 +950,7 @@ def app(
                     master_secret_n	= compute_master_secret( window, values, n=n )
                     assert n > 0 or codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' ) == master_secret, \
                         "Computed Seed for 1st SLIP39 Mnemonics didn't match"
-                    log.info( f"SLIP39 for {name} from master_secret: {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )}" )
+                    log.info( f"SLIP39 for {name} from master_secret: {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )} (w/ passphrase: {passphrase!r}" )
                     details[name]	= create(
                         name		= name,
                         group_threshold	= group_threshold,
