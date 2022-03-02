@@ -1091,7 +1091,7 @@ recoverable SLIP-39 Mnemonic encoding.
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
     ap.add_argument( '-s', '--scaling',
-                     default=None, type=float,
+                     default=1, type=float,
                      help="Scaling for display (eg. 1.5, 0.5 for high-resolution displays), if not automatically detected")
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
@@ -1103,6 +1103,12 @@ recoverable SLIP-39 Mnemonic encoding.
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+
+    if sys.platform == 'win32':
+        # Establishes a common baseline size on macOS and Windows, as long as
+        # SetProcessDpiAwareness( 1 ) is set, and scaling == 1.0.  Ignored on macOS.
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(1)
 
     try:
         app(
