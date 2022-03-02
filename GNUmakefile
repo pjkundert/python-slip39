@@ -446,7 +446,7 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
-dist/SLIP-39.app: 		SLIP-39.spec		\
+dist/SLIP-39.app: 		SLIP-39-macOS.spec	\
 				SLIP-39.metadata/entitlements.plist \
 				images/SLIP-39.icns
 	@echo "\n\n*** Rebuilding $@, version $(VERSION)..."
@@ -492,7 +492,7 @@ dist/SLIP-39.app: 		SLIP-39.spec		\
 #    +
 #                 bundle_identifier='ca.kundert.perry.SLIP39')
 
-SLIP-39.spec: SLIP-39.py
+SLIP-39-macOS.spec: SLIP-39.py
 	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onefile \
 	    --codesign-identity "$(DEVID)" \
@@ -502,6 +502,23 @@ SLIP-39.spec: SLIP-39.py
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
 		$<
+	mv SLIP-39.spec $@
+	@echo "!!! Regenerated $@: must be manually corrected!"
+	false  # Make the build fail if we've regenerated the .spec
+
+
+dist/SLIP-39.exe:	SLIP-39-win32.spec
+	rm -rf build $@
+	pyinstaller --noconfirm $<
+
+SLIP-39-win32.spec: SLIP-39.py
+	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
+	pyinstaller --noconfirm --windowed --onefile \
+	    --collect-data shamir_mnemonic \
+	    --hidden-import slip39 \
+	    --collect-data slip39 \
+		$<
+	mv SLIP-39.spec $@
 	@echo "!!! Regenerated $@: must be manually corrected!"
 	false  # Make the build fail if we've regenerated the .spec
 
