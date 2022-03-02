@@ -24,9 +24,12 @@ from ..defaults		import (
 
 log				= logging.getLogger( __package__ )
 
-font				= ('Courier', 14)
-font_small			= ('Courier', 10)
-font_bold			= ('Courier', 16, 'bold italic')
+
+disp_scaling			= None if sys.platform == 'darwin' else 0.5
+disp_points			= 14 # if sys.platform == 'darwin' else 9
+font				= ('Courier', disp_points+0)
+font_small			= ('Courier', disp_points-4)
+font_bold			= ('Courier', disp_points+2, 'bold italic')
 
 I_kwds				= dict(
     change_submits	= True,
@@ -645,6 +648,7 @@ def app(
     cryptocurrency		= None,
     edit			= None,
     passphrase			= None,
+    scaling			= None,
 ):
     """Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }"""
 
@@ -739,7 +743,9 @@ def app(
             window['-GROUPS-F-'].expand( expand_x=True )
         else:
             window		= sg.Window(
-                f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout, grab_anywhere=True,
+                f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout,
+                grab_anywhere	= True,
+                scaling		= scaling,
             )
             timeout		= 0 		# First time through w/ new window, refresh immediately
 
@@ -1069,6 +1075,7 @@ recoverable SLIP-39 Mnemonic encoding.
             cryptocurrency	= args.cryptocurrency,
             edit		= args.path,
             passphrase		= args.passphrase,
+            scaling		= disp_scaling,
         )
     except Exception as exc:
         log.exception( f"Failed running App: {exc}" )
