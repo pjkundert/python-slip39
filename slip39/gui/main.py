@@ -640,6 +640,55 @@ def update_seed_recovered( window, values, details, passphrase=None ):
         return f"Recovered Seed {recohex!r} doesn't match expected: {window['-SEED-'].get()!r}"
 
 
+def user_name_full():
+    full_name			= None
+    if sys.platform == 'darwin':
+        command			= [ '/usr/sbin/scutil' ]
+        command_input		= "show State:/Users/ConsoleUser"
+    elif sys.platform == 'win32':
+        command			= [ 'net', 'user', os.environ['USERNAME'] ]
+        command_input		= None
+    else:  # assume *nix
+        command			= [ 'getent', 'passwd', os.environ['USER'] ]
+        command_input		= None
+
+    subproc			= subprocess.run(
+        command,
+        input		= command_input,
+        capture_output	= True,
+        encoding	= 'UTF-8',
+    )
+    assert subproc.returncode == 0 and subproc.stdout, \
+        f"{' '.join( command )!r} command failed, or no output returned"
+
+    if sys.platform == 'darwin':
+        for li in subproc.stdout.split( '\n' ):
+            if 'kCGSessionLongUserNameKey' in li:
+                # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
+                full_name	= li.split( ':' )[1].strip()
+                break
+    elif sys.platform == 'win32':
+        for li in subproc.stdout.split( '\n' ):
+            if li.startswith( 'Full Name' ):
+                # eg.: "Full Name                IEUser"
+                full_name	= li[9:].strip()
+                break
+    elif li:
+        # getent="perry:x:1002:1004:Perry Kundert,,,:/home/perry:/bin/bash"
+        # >>> getent.split(':')
+        # ['perry', 'x', '1002', '1004', 'Perry Kundert,,,', '/home/perry', '/bin/bash']
+        pwents			= li.split( ':' )
+        assert len( pwents ) > 4, \
+                f"Unrecognized passwd entry: {li}"
+        gecos			= pwents[4]
+        full_name		= gecos.split( ',' )[0]  # Discard ...,building,room,phone,...
+
+    assert full_name, \
+        "User's full name not found"
+    log.info( f"Current user's full name: {full_name!r}" )
+    return full_name
+
+
 def app(
     names			= None,
     group			= None,
@@ -680,24 +729,9 @@ def app(
     #
     # If no name(s) supplied, try to get the User's full name.
     #
-    if not names and sys.platform == 'darwin':
+    if not names:
         try:
-            scutil		= subprocess.run(
-                [ '/usr/sbin/scutil' ],
-                input		= "show State:/Users/ConsoleUser",
-                capture_output	= True,
-                encoding	= 'UTF-8',
-            )
-            print( repr( scutil ))
-            assert scutil.returncode == 0 and scutil.stdout, \
-                "'scutil' command failed, or no output returned"
-            for li in scutil.stdout.split( '\n' ):
-                if 'kCGSessionLongUserNameKey' in li:
-                    # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
-                    full_name	= li.split( ':' )[1].strip()
-                    log.info( f"Current user's full name: {full_name!r}" )
-                    names	= [ full_name ]
-                    break
+            names		= [ user_name_full() ]
         except Exception as exc:
             logging.exception( f"Failed to discover user full name: {exc}" )
 
@@ -744,6 +778,7 @@ def app(
             window		= sg.Window(
                 f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout,
                 grab_anywhere	= True,
+                no_titlebar	= True,
                 scaling		= scaling,
             )
             timeout		= 0 		# First time through w/ new window, refresh immediately
