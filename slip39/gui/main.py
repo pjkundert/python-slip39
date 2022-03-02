@@ -673,11 +673,11 @@ def user_name_full():
                 # eg.: "Full Name                IEUser"
                 full_name	= li[9:].strip()
                 break
-    elif li:
+    else:
         # getent="perry:x:1002:1004:Perry Kundert,,,:/home/perry:/bin/bash"
         # >>> getent.split(':')
         # ['perry', 'x', '1002', '1004', 'Perry Kundert,,,', '/home/perry', '/bin/bash']
-        pwents			= li.split( ':' )
+        pwents			= subproc.stdout.split( ':' )
         assert len( pwents ) > 4, \
                 f"Unrecognized passwd entry: {li}"
         gecos			= pwents[4]
