@@ -53,12 +53,12 @@ QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 4/letter, 5/leg
 CARD				= 'index'
 CARD_SIZES			= dict(
     index	= INDEX_CARD,
-    photo	= PHOTO_CARD,
     credit	= CREDIT_CARD,
     business	= BUSINESS_CARD,
     half	= HALF_LETTER,
     third	= THIRD_LETTER,
     quarter	= THIRD_LETTER,
+    photo	= PHOTO_CARD,
 )
 
 # Paper Wallet Bill Sizes, by default on PAPER format paper

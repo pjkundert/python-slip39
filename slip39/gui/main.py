@@ -114,24 +114,20 @@ def groups_layout(
 
     layout                      = [
         [
-            sg.Frame( '1. Location for output PDF File(s) (Preferably removable media, such as a USB drive)', [
-                [
-                    sg.Text( "Save PDF(s) to: ",                                size=prefix,    **T_kwds ),
-                    sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
-                                                        key='-TARGET-',         size=inputs,    **I_kwds ),  # noqa: E127
-                    sg.FolderBrowse( **B_kwds ),
-                    sg.Text( "Card size: ",                                                     **T_kwds ),
-                ] + [
-                    sg.Radio( f"{cs}", "CS",            key=f"-CS-{cs}", default=(cs == CARD),  **B_kwds )
-                    for cs in CARD_SIZES
-                ],
+            sg.Frame( '1. Name(s) and formats of SLIP-39 Cards for output PDF File(s)', [
                 [
                     sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
                     sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
-                    sg.Text( ", ...   Paper size: ",                                **T_kwds ),
+                    sg.Text( ", ... on Paper: ",                                                **T_kwds ),
                 ] + [
-                    sg.Radio( f"{pf}", "PF",            key=f"-PF-{pf}", default=(pf == PAPER), **B_kwds )
+                    sg.Radio( f"{pf}", "PF",            key=f"-PF-{pf}-", default=(pf == PAPER), **B_kwds )
                     for pf in PAPER_FORMATS
+                ],
+                [
+                    sg.Text( "SLIP-39 Card size: ",                                             **T_kwds ),
+                ] + [
+                    sg.Radio( f"{cs}", "CS",            key=f"-CS-{cs}-", default=(cs == CARD), **B_kwds )
+                    for cs in CARD_SIZES
                 ],
             ],                                                  key='-OUTPUT-F-',               **F_kwds ),
         ],
@@ -270,7 +266,9 @@ def groups_layout(
         ],
     ] + [
         [
-            sg.Button( 'Save',                          key='-SAVE-',                           **B_kwds ),
+            sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
+                                                        key='-SAVE-',           visible=False,  **I_kwds ),  # noqa: E127
+            sg.FolderBrowse( 'Save',                    target='-SAVE-',                        **B_kwds ),
             sg.Button( 'Exit',                                                                  **B_kwds ),
             sg.Frame( '6. Summary of your SLIP-39 Recovery Groups.  When this looks good, hit Save!', [
                 [
@@ -720,11 +718,11 @@ def app(
     groups_recovered		= None		# The last SLIP-39 groups recovered from user input
     details			= None		# ..and the SLIP-39 details produced; make None to force SLIP-39 Mnemonic update
     cryptopaths			= None
+    timeout			= 0		# First time thru; refresh immediately
     while event not in events_termination:
         # Create window (for initial window.read()), or update status
         if window:
-            window['-STATUS-'].update( f"{status or 'OK':.145}{'...' if len(status or 'OK')>145 else ''}", font=font_bold if status_error else font )
-            window['-SAVE-'].update( disabled=status_error )
+            window['-STATUS-'].update( f"{status or 'OK'}", font=font_bold if status_error else font )
             window['-RECOVERY-'].update( f"of {len(groups)}" )
             window['-SD-SEED-F-'].expand( expand_x=True )
             window['-SE-SEED-F-'].expand( expand_x=True )
@@ -736,14 +734,14 @@ def app(
             window['-RECOVERED-F-'].expand( expand_x=True )
             window['-MNEMONICS-F-'].expand( expand_x=True )
             window['-GROUPS-F-'].expand( expand_x=True )
-            timeout		= None 		# Subsequently, block indefinitely
         else:
             window		= sg.Window( f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout )
-            timeout		= 0 		# First time through, refresh immediately
+            timeout		= 0 		# First time through w/ new window, refresh immediately
 
         # Block (except for first loop) and obtain current event and input values. Until we get a
         # new event, retain the current status
         event, values		= window.read( timeout=timeout )
+        timeout			= None 		# Subsequently, default; block indefinitely
         logging.debug( f"{event}, {values}" )
         if not values or event in events_termination or event in events_ignored:
             continue
@@ -764,6 +762,23 @@ def app(
             window.extend_layout( window['-GROUP-NAMES-'],  [[ sg.Input( f"{name}",     key=f"-G-NAME-{g}",              **I_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
             window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
+
+        # Deduce the desired Seed names, defaulting to "SLIP39"; if any change, force update of
+        # details.  If the user specifies more than one, ensure that Extra Seed Entropy is enabled.
+        names_now		= [
+            name.strip()
+            for name in ( values['-NAMES-'].strip() or "SLIP39" ).split( ',' )
+            if name and name.strip()
+        ]
+        if names != names_now:
+            names		= names_now
+            details		= None
+            if names and len( names ) > 1:
+                if values['-SE-NON-']:
+                    # Multiple names specified, but NO Extra Seed Entropy selected!
+                    window['-SE-SHA-'].update( True )
+                    timeout	= 0
+                    continue
 
         # Attempt to compute the 1st Master Secret Seed, collecting any failure status detected.
         # Compute the Master Secret Seed, from the supplied Seed Data and any extra Seed Entropy.
@@ -910,16 +925,6 @@ def app(
 
         window['-SUMMARY-'].update( summary )
 
-        # Deduce the desired Seed names, defaulting to "SLIP39"; if any change, force update
-        names_now		= [
-            name.strip()
-            for name in ( values['-NAMES-'].strip() or "SLIP39" ).split( ',' )
-            if name and name.strip()
-        ]
-        if names != names_now:
-            names		= names_now
-            details		= None
-
         # Re-compute the SLIP39 Seed details.  For multiple names, each subsequent slip39.create
         # uses a master_secret produced by hashing the prior master_secret entropy.  For the 1st
         # Seed, we've computed the master_secret, above.  Each master_secret_n contains the computed
@@ -962,35 +967,30 @@ def app(
         # If all has gone well -- display the resultant <name>/<filename>, and some derived account details
         name_len		= max( len( name ) for name in details )
         status			= '\n'.join(
-            f"{name:>{name_len}} == " + ', '.join( f'{a.crypto} @ {a.path}: {a.address}' for a in details[name].accounts[0] )
+            f"{name:>{name_len}} == {', '.join( f'{a.crypto} @ {a.path}: {a.address}' for a in details[name].accounts[0] ):.130}..."
             for name in details
         )
 
-        # We have a complete SLIP-39 Mnemonic set.  A target directory must be selected; use it, if
-        # possible.  This is where any output will be written.  It should usually be a removable
-        # volume, but we do not check for this.
-        try:
-            os.chdir( values['-TARGET-'] )
-        except Exception as exc:
-            status		= f"Error changing to target directory {values['-TARGET-']!r}: {exc}"
-            logging.exception( f"{status}" )
-            update_seed_recovered( window, values, None )
-            continue
-
-        # If we get here, no failure status has been detected, and SLIP39 mnemonic and account
-        # details { "name": <details> } have been created; we can now save the PDFs; converted
-        # details is now { "<filename>": <details> })
+        # We have a complete SLIP-39 Mnemonic set.  If we get here, no failure status has been
+        # detected, and SLIP39 mnemonic and account details { "name": <details> } have been created;
+        # we can now save the PDFs; converted details is now { "<filename>": <details> })
         if event == '-SAVE-':
+            # A -SAVE- target directory has been selected; use it, if possible.  This is where any
+            # output will be written.  It should usually be a removable volume, but we do not check.
+            # An empty path implies the current directory.
             try:
-                card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}"] )
+                card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}-"] )
+                paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
                 details		= write_pdfs(
                     names		= details,
                     card_format		= card_format,
+                    paper_format	= paper_format,
                     cryptocurrency	= cryptocurrency,
                     edit		= edit,
                     wallet_pwd		= values['-WALLET-PASS-'],  # Produces Paper Wallet(s) iff set
                     wallet_pwd_hint	= values['-WALLET-HINT-'],
                     wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
+                    filepath		= values['-SAVE-'] or None,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
@@ -998,7 +998,7 @@ def app(
                 continue
             name_len		= max( len( name ) for name in details )
             status		= '\n'.join(
-                f"{name:>{name_len}} saved to {values['-TARGET-']}"
+                f"Saved {name}"
                 for name in details
             )
         # Finally, success has been assured; turn off emboldened status line

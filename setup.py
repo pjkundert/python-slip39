@@ -71,6 +71,9 @@ default), with wallet address and QR code (compatible with Trezor derivations). 
 required SLIP-39 phrases, and outputs a single PDF containing all the required printable cards to
 document the seed (and the specified derived accounts).
 
+Output of BIP-38 or JSON encrypted Paper Wallets is supported, for import into standard software
+cryptocurrency wallets.
+
 On an secure (ideally air-gapped) computer, new seeds can safely be generated and the PDF saved to a
 USB drive for printing (or directly printed without the file being saved to disk.).  Presently,
 =slip39= can output example ETH, BTC, LTC and DOGE addresses derived from the seed, to illustrate

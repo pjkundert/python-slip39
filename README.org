@@ -32,16 +32,16 @@ recovery phrases.  This is better, but creating such accounts is difficult; pres
 Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
 words is difficult, error-prone and time consuming.
 
-The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project exists to assist in the safe creation and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD
-Wallet]] seeds and derived accounts, with various SLIP-39 sharing parameters.  It generates the new
-random wallet seed, and generates the expected standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]]
-=m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at derivation path =m/84'/0'/0'/0/0= by
-default), with wallet address and QR code (compatible with Trezor derivations).  It produces the
-required SLIP-39 phrases, and outputs a single PDF containing all the required printable cards to
-document the seed (and the specified derived accounts).
+The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project (and the [[https://slip39.kundert.ca/macos][SLIP-39 macOS App]]) exists to assist in the safe creation and
+documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD Wallet]] seeds and derived accounts, with various SLIP-39 sharing
+parameters.  It generates the new random wallet seed, and generates the expected standard Ethereum
+account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at Bech32
+derivation path =m/84'/0'/0'/0/0= by default), with wallet address and QR code (compatible with
+Trezor derivations).  It produces the required SLIP-39 phrases, and outputs a single PDF containing
+all the required printable cards to document the seed (and the specified derived accounts).
 
-Output of BIP-38 or JSON encrypted paper wallets is supported, to support software cryptocurrency
-wallets.
+Output of BIP-38 or JSON encrypted Paper Wallets is supported, for import into standard software
+cryptocurrency wallets.
 
 On an secure (ideally air-gapped) computer, new seeds can safely be generated and the PDF saved to a
 USB drive for printing (or directly printed without the file being saved to disk.).  Presently,
@@ -54,16 +54,17 @@ by entering the mnemonics right on the device.
 * Security with Availability
 
   For both BIP-39 and SLIP-39, a 128-bit random "seed" is the source of an unlimited sequence of
-  Ethereum HD Wallet accounts.  Anyone who can obtain this seed gains control of all Ethereum,
-  Bitcoin (and other) accounts derived from it, so it must be securely stored.
+  Ethereum and Bitcoin HD (Heirarchical Deterministic) derived Wallet accounts.  Anyone who can
+  obtain this seed gains control of all Ethereum, Bitcoin (and other) accounts derived from it, so
+  it must be securely stored.
 
-  Losing this seed means that all of the HD Wallet accounts are permanently lost.  Therefore, it
-  must be backed up reliably, and be readily accessible.
+  Losing this seed means that all of the HD Wallet accounts are permanently lost.  It must be /both/
+  backed up securely, /and/ be readily accessible.
 
   Therefore, we must:
 
   - Ensure that nobody untrustworthy can recover the seed, but
-  - Store the seed in many places with several (some perhaps untrustworthy) people.
+  - Store the seed in many places, probably with several (some perhaps untrustworthy) people.
 
   How can we address these conflicting requirements?
 

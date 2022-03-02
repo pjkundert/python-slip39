@@ -9,7 +9,7 @@ from datetime		import datetime
 from collections	import namedtuple
 from collections.abc	import Callable
 
-from typing		import Dict, List, Tuple, Sequence
+from typing		import Dict, List, Tuple, Sequence, Any
 import qrcode
 from fpdf		import FPDF, FlexTemplate
 
@@ -501,10 +501,10 @@ def layout_components(
 
 def layout_pdf(
         card_dim: Coordinate,                   # mm.
-        page_margin_mm: float	= .25 * MM_IN,   # 1/4" in mm.
+        page_margin_mm: float	= .25 * MM_IN,  # 1/4" in mm.
         orientation: str	= 'portrait',
-        paper_format: str	= 'Letter'
-) -> Tuple[int, Callable[[int],[int, Coordinate]], FPDF, str]:
+        paper_format: Any	= PAPER         # Can be a paper name (Letter) or (x, y) dimensions in mm.
+) -> Tuple[int, str, Callable[[int],[int, Coordinate]], FPDF]:
     """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
     cards per page, the FPDF, and a function useful for laying out templates on the pages of the
     PDF."""
@@ -514,9 +514,10 @@ def layout_pdf(
     )
     pdf.set_margin( 0 )
 
-    return layout_components(
+    cards_pp,page_xy		= layout_components(
         pdf, comp_dim=card_dim, page_margin_mm=page_margin_mm
-    ) + (pdf, orientation)
+    )
+    return cards_pp, orientation, page_xy, pdf
 
 
 def output_pdf(
@@ -525,7 +526,7 @@ def output_pdf(
     groups: Dict[str,Tuple[int,List[str]]],
     accounts: Sequence[Sequence[Account]],
     card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
-    paper_format: str		= PAPER,  # 'Letter', ...
+    paper_format: Any		= PAPER,  # 'Letter', (x,y) dimensions in mm.
 ) -> Tuple[FPDF, Sequence[Sequence[Account]]]:
     """Produces a PDF, containing a number of cards containing the provided slip39.Details if
     card_format is not False, and pass through the supplied accounts."""
@@ -544,9 +545,10 @@ def output_pdf(
         card_size, card_margin, num_mnemonics=num_mnemonics )
     card_dim			= card.dimensions()
 
-    # Find the best PDF and orientation, by max of returned cards_pp (cards per page)
+    # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
+    # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
     page_margin_mm		= PAGE_MARGIN * MM_IN
-    cards_pp,page_xy,pdf,orientation = max(
+    cards_pp,orientation,page_xy,pdf = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in ('portrait', 'landscape')
     )
@@ -614,15 +616,16 @@ def output_pdf(
 
 def write_pdfs(
     names		= None,		# sequence of [ <name>, ... ], or { "<name>": <details> }
-    master_secret	= None,
+    master_secret	= None,		# Derive SLIP-39 details from this seed (if not supplied in names)
     passphrase		= None,		# UTF-8 encoded passphrase; default is '' (empty)
     group		= None,		# Group specifications, [ "Frens(3/6)", ... ]
     group_threshold	= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
     edit		= None,		# Adjust crypto paths according to the provided path edit
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
-    paper_format	= None,		# Eg. "letter", "legal"
-    filename		= None,
+    paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
+    filename		= None,		# A file name format w/ {path}, etc. formatters
+    filepath		= None,		# and optionally a path
     json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
     wallet_pwd		= None,		# If paper wallet images desired, supply password
@@ -704,6 +707,8 @@ def write_pdfs(
         )
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
+        if filepath:
+            pdf_name		= os.path.join( filepath, pdf_name )
 
         if wallet_pwd:
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
@@ -716,8 +721,12 @@ def write_pdfs(
             wall		= layout_wallet( Coordinate( y=wall_h, x=wall_w ), wall_margin )  # converts to mm
             wall_dim		= wall.dimensions()
 
-            # Lay out wallets, always in Portrait orientation, defaulting to "Letter" paper
-            pdf.add_page( orientation='P', format=wallet_paper or PAPER )
+            # Lay out wallets, always in Portrait orientation, defaulting to the Card paper_format
+            # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.
+            if wallet_paper is None:
+                wallet_paper	= paper_format if type(paper_format) is str else PAPER
+
+            pdf.add_page( orientation='P', format=wallet_paper )
             page_margin_mm	= PAGE_MARGIN * MM_IN
 
             walls_pp,page_xy	= layout_components( pdf, comp_dim=wall_dim, page_margin_mm=page_margin_mm )
@@ -733,7 +742,7 @@ def write_pdfs(
                 for c_n,account in enumerate( account_group ):
                     p,(offsetx,offsety) = page_xy( wall_n )
                     if p != page_n:
-                        pdf.add_page( orientation='P', format=wallet_paper or PAPER )
+                        pdf.add_page( orientation='P', format=wallet_paper )
                         page_n	= p
                     try:
                         private_enc		= account.encrypted( 'password' )
