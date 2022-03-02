@@ -25,7 +25,6 @@ from ..defaults		import (
 log				= logging.getLogger( __package__ )
 
 
-disp_scaling			= None if sys.platform == 'darwin' else 0.5
 disp_points			= 14 # if sys.platform == 'darwin' else 9
 font				= ('Courier', disp_points+0)
 font_small			= ('Courier', disp_points-4)
@@ -1056,6 +1055,9 @@ recoverable SLIP-39 Mnemonic encoding.
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
+    ap.add_argument( '-s', '--scaling',
+                     default=None, type=float,
+                     help="Scaling for display (eg. 1.5, 0.5 for high-resolution displays), if not automatically detected")
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
@@ -1075,7 +1077,7 @@ recoverable SLIP-39 Mnemonic encoding.
             cryptocurrency	= args.cryptocurrency,
             edit		= args.path,
             passphrase		= args.passphrase,
-            scaling		= disp_scaling,
+            scaling		= args.scaling,
         )
     except Exception as exc:
         log.exception( f"Failed running App: {exc}" )
