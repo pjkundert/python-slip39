@@ -697,6 +697,7 @@ def app(
     edit			= None,
     passphrase			= None,
     scaling			= None,
+    no_titlebar			= False,
 ):
     """Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }"""
 
@@ -778,7 +779,7 @@ def app(
             window		= sg.Window(
                 f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout,
                 grab_anywhere	= True,
-                no_titlebar	= True,
+                no_titlebar	= no_titlebar,
                 scaling		= scaling,
             )
             timeout		= 0 		# First time through w/ new window, refresh immediately
@@ -1093,6 +1094,8 @@ recoverable SLIP-39 Mnemonic encoding.
     ap.add_argument( '-s', '--scaling',
                      default=1, type=float,
                      help="Scaling for display (eg. 1.5, 0.5 for high-resolution displays), if not automatically detected")
+    ap.add_argument( '--no-titlebar', default=False, action='store_true',
+                     help="Avoid displaying a title bar and border on main window" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce")
     args			= ap.parse_args( argv )
@@ -1118,6 +1121,7 @@ recoverable SLIP-39 Mnemonic encoding.
             cryptocurrency	= args.cryptocurrency,
             edit		= args.path,
             passphrase		= args.passphrase,
+            no_titlebar		= args.no_titlebar,
             scaling		= args.scaling,
         )
     except Exception as exc:
