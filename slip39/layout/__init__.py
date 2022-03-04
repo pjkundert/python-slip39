@@ -934,7 +934,7 @@ def printers_available():
         command		= [ '/usr/bin/lpstat', '-lt' ]
         command_input	= None
     else:
-        return
+        raise NotImplementedError( f"Printing not supported on platform {sys.platform}" )
 
     subproc			= subprocess.run(
         command,

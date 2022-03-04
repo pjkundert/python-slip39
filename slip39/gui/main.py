@@ -1102,7 +1102,7 @@ def app(
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any
             # output will be written.  It should usually be a removable volume, but we do not check.
             # An empty path implies the current directory.
-            filepath		= None
+            filepath,printer	= None,None
             if event == '-SAVE-':
                 filepath	= values['-SAVE-']
                 log.info( f"Saving to {filepath!r}..." )
