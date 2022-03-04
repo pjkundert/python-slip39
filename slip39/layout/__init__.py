@@ -1,9 +1,13 @@
 import ast
 import io
-import os
 import json
 import logging
 import math
+import os
+import re
+import subprocess
+import sys
+import warnings
 
 from datetime		import datetime
 from collections	import namedtuple
@@ -14,7 +18,7 @@ import qrcode
 from fpdf		import FPDF, FlexTemplate
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
-from ..util		import input_secure, ordinal, chunker
+from ..util		import ordinal, chunker
 from ..defaults		import (
     FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES, COLOR,
@@ -520,16 +524,30 @@ def layout_pdf(
     return cards_pp, orientation, page_xy, pdf
 
 
-def output_pdf(
+def output_pdf( *args, **kwds ):
+    warnings.warn(
+        "output_pdf() is deprecated; use produce_pdf instead.",
+        PendingDeprecationWarning,
+    )
+    _,pdf,accounts		= produce_pdf( *args, **kwds )
+    return pdf,accounts
+
+
+def produce_pdf(
     name: str,
-    group_threshold: int,
-    groups: Dict[str,Tuple[int,List[str]]],
-    accounts: Sequence[Sequence[Account]],
-    card_format: str		= CARD,   # 'index' or '(<h>,<w>),<margin>'
-    paper_format: Any		= PAPER,  # 'Letter', (x,y) dimensions in mm.
-) -> Tuple[FPDF, Sequence[Sequence[Account]]]:
-    """Produces a PDF, containing a number of cards containing the provided slip39.Details if
-    card_format is not False, and pass through the supplied accounts."""
+    group_threshold: int,			# SLIP-39 Group Threshold required
+    groups: Dict[str,Tuple[int,List[str]]],     # SLIP-39 Groups {<name>: (<need>,[<mnemonic>,...])
+    accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
+    card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
+    paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
+) -> Tuple[Tuple[str,str], FPDF, Sequence[Sequence[Account]]]:
+    """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
+
+    Returns the required Paper description [<format>,<orientation>], the FPDF containing the
+    produced cards, and the cryptocurrency accounts from the supplied slip39.Details.
+    """
+    if paper_format is None:
+        paper_format		= PAPER
 
     # Deduce the card size
     try:
@@ -611,7 +629,7 @@ def output_pdf(
 
             tpl.render( offsetx=offsetx, offsety=offsety )
 
-    return pdf,accounts
+    return (paper_format,orientation),pdf,accounts
 
 
 def write_pdfs(
@@ -625,7 +643,8 @@ def write_pdfs(
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
     paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
     filename		= None,		# A file name format w/ {path}, etc. formatters
-    filepath		= None,		# and optionally a path
+    filepath		= None,		# A file path, if PDF output to file is desired; empty implies current dir.
+    printer		= None,		# A printer name (or True for default), if output to printer is desired
     json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
     wallet_pwd		= None,		# If paper wallet images desired, supply password
@@ -670,8 +689,10 @@ def write_pdfs(
             for name in names or [ "SLIP39" ]
         }
 
-    # Generate each desired SLIP-39 Mnemonic file.  Supports --card (the default).
+    # Generate each desired SLIP-39 Mnemonic file.  Supports --card (the default).  Remember any
+    # deduced orientation and paper_format for below.
     results			= {}
+    (orientation,paper_format),pdf = (None,None),None
     for name, details in names.items():
         # Get the first group of the accountgroups in details.accounts.
         accounts		= details.accounts
@@ -687,13 +708,14 @@ def write_pdfs(
                 for mnem in g_mnems:
                     print( f"{name}{name and ': ' or ''}{mnem}" )
 
-        # Unless no card or paper wallets specified, output a PDF containing the SLIP-39 mnemonic recovery cards
-        pdf			= None
+        # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
+        # the SLIP-39 mnemonic recovery cards; remember the deduced (<orientation>,<paper>)
         if card_format is not False or wallet_pwd:
-            pdf,_		= output_pdf(
+            (orientation,paper_format),pdf,_ = produce_pdf(
                 *details,
                 card_format	= card_format or CARD,
-                paper_format	= paper_format or PAPER )
+                paper_format	= paper_format or PAPER
+            )
 
         now			= datetime.now()
 
@@ -707,8 +729,6 @@ def write_pdfs(
         )
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
-        if filepath:
-            pdf_name		= os.path.join( filepath, pdf_name )
 
         if wallet_pwd:
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
@@ -722,7 +742,8 @@ def write_pdfs(
             wall_dim		= wall.dimensions()
 
             # Lay out wallets, always in Portrait orientation, defaulting to the Card paper_format
-            # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.
+            # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.  Printers may
+            # have problems with a PDF mixing Landscape and Portrait, but do it if desired...
             if wallet_paper is None:
                 wallet_paper	= paper_format if type(paper_format) is str else PAPER
 
@@ -745,7 +766,7 @@ def write_pdfs(
                         pdf.add_page( orientation='P', format=wallet_paper )
                         page_n	= p
                     try:
-                        private_enc		= account.encrypted( 'password' )
+                        private_enc		= account.encrypted( wallet_pwd )
                     except NotImplementedError as exc:
                         log.exception( f"{account.crypto} doesn't support BIP-38 or JSON wallet encryption: {exc}" )
                         continue
@@ -826,10 +847,6 @@ def write_pdfs(
                 "    python3 -m pip install eth-account"
             assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
                 "--json is only valid if '--crypto ETH' wallets are specified"
-            if json_pwd == '-':
-                json_pwd	= input_secure( 'JSON key file password: ', secret=True )
-            else:
-                log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
             for eth in (
                 account
@@ -877,8 +894,115 @@ def write_pdfs(
                     pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
 
         if pdf:
-            pdf.output( pdf_name )
-            log.warning( f"Wrote SLIP39-encoded wallet for {name!r} to: {pdf_name}" )
+            if filepath is not None:  # empty path implies current dir.
+                pdf_path	= os.path.join( filepath, pdf_name ) if filepath else pdf_name
+                log.warning( f"Writing SLIP39-encoded wallet for {name!r} to: {pdf_path}" )
+                pdf.output( pdf_path )
+            if printer is not None:  # if True, uses "default" printer
+                printer		= None if printer is True else printer
+                log.warning( f"Printing SLIP39-encoded wallet for {name!r} to: {printer or '(default)'}: " )
+                printer_output(
+                    pdf.output(),
+                    printer		= printer,
+                    orientation		= orientation,
+                    paper_format	= paper_format,
+                )
+
         results[pdf_name]	= details
 
     return results
+
+
+def printers_available():
+    """
+    On macOS, find any available printers that appear to be available:
+
+        printer Canon_G6000_series is idle.  enabled since Thu  3 Mar 09:24:56 2022
+                ...
+                Description: Canon G6000
+                Alerts: none
+                ...
+        printer Marg_s_Brother_HL_L2360D is idle.  enabled since Wed 15 Sep 12:19:48 2021
+                ...
+                Description: Marg's Brother HL-L2360D
+                Alerts: offline-report
+                ...
+
+    Yields a sequence of their names: (<system>,<long>), ...
+    """
+    if sys.platform == 'darwin':
+        command		= [ '/usr/bin/lpstat', '-lt' ]
+        command_input	= None
+    else:
+        raise NotImplementedError( f"Printing not supported on platform {sys.platform}" )
+
+    subproc			= subprocess.run(
+        command,
+        input		= command_input,
+        capture_output	= True,
+        encoding	= 'UTF-8'
+    )
+    assert subproc.returncode == 0 and subproc.stdout, \
+        f"{' '.join( command )!r} command failed, or no output returned"
+
+    if sys.platform == 'darwin':
+        system,human,ok		= None,None,None
+        for li in subproc.stdout.split( '\n' ):
+            printer		= re.match( r"^printer\s+([^\s]+)", li )
+            if printer:
+                system,human,ok	= printer.group(1).strip(),None,None
+                continue
+            descr		= re.match( r"^\s+Description:(.*)", li )
+            if descr:
+                human		= descr.group(1).strip()
+                continue
+            alerts		= re.match( r"^\s+Alerts:(.*)", li )
+            if alerts:
+                ok		= 'offline' not in alerts.group(1)
+                log.info( f"Printer: {human}: {alerts.group(1)}" )
+            if ok:
+                yield system,human
+                system,human,ok	= None,None,None
+
+
+def printer_output(
+    binary,			# Raw data for printer
+    printer		= None,
+    orientation		= None,
+    paper_format	= None,
+):
+    """Output raw binary data directly to the printer, eg.
+
+        ... | lpr -P "Canon_G6000_series" -o media=Letter -o sides=one-sided -o job-sheets=secret
+
+    """
+    if sys.platform == 'darwin':
+        command			= [ '/usr/bin/lpr', '-o', 'sides=one-sided' ]
+        command_input		= binary
+
+        # Find the desired printer's system name; otherwise use default printer
+        printer_system		= None
+        if printer:
+            printer_list	= list( printers_available() )
+            for system,human in printer_list:
+                if human.lower() == printer.lower() or system.lower() == printer.lower():
+                    printer_system = system
+            assert printer_system, \
+                f"Couldn't locate printer matching {printer!r}, in {', '.join( h for s,h in printer_list )}"
+        if printer_system:
+            command	       += [ '-P', printer_system ]
+        if paper_format:
+            command    	       += [ '-o', f"media={paper_format.capitalize()}" ]
+        if orientation:
+            # -o orientation-requested=N   Specify portrait (3) or landscape (4) orientation
+            N		= { 'p': 3, 'l': 4 }[orientation.lower()[0]]
+            command	       += [ '-o', f"orientation-requested={N}" ]
+
+    log.info( f"Printing via: {' '.join( command )}" )
+    subproc			= subprocess.run(
+        command,
+        input		= command_input,
+        capture_output	= True,
+    )
+    assert subproc.returncode == 0, \
+        f"{' '.join( command )!r} command failed"

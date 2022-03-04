@@ -1,0 +1,4 @@
+How many SLIP-39 Mnemonics Groups must be collected to recover the Seed.
+
+For each Group required, you must collect each group's "Needed" amount
+of Mnemonics (cards), out of the total number of cards in that Group.

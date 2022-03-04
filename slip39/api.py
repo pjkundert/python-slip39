@@ -517,7 +517,7 @@ def create(
     strength: int		= 128,
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]]]:
     """Creates a SLIP-39 encoding and 1 or more Ethereum accounts.  Returns the details, in a form
-    compatible with the output API.
+    directly compatible with the layout.produce_pdf API.
 
     """
     if master_secret is None:

@@ -1,0 +1,41 @@
+#+title: SLIP-39 Group Names
+#+OPTIONS: toc:nil title:nil author:nil
+
+#+BEGIN_ABSTRACT
+Name each Group according to "who" or "where" you plan to distribute it.
+
+The default Group names and their intended usages are:
+
+| First  | A 1-card group stored in the First safe place |
+| Second | A 1-card group stored in the First safe place |
+| Fam    | A smaller group of Family members             |
+| Fren   | A larger group of Friends; increase Needed    |
+
+#+END_ABSTRACT
+
+* 1-Card Groups
+
+  Useful for the direct owners of the Seed.  Just one Card for these groups must be collected;
+  ensure that 2+ of these Groups are created, and a "Requires recovery" threshold of least 2 is
+  specified.
+
+  If /less than/ the threshold amount of these cards is found by an attacker, the Seed /cannot/ be
+  recovered (unless other Groups are also recovered).
+
+* Multi-Card Groups
+
+  If you have a group of people (or places) that may be lost or destroyed, or where some Mnemonics
+  (cards) may be found and fall into hostile hands, use a multi-card group.
+
+** Hostile Groups
+
+   The more /hostile/ (untrustworthy) the group (ie. the more likely that any card(s) may be stolen
+   by an attacker) -- make the Group's Needed/#-in-Group ratio larger.  Then, the attacker must
+   collect more cards to defeat the Group.
+
+** Fragile Groups  
+
+   The more /fragile/ (unreliable) the group (ie. the more likely that any card(s) may be lost or
+   destroyed) -- make the Group's Needed/#-in-Group ratio smaller.  Thus, more cards may be
+   lost/destroyed before the Group can no longer be recovered (an *other* Group(s) must be
+   colledted, instead, to recover the Seed).

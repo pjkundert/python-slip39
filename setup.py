@@ -47,7 +47,10 @@ package_dir			= {
 }
 
 package_data			= {
-    'slip39': [ 'layout/*.png' ],
+    'slip39': [
+        'layout/*.png',
+        'gui/*.txt'
+    ],
 }
 
 long_description_content_type	= 'text/markdown'

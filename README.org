@@ -723,7 +723,7 @@ by entering the mnemonics right on the device.
 
     #+LATEX: }
 
-*** =slip39.output_pdf=
+*** =slip39.produce_pdf=
     
     #+LATEX: {\scriptsize
     | Key             | Description                                       |
@@ -736,16 +736,31 @@ by entering the mnemonics right on the device.
     | paper_format    | 'Letter', ...                                     |
     #+LATEX: }
 
-    Produce a PDF containing all the SLIP-39 details for the account.
+    Layout and produce a PDF containing all the SLIP-39 details on cards for the crypto accounts, on
+    the paper_format provided.  Returns the paper (orientation,format) used, the FPDF, and passes
+    through the supplied cryptocurrency accounts derived.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC ipython :session :exports both :results raw drawer
-    pdf,accounts         = slip39.output_pdf( *create_details )
+    (paper_format,orientation),pdf,accounts = slip39.produce_pdf( *create_details )
+    pdf_binary = pdf.output()
+    [
+        [ "Orientation:",	orientation ],
+        [ "Paper:",		paper_format ],
+        [ "PDF Pages:",		pdf.pages_count ],
+        [ "PDF Size:",		len( pdf_binary )],
+    ]
     #+END_SRC
 
     #+RESULTS:
     :results:
-    # Out[5]:
+    # Out[20]:
+    | 0            | 1         |
+    |--------------+-----------|
+    | Orientation: | landscape |
+    | Paper:       | Letter    |
+    | PDF Pages:   | 1         |
+    | PDF Size:    | 12985     |
     :end:
 
     #+LATEX: }
@@ -753,23 +768,25 @@ by entering the mnemonics right on the device.
 *** =slip39.write_pdfs=
 
     #+LATEX: {\scriptsize
-    | Key             | Description                                                                                         |
-    |-----------------+-----------------------------------------------------------------------------------------------------|
-    | names           | A sequence of Seed names, or a dict of { name: <details> } (from slip39.create)                     |
-    | master_secret   | A Seed secret (only appropriate if exactly one name supplied)                                       |
-    | passphrase      | A SLIP-39 passphrase (not Trezor compatible; use "hidden wallet" phrase on device instead)          |
-    | group           | A dict of {"<group>":(<required>, <members>), ...}                                                  |
-    | group_threshold | How many groups are required to recover the Seed                                                    |
-    | cryptocurrency  | A sequence of [ "<crypto>", "<crypto>:<derivation>", ... ] w/ optional ranges                       |
-    | edit            | Derivation range(s) for each cryptocurrency, eg. "../0-4/-9" is 9 accounts first 5 change addresses |
-    | card_format     | Card size (eg. "credit"); False specifies no SLIP-39 cards (ie. only BIP-39 or JSON paper wallets)  |
-    | paper_format    | Paper size (eg. "letter")                                                                           |
-    | filename        | A filename; may contain "...{name}..." formatting, for name, date, time, crypto path and address    |
-    | json_pwd        | If passphrase supplied, Ethereum JSON wallet files will be saved, and produced into PDF             |
-    | text            | If True, outputs SLIP-39 phrases to stdout                                                          |
-    | wallet_pwd      | If passphrase supplied, produces encrypted BIP-38 or JSON paper wallets to PDF                      |
-    | wallet_pwd_hint | An optional passphrase hint, printed on paper wallet                                                |
-    | wallet_format   | Paper wallet size, (eg. "third"); the default is 1/3 letter size                                    |
+    | Key             | Description                                                                                           |
+    |-----------------+-------------------------------------------------------------------------------------------------------|
+    | names           | A sequence of Seed names, or a dict of { name: <details> } (from slip39.create)                       |
+    | master_secret   | A Seed secret (only appropriate if exactly one name supplied)                                         |
+    | passphrase      | A SLIP-39 passphrase (not Trezor compatible; use "hidden wallet" phrase on device instead)            |
+    | group           | A dict of {"<group>":(<required>, <members>), ...}                                                    |
+    | group_threshold | How many groups are required to recover the Seed                                                      |
+    | cryptocurrency  | A sequence of [ "<crypto>", "<crypto>:<derivation>", ... ] w/ optional ranges                         |
+    | edit            | Derivation range(s) for each cryptocurrency, eg. "../0-4/-9" is 9 accounts first 5 change addresses   |
+    | card_format     | Card size (eg. "credit"); False specifies no SLIP-39 cards (ie. only BIP-39 or JSON paper wallets)    |
+    | paper_format    | Paper size (eg. "letter")                                                                             |
+    | filename        | A filename; may contain "...{name}..." formatting, for name, date, time, crypto path and address      |
+    | filepath        | A file path, if PDF output to file is desired; empty implies current dir.                             |
+    | printer         | A printer name (or True for default), if output to printer is desired                                 |
+    | json_pwd        | If password supplied, encrypted Ethereum JSON wallet files will be saved, and produced into PDF       |
+    | text            | If True, outputs SLIP-39 phrases to stdout                                                            |
+    | wallet_pwd      | If password supplied, produces encrypted BIP-38 or JSON Paper Wallets to PDF (preferred vs. json_pwd) |
+    | wallet_pwd_hint | An optional passphrase hint, printed on paper wallet                                                  |
+    | wallet_format   | Paper wallet size, (eg. "third"); the default is 1/3 letter size                                      |
     #+LATEX: }
 
     For each of the names provided, produces a separate PDF containing all the SLIP-39 details and

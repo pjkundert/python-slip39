@@ -1,0 +1,74 @@
+Select an appropriate level of Controls detail.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Basic  Basic SLIP-39 Mnemonic creation           
+ Extra  Enhanced SLIP-39 creation and recover     
+ Pro    Conversion of BIP-39 Mnemonics to SLIP-39 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+1 Basic
+═══════
+
+  A basic SLIP-39 Mnemonic creation interface.
+
+
+2 Extra
+═══════
+
+  Greater control over the Mnemonic creation process.
+
+
+2.1 Extra Seed Entropy
+──────────────────────
+
+  Probably most importantly, Extra Entropy can be supplied.  Any data
+  supplied (Dice rolls, for example, add about 2.5 bits of entropy per
+  roll) is hashed with a standard SHA-512 hash function, which can be
+  independently confirmed.
+
+  Finally, you can visually confirm that the Entropy is correctly
+  applied via XOR to the Seed Data Source, to produce the Master Secret
+  Seed.
+
+  At no point do you need to "Trust" that the SLIP-39 program is
+  producing a Master Secret Seed from known data!
+
+
+2.2 SLIP-39
+───────────
+
+  Supports input of existing SLIP-39 mnemonics to recover the original
+  Seed.
+
+
+3 Pro
+═════
+
+  Advanced SLIP-39 creation and recovery, and conversion of BIP-39
+  Mnemonics to SLIP-39.
+
+  Requires licensing.
+
+
+3.1 BIP-39
+──────────
+
+  Conversion of existing, fragile BIP-39 12- or 24-word Mnemonic phrases
+  into SLIP-39 is supported.
+
+  Enter the BIP-39 recover phrase, to recover the 512-bit Seed and
+  generate SLIP-39 59-word Mnemonics which will recover the same Master
+  Secret Seed as the original 12- or 24-word BIP-39 Mnemonic.
+
+
+3.1.1 Not Trezor Compatible
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Unfortunately, the Trezor only implements 128-bit (20 word) and
+  256-bit (33-word) Mnemonics, so the BIP-39 Seed converted to SLIP-39
+  cannot be entered directly into a Trezor.
+
+  However, the `SLIP-39' App can generate Paper Wallets, allowing import
+  of individual Bitcoin, Ethereum, etc. wallets derived from the Seed
+  into any software wallet for recovery of the funds.

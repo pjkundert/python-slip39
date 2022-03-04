@@ -122,18 +122,32 @@ def main( argv=None ):
     if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
         raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
 
-    # Optional passphrase
+    # SLIP-39 Passphrase.  This is not recommended, as A) it is another thing that must be saved in
+    # addition to the SLIP-39 Mnemonics in order to recover the Seed, and B) it is not implemented
+    # by the Trezor hardware wallet.
     passphrase			= args.passphrase or ""
     if passphrase == '-':
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
+    log.warning( "The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead" )
 
+    # Optional Paper Wallet and/or JSON Wallet file passwords
     wallet_pwd			= args.wallet
-    if wallet_pwd == '-':
-        wallet_pwd		= input_secure( 'Paper wallet passphrase: ', secret=True )
+    if wallet_pwd:
+        if wallet_pwd == '-':
+            wallet_pwd		= input_secure( 'Paper Wallet password: ', secret=True )
+        else:
+            log.warning( "It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input" )
     wallet_pwd_hint		= args.wallet_hint
     wallet_format		= args.wallet_format
+
+    json_pwd			= args.json
+    if json_pwd:
+        if json_pwd == '-':
+            json_pwd		= input_secure( 'Ethereum JSON wallet file password: ', secret=True )
+        else:
+            log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
     try:
         write_pdfs(
@@ -147,7 +161,7 @@ def main( argv=None ):
             card_format		= args.card,
             paper_format	= args.paper,
             filename		= args.output,
-            json_pwd		= args.json,
+            json_pwd		= json_pwd,
             text		= args.text,
             wallet_pwd		= wallet_pwd,
             wallet_pwd_hint	= wallet_pwd_hint,
