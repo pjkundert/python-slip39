@@ -862,7 +862,7 @@ def app(
             txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
             txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
             try:
-                with open( txt_path, 'r' ) as txt_f:
+                with open( txt_path, 'r', encoding='utf-8' ) as txt_f:
                     txt		= txt_f.read()
                     if txt:
                         instructions = txt
