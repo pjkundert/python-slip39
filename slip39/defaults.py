@@ -82,6 +82,14 @@ PAPER_FORMATS			= dict(
     Photo	= (int( 4 * MM_IN ), int( 6 * MM_IN )),
 )
 
+# The available GUI controls Layout Options
+LAYOUT				= 'Basic'
+LAYOUT_OPTIONS			= [
+    'Basic',
+    'Extra',
+    'Pro',
+]
+
 BITS				= (128, 256, 512)
 BITS_DEFAULT			= 128
 

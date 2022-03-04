@@ -1,0 +1,8 @@
+Create (or recover) Seed Data.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Random   Create SLIP-39 Mnemonic creation from secure Entropy 
+ SLIP-39  (Extra) Recover Seed from SLIP-39 Mnemonics          
+ BIP-39   (Pro) Recover Seed from BIP-39 Mnemonics             
+ Fixed    (Pro) Hex data may be supplied for the Seed          
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

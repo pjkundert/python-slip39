@@ -1,0 +1,44 @@
+Increase "# in Group" as your target group locations or members grows.
+
+Increase "# Needed", the more Hostile/Untrustorthy the Group is.
+
+Decrease "# Needed", the less Fragile/Unreliable the Group is.
+
+
+1 1-Card Groups
+═══════════════
+
+  Useful for the direct owners of the Seed.  Just one Card for these
+  groups must be collected; ensure that 2+ of these Groups are created,
+  and a "Requires recovery" threshold of least 2 is specified.
+
+  If /less than/ the threshold amount of these cards is found by an
+  attacker, the Seed /cannot/ be recovered (unless other Groups are also
+  recovered).
+
+
+2 Multi-Card Groups
+═══════════════════
+
+  If you have a group of people (or places) that may be lost or
+  destroyed, or where some Mnemonics (cards) may be found and fall into
+  hostile hands, use a multi-card group.
+
+
+2.1 Hostile Groups
+──────────────────
+
+  The more /hostile/ (untrustworthy) the group (ie. the more likely that
+  any card(s) may be stolen by an attacker) – make the Group's
+  Needed/#-in-Group ratio larger.  Then, the attacker must collect more
+  cards to defeat the Group.
+
+
+2.2 Fragile Groups
+──────────────────
+
+  The more /fragile/ (unreliable) the group (ie. the more likely that
+  any card(s) may be lost or destroyed) – make the Group's
+  Needed/#-in-Group ratio smaller.  Thus, more cards may be
+  lost/destroyed before the Group can no longer be recovered (an *other*
+  Group(s) must be colledted, instead, to recover the Seed).

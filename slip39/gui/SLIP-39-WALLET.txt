@@ -1,0 +1,66 @@
+Supply a password to produce an encrypted Ethereum JSON wallet or
+Bitcoin, … BIP-38 Paper Wallet.
+
+If you import these SLIP-39 Mnemonics directly into your Trezor hardware
+wallet – you do /not/ need Paper Wallets: you have access to /all/ of
+the wallets, in every cryptocurrency supported by the Trezor.
+
+These are intended to support the importing of /individual/, single
+wallets into standard software wallets (eg. Brave browser, Metamask
+plugins, other software wallets on PCs or mobile devices).  If you need
+some cryptocurrency "walking around" money, use them to create
+recoverable "Safe Portable Crypto Accounts" (below).
+
+
+1 Password
+══════════
+
+  If you lose or forget this Paper Wallet password – you cannot import
+  these wallets into compatible software Cryptocurrency wallets!
+  Remember; the Seed can still be recovered by collecting sufficient
+  numbers of Mnemonics (cards), and then new Paper Wallets can be
+  issued.
+
+
+1.1 Hint
+────────
+
+  A small (<10 character) hint about what (or where) the Paper Wallet
+  Password is.
+
+
+2 Safe Portable Crypto Accounts
+═══════════════════════════════
+
+  If you want to issue temporary Paper Wallets (to carry cryptocurrency
+  with you to give to someone or buy something), then Paper Wallets
+  derived from your account are a good idea.
+
+
+2.1 Custom Derivation Path
+──────────────────────────
+
+  Use the `SLIP-39' App to recover your Seed, select the desired
+  Cryptocurrency (eg. `BTC'), and then enter a Paper Wallet Password,
+  and a derivation path "suffix" into the "# to Derive" field,
+  eg. "/1'/0/0-2".
+
+  For example, if you use the BIP-39 recovery "test" Mnemonic "zoo zoo
+  zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong", witht the above "# to
+  Derive", this would result in 3 paper wallets being produced, at the
+  following standard BTC Bech32 derivation paths:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   m/84'/0'/1'/0/0  bc1q8pqnqs573vx3qdp0xp6qdqzvnvy8px24rxh9lp 
+   m/84'/0'/1'/0/0  bc1qwtc58u4mmnxa29u8j07e6lmqpnrs38vefy3y24 
+   m/84'/0'/1'/0/0  bc1qg9s8qzm0lcetfv6umhlm3evtca5zsqv7elqd5s 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  You could load these wallets with funds, write the amount on the
+  front, and fold them over twice (to hide the PRIVATE KEY, while
+  leaving the PUBLIC ADDRESS exposed), and even laminate them to avoid
+  accidental discovery or exposure to moisture.
+
+  Then, once loaded, they can always be *recovered* by you (if they are
+  lost or accidentally destroyed).  Otherwise, the intended recipient
+  can unfold the Paper Wallet, and move the funds to their own wallet.

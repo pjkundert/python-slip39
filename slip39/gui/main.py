@@ -19,16 +19,17 @@ from ..layout		import write_pdfs
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS,
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET,
-    MNEM_CONT,
+    MNEM_CONT, LAYOUT, LAYOUT_OPTIONS,
 )
 
 log				= logging.getLogger( __package__ )
 
 
-disp_points			= 14 # if sys.platform == 'darwin' else 9
-font				= ('Courier', disp_points+0)
-font_small			= ('Courier', disp_points-4)
-font_bold			= ('Courier', disp_points+2, 'bold italic')
+font_points			= 14
+font				= ('Courier', font_points+0)
+font_dense			= ('Courier', font_points-2)
+font_small			= ('Courier', font_points-4)
+font_bold			= ('Courier', font_points+2, 'bold italic')
 
 I_kwds				= dict(
     change_submits	= True,
@@ -40,6 +41,9 @@ I_kwds_small			= dict(
 )
 T_kwds				= dict(
     font		= font,
+)
+T_kwds_dense			= dict(
+    font		= font_dense,
 )
 F_kwds				= dict(
     font		= font,
@@ -53,6 +57,7 @@ prefix				= (20, 1)
 inputs				= (40, 1)
 inlong				= (128,1)       # 512-bit seeds require 128 hex nibbles
 shorty				= (10, 1)
+tiny				= ( 3, 1)
 mnemos				= (195,3)
 
 
@@ -63,7 +68,10 @@ def groups_layout(
     passphrase		= None,
     cryptocurrency	= None,
     wallet_pwd		= None,			# If False, disable capability
-    simple		= False,		# Simplify layout by reducing complexity/choices
+    wallet_pwd_hint	= None,
+    wallet_derive	= None,
+    controls		= None,			# Default is simplest controls LAYOUT_OPTIONS[0];
+    printers		= None,			# Any printers available at the present time
 ):
     """Return a layout for the specified number of SLIP-39 groups.
 
@@ -94,7 +102,7 @@ def groups_layout(
             [
                 sg.Column( [
                     [
-                        sg.Input( f'{g_need}',          key=f'-G-NEED-{g}',     size=shorty,   **I_kwds )
+                        sg.Input( f'{g_need}',          key=f'-G-NEED-{g}',     size=tiny,     **I_kwds )
                     ]
                     for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
                 ],                                      key='-GROUP-NEEDS-' )
@@ -104,7 +112,7 @@ def groups_layout(
             [
                 sg.Column( [
                     [
-                        sg.Input( f'{g_size}',          key=f'-G-SIZE-{g}',     size=shorty,   **I_kwds )
+                        sg.Input( f'{g_size}',          key=f'-G-SIZE-{g}',     size=tiny,     **I_kwds )
                     ]
                     for g,(g_name,(g_need,g_size)) in enumerate( groups.items() )
                 ],                                      key='-GROUP-SIZES-' )
@@ -115,41 +123,65 @@ def groups_layout(
     if wallet_pwd is False:
         log.warning( "Disabling Paper Wallets capability: API unavailable" )
 
+    LO				= LAYOUT_OPTIONS[controls] if controls is not None else LAYOUT
+    LO_REC			= LO != LAYOUT_OPTIONS[0]		# True iff LO == Recover or Pro
+    LO_PRO			= LO == LAYOUT_OPTIONS[-1]		# True iff LO == Pro
     layout                      = [
         [
             sg.Frame( '1. Name(s) and formats of SLIP-39 Cards for output PDF File(s)', [
                 [
-                    sg.Text( "Seed Name(s): ",                                  size=prefix,    **T_kwds ),
-                    sg.Input( f"{', '.join( names )}",  key='-NAMES-',          size=inputs,    **I_kwds ),
-                    sg.Text( ", ... on Paper: ",                                                **T_kwds ),
-                ] + [
-                    sg.Radio( f"{pf}", "PF",            key=f"-PF-{pf}-", default=(pf == PAPER), **B_kwds )
-                    for pf in PAPER_FORMATS
-                ],
-                [
-                    sg.Text( "SLIP-39 Card size: ",                                             **T_kwds ),
-                ] + [
-                    sg.Radio( f"{cs}", "CS",            key=f"-CS-{cs}-", default=(cs == CARD), **B_kwds )
-                    for cs in CARD_SIZES
-                ],
-            ],                                                  key='-OUTPUT-F-',               **F_kwds ),
+                    sg.Column( [
+                        [
+                            sg.Text( f"Seed Name{LO_PRO and '(s, ...)' or ''}:",size=prefix,    **T_kwds ),
+                            sg.Input( f"{', '.join(names)}",key='-NAMES-',      size=inputs,    **I_kwds ),
+                        ],
+                        [
+                            sg.Text( "SLIP-39 Card size:",                                      **T_kwds ),
+                        ] + [
+                            sg.Radio( f"{cs}",     "CS", key=f"-CS-{cs}-",      default=(cs == CARD), **B_kwds )
+                            for ci,cs in enumerate( CARD_SIZES )
+                            if controls or ci < len( CARD_SIZES ) // 2
+                        ]
+                    ] ),
+                    sg.Column( [
+                        [
+                            sg.Text( "Controls:",                                                **T_kwds ),
+                        ] + [
+                            sg.Radio( f"{lo:7}",  "LO", key=f"-LO-{li}-",       default=(lo == LO), **B_kwds )
+                            for li,lo in enumerate( LAYOUT_OPTIONS )
+                        ],
+                        [
+                            sg.Text( "on Paper:",                                                 **T_kwds ),
+                        ] + [
+                            sg.Radio( f"{pf:7}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),**B_kwds )
+                            for pi,pf in enumerate( PAPER_FORMATS )
+                            if controls or pi < len( PAPER_FORMATS ) // 2
+                        ],
+                    ] )
+                ]
+            ],                                          key='-OUTPUT-F-',                       **F_kwds ),
         ],
     ] + [
         [
+            # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
             sg.Frame( '2. Seed Data Source (128-bit is fine; 256-bit produces many Mnemonic words to type into your Trezor; 512-bit aren\'t Trezor compatible)', [
                 [
-                    sg.Radio( "128-bit Random", "SD",   key='-SD-128-RND-',     default=True,   **B_kwds ),
-                    sg.Radio( "256-bit Random", "SD",   key='-SD-256-RND-',     default=False,  **B_kwds ),
-                    sg.Radio( "512-bit Random", "SD",   key='-SD-512-RND-',     default=False,  **B_kwds ),
-                    sg.Radio( "512-bit BIP-39", "SD",   key='-SD-BIP-',         default=False,  **B_kwds ),
-                    sg.Radio( "SLIP-39",        "SD",   key='-SD-SLIP-',        default=False,  **B_kwds ),
+                    sg.Text( "Random:",                                                         **T_kwds ),
+                    sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=True,   **B_kwds ),
+                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     default=False,  **B_kwds ),
+                    sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     default=False,  **B_kwds ),
+                    sg.Text( "Recover:",                                        visible=LO_REC, **T_kwds ),
+                    sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **B_kwds ),
+                    sg.Radio( "512-bit BIP-39",   "SD", key='-SD-BIP-',         visible=LO_PRO, **B_kwds ),
                     sg.Checkbox( 'SLIP-39 Passphrase (NOT Trezor compatible)',
-                                                        key='-SD-PASS-C-',      default=False,  **B_kwds ),  # noqa: E127
+                                                        key='-SD-PASS-C-',      visible=LO_PRO,  **B_kwds ),
                 ],
                 [
-                    sg.Radio( "128-bit Fixed ", "SD",   key='-SD-128-FIX-',     default=False,  **B_kwds ),
-                    sg.Radio( "256-bit Fixed ", "SD",   key='-SD-256-FIX-',     default=False,  **B_kwds ),
-                    sg.Radio( "512-bit Fixed ", "SD",   key='-SD-512-FIX-',     default=False,  **B_kwds ),
+                    sg.Text("Fixed: ",                                          visible=LO_PRO, **T_kwds ),
+                ] + [
+                    sg.Radio( f"{b}-bit",  "SD", key=f"-SD-{b}-FIX-",           visible=LO_PRO, **B_kwds )
+                    for b in BITS
+                ] + [
                     sg.Frame( 'Only use if a Passphrase was provided when the Mnemonic was created)', [
                         [
                             sg.Text( "Passphrase (decrypt): ",                  size=prefix,    **T_kwds ),
@@ -166,18 +198,20 @@ def groups_layout(
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],
                 [
-                    sg.Text( "Seed Data: ",                                     size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SD-SEED-',        size=inlong,    **T_kwds ),
+                    sg.Text( "Seed Data: ",                                     visible=LO_REC,
+                                                                                size=prefix,    **T_kwds ),
+                    sg.Text( "",                        key='-SD-SEED-',        visible=LO_REC,
+                                                                                size=inlong,    **T_kwds ),
                 ],
             ],                                          key='-SD-SEED-F-',                      **F_kwds ),
         ],
     ] + [
         [
-            sg.Frame( '3. XOR Extra Seed Entropy, eg. Die rolls, ...; Recommended if you don\'t trust our randomness ;-), or desire multiple Seeds', [
+            sg.Frame( '3. Extra Seed Entropy (XOR-ed; Recommended if you don\'t trust our randomness ;-), or specify multiple Seeds', [
                 [
-                    sg.Radio( "None",             "SE", key='-SE-NON-',         default=True,   **B_kwds ),
-                    sg.Radio( "SHA-512 Stretched","SE", key='-SE-SHA-',         default=False,  **B_kwds ),
-                    sg.Radio( "Hex",              "SE", key='-SE-HEX-',         default=False,  **B_kwds ),
+                    sg.Radio( "None",             "SE", key='-SE-NON-',         visible=LO_REC, default=True,   **B_kwds ),
+                    sg.Radio( "Dice rolls, ...",  "SE", key='-SE-SHA-',         visible=LO_REC, **B_kwds ),
+                    sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
                 ],
                 [
                     sg.Frame( 'Entropy', [
@@ -188,14 +222,14 @@ def groups_layout(
                     ],                                  key='-SE-DATA-F-',      visible=False,  **F_kwds ),
                 ],
                 [
-                    sg.Text( "Seed Entropy: ",                                  size=prefix,    **T_kwds ),
-                    sg.Text( "",                        key='-SE-SEED-',        size=inlong,    **T_kwds ),
+                    sg.Text( "Seed Entropy: ",                                  visible=LO_REC,size=prefix,    **T_kwds ),
+                    sg.Text( "",                        key='-SE-SEED-',        visible=LO_REC,size=inlong,    **T_kwds ),
                 ],
             ],                                          key='-SE-SEED-F-',                      **F_kwds ),
         ]
     ] + [
         [
-            sg.Frame( '4. Master Secret Seed & SLIP-39 Recovery Groups. Customize up to 16 groups, for your situation.', [
+            sg.Frame( '4. Master Secret Seed & SLIP-39 Recovery Groups; Up to 16 groups w/ 1-16 cards required.', [
                 [
                     sg.Text( "Seed: ",                                          size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
@@ -204,24 +238,25 @@ def groups_layout(
                     sg.Column( [
                         [
                             sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
-                            sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=shorty,    **I_kwds ),
+                            sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=tiny,      **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
-                            sg.Text( "SLIP-39 Recovery Groups",                                **T_kwds ),
-                            sg.Checkbox( 'SLIP-39 Passphrase (NOT Trezor compatible!)', default=False,
-                                                        key='-PASSPHRASE-C-',                   **B_kwds ),  # noqa: E127
+                            sg.Text( "Mnemonic Groups",                                **T_kwds ),
+                            sg.Checkbox( 'SLIP-39 Passphrase',
+                                                        key='-PASSPHRASE-C-',   visible=LO_PRO, **B_kwds ),
                         ],
                         [
-                            sg.Frame( 'If necessary, perhaps use Trezor \"Hidden wallet\" passphrase on device instead..', [
+                            sg.Frame( 'NOT Trezor compatible; perhaps use \"Hidden wallet\" on device instead?', [
                                 [
                                     sg.Text( "Passphrase (encrypt): ",                          **T_kwds ),
                                     sg.Input( f"{passphrase or ''}",
-                                                        key='-PASSPHRASE-',     size=inputs,    **I_kwds ),  # noqa: E127
+                                                        key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
                                 ],
                             ],                          key='-PASSPHRASE-F-',   visible=False,  **F_kwds ),
                         ],
                         group_body,
                     ] ),
+                    sg.Multiline( "",           key='-INSTRUCTIONS-',   size=(75,12),          **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds ),
         ],
@@ -232,27 +267,28 @@ def groups_layout(
                     sg.Column( [
                         [
                             sg.Checkbox( f"{c}", default=c in ( cryptocurrency or CRYPTO_PATHS ),
-                                                        key=f"-CRYPTO-{c}-",                    **B_kwds )  # noqa: E127
+                                                        key=f"-CRYPTO-{c}-",                    **B_kwds )
                             for c in c_row
                         ]
                         for c_row in chunker( sorted( Account.CRYPTOCURRENCIES ),
                                               int( round( math.sqrt( len( Account.CRYPTOCURRENCIES )))))
-                    ] )
+                    ],                                                          visible=LO_REC )
                 ] + [
                     sg.Frame( 'Paper Wallet Password/Hint (empty, if no Paper Wallets desired)', [
                         [
-                            sg.Input( f"{wallet_pwd or ''}",
-                                                        key='-WALLET-PASS-',    size=inputs,    **I_kwds ),  # noqa: E127
+                            sg.Input( default_text=wallet_pwd or '',
+                                                        key='-WALLET-PASS-',    size=inputs,    **I_kwds ),
                             sg.Text( "Hint: ",                                                  **T_kwds ),
-                            sg.Input( "",
-                                                        key='-WALLET-HINT-',    size=shorty,    **I_kwds ),  # noqa: E127
+                            sg.Input( default_text=wallet_pwd_hint or '',
+                                                        key='-WALLET-HINT-',    size=shorty,    **I_kwds ),
                         ],
-                    ],                                                                          **F_kwds ),
+                    ],                                                          visible=LO_REC, **F_kwds ),
                     sg.Frame( '# to Derive:', [
                         [
-                            sg.Input( "1",              key='-WALLET-DERIVE-',  size=shorty,    **I_kwds ),  # noqa: E127
+                            sg.Input( default_text=wallet_derive or '1',
+                                                        key='-WALLET-DERIVE-',  size=shorty,    **I_kwds ),
                         ],
-                    ],                                                                          **F_kwds ),
+                    ],                                                          visible=LO_REC, **F_kwds ),
                 ] + [
                     sg.Column( [
                         [
@@ -260,21 +296,25 @@ def groups_layout(
                         ],
                         [
                             sg.Radio( f"{ws}", "WS",    default=ws == WALLET,
-                                                        key=f"-WALLET-SIZE-{ws}-",              **B_kwds )  # noqa: E127
+                                                        key=f"-WALLET-SIZE-{ws}-",              **B_kwds )
                             for ws in WALLET_SIZES
                         ],
-                    ] )
+                    ],                                                          visible=LO_REC )
                 ],
-            ],                                          key='-WALLET-F-', visible=wallet_pwd is not False, **F_kwds ),  # noqa: E126
+            ],                                          key='-WALLET-F-',       visible=wallet_pwd is not False,
+                                                                                                **F_kwds ),  # noqa: E126
         ],
     ] + [
         [
-            sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
-                                                        key='-SAVE-',           visible=False,  **I_kwds ),  # noqa: E127
-            sg.FolderBrowse( 'Save',                    target='-SAVE-',                        **B_kwds ),
-            sg.Button( 'Exit',                                                                  **B_kwds ),
-            sg.Frame( '6. Summary of your SLIP-39 Recovery Groups.  When this looks good, hit Save!', [
+            sg.Frame( '6. Summary of your SLIP-39 Recovery Groups.  When this looks good, hit Save (to removable USB)!', [
                 [
+                    sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
+                                                        key='-SAVE-',           visible=False,  **I_kwds ),
+                    sg.FolderBrowse( 'Save',            target='-SAVE-',                        **B_kwds ),
+                    sg.FolderBrowse( 'Print',           key='-PRINT-',          visible=bool(printers),
+                                                                                                **B_kwds ),
+                    sg.Combo( printers or [],           key='-PRINTER-',        visible=bool(printers),
+                              default_value=printers[0] if printers else None,                  **B_kwds ),
                     sg.Text(                            key='-SUMMARY-',                        **T_kwds ),
                 ]
             ],                                          key='-SUMMARY-F-',                      **F_kwds ),
@@ -291,9 +331,9 @@ def groups_layout(
             sg.Frame( '8. SLIP-39 Recovery Mnemonics produced.  These will be saved to the PDF on cards.', [
                 [
                     sg.Multiline( "",                   key='-MNEMONICS-'+sg.WRITE_ONLY_KEY,
-                                                                                size=mnemos,    **I_kwds_small )  # noqa: E127
+                                                                                size=mnemos,    **I_kwds_small )
                 ]
-            ],                                          key='-MNEMONICS-F-',                    **F_kwds ),
+            ],                                          key='-MNEMONICS-F-',    visible=LO_PRO, **F_kwds ),
         ],
     ] + [
         [
@@ -302,7 +342,7 @@ def groups_layout(
                     sg.Text( "Seed Verified: ",                                 size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-RECOVERED-', size=inlong,    **T_kwds ),
                 ],
-            ],                                          key='-RECOVERED-F-',                    **F_kwds ),
+            ],                                          key='-RECOVERED-F-',    visible=LO_PRO, **F_kwds ),
         ],
     ]
     return layout
@@ -689,6 +729,58 @@ def user_name_full():
     return full_name
 
 
+def printers_available():
+    """
+    On macOS, find any available printers that appear to be available:
+
+        printer Canon_G6000_series is idle.  enabled since Thu  3 Mar 09:24:56 2022
+                ...
+                Description: Canon G6000
+                Alerts: none
+                ...
+        printer Marg_s_Brother_HL_L2360D is idle.  enabled since Wed 15 Sep 12:19:48 2021
+                ...
+                Description: Marg's Brother HL-L2360D
+                Alerts: offline-report
+                ...
+
+    Yields a sequence of their names: (<system>,<long>), ...
+    """
+    if sys.platform == 'darwin':
+        command		= [ 'lpstat', '-lt' ]
+        command_input	= None
+    else:
+        return
+
+    subproc			= subprocess.run(
+        command,
+        input		= command_input,
+        capture_output	= True,
+        encoding	= 'UTF-8'
+    )
+    assert subproc.returncode == 0 and subproc.stdout, \
+        f"{' '.join( command )!r} command failed, or no output returned"
+
+    if sys.platform == 'darwin':
+        system,human,ok		= None,None,None
+        for li in subproc.stdout.split( '\n' ):
+            printer		= re.match( r"^printer\s+([^\s]+)", li )
+            if printer:
+                system,human,ok	= printer.group(1).strip(),None,None
+                continue
+            descr		= re.match( r"^\s+Description:(.*)", li )
+            if descr:
+                human		= descr.group(1).strip()
+                continue
+            alerts		= re.match( r"^\s+Alerts:(.*)", li )
+            if alerts:
+                ok		= 'offline' not in alerts.group(1)
+                log.info( f"Printer: {human}: {alerts.group(1)}" )
+            if ok:
+                yield system,human
+                system,human,ok	= None,None,None
+
+
 def app(
     names			= None,
     group			= None,
@@ -738,17 +830,8 @@ def app(
 
     # If we cannot support the output of Paper Wallets, disable
     wallet_pwd			= None if paper_wallet_available() else False
-
-    # Compute initial App window layout, from the supplied groups.
-    layout			= groups_layout(
-        names		= names,
-        group_threshold	= group_threshold,
-        groups		= groups,
-        cryptocurrency	= cryptocurrency,
-        passphrase	= passphrase,
-        wallet_pwd	= wallet_pwd,
-    )
-
+    wallet_pwd_hint		= None
+    wallet_derive		= None  # A derivation path "edit", if any
     window			= None
     status			= None
     status_error		= False
@@ -756,28 +839,50 @@ def app(
     events_termination		= (sg.WIN_CLOSED, 'Exit',)
     events_ignored		= ('-MNEMONICS-'+sg.WRITE_ONLY_KEY,)
     master_secret		= None		# default to produce randomly
-    groups_recovered		= None		# The last SLIP-39 groups recovered from user input
-    details			= None		# ..and the SLIP-39 details produced; make None to force SLIP-39 Mnemonic update
+    details			= None		# The SLIP-39 details produced from groups; make None to force SLIP-39 Mnemonic update
     cryptopaths			= None
     timeout			= 0		# First time thru; refresh immediately
+    controls			= 0		# What level of controls complexity is desired?
+    instructions		= ''		# The last instructions .txt payload found
     while event not in events_termination:
+        # A Controls layout selection, eg. '-LO-2-'; closes and re-generates window layout
+        if event and event.startswith( '-LO-' ):
+            controls		= int( event.split( '-' )[2] )
+            window.close()
+            window		= None
+
         # Create window (for initial window.read()), or update status
         if window:
             window['-STATUS-'].update( f"{status or 'OK'}", font=font_bold if status_error else font )
             window['-RECOVERY-'].update( f"of {len(groups)}" )
-            window['-SD-SEED-F-'].expand( expand_x=True )
-            window['-SE-SEED-F-'].expand( expand_x=True )
-            window['-OUTPUT-F-'].expand( expand_x=True )
-            if wallet_pwd is not False:
-                window['-WALLET-F-'].expand( expand_x=True )
-            window['-SUMMARY-F-'].expand( expand_x=True )
-            window['-STATUS-F-'].expand( expand_x=True )
-            window['-RECOVERED-F-'].expand( expand_x=True )
-            window['-MNEMONICS-F-'].expand( expand_x=True )
-            window['-GROUPS-F-'].expand( expand_x=True )
+            # All main window rows are assumed to be frames, was: window['-SD-SEED-F-'].expand( expand_x=True ), ...
+            for frame in window.Rows:
+                if frame and frame[0].visible:
+                    frame[0].expand( expand_x=True )
         else:
+            # Compute App window layout, from the supplied groups and controls selection.
+            try:
+                printers	= list( p[1] for p in printers_available() )
+            except Exception as exc:
+                log.exception( f"Failed to find printers: {exc}" )
+                printers	= None
+
+            layout		= groups_layout(
+                names		= names,
+                group_threshold	= group_threshold,
+                groups		= groups,
+                cryptocurrency	= cryptocurrency,
+                passphrase	= passphrase,
+                wallet_pwd	= wallet_pwd,
+                wallet_pwd_hint	= wallet_pwd_hint,
+                wallet_derive	= wallet_derive,
+                controls	= controls,
+                printers	= printers,
+            )
             window		= sg.Window(
-                f"{', '.join( names or [ 'SLIP-39' ] )} Mnemonic Cards", layout,
+                f"{', '.join( names )} SLIP-39 Mnemonic Cards",
+                layout,
+                finalize	= True,
                 grab_anywhere	= True,
                 no_titlebar	= no_titlebar,
                 scaling		= scaling,
@@ -795,19 +900,34 @@ def app(
         status			= None
         status_error		= True
 
+        # See if there are any instructional 'SLIP-39-<event>.txt' for the last event.  If so, load
+        # it into the '-INSTRUCTIONS-' Multiline.  We'll split each event on its component '-', and
+        # look for eg. SLIP-39-LO.txt, when we see event == '-LO-1-'.  We'll select the most
+        # specific instructional .txt we can load.  Only if the current instructions is empty will
+        # we go all the way back to load the generic SLIP-39.txt.
+        txt_segs		= ( event or '' ).strip('-').split( '-' )
+        for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
+            txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
+            txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
+            try:
+                with open( txt_path, 'r' ) as txt_f:
+                    txt		= txt_f.read()
+                    if txt:
+                        instructions = txt
+                        break
+            except FileNotFoundError:
+                pass
+        window['-INSTRUCTIONS-'].update( instructions )
+
         if event == '+' and len( groups ) < 16:
             # Add a SLIP39 Groups row (if not already at limit)
             g			= len( groups )
             name		= f"Group{g+1}"
             needs		= (2,3)
             groups[name] 	= needs
-            values[f"-G-NAME-{g}"] = name
-            values[f"-G-NEED-{g}"] = needs[0]
-            values[f"-G-SIZE-{g}"] = needs[1]
-            window.extend_layout( window['-GROUP-NUMBER-'], [[ sg.Text(  f"{g+1}",                                       **T_kwds ) ]] )  # noqa: 241
-            window.extend_layout( window['-GROUP-NAMES-'],  [[ sg.Input( f"{name}",     key=f"-G-NAME-{g}",              **I_kwds ) ]] )  # noqa: 241
-            window.extend_layout( window['-GROUP-NEEDS-'],  [[ sg.Input( f"{needs[0]}", key=f"-G-NEED-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
-            window.extend_layout( window['-GROUP-SIZES-'],  [[ sg.Input( f"{needs[1]}", key=f"-G-SIZE-{g}", size=shorty, **I_kwds ) ]] )  # noqa: 241
+            window.close()
+            window		= None
+            continue
 
         # Deduce the desired Seed names, defaulting to "SLIP39"; if any change, force update of
         # details.  If the user specifies more than one, ensure that Extra Seed Entropy is enabled.
@@ -878,17 +998,17 @@ def app(
                 update_seed_recovered( window, values, None )
                 continue
 
-        if g_rec != groups_recovered:  # eg. group name or details changed
+        if g_rec != groups:  # eg. group name or details changed
             log.info( "Updating SLIP-39 due to changing Groups" )
-            groups_recovered	= g_rec
+            groups		= g_rec
             details		= None
 
         # Confirm the selected Group Threshold requirement
         try:
             g_thr_val		= values['-THRESHOLD-']
             g_thr		= int( g_thr_val )
-            assert 0 < g_thr <= len( groups_recovered ), \
-                f"Group threshold must be an integer between 1 and the number of groups ({len(groups_recovered)})"
+            assert 0 < g_thr <= len( groups ), \
+                f"Group threshold must be an integer between 1 and the number of groups ({len(groups)})"
         except Exception as exc:
             status		= f"Error defining group threshold {g_thr_val!r}: {exc}"
             logging.exception( f"{status}" )
@@ -910,7 +1030,7 @@ def app(
         #
         #    ../3'/0/-9
         #
-        edit_rec		= values['-WALLET-DERIVE-']
+        wallet_derive = edit_rec = values['-WALLET-DERIVE-']
         try:
             n			= 1
             if edit_rec:
@@ -948,12 +1068,12 @@ def app(
         # recover the Seed.  If the SLIP-39 passphrase has changed, force regeneration of SLIP-39.
         # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; use the Trezor "hidden
         # wallet" feature instead.
-        summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups_recovered.items())
-        summary			= f"Requires collecting {group_threshold} of {len(groups_recovered)} the Groups: {summary_groups}"
+        summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups.items())
+        summary			= f"Requires collecting {group_threshold} of {len(groups)} the Groups: {summary_groups}"
 
-        tot_cards		= sum( size for _,size in groups_recovered.values() )
-        min_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=False ), group_threshold ))
-        max_req			= sum( islice( sorted( ( need for need,_ in groups_recovered.values() ), reverse=True  ), group_threshold ))
+        tot_cards		= sum( size for _,size in groups.values() )
+        min_req			= sum( islice( sorted( ( need for need,_ in groups.values() ), reverse=False ), group_threshold ))
+        max_req			= sum( islice( sorted( ( need for need,_ in groups.values() ), reverse=True  ), group_threshold ))
         summary		       += f" (from {min_req}-{max_req} of {tot_cards} Mnemonic cards)"
 
         if values['-PASSPHRASE-C-']:
@@ -996,7 +1116,7 @@ def app(
                         name		= name,
                         group_threshold	= group_threshold,
                         master_secret	= master_secret_n,
-                        groups		= groups_recovered,
+                        groups		= groups,
                         cryptopaths	= cryptopaths,
                         passphrase	= passphrase,
                     )
@@ -1004,7 +1124,7 @@ def app(
                 status		= f"Error creating: {exc}"
                 logging.exception( f"{status}" )
                 update_seed_recovered( window, values, None )
-                groups_recovered = {}
+                details		= None
                 continue
 
         # Display the computed SLIP-39 Mnemonics for the first name.  We know names[0] is in details...
@@ -1022,7 +1142,11 @@ def app(
         # We have a complete SLIP-39 Mnemonic set.  If we get here, no failure status has been
         # detected, and SLIP39 mnemonic and account details { "name": <details> } have been created;
         # we can now save the PDFs; converted details is now { "<filename>": <details> })
-        if event == '-SAVE-':
+        if wallet_pwd is not False:
+            # And, if Paper Wallets haven't been disabled completely, remember our password/hint
+            wallet_pwd		= values['-WALLET-PASS-']  # Produces Paper Wallet(s) iff set
+            wallet_pwd_hint	= values['-WALLET-HINT-']
+        if event in ('-SAVE-', '-PRINT-'):  # TODO: send direct to selected Printer...
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any
             # output will be written.  It should usually be a removable volume, but we do not check.
             # An empty path implies the current directory.
@@ -1035,8 +1159,8 @@ def app(
                     paper_format	= paper_format,
                     cryptocurrency	= cryptocurrency,
                     edit		= edit,
-                    wallet_pwd		= values['-WALLET-PASS-'],  # Produces Paper Wallet(s) iff set
-                    wallet_pwd_hint	= values['-WALLET-HINT-'],
+                    wallet_pwd		= wallet_pwd,
+                    wallet_pwd_hint	= wallet_pwd_hint,
                     wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
                     filepath		= values['-SAVE-'] or None,
                 )
