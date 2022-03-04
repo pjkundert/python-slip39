@@ -128,6 +128,13 @@ def test_account_encrypt():
         'Satoshi'
     ).key.upper() == '09C2686880095B1A4C249EE3AC4EEA8A014F11E6F986D0B5025AC1F39AFBD9AE'
 
+    # Test some addresses encrypted by our Paper Wallet PDF output procedure, using
+    # the "zoo zoo ... zoo wrong" BIP-39 test Mnemonic.
+    assert Account( crypto='BTC' ).from_encrypted(
+        '6PYSUhj4mPTNdSvm2dxLRszieSBmzPqPQX699ECUrd69sWteFAUqmW1FLq',
+        'something'
+    ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+    
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create():

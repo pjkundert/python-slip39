@@ -692,7 +692,7 @@ def write_pdfs(
     # Generate each desired SLIP-39 Mnemonic file.  Supports --card (the default).  Remember any
     # deduced orientation and paper_format for below.
     results			= {}
-    (orientation,paper_format),pdf = (None,None),None
+    (pdf_paper,pdf_orient),pdf	= (None,None),None
     for name, details in names.items():
         # Get the first group of the accountgroups in details.accounts.
         accounts		= details.accounts
@@ -709,9 +709,9 @@ def write_pdfs(
                     print( f"{name}{name and ': ' or ''}{mnem}" )
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
-        # the SLIP-39 mnemonic recovery cards; remember the deduced (<orientation>,<paper>)
+        # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>)
         if card_format is not False or wallet_pwd:
-            (orientation,paper_format),pdf,_ = produce_pdf(
+            (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER
@@ -904,8 +904,8 @@ def write_pdfs(
                 printer_output(
                     pdf.output(),
                     printer		= printer,
-                    orientation		= orientation,
-                    paper_format	= paper_format,
+                    orientation		= pdf_orient,
+                    paper_format	= pdf_paper,
                 )
 
         results[pdf_name]	= details
