@@ -15,7 +15,7 @@ import PySimpleGUI as sg
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
 from ..recovery		import recover, recover_bip39
 from ..util		import log_level, log_cfg, ordinal, chunker
-from ..layout		import write_pdfs
+from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS,
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET,
@@ -311,10 +311,11 @@ def groups_layout(
                     sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
                                                         key='-SAVE-',           visible=False,  **I_kwds ),
                     sg.FolderBrowse( 'Save',            target='-SAVE-',                        **B_kwds ),
-                    sg.FolderBrowse( 'Print',           key='-PRINT-',          visible=bool(printers),
+                    sg.Button( 'Print',                 key='-PRINT-',         visible=printers is not None,
                                                                                                 **B_kwds ),
-                    sg.Combo( printers or [],           key='-PRINTER-',        visible=bool(printers),
-                              default_value=printers[0] if printers else None,                  **B_kwds ),
+                    sg.Combo( printers or [],           key='-PRINTER-',       visible=printers is not None,
+                              # default_value=printers[0] if printers else None,  # Leave empty, to allow selecting (default) printer
+                                                                                                **B_kwds ),
                     sg.Text(                            key='-SUMMARY-',                        **T_kwds ),
                 ]
             ],                                          key='-SUMMARY-F-',                      **F_kwds ),
@@ -729,58 +730,6 @@ def user_name_full():
     return full_name
 
 
-def printers_available():
-    """
-    On macOS, find any available printers that appear to be available:
-
-        printer Canon_G6000_series is idle.  enabled since Thu  3 Mar 09:24:56 2022
-                ...
-                Description: Canon G6000
-                Alerts: none
-                ...
-        printer Marg_s_Brother_HL_L2360D is idle.  enabled since Wed 15 Sep 12:19:48 2021
-                ...
-                Description: Marg's Brother HL-L2360D
-                Alerts: offline-report
-                ...
-
-    Yields a sequence of their names: (<system>,<long>), ...
-    """
-    if sys.platform == 'darwin':
-        command		= [ 'lpstat', '-lt' ]
-        command_input	= None
-    else:
-        return
-
-    subproc			= subprocess.run(
-        command,
-        input		= command_input,
-        capture_output	= True,
-        encoding	= 'UTF-8'
-    )
-    assert subproc.returncode == 0 and subproc.stdout, \
-        f"{' '.join( command )!r} command failed, or no output returned"
-
-    if sys.platform == 'darwin':
-        system,human,ok		= None,None,None
-        for li in subproc.stdout.split( '\n' ):
-            printer		= re.match( r"^printer\s+([^\s]+)", li )
-            if printer:
-                system,human,ok	= printer.group(1).strip(),None,None
-                continue
-            descr		= re.match( r"^\s+Description:(.*)", li )
-            if descr:
-                human		= descr.group(1).strip()
-                continue
-            alerts		= re.match( r"^\s+Alerts:(.*)", li )
-            if alerts:
-                ok		= 'offline' not in alerts.group(1)
-                log.info( f"Printer: {human}: {alerts.group(1)}" )
-            if ok:
-                yield system,human
-                system,human,ok	= None,None,None
-
-
 def app(
     names			= None,
     group			= None,
@@ -860,9 +809,12 @@ def app(
                 if frame and frame[0].visible:
                     frame[0].expand( expand_x=True )
         else:
-            # Compute App window layout, from the supplied groups and controls selection.
+            # Compute App window layout, from the supplied groups and controls selection.  For
+            # printers, an empty list is OK (we can still print to the default printer).  However,
+            # if we fail to successfully obtain any printer information (cannot talk to the printer
+            # subsystem, then we'll disable "Print" w/ printers=None)
             try:
-                printers	= list( p[1] for p in printers_available() )
+                printers	= list( human for system,human in printers_available() )
             except Exception as exc:
                 log.exception( f"Failed to find printers: {exc}" )
                 printers	= None
@@ -1146,10 +1098,17 @@ def app(
             # And, if Paper Wallets haven't been disabled completely, remember our password/hint
             wallet_pwd		= values['-WALLET-PASS-']  # Produces Paper Wallet(s) iff set
             wallet_pwd_hint	= values['-WALLET-HINT-']
-        if event in ('-SAVE-', '-PRINT-'):  # TODO: send direct to selected Printer...
+        if event in ('-SAVE-', '-PRINT-'):
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any
             # output will be written.  It should usually be a removable volume, but we do not check.
             # An empty path implies the current directory.
+            filepath		= None
+            if event == '-SAVE-':
+                filepath	= values['-SAVE-']
+                log.info( f"Saving to {filepath!r}..." )
+            if event == '-PRINT-':
+                printer		= values['-PRINTER-']
+                log.info( f"Printing to {printer!r}..." )
             try:
                 card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}-"] )
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
@@ -1162,7 +1121,8 @@ def app(
                     wallet_pwd		= wallet_pwd,
                     wallet_pwd_hint	= wallet_pwd_hint,
                     wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
-                    filepath		= values['-SAVE-'] or None,
+                    filepath		= filepath,
+                    printer		= printer,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
