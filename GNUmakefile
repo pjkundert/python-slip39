@@ -20,9 +20,9 @@ APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
 
 # PY[3] is the target Python interpreter.  It must have pytest installed.
-PY3		?= python3
+PY3		?= $(shell which python3 2>/dev/null && echo python3 || echo python )
 
-VERSION=$(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
+VERSION		= $(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
 
 # To see all pytest output, uncomment --capture=no
 PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO

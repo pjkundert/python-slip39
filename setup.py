@@ -1,9 +1,18 @@
-from setuptools import setup
+#from setuptools import setup
+from cx_Freeze import setup, Executable
 
 import os
 import sys
 import glob
 import fnmatch
+
+#build_exe_options		= { "packages": ["os"], "excludes": [] }
+
+# cx_Freeze executable options
+base				= None
+if sys.platform == 'win32':
+    base			= "Win32GUI"
+executables			= [ Executable( "SLIP-39.py", base=base ) ]
 
 HERE				= os.path.dirname( os.path.abspath( __file__ ))
 
@@ -244,5 +253,6 @@ setup(
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
     python_requires		= ">=3.9",
+    executables			= executables,
     #**extra_options
 )
