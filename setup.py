@@ -6,13 +6,38 @@ import sys
 import glob
 import fnmatch
 
-#build_exe_options		= { "packages": ["os"], "excludes": [] }
-
-# cx_Freeze executable options
+# cx_Freeze options
+#     cx-freeze.readthedocs.io/en/latest/setup_script.html
+# 
 base				= None
 if sys.platform == 'win32':
     base			= "Win32GUI"
-executables			= [ Executable( "SLIP-39.py", base=base ) ]
+
+msi_data			= {
+    "Icon": [
+    ]
+}
+
+bdist_msi_options		= {
+    "add_to_path":	True,
+    "data":		msi_data,
+}
+
+build_exe_options		= {
+    "packages": 	[],
+    "excludes": 	[],
+    "include_msvcr":	True
+}
+
+executables			= [
+    Executable(
+        "SLIP-39.py",
+        copyright	= "Copyright (c) 2022 Perry Kundert",
+        base		= base,
+        icon		= "images/SLIP-39.ico",
+    ),
+]
+
 
 HERE				= os.path.dirname( os.path.abspath( __file__ ))
 
