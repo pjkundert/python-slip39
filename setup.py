@@ -1,4 +1,3 @@
-#from setuptools import setup
 from cx_Freeze import setup, Executable
 
 import os
@@ -52,15 +51,16 @@ build_exe_options		= dict(
     excludes		= [],
     include_msvcr	= True,
 )
-
-executables			= [
-    Executable(
-        "SLIP-39.py",
-        copyright	= "Copyright (c) 2022 Perry Kundert",
-        base		= base,
-        icon		= icon_win,
-    ),
-]
+executables			= None
+if sys.platform == 'win32':
+    executables			= [
+        Executable(
+            "SLIP-39.py",
+            copyright	= "Copyright (c) 2022 Perry Kundert",
+            base		= base,
+            icon		= icon_win,
+        ),
+    ]
 
 
 HERE				= os.path.dirname( os.path.abspath( __file__ ))
