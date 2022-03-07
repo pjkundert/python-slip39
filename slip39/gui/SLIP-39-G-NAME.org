@@ -10,7 +10,6 @@ The default Group names and their intended usages are:
 | Second | A 1-card group stored in the First safe place |
 | Fam    | A smaller group of Family members             |
 | Fren   | A larger group of Friends; increase Needed    |
-
 #+END_ABSTRACT
 
 * 1-Card Groups

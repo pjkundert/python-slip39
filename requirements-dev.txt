@@ -5,3 +5,4 @@ pytest
 setuptools
 wheel
 pyinstaller	>= 4.9
+cx_Freeze	>= 6.10

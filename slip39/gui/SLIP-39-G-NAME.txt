@@ -2,16 +2,14 @@ Name each Group according to "who" or "where" you plan to distribute it.
 
 The default Group names and their intended usages are:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  First   A 1-card group stored in the First safe place 
  Second  A 1-card group stored in the First safe place 
  Fam     A smaller group of Family members             
  Fren    A larger group of Friends; increase Needed    
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 1 1-Card Groups
-═══════════════
+===============
 
   Useful for the direct owners of the Seed.  Just one Card for these
   groups must be collected; ensure that 2+ of these Groups are created,
@@ -23,7 +21,7 @@ The default Group names and their intended usages are:
 
 
 2 Multi-Card Groups
-═══════════════════
+===================
 
   If you have a group of people (or places) that may be lost or
   destroyed, or where some Mnemonics (cards) may be found and fall into
@@ -31,19 +29,19 @@ The default Group names and their intended usages are:
 
 
 2.1 Hostile Groups
-──────────────────
+~~~~~~~~~~~~~~~~~~
 
   The more /hostile/ (untrustworthy) the group (ie. the more likely that
-  any card(s) may be stolen by an attacker) – make the Group's
+  any card(s) may be stolen by an attacker) -- make the Group's
   Needed/#-in-Group ratio larger.  Then, the attacker must collect more
   cards to defeat the Group.
 
 
 2.2 Fragile Groups
-──────────────────
+~~~~~~~~~~~~~~~~~~
 
   The more /fragile/ (unreliable) the group (ie. the more likely that
-  any card(s) may be lost or destroyed) – make the Group's
+  any card(s) may be lost or destroyed) -- make the Group's
   Needed/#-in-Group ratio smaller.  Thus, more cards may be
   lost/destroyed before the Group can no longer be recovered (an *other*
   Group(s) must be colledted, instead, to recover the Seed).

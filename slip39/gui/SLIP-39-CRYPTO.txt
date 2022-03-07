@@ -6,9 +6,7 @@ displayed, for information purposes only, to illustrate *which* Wallets
 are derived from this Seed.  The cryptocurrencies supported, and the
 standard BIP-44 derivation paths (Trezor compatible) displayed are:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  BTC   m/84'/0'/0'/0/0 (Bech32) 
  ETH   m/44'/60'/0'/0/0         
  LTC   m/44'/2'/0'/0/0          
  DOGE  m/44'/3'/0'/0/0          
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

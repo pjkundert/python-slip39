@@ -19,8 +19,8 @@ BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
 
-# PY[3] is the target Python interpreter.  It must have pytest installed.
-PY3		?= $(shell which python3 2>/dev/null && echo python3 || echo python )
+# PY[3] is the target Python interpreter; require 3.9+.  Detect if it is named python3 or python.
+PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
 
 VERSION		= $(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
 
@@ -29,8 +29,8 @@ PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
-# VirtualEnv: Build them in ~/src/python-slip39-1.2.3/
-LOCAL		?= ~/src/
+# VirtualEnv: Build them in eg. ~/src/python-slip39-1.2.3/
+VENV_LOCAL	?= ~/src/
 
 GHUB_NAME	= python-slip39
 GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
@@ -72,18 +72,36 @@ build-check:
 	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
 	        && false )
 
+deps:			deps-txt
+
 build:			clean wheel app
 
+
+# 
+# org-mode products.
+#
+#     deps-txt:  All of the .txt files needed to build
+# 
+%.txt: %.org
+	emacs $< --batch -f org-ascii-export-to-ascii --kill
+
+GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
+
+deps-txt:	$(GUI_TXT) slip39/gui/SLIP-39.txt
+
+slip39/gui/SLIP-39.txt:
+	toilet --font ascii12 SLIP-39 > $@
+	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
 
 # 
 # VirtualEnv build, install and activate
 #
 
-venv:			$(LOCAL)/$(VENV_NAME)
-venv-activate:		$(LOCAL)/$(VENV_NAME)-activate
+venv:			$(VENV_LOCAL)/$(VENV_NAME)
+venv-activate:		$(VENV_LOCAL)/$(VENV_NAME)-activate
 
 
-$(LOCAL)/$(VENV_NAME):
+$(VENV_LOCAL)/$(VENV_NAME):
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
 	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
@@ -92,7 +110,7 @@ $(LOCAL)/$(VENV_NAME):
 # Activate a given VirtualEnv, and go to its python-slip39 installation
 # o Creates a custom venv-activate.sh script in the venv, and uses it start
 #   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
-$(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
+$(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@echo; echo "*** Activating $@ VirtualEnv"
 	@[ -s $</venv-activate.sh ] || (	\
 	    echo "PS1='[\u@\h \W)]\\$$ '";	\
@@ -106,7 +124,7 @@ $(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
 
 wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check deps FORCE
 	$(PY3) -m build
 	@ls -last dist
 
@@ -142,7 +160,7 @@ app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 # 
 # Build the windows .msi installer
 # 
-dist/slip39-$(VERSION)-win64.msi:
+dist/slip39-$(VERSION)-win64.msi:	deps
 	$(PY3) setup.py bdist_msi
 
 # 
@@ -453,7 +471,8 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
-dist/SLIP-39.app: 		SLIP-39-macOS.spec	\
+dist/SLIP-39.app: 		deps \
+				SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
 				images/SLIP-39.icns
 	@echo "\n\n*** Rebuilding $@, version $(VERSION)..."
@@ -528,6 +547,7 @@ SLIP-39-win32.spec: SLIP-39.py
 	mv SLIP-39.spec $@
 	@echo "!!! Regenerated $@: must be manually corrected!"
 	false  # Make the build fail if we've regenerated the .spec
+
 
 # 
 # macOS Icons
