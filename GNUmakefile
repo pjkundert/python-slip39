@@ -30,8 +30,15 @@ SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtoo
 
 # PY[3] is the target Python interpreter; require 3.9+.  Detect if it is named python3 or python.
 PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
-
 VERSION		= $(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
+PLATFORM	?= $(shell $(PY3) -c "import sys; print( sys.platform )" )
+ifeq ($(PLATFORM),darwin)
+	INSTALLER	:= dmg
+else ifeq ($(PLATFORM),win32)
+	INSTALLER	:= msi
+else
+	INSTALLER	:=
+endif
 
 # To see all pytest output, uncomment --capture=no
 PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
@@ -63,7 +70,8 @@ help:
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
 	@echo "  app			Build the macOS SLIP-39.app"
-	@echo "  app-packages		Build and sign the macOS SLIP-39.app, and all App zip, dmg and pkg format packages"
+	@echo "  installer		Build the .dmg, .msi, as appropriate for PLATFORM"
+	@echo "  print-PLATFORM		  prints the detected PLATFORM"
 
 test:
 	$(PY3TEST)
@@ -89,10 +97,7 @@ build-check:
 signing-check:
 	$(SIGNTOOL)
 
-build:			clean wheel app
-
-# All the build dependencies that are dynamically deduced
-build-deps:		build-deps-txt
+build:			clean wheel
 
 # 
 # org-mode products.
@@ -104,11 +109,12 @@ build-deps:		build-deps-txt
 
 GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
 
-build-deps-txt:		$(GUI_TXT) slip39/gui/SLIP-39.txt
-
 slip39/gui/SLIP-39.txt:
 	toilet --font ascii12 SLIP-39 > $@
 	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
+
+# Any build dependencies that are dynamically generated, and may need updating from time to time
+build-deps:		$(GUI_TXT) slip39/gui/SLIP-39.txt
 
 # 
 # VirtualEnv build, install and activate
@@ -116,7 +122,6 @@ slip39/gui/SLIP-39.txt:
 
 venv:			$(VENV_LOCAL)/$(VENV_NAME)
 venv-activate:		$(VENV_LOCAL)/$(VENV_NAME)-activate
-
 
 $(VENV_LOCAL)/$(VENV_NAME):
 	@git diff --quiet || ( \
@@ -143,9 +148,9 @@ $(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@bash --init-file $</venv-activate.sh -i
 
 
-wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			build-deps dist/slip39-$(VERSION)-py3-none-any.whl
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build-check build-deps FORCE
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
 	@ls -last dist
 
@@ -156,10 +161,14 @@ install-dev:
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
 
-# Building / Signing / Notarizing and Uploading the macOS App
+
+# Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
-msi:			dist/slip39-$(VERSION)-win64.msi
-app:			dist/SLIP-39.app
+installer:		$(INSTALLER)
+
+dmg:			build-deps app-dmg-valid
+msi:			build-deps dist/slip39-$(VERSION)-win64.msi
+app:			build-deps dist/SLIP-39.app
 
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
@@ -182,7 +191,7 @@ app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 # 
 # Build the windows .msi installer.  Must build and sign the .exe first
 # 
-build/exe.$(CXFREEZE_EXT)/SLIP-39.exe: build-deps
+build/exe.$(CXFREEZE_EXT)/SLIP-39.exe:
 	echo -e "\n\n*** Building $@"
 	@$(PY3) setup.py build_exe > cx_Freeze.build_exe.log \
 	     && echo -e "\n\n*** $@ Build successfully:" \
@@ -509,8 +518,7 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
 dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
-				images/SLIP-39.icns \
-				build-deps
+				images/SLIP-39.icns
 	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
@@ -625,9 +633,7 @@ upload: 	upload-check wheel
 	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
-	@rm -rf MANIFEST *.png build dist auto *.egg-info \
-		$(shell find . -name '__pycache__' ) \
-		$(shell find . -name '*.pyc' )
+	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )
 
 
 # Run only tests with a prefix containing the target string, eg test-blah
