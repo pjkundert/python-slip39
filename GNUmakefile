@@ -192,18 +192,18 @@ app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 # Build the windows .msi installer.  Must build and sign the .exe first
 # 
 build/exe.$(CXFREEZE_EXT)/SLIP-39.exe:
-	echo -e "\n\n*** Building $@"
+	@echo -e "\n\n*** Building $@"
 	@$(PY3) setup.py build_exe > cx_Freeze.build_exe.log \
 	     && echo -e "\n\n*** $@ Build successfully:" \
 	     || ( echo -e "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.build_exe.log; false )
 
 dist/slip39-$(VERSION)-win64.msi: build/exe.$(CXFREEZE_EXT)/SLIP-39.exe # signing-check
-	#echo -e "\n\n*** Signing $<"
+	#@echo -e "\n\n*** Signing $<"
 	#$(SIGNTOOL) sign /v /t \
 	#    http://timestamp.digicert.com \
 	#    /n "$(DEVID)" \
 	#	$<
-	echo -e "\n\n*** Package $@"
+	@echo -e "\n\n*** Package $@"
 	@$(PY3) setup.py bdist_msi > $cx_Freeze.bdist_msi.log \
 	     && echo -e "\n\n*** $@ Build successfully:" \
 	     || ( echo -e "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.bdist_msi.log; false )
