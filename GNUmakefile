@@ -19,6 +19,15 @@ BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
 
+# Various cx_Freeze targets are at paths with computed extensions, eg: build/exe.win-amd64-3.10/
+CXFREEZE_VER	?= 3.10
+CXFREEZE_ARCH	?= amd64
+CXFREEZE_EXT	?= win-$(CXFREEZE_ARCH)-$(CXFREEZE_VER)
+
+#SIGNTOOL	?= "/c/Program Files (x86)/Windows Kits/10/bin/10.0.19041.0/x86"
+SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtool.exe"
+
+
 # PY[3] is the target Python interpreter; require 3.9+.  Detect if it is named python3 or python.
 PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
 
@@ -69,9 +78,16 @@ pylint:
 
 build-check:
 	@$(PY3) -m build --version \
-	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
-	        && false )
+	    || (
+		echo "\n*** Missing Python modules; run:"; \
+		echo "\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n"; \
+	        false \
+	)
 
+signing-check:
+	$(SIGNTOOL)
+
+# Any build dependencies that can't be automatically deduced.
 deps:			deps-txt
 
 build:			clean wheel app
@@ -122,9 +138,9 @@ $(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@bash --init-file $</venv-activate.sh -i
 
 
-wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			deps dist/slip39-$(VERSION)-py3-none-any.whl
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build-check deps FORCE
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
 	@ls -last dist
 
@@ -132,36 +148,51 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check deps FORCE
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
 
-install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
+install:		deps dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
 
 # Building / Signing / Notarizing and Uploading the macOS App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
-msi:			dist/slip39-$(VERSION)-win64.msi
-app:			dist/SLIP-39.app
+msi:			deps dist/slip39-$(VERSION)-win64.msi
+app:			deps dist/SLIP-39.app
+
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
 
 
 # Generate, Sign and Package the macOS SLIP-39.app GUI for App Store or local/manual installation
 # o Try all the approaches of packaging a macOS App for App Store upload
-app-dmg:		dist/SLIP-39-$(VERSION).dmg
-app-zip:		dist/SLIP-39-$(VERSION).zip
-app-pkg:		dist/SLIP-39-$(VERSION).pkg
+app-dmg:		deps dist/SLIP-39-$(VERSION).dmg
+app-zip:		deps dist/SLIP-39-$(VERSION).zip
+app-pkg:		deps dist/SLIP-39-$(VERSION).pkg
 
-app-dmg-valid:		dist/SLIP-39-$(VERSION).dmg.valid
-app-zip-valid:		dist/SLIP-39-$(VERSION).zip.valid
-app-pkg-valid:		dist/SLIP-39-$(VERSION).pkg.valid
+app-dmg-valid:		deps dist/SLIP-39-$(VERSION).dmg.valid
+app-zip-valid:		deps dist/SLIP-39-$(VERSION).zip.valid
+app-pkg-valid:		deps dist/SLIP-39-$(VERSION).pkg.valid
 
-app-dmg-upload:		dist/SLIP-39-$(VERSION).dmg.upload-package
-app-zip-upload:		dist/SLIP-39-$(VERSION).zip.upload-package
-app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
+app-dmg-upload:		deps dist/SLIP-39-$(VERSION).dmg.upload-package
+app-zip-upload:		deps dist/SLIP-39-$(VERSION).zip.upload-package
+app-pkg-upload:		deps dist/SLIP-39-$(VERSION).pkg.upload-package
 
 # 
-# Build the windows .msi installer
+# Build the windows .msi installer.  Must build and sign the .exe first
 # 
-dist/slip39-$(VERSION)-win64.msi:	deps
-	$(PY3) setup.py bdist_msi
+build/exe.$(CXFREEZE_EXT)/SLIP-39.exe:
+	echo "\n\n*** Building $@"
+	@$(PY3) setup.py build_exe > cx_Freeze.build_exe.log \
+	     && echo "\n\n*** $@ Build successfully:" \
+	     || ( echo "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.build_exe.log; false )
+
+dist/slip39-$(VERSION)-win64.msi: build/exe.$(CXFREEZE_EXT)/SLIP-39.exe # signing-check
+	#echo "\n\n*** Signing $<"
+	#$(SIGNTOOL) sign /v /t \
+	#    http://timestamp.digicert.com \
+	#    /n "$(DEVID)" \
+	#	$<
+	echo "\n\n*** Package $@"
+	@$(PY3) setup.py bdist_msi > $cx_Freeze.bdist_msi.log \
+	     && echo "\n\n*** $@ Build successfully:" \
+	     || ( echo "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.bdist_msi.log; false )
 
 # 
 # Build the macOS App, and create and sign the .dmg file
@@ -471,8 +502,7 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
-dist/SLIP-39.app: 		deps \
-				SLIP-39-macOS.spec \
+dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
 				images/SLIP-39.icns
 	@echo "\n\n*** Rebuilding $@, version $(VERSION)..."
