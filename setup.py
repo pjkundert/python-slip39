@@ -1,10 +1,124 @@
-from setuptools import setup
-
 import os
 import sys
 import glob
 import fnmatch
 
+Executable			= None
+if sys.platform == 'win32':
+    # We use cx_Freeze for executable/installer packaging on Windows, only, for now.
+    from cx_Freeze import setup, Executable
+    print( f"sys.platform {sys.platform}: Using cx_Freeze.setup" )
+else:
+    from setuptools import setup
+    print( f"sys.platform {sys.platform}: Using setuptools.setup" )
+
+# 
+# For various platforms, extra setup options are required.  Collect them here
+# 
+extra_options			= {}
+
+# 
+# cx_Freeze options -- Windows .exe/.msi support
+#     cx-freeze.readthedocs.io/en/latest/setup_script.html
+# 
+mainscript			= "SLIP-39.py"
+copyright			= "Copyright (c) 2022 Perry Kundert",
+
+if sys.platform == 'win32':
+    company_name		= "pjkundert"
+    product_name		= "python-slip39"
+    icon_win			= "images/SLIP-39.ico"
+
+    shortcut			= (
+        "DesktopShortcut",	# Shortcut
+        "DesktopFolder",	# Directory_
+        "SLIP-39",		# Name
+        "TARGETDIR",	# Component_
+        "[TARGETDIR]SLIP-39.exe",  # Target
+        None,		# Arguments
+        None,		# Description
+        None,		# Hotkey
+        None,		# Icon
+        None,		# IconIndex
+        None,		# ShowCmd
+        "TARGETDIR",	# WkDir
+       )
+
+    msi_data			= dict(
+        Shortcut	= [
+        	shortcut,
+        ],
+        #Icon		= [
+        #    icon_win,
+        #]
+       )
+
+    bdist_msi_options		= dict(
+        add_to_path	= True,
+        data		= msi_data,
+        initial_target_dir = rf"[ProgramFilesFolder]\{company_name}\{product_name}",
+    )
+
+    build_exe_options		= dict(
+        packages	= [],
+        excludes	= [],
+        include_msvcr	= True,
+    )
+
+    executables			= [
+        Executable(
+            mainscript,
+            copyright	= copyright,
+            base	= "Win32GUI",
+            icon	= icon_win,
+        ),
+    ]
+
+    extra_options		= dict(
+        executables	= executables,
+        options		= dict(
+            bdist_msi	= bdist_msi_options,
+            build_exe	= build_exe_options,
+        )
+    )
+
+
+'''
+if sys.platform == 'darwin':
+    # For py2{app,exe} App Generation.  TODO: Does not work; use PyInstaller instead
+    extra_options		= dict(
+        setup_requires	= [ 'py2app' ],
+        app		= [ mainscript ],
+        # Cross-platform applications generally expect sys.argv to
+        # be used for opening files.
+        # Don't use this with GUI toolkits, the argv
+        # emulator causes problems and toolkits generally have
+        # hooks for responding to file-open events.
+        options		= dict(
+            py2app	= dict(
+                argv_emulation	= True,
+                iconfile	= 'images/SLIP39.icns',
+                includes	= 'tkinter',
+            ),
+        ),
+    )
+elif sys.platform == 'win32':
+    extra_options		= dict(
+        setup_requires	= [ 'py2exe' ],
+        app		= [ mainscript ],
+    )
+else:
+    extra_options		= dict(
+        # Normally unix-like platforms will use "setup.py install"
+        # and install the main script as such
+        scripts		= [ mainscript ],
+    )
+'''
+
+
+# 
+# All platforms
+# 
 HERE				= os.path.dirname( os.path.abspath( __file__ ))
 
 # Must work if setup.py is run in the source distribution context, or from
@@ -187,40 +301,6 @@ project_urls			= {
     "Bug Tracker": "https://github.com/pjkundert/python-slip39/issues",
 }
 
-'''
-# For py2{app,exe} App Generation.  TODO: Does not work; use PyInstaller instead
-mainscript			= "SLIP39.py"
-
-if sys.platform == 'darwin':
-    extra_options		= dict(
-        setup_requires	= [ 'py2app' ],
-        app		= [ mainscript ],
-        # Cross-platform applications generally expect sys.argv to
-        # be used for opening files.
-        # Don't use this with GUI toolkits, the argv
-        # emulator causes problems and toolkits generally have
-        # hooks for responding to file-open events.
-        options		= dict(
-            py2app	= dict(
-                argv_emulation	= True,
-                iconfile	= 'images/SLIP39.icns',
-                includes	= 'tkinter',
-            ),
-        ),
-    )
-elif sys.platform == 'win32':
-    extra_options		= dict(
-        setup_requires	= [ 'py2exe' ],
-        app		= [ mainscript ],
-    )
-else:
-    extra_options		= dict(
-        # Normally unix-like platforms will use "setup.py install"
-        # and install the main script as such
-        scripts		= [ mainscript ],
-    )
-'''
-
 setup(
     name			= "slip39",
     version			= __version__,
@@ -244,5 +324,5 @@ setup(
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
     python_requires		= ">=3.9",
-    #**extra_options
+    **extra_options
 )

@@ -19,22 +19,40 @@ BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
 
-# PY[3] is the target Python interpreter.  It must have pytest installed.
-PY3		?= python3
+# Various cx_Freeze targets are at paths with computed extensions, eg: build/exe.win-amd64-3.10/
+CXFREEZE_VER	?= 3.10
+CXFREEZE_ARCH	?= amd64
+CXFREEZE_EXT	?= win-$(CXFREEZE_ARCH)-$(CXFREEZE_VER)
 
-VERSION=$(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
+#SIGNTOOL	?= "/c/Program Files (x86)/Windows Kits/10/bin/10.0.19041.0/x86"
+SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtool.exe"
+
+
+# PY[3] is the target Python interpreter; require 3.9+.  Detect if it is named python3 or python.
+PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
+VERSION		= $(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
+PLATFORM	?= $(shell $(PY3) -c "import sys; print( sys.platform )" )
+ifeq ($(PLATFORM),darwin)
+	INSTALLER	:= dmg
+else ifeq ($(PLATFORM),win32)
+	INSTALLER	:= msi
+else
+	INSTALLER	:=
+endif
 
 # To see all pytest output, uncomment --capture=no
 PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
-# VirtualEnv: Build them in ~/src/python-slip39-1.2.3/
-LOCAL		?= ~/src/
+# VirtualEnv: Build them in eg. ~/src/python-slip39-1.2.3/
+# o Will use the *current* git branch when creating a venv and populating it
+
+VENV_LOCAL	?= ~/src/
 
 GHUB_NAME	= python-slip39
 GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
-GHUB_BRCH	= -b master
+GHUB_BRCH	= $(shell git rev-parse --abbrev-ref HEAD )
 VENV_NAME	= $(GHUB_NAME)-$(VERSION)
 VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
 
@@ -52,7 +70,8 @@ help:
 	@echo "  install		Install in /usr/local for Python3"
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
 	@echo "  app			Build the macOS SLIP-39.app"
-	@echo "  app-packages		Build and sign the macOS SLIP-39.app, and all App zip, dmg and pkg format packages"
+	@echo "  installer		Build the .dmg, .msi, as appropriate for PLATFORM"
+	@echo "  print-PLATFORM		  prints the detected PLATFORM"
 
 test:
 	$(PY3TEST)
@@ -69,30 +88,55 @@ pylint:
 
 build-check:
 	@$(PY3) -m build --version \
-	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n" \
-	        && false )
+	    || ( \
+		echo -e "\n\n!!! Missing Python modules; run:"; \
+		echo -e "\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n"; \
+	        false; \
+	    )
 
-build:			clean wheel app
+signing-check:
+	$(SIGNTOOL)
 
+build:			clean wheel
+
+# 
+# org-mode products.
+#
+#     deps-txt:  All of the gui/.txt files needed to built, before the sdist, wheel or app
+# 
+%.txt: %.org
+	emacs $< --batch -f org-ascii-export-to-ascii --kill
+
+GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
+
+slip39/gui/SLIP-39.txt:
+	toilet --font ascii12 SLIP-39 > $@
+	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
+
+# Any build dependencies that are dynamically generated, and may need updating from time to time
+build-deps:		$(GUI_TXT) slip39/gui/SLIP-39.txt
 
 # 
 # VirtualEnv build, install and activate
 #
 
-venv:			$(LOCAL)/$(VENV_NAME)
-venv-activate:		$(LOCAL)/$(VENV_NAME)-activate
+venv:			$(VENV_LOCAL)/$(VENV_NAME)
+venv-activate:		$(VENV_LOCAL)/$(VENV_NAME)-activate
 
-
-$(LOCAL)/$(VENV_NAME):
+$(VENV_LOCAL)/$(VENV_NAME):
+	@git diff --quiet || ( \
+	    echo -e "\n\n!!! Git repo branch $(GHUB_BRCH) is dirty; cannot create venv!"; false \
+	)
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
-	    && cd $@ && git clone $(GHUB_REPO) $(GHUB_BRCH) \
-	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
+	    && cd $@ && git clone $(GHUB_REPO) -b $(GHUB_BRCH) \
+	    && . ./bin/activate \
+	    && make -C $(GHUB_NAME) install-dev install
 
 # Activate a given VirtualEnv, and go to its python-slip39 installation
 # o Creates a custom venv-activate.sh script in the venv, and uses it start
 #   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
-$(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
+$(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@echo; echo "*** Activating $@ VirtualEnv"
 	@[ -s $</venv-activate.sh ] || (	\
 	    echo "PS1='[\u@\h \W)]\\$$ '";	\
@@ -104,7 +148,7 @@ $(LOCAL)/$(VENV_NAME)-activate:	$(LOCAL)/$(VENV_NAME)
 	@bash --init-file $</venv-activate.sh -i
 
 
-wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			build-deps dist/slip39-$(VERSION)-py3-none-any.whl
 
 dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
@@ -117,9 +161,15 @@ install-dev:
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
 
-# Building / Signing / Notarizing and Uploading the macOS App
+
+# Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
-app:			dist/SLIP-39.app
+installer:		$(INSTALLER)
+
+dmg:			build-deps app-dmg-valid
+msi:			build-deps dist/slip39-$(VERSION)-win64.msi
+app:			build-deps dist/SLIP-39.app
+
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
 
@@ -139,6 +189,26 @@ app-zip-upload:		dist/SLIP-39-$(VERSION).zip.upload-package
 app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 
 # 
+# Build the windows .msi installer.  Must build and sign the .exe first
+# 
+build/exe.$(CXFREEZE_EXT)/SLIP-39.exe:
+	@echo -e "\n\n*** Building $@"
+	@$(PY3) setup.py build_exe > cx_Freeze.build_exe.log \
+	     && echo -e "\n\n*** $@ Build successfully:" \
+	     || ( echo -e "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.build_exe.log; false )
+
+dist/slip39-$(VERSION)-win64.msi: build/exe.$(CXFREEZE_EXT)/SLIP-39.exe # signing-check
+	#@echo -e "\n\n*** Signing $<"
+	#$(SIGNTOOL) sign /v /t \
+	#    http://timestamp.digicert.com \
+	#    /n "$(DEVID)" \
+	#	$<
+	@echo -e "\n\n*** Package $@"
+	@$(PY3) setup.py bdist_msi > $cx_Freeze.bdist_msi.log \
+	     && echo -e "\n\n*** $@ Build successfully:" \
+	     || ( echo -e "\n\n!!! $@ Build failed:"; tail -20 cx_Freeze.bdist_msi.log; false )
+
+# 
 # Build the macOS App, and create and sign the .dmg file
 # 
 # o Uses https://github.com/sindresorhus/create-dmg
@@ -147,14 +217,14 @@ app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 #   - It automatically finds the correct signing key (unkown)
 # 
 dist/SLIP-39-$(VERSION).dmg:	dist/SLIP-39.app
-	@echo "\n\n*** Creating and signing DMG $@..."
+	@echo -e "\n\n*** Creating and signing DMG $@..."
 	npx create-dmg --overwrite $<
 	mv "SLIP-39 $(VERSION).dmg" "$@"
 	@echo "Checking signature..."; ./SLIP-39.metadata/check-signature $@
 
 .PHONY: dist/SLIP-39-$(VERSION).dmg-verify
 dist/SLIP-39-$(VERSION).dmg-verify: dist/SLIP-39-$(VERSION).dmg
-	@echo "\n\n*** Verifying signing of $<..."
+	@echo -e "\n\n*** Verifying signing of $<..."
 	#codesign --verify -v $< \
 	#    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
 	spctl --assess --type install --context context:primary-signature -vvv $< || \
@@ -187,13 +257,13 @@ dist/SLIP-39-$(VERSION).dmg.notarization-status: dist/SLIP-39-$(VERSION).dmg.not
 # Check notarization status 'til Status: success, then staple it to ...dmg, and create ...dmg.valid marker file
 dist/SLIP-39-$(VERSION).dmg.valid: dist/SLIP-39-$(VERSION).dmg.notarization-status FORCE
 	@grep "Status: success" $< || \
-	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
+	    ( tail -10 $<; echo -e "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
 	( [ -r $@ ] ) \
-	    && ( echo "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
+	    && ( echo -e "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
 	    || ( \
 		xcrun stapler staple   dist/SLIP-39-$(VERSION).dmg && \
 		xcrun stapler validate dist/SLIP-39-$(VERSION).dmg && \
-	        echo "\n\n*** Notarization attached to $@" && \
+	        echo -e "\n\n*** Notarization attached to $@" && \
 		touch $@ \
 	    )
 
@@ -203,7 +273,7 @@ dist/SLIP-39-$(VERSION).dmg.valid: dist/SLIP-39-$(VERSION).dmg.notarization-stat
 # See: https://github.com/fastlane/fastlane/issues/14783
 dist/SLIP-39-$(VERSION).dmg.upload-package: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39-$(VERSION).dmg.valid FORCE
 	[ -s $@ ] || ( \
-	    echo "\n\n*** Uploading the signed DMG file: $<..." && \
+	    echo -e "\n\n*** Uploading the signed DMG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
 	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
@@ -217,7 +287,7 @@ dist/SLIP-39-$(VERSION).dmg.upload-package: dist/SLIP-39-$(VERSION).dmg dist/SLI
 
 dist/SLIP-39-$(VERSION).dmg.upload-app: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39-$(VERSION).dmg.valid FORCE
 	[ -s $@ ] || ( \
-	    echo "\n\n*** Uploading the signed DMG file: $<..." && \
+	    echo -e "\n\n*** Uploading the signed DMG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
 	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
@@ -261,7 +331,7 @@ dist/SLIP-39-$(VERSION).pkg:	dist/SLIP-39.app
 
 .PHONY: dist/SLIP-39-$(VERSION).pkg-verify
 dist/SLIP-39-$(VERSION).pkg-verify: dist/SLIP-39-$(VERSION).pkg
-	@echo "\n\n*** Verifying signing of $<..."
+	@echo -e "\n\n*** Verifying signing of $<..."
 	pkgutil --check-signature $< | grep "Signed with a trusted timestamp"
 	#pkgutil --check-signature $< | grep "1. Developer ID Installer:"
 
@@ -288,13 +358,13 @@ dist/SLIP-39-$(VERSION).pkg.notarization-status: dist/SLIP-39-$(VERSION).pkg.not
 # Check notarization status 'til Status: success, then staple it to ...pkg, and create ...pkg.valid marker file
 dist/SLIP-39-$(VERSION).pkg.valid: dist/SLIP-39-$(VERSION).pkg.notarization-status FORCE
 	@grep "Status: success" $< || \
-	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
+	    ( tail -10 $<; echo -e "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
 	( [ -r $@ ] ) \
-	    && ( echo "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
+	    && ( echo -e "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
 	    || ( \
 		xcrun stapler staple   dist/SLIP-39-$(VERSION).pkg && \
 		xcrun stapler validate dist/SLIP-39-$(VERSION).pkg && \
-	        echo "\n\n*** Notarization attached to $@" && \
+	        echo -e "\n\n*** Notarization attached to $@" && \
 		touch $@ \
 	    )
 
@@ -304,7 +374,7 @@ dist/SLIP-39-$(VERSION).pkg.valid: dist/SLIP-39-$(VERSION).pkg.notarization-stat
 # o NOTE that --apple-id is NOT your "Apple ID", it is the unique App ID (see above)
 dist/SLIP-39-$(VERSION).pkg.upload-package: dist/SLIP-39-$(VERSION).pkg dist/SLIP-39-$(VERSION).pkg.valid FORCE
 	[ -s $@ ] || ( \
-	    echo "\n\n*** Uploading the signed PKG file: $<..." && \
+	    echo -e "\n\n*** Uploading the signed PKG file: $<..." && \
 	    echo "*** Verifying notarization stapling..." && xcrun stapler validate $< && \
 	    echo "*** Checking signature..." && ./SLIP-39.metadata/check-signature $< && \
 	    echo "*** Upload starting for $<..." && \
@@ -324,7 +394,7 @@ dist/SLIP-39-$(VERSION).pkg.upload-package: dist/SLIP-39-$(VERSION).pkg dist/SLI
 # o Create a ZIP archive suitable for notarization.
 # 
 dist/SLIP-39-$(VERSION).zip:	dist/SLIP-39.app
-	@echo "\n\n*** Creating and signing DMG $@..."
+	@echo -e "\n\n*** Creating and signing DMG $@..."
 	@echo "Checking signature..." && ./SLIP-39.metadata/check-signature $<
 	codesign --verify $<
 	codesign -dv -r- $<
@@ -357,8 +427,8 @@ dist/SLIP-39-$(VERSION).zip.notarization-status:  dist/SLIP-39-$(VERSION).zip.no
 #   on the client system, b/c it will check w/ Apple's servers that the app was notarized.
 dist/SLIP-39-$(VERSION).zip.valid: dist/SLIP-39-$(VERSION).zip.notarization-status FORCE
 	@grep "Status: success" $< || \
-	    ( tail -10 $<; echo "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
-	@echo "\n\n*** Notarization complete; refreshing $@" \
+	    ( tail -10 $<; echo -e "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
+	@echo -e "\n\n*** Notarization complete; refreshing $@" \
 	    && touch $@
 
 # Submit App Zip w/o notarization stapled.
@@ -379,11 +449,11 @@ dist/SLIP-39-$(VERSION).zip.upload-package: dist/SLIP-39-$(VERSION).zip dist/SLI
 # o For other purposes (eg. just for manual installation), we can package the Notarized app
 dist/SLIP-39-$(VERSION)-notarized.zip: dist/SLIP-39-$(VERSION).app dist/SLIP-39-$(VERSION).zip.valid
 	( [ -r $@ ] ) \
-	    && ( echo "\n\n*** Notarization compete; not re-generating $@"; true ) \
+	    && ( echo -e "\n\n*** Notarization compete; not re-generating $@"; true ) \
 	    || ( \
 		xcrun stapler staple   $<; \
 		xcrun stapler validate $<; \
-	        echo "\n\n*** Notarization attached to $<; creating $@"; \
+	        echo -e "\n\n*** Notarization attached to $<; creating $@"; \
 		/usr/bin/ditto -c -k --keepParent "$<" "$@"; \
 		ls -last dist; \
 	    )
@@ -418,7 +488,7 @@ dist/SLIP-39-$(VERSION)-notarized.zip.upload: dist/SLIP-39-$(VERSION)-notarized.
 .PHONY: dist/SLIP-39.app-signed
 dist/SLIP-39.app-signed: 	dist/SLIP-39.app		\
 				dist/SLIP-39.app-checkids
-	@echo "\n\n*** Verifying codesigning of $<..."
+	@echo -e "\n\n*** Verifying codesigning of $<..."
 	codesign --verify -v $< \
 	    || ( echo "!!! Unable to verify codesign: "; codesign --verify -vv $<; false )
 	spctl --assess --type install --context context:primary-signature -vvv $< || \
@@ -427,7 +497,7 @@ dist/SLIP-39.app-signed: 	dist/SLIP-39.app		\
 
 .PHONY: dist/SLIP-39.app-checkids
 dist/SLIP-39.app-checkids:	SLIP-39.spec
-	@echo "\n\n*** Checking Developer/Installer IDs for $(TEAMID) in $<..."
+	@echo -e "\n\n*** Checking Developer/Installer IDs for $(TEAMID) in $<..."
 	security find-identity -vp macappstore
 	security find-identity -vp macappstore | grep "$(DEVID)" \
 	    || ( echo "!!! Unable to find Developer ID for signing: $(DEVID)"; false )
@@ -446,10 +516,10 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
-dist/SLIP-39.app: 		SLIP-39-macOS.spec	\
+dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
 				images/SLIP-39.icns
-	@echo "\n\n*** Rebuilding $@, version $(VERSION)..."
+	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
@@ -493,7 +563,7 @@ dist/SLIP-39.app: 		SLIP-39-macOS.spec	\
 #                 bundle_identifier='ca.kundert.perry.SLIP39')
 
 SLIP-39-macOS.spec: SLIP-39.py
-	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
+	@echo -e "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onefile \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
@@ -512,7 +582,7 @@ dist/SLIP-39.exe:	SLIP-39-win32.spec
 	pyinstaller --noconfirm $<
 
 SLIP-39-win32.spec: SLIP-39.py
-	@echo "\n\n!!! Rebuilding $@; Must be manually edited..."
+	@echo -e "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onefile \
 	    --collect-data shamir_mnemonic \
 	    --hidden-import slip39 \
@@ -521,6 +591,7 @@ SLIP-39-win32.spec: SLIP-39.py
 	mv SLIP-39.spec $@
 	@echo "!!! Regenerated $@: must be manually corrected!"
 	false  # Make the build fail if we've regenerated the .spec
+
 
 # 
 # macOS Icons
@@ -556,13 +627,13 @@ images/SLIP-39.iconset: images/SLIP-39.png
 #
 upload-check:
 	@$(PY3) -m twine --version \
-	    || ( echo "\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
+	    || ( echo -e "\n\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
 	        && false )
 upload: 	upload-check wheel
 	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
-	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '*.pyc' -o -name '__pycache__' )
+	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )
 
 
 # Run only tests with a prefix containing the target string, eg test-blah

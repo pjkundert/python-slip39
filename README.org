@@ -1275,6 +1275,12 @@ by entering the mnemonics right on the device.
     : $ cd src
     : $ git clone git@github.com:pjkundert/python-slip39.git
 
+**** Code Signing    
+
+     The MMC (Microsoft Management Console) is used to store your code-signing certificates.  
+     See [[stackoverflow.com/questions/19879812/signing-exe-with-cer-file-what-is-my-certificates-name-that-signtool-exe-is][stackoverflow.com]] for how to enable its Certificate management.
+
+
 * Dependencies
 
   Internally, python-slip39 project uses Trezor's [[https://gihub.com/trezor/python-shamir-mnemonic.git][python-shamir-mnemonic]] to encode the seed data to

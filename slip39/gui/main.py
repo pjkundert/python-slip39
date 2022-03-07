@@ -53,12 +53,12 @@ B_kwds				= dict(
     enable_events	= True,
 )
 
-prefix				= (20, 1)
+prefix				= (15, 1)
 inputs				= (40, 1)
 inlong				= (128,1)       # 512-bit seeds require 128 hex nibbles
 shorty				= (10, 1)
 tiny				= ( 3, 1)
-mnemos				= (195,3)
+mnemos				= (192,3)
 
 
 def groups_layout(
@@ -88,7 +88,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NUMBER-' )
             ]
         ],                                                                                      **F_kwds ),
-        sg.Frame( 'Group Name; Recovery requires at least...', [
+        sg.Frame( 'Group Name; To recover, collect at least...', [
             [
                 sg.Column( [
                     [
@@ -98,7 +98,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NAMES-' )
             ]
         ],                                                                                      **F_kwds ),
-        sg.Frame( '# Needed', [
+        sg.Frame( '#', [
             [
                 sg.Column( [
                     [
@@ -108,7 +108,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NEEDS-' )
             ]
         ],                                                                                     **F_kwds ),
-        sg.Frame( 'of # in Group', [
+        sg.Frame( 'of #', [
             [
                 sg.Column( [
                     [
@@ -147,13 +147,13 @@ def groups_layout(
                         [
                             sg.Text( "Controls:",                                                **T_kwds ),
                         ] + [
-                            sg.Radio( f"{lo:7}",  "LO", key=f"-LO-{li}-",       default=(lo == LO), **B_kwds )
+                            sg.Radio( f"{lo:6}",  "LO", key=f"-LO-{li}-",       default=(lo == LO), **B_kwds )
                             for li,lo in enumerate( LAYOUT_OPTIONS )
                         ],
                         [
                             sg.Text( "on Paper:",                                                 **T_kwds ),
                         ] + [
-                            sg.Radio( f"{pf:7}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),**B_kwds )
+                            sg.Radio( f"{pf:6}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),**B_kwds )
                             for pi,pf in enumerate( PAPER_FORMATS )
                             if controls or pi < len( PAPER_FORMATS ) // 2
                         ],
@@ -237,7 +237,7 @@ def groups_layout(
                 [
                     sg.Column( [
                         [
-                            sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
+                            sg.Text( "Recovery needs: ",                        size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=tiny,      **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
@@ -256,7 +256,7 @@ def groups_layout(
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",           key='-INSTRUCTIONS-',   size=(75,12),          **T_kwds_dense ),
+                    sg.Multiline( "",           key='-INSTRUCTIONS-',   size=(80,12),          **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds ),
         ],
@@ -1021,7 +1021,7 @@ def app(
         # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; use the Trezor "hidden
         # wallet" feature instead.
         summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups.items())
-        summary			= f"Requires collecting {group_threshold} of {len(groups)} the Groups: {summary_groups}"
+        summary			= f"Recovery needs {group_threshold} of {len(groups)} Groups: {summary_groups}"
 
         tot_cards		= sum( size for _,size in groups.values() )
         min_req			= sum( islice( sorted( ( need for need,_ in groups.values() ), reverse=False ), group_threshold ))
@@ -1087,7 +1087,7 @@ def app(
         # If all has gone well -- display the resultant <name>/<filename>, and some derived account details
         name_len		= max( len( name ) for name in details )
         status			= '\n'.join(
-            f"{name:>{name_len}} == {', '.join( f'{a.crypto} @ {a.path}: {a.address}' for a in details[name].accounts[0] ):.130}..."
+            f"{name:>{name_len}} == {', '.join( f'{a.crypto} @ {a.path}: {a.address}' for a in details[name].accounts[0] ):.120}..."
             for name in details
         )
 

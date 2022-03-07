@@ -1,11 +1,11 @@
 import os
 import logging
-import pty
 import threading
 
 import pytest
 
 try:
+    import pty
     from serial		import Serial
 except ImportError:
     Serial			= None
