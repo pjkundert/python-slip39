@@ -13,28 +13,52 @@ base				= None
 if sys.platform == 'win32':
     base			= "Win32GUI"
 
-msi_data			= {
-    "Icon": [
-    ]
-}
+company_name			= "pjkundert"
+product_name			= "python-slip39"
+icon_win			= "images/SLIP-39.ico"
 
-bdist_msi_options		= {
-    "add_to_path":	True,
-    "data":		msi_data,
-}
+shortcut			= (
+    "DesktopShortcut",	# Shortcut
+    "DesktopFolder",	# Directory_
+    "SLIP-39",		# Name
+    "TARGETDIR",	# Component_
+    "[TARGETDIR]SLIP-39.exe",  # Target
+    None,		# Arguments
+    None,		# Description
+    None,		# Hotkey
+    None,		# Icon
+    None,		# IconIndex
+    None,		# ShowCmd
+    "TARGETDIR",	# WkDir
+)
 
-build_exe_options		= {
-    "packages": 	[],
-    "excludes": 	[],
-    "include_msvcr":	True
-}
+msi_data			= dict(
+    Shortcut		= [
+    	shortcut,
+    ],
+    #Icon		= [
+    #    icon_win,
+    #]
+)
+
+bdist_msi_options		= dict(
+    add_to_path		= True,
+    data		= msi_data,
+    initial_target_dir	= rf"[ProgramFilesFolder]\{company_name}\{product_name}",
+)
+
+build_exe_options		= dict(
+    packages		= [],
+    excludes		= [],
+    include_msvcr	= True,
+)
 
 executables			= [
     Executable(
         "SLIP-39.py",
         copyright	= "Copyright (c) 2022 Perry Kundert",
         base		= base,
-        icon		= "images/SLIP-39.ico",
+        icon		= icon_win,
     ),
 ]
 
@@ -279,5 +303,9 @@ setup(
     classifiers			= classifiers,
     python_requires		= ">=3.9",
     executables			= executables,
+    options			= dict(
+        bdist_msi	= bdist_msi_options,
+        build_exe	= build_exe_options,
+    ),
     #**extra_options
 )

@@ -119,6 +119,7 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 
 # Building / Signing / Notarizing and Uploading the macOS App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
+msi:			dist/slip39-$(VERSION)-win64.msi
 app:			dist/SLIP-39.app
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
@@ -137,6 +138,12 @@ app-pkg-valid:		dist/SLIP-39-$(VERSION).pkg.valid
 app-dmg-upload:		dist/SLIP-39-$(VERSION).dmg.upload-package
 app-zip-upload:		dist/SLIP-39-$(VERSION).zip.upload-package
 app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
+
+# 
+# Build the windows .msi installer
+# 
+dist/slip39-$(VERSION)-win64.msi:
+	$(PY3) setup.py bdist_msi
 
 # 
 # Build the macOS App, and create and sign the .dmg file
@@ -562,7 +569,9 @@ upload: 	upload-check wheel
 	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
-	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '*.pyc' -o -name '__pycache__' )
+	@rm -rf MANIFEST *.png build dist auto *.egg-info \
+		$(shell find . -name '__pycache__' ) \
+		$(shell find . -name '*.pyc' )
 
 
 # Run only tests with a prefix containing the target string, eg test-blah

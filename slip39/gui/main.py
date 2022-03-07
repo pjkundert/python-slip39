@@ -53,7 +53,7 @@ B_kwds				= dict(
     enable_events	= True,
 )
 
-prefix				= (20, 1)
+prefix				= (15, 1)
 inputs				= (40, 1)
 inlong				= (128,1)       # 512-bit seeds require 128 hex nibbles
 shorty				= (10, 1)
@@ -88,7 +88,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NUMBER-' )
             ]
         ],                                                                                      **F_kwds ),
-        sg.Frame( 'Group Name; Recovery requires at least...', [
+        sg.Frame( 'Group Name; To recover, collect at least...', [
             [
                 sg.Column( [
                     [
@@ -98,7 +98,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NAMES-' )
             ]
         ],                                                                                      **F_kwds ),
-        sg.Frame( '# Needed', [
+        sg.Frame( '#', [
             [
                 sg.Column( [
                     [
@@ -108,7 +108,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NEEDS-' )
             ]
         ],                                                                                     **F_kwds ),
-        sg.Frame( 'of # in Group', [
+        sg.Frame( 'of #', [
             [
                 sg.Column( [
                     [
@@ -237,7 +237,7 @@ def groups_layout(
                 [
                     sg.Column( [
                         [
-                            sg.Text( "Requires recovery of: ",                  size=prefix,    **T_kwds ),
+                            sg.Text( "Recovery needs: ",                        size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=tiny,      **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
