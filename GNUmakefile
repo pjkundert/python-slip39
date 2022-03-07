@@ -89,23 +89,22 @@ build-check:
 signing-check:
 	$(SIGNTOOL)
 
-# Any build dependencies that can't be automatically deduced.
-deps:			deps-txt
-
 build:			clean wheel app
 
+# All the build dependencies that are dynamically deduced
+build-deps:		build-deps-txt
 
 # 
 # org-mode products.
 #
-#     deps-txt:  All of the .txt files needed to build
+#     deps-txt:  All of the gui/.txt files needed to built, before the sdist, wheel or app
 # 
 %.txt: %.org
 	emacs $< --batch -f org-ascii-export-to-ascii --kill
 
 GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
 
-deps-txt:	$(GUI_TXT) slip39/gui/SLIP-39.txt
+build-deps-txt:		$(GUI_TXT) slip39/gui/SLIP-39.txt
 
 slip39/gui/SLIP-39.txt:
 	toilet --font ascii12 SLIP-39 > $@
@@ -126,7 +125,8 @@ $(VENV_LOCAL)/$(VENV_NAME):
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
 	    && cd $@ && git clone $(GHUB_REPO) -b $(GHUB_BRCH) \
-	    && . ./bin/activate && make -C $(GHUB_NAME) install-dev install
+	    && . ./bin/activate \
+	    && make -C $(GHUB_NAME) install-dev install
 
 # Activate a given VirtualEnv, and go to its python-slip39 installation
 # o Creates a custom venv-activate.sh script in the venv, and uses it start
@@ -143,9 +143,9 @@ $(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@bash --init-file $</venv-activate.sh -i
 
 
-wheel:			deps dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			dist/slip39-$(VERSION)-py3-none-any.whl
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
+dist/slip39-$(VERSION)-py3-none-any.whl: build-check build-deps FORCE
 	$(PY3) -m build
 	@ls -last dist
 
@@ -153,13 +153,13 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
 
-install:		deps dist/slip39-$(VERSION)-py3-none-any.whl FORCE
+install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
 
 # Building / Signing / Notarizing and Uploading the macOS App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
-msi:			deps dist/slip39-$(VERSION)-win64.msi
-app:			deps dist/SLIP-39.app
+msi:			dist/slip39-$(VERSION)-win64.msi
+app:			dist/SLIP-39.app
 
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload
@@ -167,22 +167,22 @@ app-upload:		app-dmg-upload
 
 # Generate, Sign and Package the macOS SLIP-39.app GUI for App Store or local/manual installation
 # o Try all the approaches of packaging a macOS App for App Store upload
-app-dmg:		deps dist/SLIP-39-$(VERSION).dmg
-app-zip:		deps dist/SLIP-39-$(VERSION).zip
-app-pkg:		deps dist/SLIP-39-$(VERSION).pkg
+app-dmg:		dist/SLIP-39-$(VERSION).dmg
+app-zip:		dist/SLIP-39-$(VERSION).zip
+app-pkg:		dist/SLIP-39-$(VERSION).pkg
 
-app-dmg-valid:		deps dist/SLIP-39-$(VERSION).dmg.valid
-app-zip-valid:		deps dist/SLIP-39-$(VERSION).zip.valid
-app-pkg-valid:		deps dist/SLIP-39-$(VERSION).pkg.valid
+app-dmg-valid:		dist/SLIP-39-$(VERSION).dmg.valid
+app-zip-valid:		dist/SLIP-39-$(VERSION).zip.valid
+app-pkg-valid:		dist/SLIP-39-$(VERSION).pkg.valid
 
-app-dmg-upload:		deps dist/SLIP-39-$(VERSION).dmg.upload-package
-app-zip-upload:		deps dist/SLIP-39-$(VERSION).zip.upload-package
-app-pkg-upload:		deps dist/SLIP-39-$(VERSION).pkg.upload-package
+app-dmg-upload:		dist/SLIP-39-$(VERSION).dmg.upload-package
+app-zip-upload:		dist/SLIP-39-$(VERSION).zip.upload-package
+app-pkg-upload:		dist/SLIP-39-$(VERSION).pkg.upload-package
 
 # 
 # Build the windows .msi installer.  Must build and sign the .exe first
 # 
-build/exe.$(CXFREEZE_EXT)/SLIP-39.exe:
+build/exe.$(CXFREEZE_EXT)/SLIP-39.exe: build-deps
 	echo -e "\n\n*** Building $@"
 	@$(PY3) setup.py build_exe > cx_Freeze.build_exe.log \
 	     && echo -e "\n\n*** $@ Build successfully:" \
@@ -509,7 +509,8 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
 dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
-				images/SLIP-39.icns
+				images/SLIP-39.icns \
+				build-deps
 	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
