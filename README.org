@@ -32,8 +32,8 @@ recovery phrases.  This is better, but creating such accounts is difficult; pres
 Trezor supports these, and they can only be created "manually".  Writing down 5 or more sets of 20
 words is difficult, error-prone and time consuming.
 
-The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project (and the [[https://slip39.kundert.ca/macos][SLIP-39 macOS App]]) exists to assist in the safe creation and
-documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD Wallet]] seeds and derived accounts, with various SLIP-39 sharing
+The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project (and the [[https://slip39.kundert.ca/app][SLIP-39 macOS/win32 App]]) exists to assist in the safe creation
+and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD Wallet]] seeds and derived accounts, with various SLIP-39 sharing
 parameters.  It generates the new random wallet seed, and generates the expected standard Ethereum
 account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at Bech32
 derivation path =m/84'/0'/0'/0/0= by default), with wallet address and QR code (compatible with
@@ -155,7 +155,7 @@ by entering the mnemonics right on the device.
     from our Seed into software wallets such as the Metamask plugin or the Brave browser, for
     example?
 
-    The =slip39.gui= (and the macOS SLIP-39.App) support output of standard BIP-38 encrypted wallets
+    The =slip39.gui= (and the macOS/win32 SLIP-39.App) support output of standard BIP-38 encrypted wallets
     for Bitcoin-like cryptocurrencies such as BTC, LTC and DOGE.  It also outputs encrypted Ethereum
     JSON wallets for ETH.  Here is how to produce them (from a test secret Seed; exclude =--secret
     ffff...= for yours!):
@@ -173,9 +173,9 @@ by entering the mnemonics right on the device.
     #+ATTR_LATEX: :width 6in :options angle=0
    [[./images/slip39-wallets.png]]
 
-** The macOS =SLIP-39.app= GUI App
+** The macOS/win32 =SLIP-39.app= GUI App
 
-   If you prefer a graphical user-interface, try the macOS SLIP-39.App.  You can run it directly if
+   If you prefer a graphical user-interface, try the macOS/win32 SLIP-39.App.  You can run it directly if
    you install Python 3.9+ from [[https://python.org/downloads][python.org/downloads]] or using homebrew =brew install
    python-tk@3.10=.  Then, start the GUI in a variety of ways:
 
@@ -186,7 +186,7 @@ by entering the mnemonics right on the device.
    #+END_EXAMPLE
    #+LATEX: }
 
-   Alternatively, download and install the macOS GUI App .zip, .pkg or .dmg installer from
+   Alternatively, download and install the macOS/win32 GUI App .zip, .pkg or .dmg installer from
    [[https://github.com/pjkundert/python-slip39/releases/latest][github.com/pjkundert/python-slip-39/releases]].
 
 ** The Python =slip39= CLI
@@ -1234,8 +1234,8 @@ by entering the mnemonics right on the device.
    : $ make -C python-slip39 install
 
    To install from Pypi, including the optional requirements to run the PySimpleGUI/tkinter GUI,
-   support serial I/O, and to support creating encrypted Ethereum JSON wallets:
-   : $ python3 -m pip install slip39[gui,serial,json]
+   support serial I/O, and to support creating encrypted BIP-38 and Ethereum JSON Paper Wallets:
+   : $ python3 -m pip install slip39[gui,paper,serial]
 
 ** The =slip39= GUI
 
@@ -1246,9 +1246,9 @@ by entering the mnemonics right on the device.
    : $ python3 -m slip39.gui     # Execute the python slip39.gui module main method
    : $ slip39-gui                # Run the main function provided by the slip39.gui module
    
-*** The macOS =SLIP-39.app= GUI
+*** The macOS/win32 =SLIP-39.app= GUI
 
-    You can build the native macOS =SLIP-39.app= App.
+    You can build the native macOS and win32 =SLIP-39.app= App.
 
     This requires the official [[https://python.org/downloads][python.org/downloads]] installer; the homebrew python-tk@3.9 will not
     work for building the native app using either =PyInstaller=. (The =py2app= approach doesn't work
@@ -1278,8 +1278,7 @@ by entering the mnemonics right on the device.
 **** Code Signing    
 
      The MMC (Microsoft Management Console) is used to store your code-signing certificates.  
-     See [[stackoverflow.com/questions/19879812/signing-exe-with-cer-file-what-is-my-certificates-name-that-signtool-exe-is][stackoverflow.com]] for how to enable its Certificate management.
-
+     See [[https://stackoverflow.com/questions/19879812/signing-exe-with-cer-file-what-is-my-certificates-name-that-signtool-exe-is][stackoverflow.com]] for how to enable its Certificate management.
 
 * Dependencies
 

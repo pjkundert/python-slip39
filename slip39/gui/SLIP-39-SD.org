@@ -9,3 +9,70 @@ Create (or recover) Seed Data for your SLIP-39 Mnemonic.
 | BIP-39  | (Pro) Recover Seed from BIP-39 Mnemonics             |
 | Fixed   | (Pro) Hex data may be supplied for the Seed          |
 #+END_ABSTRACT
+
+* Random
+
+  A high-quality 128-bit random value is adequate.
+
+  2^128 is aproximately 10^38.  There are about 10^57 atoms in our solar system, and about 10^19
+  atoms in a particle of dust.
+
+  Therefore, the odds of 2 people picking the *specific* identical high-quality random 128-bit Seed
+  (1 in 10^38), is about the same as 2 people randomly selecting the same particle of *dust* out of
+  the mass of our entire solar system!
+
+  So, probably fine for most practical levels of account security...
+
+** The Birthday Paradox
+
+   However, due to the [[https://en.wikipedia.org/wiki/Birthday_attack][Birthday Attack]], the probability of two parties out of /a large number
+   creating Seeds/ having a Seed *collision* (accidentally selecting the same Seed value) is
+   somewhat greater.
+
+   If every human created a few Seeds (about 10^13), the probability of an /accidental/ collision
+   falls to about 1 in 10^12 -- about 1 in a billion.
+
+   So, if a 1 in a billion chance of someone eventually stumbling upon your wallet is too great a
+   risk, chose a 256-bit random Seed where this Birthday Paradox probability falls to 1 in 10^32 --
+   approximately the chance of 2 people on earth picking the same virus-sized particle in our solar
+   system.
+
+* SLIP-39
+
+  Here's where you can restore a lost Seed using recovered SLIP-39 Mnemonics.
+
+  You don't have to worry about sorting the Mnemonics into Groups or anything; we'll be able to
+  recover the Seed, if you provide us with a sufficient threshold of SLIP-39 Mnemonic cards, from
+  the required threshold number of separate Groups.
+
+** Fixing Partially Lost Groups
+
+   If you know you've lost access to some cards, and want to repair your SLIP-39 backup, you can
+   recover the Seed from the current SLIP-39 Mnemonic cards, here -- and generate a *new* set of
+   SLIP-39 Mnemonic cards for the *same* Seed.
+
+   Distribute the cards as you wish, again; either the old (partially degraded) SLIP-39 Groups, *or*
+   the new SLIP-39 Groups can be used to recover your Seed.  Obviously, cards from the old and new
+   SLIP-39 Mnemonics can't be "mixed" together to recover the Seed.
+
+* BIP-39
+
+  Convert an existing BIP-39 12- or 24-word Mnemonic into a 512-bit Seed.
+
+  This allows you to "back up" your BIP-39 Mnemonic to a set of 59-word SLIP-39 Mnemonic cards.  You
+  can then securely destroy your BIP-39 Mnemonic cards (or, keep one copy somewhere *extremely*
+  secure, and use the SLIP-39 Mnemonic cards as your distributed backup in case of its loss).
+
+  However, since 59-word SLIP-39 Mnemonics are not (yet) directly supported by any hardware wallet
+  (not even the Trezor Model T), you would have to produce individual Paper Wallets for each
+  cryptocurrency wallet you want to recover funds from.
+
+  This is not too onerous, if the SLIP-39 recovery is only needed in case of account loss, or for
+  accessing a small number of "cold" crypto wallets.  If you plan on generating hundreds or
+  thousands of crypto wallets from your Seed, and you need to use a hardware wallet to access them,
+  then converting your BIP-39 Mnemonic to SLIP-39 may not be ideal.
+
+  For most applications, however -- *we recommend converting BIP-39 Mnemonics to SLIP-39, and
+  distributing these SLIP-39 Mnemonic cards instead of trying to securely and reliably back up your
+  BIP-39 Mnemonic* (because, basically, that's impossible to do both reliably and securely).
+  

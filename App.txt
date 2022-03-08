@@ -108,7 +108,7 @@ Table of Contents
   We recommend the Trezor Model T for this reason.  No other hardware
   wallet yet supports direct, on-screen SLIP-39 Seed recovery.  This
   feature is, simply, so fundamentally important for Crypto Seed
-  security and reliability that we consider it
+  security and reliability that we consider it a necessity.
 
 
 [Trezor Model T hardware wallet]
@@ -153,7 +153,7 @@ Table of Contents
   Print the SLIP-39 cards and cut them out, and then lay them out with
   1/2" margins (so you can cut them out after lamination and retain 1/4"
   borders), either with [self-adhesive full-page laminating sheets] - no
-  machine required (or [index-card size]),
+  machine required (or [index-card size] sheets),
   or with a [heat-laminating machine] in [full-page pouches] (or in
   [index-card size pouches]).
 

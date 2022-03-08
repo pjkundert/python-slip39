@@ -46,7 +46,7 @@ recoverable "Safe Portable Crypto Accounts" (below).
   eg. "/1'/0/0-2".
 
   For example, if you use the BIP-39 recovery "test" Mnemonic "zoo zoo
-  zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong", witht the above "# to
+  zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong", with the above "# to
   Derive", this would result in 3 paper wallets being produced, at the
   following standard BTC Bech32 derivation paths:
 

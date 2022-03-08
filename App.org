@@ -101,7 +101,7 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
 
    We recommend the Trezor Model T for this reason.  No other hardware wallet yet supports direct,
    on-screen SLIP-39 Seed recovery.  This feature is, simply, so fundamentally important for Crypto
-   Seed security and reliability that we consider it 
+   Seed security and reliability that we consider it a necessity.
    
 ** Netcoins.app
 
@@ -130,7 +130,7 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
 
    Print the SLIP-39 cards and cut them out, and then lay them out with 1/2" margins (so you can cut
    them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3K6wp2p][self-adhesive full-page
-   laminating sheets]] - no machine required (or [[https://amzn.to/3vyyKPw][index-card size]]),
+   laminating sheets]] - no machine required (or [[https://amzn.to/3vyyKPw][index-card size]] sheets), 
    #+BEGIN_EXPORT html
    <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00007E7D2&linkId=608ce5dd44a7a227327c9000d6442c92"></iframe>
    <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=4ef3861c37b523826fcf6d3a87349890"></iframe>
