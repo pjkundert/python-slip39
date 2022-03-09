@@ -122,9 +122,9 @@ of the cards and regain access to all of the cryptocurrency accounts related to 
 ** Protecting your SLIP-39 Cards
 
    Protect your printed SLIP-39 cards from water damage by laminating them in plastic or storing
-   them in [[https://amzn.to/346xBU8][zip-loc bags]] before [[https://amzn.to/3HCX8lv][mailing them]].
+   them in [[https://amzn.to/3KxvQ1G][foil ziplock bags]] before [[https://amzn.to/3HCX8lv][mailing them]].
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07X9GWPH1&linkId=69a3c4648067d4268b83e20be281ebb4"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=ef9c22a5d125ab5b1a8d3f3cd27456fb"></iframe>
    <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=06e0f5d889c93f5427c379ddc5fa6857"></iframe>
    #+END_EXPORT
 
