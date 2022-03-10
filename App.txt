@@ -28,6 +28,7 @@ as Metamask, Brave or various mobile phone wallets.
 Later, if you (or your heirs!) need to recover the accounts, they can
 collect a sufficient threshold of the cards and regain access to all of
 the cryptocurrency accounts related to the seed.
+
 Table of Contents
 ─────────────────
 
@@ -119,8 +120,8 @@ Table of Contents
 ────────────────
 
   In Canada, one of the more highly regulatory-compliant Cryptocurrency
-  exchanges is [Netcoins.app]; sign up with this referral link, and we
-  both get some benefits.
+  exchanges is [Netcoins.app (referral code: 5YO1MZ)]; sign up with this
+  referral link, and we both get some benefits.
 
   They have higher than typical Interac e-transfer limits, which is very
   nice.  However, they don't support a wide range of cryptocurrencies;
@@ -128,20 +129,22 @@ Table of Contents
   lesser-known coins.
 
 
-[Netcoins.app] <https://netcoins.app/r?ac=5YO1MZ>
+[Netcoins.app (referral code: 5YO1MZ)]
+<https://netcoins.app/r?ac=5YO1MZ>
 
 
 2.3 Crypto.com
 ──────────────
 
-  Use my referral link for [Crypto.com] to sign up for Crypto.com and we
-  both get $25 USD :)
+  Use my referral link for [Crypto.com (referral code: 2x4hk92dnf)] to
+  sign up for Crypto.com and we both get $25 USD :)
 
   The Crypto.com exchange has many more coins available, as well as a
   crypto-funded credit card that presently works in Canada.
 
 
-[Crypto.com] <https://crypto.com/app/2x4hk92dnf>
+[Crypto.com (referral code: 2x4hk92dnf)]
+<https://crypto.com/app/2x4hk92dnf>
 
 
 2.4 Protecting your SLIP-39 Cards

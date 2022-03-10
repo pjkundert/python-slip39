@@ -1,11 +1,15 @@
 #+title: Ethereum SLIP-39 Account Generation
+#+author: Perry Kundert
+#+email: perry@kundert.ca
 #+date: 2021-12-20 10:55:00
 #+draft: false
 #+EXPORT_FILE_NAME: README.pdf
 #+STARTUP: org-startup-with-inline-images inlineimages
 #+STARTUP: org-latex-tables-centered nil
+
 #+OPTIONS: ^:nil # Disable sub/superscripting with bare _; _{...} still works
 #+OPTIONS: toc:nil
+
 #+LATEX_HEADER: \usepackage[margin=1.0in]{geometry}
 
 #+BEGIN_SRC emacs-lisp :noweb no-export :exports results
@@ -49,7 +53,8 @@ USB drive for printing (or directly printed without the file being saved to disk
 what accounts are associated with the backed-up seed.  Recovery of the seed to a Trezor is simple,
 by entering the mnemonics right on the device.
 #+END_ABSTRACT
-#+TOC: headlines 2
+
+#+TOC: headlines 3
 
 * Security with Availability
 
@@ -106,15 +111,20 @@ by entering the mnemonics right on the device.
 
    If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
    (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (at the
-   funeral, for example), completing the Fam and Frens groups' data, and recover the HD Wallet
-   account.  Since Frens are less likely to persist long term (and are also less likely to know
-   each-other), we'll require a lower proportion of them to be collected.
+   funeral, for example), completing the Fam and Frens groups' data, and recover the seed, and all
+   derived HD Wallet accounts.
+
+   Since Frens are less likely to persist long term, we'll produce more (6) of these cards.
+   Depending on how trustworthy the group is, adjust the Fren group's Required number higher (less
+   trustworthy, more likely to know each-other, need to collect more to recover the group), or lower
+   (more trustworthy, less likely to collude, need less to recover).
 
 * SLIP-39 Account Creation, Recovery and Address Generation
 
   Generating a new SLIP-39 encoded seed is easy, with results available as PDF and text.  Any number
-  of accounts can be generated from this seed, and it can be recovered by collecting the desired
-  groups of recover card phrases.  The default recovery groups are as described above.
+  of derived HD wallet account addresses can be generated from this seed, and the seed (and all
+  derived HD wallets, for all cryptocurrencies) can be recovered by collecting the desired groups of
+  recover card phrases.  The default recovery groups are as described above.
 
 ** Creating New SLIP-39 Recoverable Seeds
 
@@ -172,6 +182,56 @@ by entering the mnemonics right on the device.
     #+CAPTION: Paper Wallets (from =--secret ffff...=)
     #+ATTR_LATEX: :width 6in :options angle=0
    [[./images/slip39-wallets.png]]
+
+*** Supported Cryptocurrencies
+
+    While the SLIP-39 seed is not cryptocurrency-specific (any wallet for any cryptocurrency can be
+    derived from it), each type of cryptocurrency has its own standard derivation path
+    (eg. =m/44'/3'/0'/0/0= for DOGE), and its own address representation (eg. Bech32 at
+    =m/84'/0'/0'/0/0= for BTC eg. =bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s=.
+
+    When you import your SLIP-39 seed into a Trezor, you gain access to all derived HD
+    cryptocurrency wallets supported directly by that hardware wallet, and *indirectly*, to any coin
+    and/or blockchain network supported by any wallet software (eg. Metamask).
+    
+
+    | Crypto | Semantic | Path             | Address |
+    |        |          |                  | <       |
+    |--------+----------+------------------+---------|
+    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
+    | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
+    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... |
+    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |
+    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |
+    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |
+    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |
+    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |
+    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |
+    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |
+
+**** ETH, BTC, LTC, DOGE
+
+     These coins are natively supported both directly by the Trezor hardware wallet, and by most
+     software wallets and "web3" platforms that interact with the Trezor, or can import the BIP-38
+     or Ethereum JSON Paper Wallets produced by =python-slip39=.
+
+**** BNB on the Binance Smart Chain (BSC): binance.com
+
+     The Binance Smart Chain uses standard Ethereum addresses; support for the BSC is added directly
+     to the wallet software; here are the instructions for adding BSC support for the Trezor
+     hardware wallet, [[https://docs.binance.org/smart-chain/wallet/trezor.html][using the Metamask wallet]].  In =python-slip39=, BNB is simply an alias for
+     ETH, since the wallet addresses and Ethereum JSON Paper Wallets are identical.
+
+**** CRO on Cronos: crypto.com
+
+     The Cronos chain (formerly known as the Crypto.org chain). It is the native chain of the
+     [[https://crypto.com][crypto.com CRO]]  coin.
+
+     Cronos also uses Ethereum addresses on the =m/44'/60'/0'/0/0= derivation path, but represents
+     them as Bech32 addresses with a "crc" prefix, eg. =crc19a6r74dvfxjyvjzf3pg9y3y5rhk6rds2c9265n=.
+
+     As with BNB, CRO is an alias for ETH, but changes the default wallet address representation to
+     Bech32 prefixed with =crc=.
 
 ** The macOS/win32 =SLIP-39.app= GUI App
 
