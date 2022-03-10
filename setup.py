@@ -3,6 +3,24 @@ import sys
 import glob
 import fnmatch
 
+
+# 
+# All platforms
+# 
+HERE				= os.path.dirname( os.path.abspath( __file__ ))
+
+install_requires		= open( os.path.join( HERE, "requirements.txt" )).readlines()
+tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readlines()
+extras_require			= {
+    option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+    for option in [
+        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
+        'dev',		# slip39[dev]:    All modules to support development
+        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
+        'wallet',	# slip39[wallet]: Paper Wallet and BIP-38/Ethereum wallet encryption
+    ]
+}
+
 Executable			= None
 if sys.platform == 'win32':
     # We use cx_Freeze for executable/installer packaging on Windows, only, for now.
@@ -60,7 +78,9 @@ if sys.platform == 'win32':
     )
 
     build_exe_options		= dict(
-        packages	= [],
+        packages	= [
+            'eth_account', 'Crypto', 'hdwallet', 'shamir_mnemonic', 'cytoolz', 'eth_hash',
+        ],
         excludes	= [],
         include_msvcr	= True,
     )
@@ -115,12 +135,6 @@ else:
     )
 '''
 
-
-# 
-# All platforms
-# 
-HERE				= os.path.dirname( os.path.abspath( __file__ ))
-
 # Must work if setup.py is run in the source distribution context, or from
 # within the packaged distribution directory.
 __version__			= None
@@ -138,18 +152,6 @@ console_scripts			= [
 
 entry_points			= {
     'console_scripts': 		console_scripts,
-}
-
-install_requires		= open( os.path.join( HERE, "requirements.txt" )).readlines()
-tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readlines()
-extras_require			= {
-    option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
-    for option in [
-        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
-        'dev',		# slip39[dev]:    All modules to support development
-        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
-        'wallet',	# slip39[wallet]: Paper Wallet and BIP-38/Ethereum wallet encryption
-    ]
 }
 
 package_dir			= {

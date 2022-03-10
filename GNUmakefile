@@ -168,6 +168,7 @@ installer:		$(INSTALLER)
 
 dmg:			build-deps app-dmg-valid
 msi:			build-deps dist/slip39-$(VERSION)-win64.msi
+exe:			build-deps build/exe.$(CXFREEZE_EXT)/SLIP-39.exe
 app:			build-deps dist/SLIP-39.app
 
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid

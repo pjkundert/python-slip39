@@ -7,6 +7,7 @@ import logging
 import math
 import re
 import secrets
+import warnings
 
 from functools		import wraps
 from collections	import namedtuple
@@ -17,17 +18,33 @@ from shamir_mnemonic	import generate_mnemonics
 import hdwallet
 from hdwallet		import cryptocurrencies
 
+log				= logging.getLogger( __package__ )
+
 # Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
+paper_wallet_issues		= []
 try:
     from Crypto.Cipher	import AES
     from Crypto.Protocol.KDF import scrypt
-except ImportError:
+except ImportError as exc:
     AES				= None
     scrypt			= None
+    message			= f"Unable to support Paper Wallet output: {exc}"
+    warnings.warn( message, ImportWarning )
+    log.warning( message )
+    if log.isEnabledFor( logging.DEBUG ):
+        log.exception( message )
+    paper_wallet_issues.append( message )
+
 try:
     import eth_account
-except ImportError:
+except ImportError as exc:
     eth_account			= None
+    message			= f"Unable to support Paper Wallet output: {exc}"
+    warnings.warn( message, ImportWarning )
+    log.warning( message )
+    if log.isEnabledFor( logging.DEBUG ):
+        log.exception( message )
+    paper_wallet_issues.append( message )
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
 from .util		import ordinal
@@ -35,12 +52,14 @@ from .util		import ordinal
 
 RANDOM_BYTES			= secrets.token_bytes
 
-log				= logging.getLogger( __package__ )
 
 
 def paper_wallet_available():
     """Determine if encrypted BIP-38 and Ethereum JSON Paper Wallets are available."""
-    return AES and scrypt and eth_account
+    available			=  AES and scrypt and eth_account
+    if not available:
+        log.warning( f"Paper Wallets unavalailable: {', '.join( paper_wallet_issues )}" )
+    return available
 
 
 def path_edit(
