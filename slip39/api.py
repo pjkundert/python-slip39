@@ -58,7 +58,7 @@ def paper_wallet_available():
     """Determine if encrypted BIP-38 and Ethereum JSON Paper Wallets are available."""
     available			=  AES and scrypt and eth_account
     if not available:
-        log.warning( f"Paper Wallets unavalailable: {', '.join( paper_wallet_issues )}" )
+        log.warning( f"Paper Wallets unavailable; perhaps run: 'python3 -m pip install slip39[gui,wallet]': {', '.join( paper_wallet_issues )}" )
     return available
 
 
