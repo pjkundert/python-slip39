@@ -270,8 +270,10 @@ def groups_layout(
                                                         key=f"-CRYPTO-{c}-",                    **B_kwds )
                             for c in c_row
                         ]
-                        for c_row in chunker( sorted( Account.CRYPTOCURRENCIES ),
-                                              int( round( math.sqrt( len( Account.CRYPTOCURRENCIES )))))
+                        for c_row in chunker(
+                            list( Account.CRYPTO_NAMES.values() ),  # Retain ordering vs. CRYPTOCURRENCIES set
+                            int( round( math.sqrt( len( Account.CRYPTOCURRENCIES )) + .5 ))
+                        )
                     ],                                                          visible=LO_REC )
                 ] + [
                     sg.Frame( 'Paper Wallet Password/Hint (empty, if no Paper Wallets desired)', [
