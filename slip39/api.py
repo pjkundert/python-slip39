@@ -148,22 +148,21 @@ class Account( hdwallet.HDWallet ):
     """Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
     addresses use standard BIP44 derivation.
 
-    | Crypto | Semantic | Path             | Address |
-    |        |          |                  | <       |
-    |--------+----------+------------------+---------|
-    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
-    | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
-    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... |
-    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |
-    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |
-    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |
-    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |
-    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |
-    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |
-    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |
+    | Crypto | Semantic | Path             | Address | Support |
+    |--------+----------+------------------+---------+---------|
+    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
+    | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
+    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
+    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
+    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
+    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
+    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
+    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
+    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
+    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
 
     """
-    CRYPTO_NAMES		= dict(				# Currently supported
+    CRYPTO_NAMES		= dict(				# Currently supported (in order of visibility)
         ethereum	= 'ETH',
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
@@ -172,17 +171,18 @@ class Account( hdwallet.HDWallet ):
         binance		= 'BNB',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
+    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'CRO') )
 
     ETHJS_ENCRYPT		= set( ('ETH', 'CRO', 'BNB') )		# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
         ETH		= "legacy",
-        BNB		= "legacy",
-        CRO		= "bech32",
         BTC		= "bech32",
         LTC		= "bech32",
         DOGE		= "legacy",
+        CRO		= "bech32",
+        BNB		= "legacy",
     )
 
     # Any locally-defined python-hdwallet cryptocurrencies, and any that may require some

@@ -37,10 +37,14 @@ def main( argv=None ):
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-f', '--format', action='append',
                      default=[],
-                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default {', '.join( f'{c}:{Account.address_format(c)}' for c in sorted(Account.CRYPTOCURRENCIES))}" )
+                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default: " + ', '.join(
+                         f'{c}:{Account.address_format(c)}' for c in Account.CRYPTO_NAMES.values()
+                     ))
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help=f"A crypto name and optional derivation path (eg. '../<range>/<range>'); defaults: {', '.join( f'{c}:{Account.path_default(c)}' for c in sorted(Account.CRYPTOCURRENCIES))}" )
+                     help=f"A crypto name and optional derivation path (eg. '../<range>/<range>'); defaults: " + ', '.join(
+                         f'{c}:{Account.path_default(c)}' for c in Account.CRYPTO_NAMES.values()
+                     ))
     ap.add_argument( '-p', '--path',
                      default=None,
                      help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
@@ -158,9 +162,9 @@ def main( argv=None ):
             group_threshold	= args.threshold,
             cryptocurrency	= args.cryptocurrency,
             edit		= args.path,
-            card_format		= args.card,
+            card_format		= args.card,    # False inhibits SLIP-39 Card output
             paper_format	= args.paper,
-            filename		= args.output,
+            filename		= args.output,  # outputs to the current working dir, by default
             json_pwd		= json_pwd,
             text		= args.text,
             wallet_pwd		= wallet_pwd,

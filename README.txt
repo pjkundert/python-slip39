@@ -261,22 +261,20 @@ Table of Contents
   hardware wallet, and *indirectly*, to any coin and/or blockchain
   network supported by any wallet software (eg. Metamask).
 
-
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Crypto  Semantic  Path              Address 
-                                       <       
-  ─────────────────────────────────────────────
-   ETH     Legacy    m/44'/60'/0'/0/0  0x…     
-   BNB     Legacy    m/44'/60'/0'/0/0  0x…     
-   CRO     Bech32    m/44'/60'/0'/0/0  crc1…   
-   BTC     Legacy    m/44'/ 0'/0'/0/0  1…      
-           SegWit    m/44'/ 0'/0'/0/0  3…      
-           Bech32    m/84'/ 0'/0'/0/0  bc1…    
-   LTC     Legacy    m/44'/ 2'/0'/0/0  L…      
-           SegWit    m/44'/ 2'/0'/0/0  M…      
-           Bech32    m/84'/ 2'/0'/0/0  ltc1…   
-   DOGE    Legacy    m/44'/ 3'/0'/0/0  D…      
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Crypto  Semantic  Path              Address  Support 
+  ──────────────────────────────────────────────────────
+   ETH     Legacy    m/44'/60'/0'/0/0  0x…              
+   BNB     Legacy    m/44'/60'/0'/0/0  0x…      Beta    
+   CRO     Bech32    m/44'/60'/0'/0/0  crc1…    Beta    
+   BTC     Legacy    m/44'/ 0'/0'/0/0  1…               
+           SegWit    m/44'/ 0'/0'/0/0  3…               
+           Bech32    m/84'/ 0'/0'/0/0  bc1…             
+   LTC     Legacy    m/44'/ 2'/0'/0/0  L…               
+           SegWit    m/44'/ 2'/0'/0/0  M…               
+           Bech32    m/84'/ 2'/0'/0/0  ltc1…            
+   DOGE    Legacy    m/44'/ 3'/0'/0/0  D…               
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 ◊ 2.1.2.1 ETH, BTC, LTC, DOGE
@@ -292,12 +290,12 @@ Table of Contents
   The Binance Smart Chain uses standard Ethereum addresses; support for
   the BSC is added directly to the wallet software; here are the
   instructions for adding BSC support for the Trezor hardware wallet,
-  [using the Metamask wallet].  In `python-slip39', BNB is simply an
-  alias for ETH, since the wallet addresses and Ethereum JSON Paper
-  Wallets are identical.
+  [using the Metamask software wallet].  In `python-slip39', BNB is
+  simply an alias for ETH, since the wallet addresses and Ethereum JSON
+  Paper Wallets are identical.
 
 
-  [using the Metamask wallet]
+  [using the Metamask software wallet]
   <https://docs.binance.org/smart-chain/wallet/trezor.html>
 
 
@@ -308,13 +306,16 @@ Table of Contents
 
   Cronos also uses Ethereum addresses on the `m/44'/60'/0'/0/0'
   derivation path, but represents them as Bech32 addresses with a "crc"
-  prefix, eg. `crc19a6r74dvfxjyvjzf3pg9y3y5rhk6rds2c9265n'.
-
-  As with BNB, CRO is an alias for ETH, but changes the default wallet
-  address representation to Bech32 prefixed with `crc'.
+  prefix, eg. `crc19a6r74dvfxjyvjzf3pg9y3y5rhk6rds2c9265n'.  As with
+  BNB, the wallet must support the Cronos blockchain; instructions exist
+  for adding CRO support for the Trezor hardware wallet, [using the
+  Metamask software wallet].
 
 
   [crypto.com CRO] <https://crypto.com>
+
+  [using the Metamask software wallet]
+  <https://cronos.org/docs/getting-started/metamask.html>
 
 
 2.2 The macOS/win32 `SLIP-39.app' GUI App
@@ -383,13 +384,14 @@ Table of Contents
   │                         'Frens(3/5)' ).
   │   -f FORMAT, --format FORMAT
   │                         Specify crypto address formats: legacy, segwit,
-  │                         bech32; default BTC:bech32, DOGE:legacy, ETH:legacy,
-  │                         LTC:bech32
+  │                         bech32; default: ETH:legacy, BTC:bech32, LTC:bech32,
+  │                         DOGE:legacy, CRO:bech32, BNB:legacy
   │   -c CRYPTOCURRENCY, --cryptocurrency CRYPTOCURRENCY
   │                         A crypto name and optional derivation path (eg.
-  │                         '../<range>/<range>'); defaults: BTC:m/84'/0'/0'/0/0,
-  │                         DOGE:m/44'/3'/0'/0/0, ETH:m/44'/60'/0'/0/0,
-  │                         LTC:m/84'/2'/0'/0/0
+  │                         '../<range>/<range>'); defaults: ETH:m/44'/60'/0'/0/0,
+  │                         BTC:m/84'/0'/0'/0/0, LTC:m/84'/2'/0'/0/0,
+  │                         DOGE:m/44'/3'/0'/0/0, CRO:m/44'/60'/0'/0/0,
+  │                         BNB:m/44'/60'/0'/0/0
   │   -p PATH, --path PATH  Modify all derivation paths by replacing the final
   │                         segment(s) w/ the supplied range(s), eg. '.../1/-'
   │                         means .../1/[0,...)
@@ -439,19 +441,21 @@ Table of Contents
   │   383597fd63547e7c9525575decd413f7
   └────
   Finally, re-create the wallet seed, perhaps including an encrypted
-  JSON wallet file for import of some accounts into a software wallet:
+  JSON Paper Wallet for import of some accounts into a software wallet
+  (use `--json password' to output encrypted Ethereum JSON wallet
+  files):
 
   ┌────
-  │   slip39 --secret 383597fd63547e7c9525575decd413f7 --json password 2>&1
+  │   slip39 --secret 383597fd63547e7c9525575decd413f7 --wallet password --wallet-hint bad:pass... 2>&1
   └────
 
   ┌────
-  │ 2022-03-10 09:54:25 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  │ 2022-03-10 09:54:25 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
-  │ 2022-03-10 09:54:25 slip39           It is recommended to not use '-j|--json <password>'; specify '-' to read from input
-  │ 2022-03-10 09:54:25 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  │ 2022-03-10 09:54:25 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
-  │ 2022-03-10 09:54:26 slip39.layout    Wrote JSON SLIP39's encrypted ETH wallet 0xb44A2011A99596671d5952CdC22816089f142FB3 derived at m/44'/60'/0'/0/0 to: SLIP39-2022-03-10+09.54.25-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.json
+  │ 2022-03-10 14:51:36 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  │ 2022-03-10 14:51:36 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
+  │ 2022-03-10 14:51:36 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  │ 2022-03-10 14:51:36 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  │ 2022-03-10 14:51:36 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
+  │ 2022-03-10 14:51:38 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-03-10+14.51.36-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   └────
 
 
@@ -513,98 +517,98 @@ Table of Contents
   │        | python3 -m slip39 --secret - --no-card -q ) 2>&1
   └────
   ┌────
-  │    2022-03-10 09:54:27 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
-  │    2022-03-10 09:54:27 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
-  │    2022-03-10 09:54:27 slip39           1st  1 starting   8 mother    15 speak     
-  │    2022-03-10 09:54:27 slip39                2 steady     9 western   16 promise   
-  │    2022-03-10 09:54:27 slip39                3 acrobat   10 anatomy   17 intend    
-  │    2022-03-10 09:54:27 slip39                4 romp      11 express   18 elite     
-  │    2022-03-10 09:54:27 slip39                5 domestic  12 parcel    19 patent    
-  │    2022-03-10 09:54:27 slip39                6 owner     13 gravity   20 pitch     
-  │    2022-03-10 09:54:27 slip39                7 anatomy   14 hawk      
-  │    2022-03-10 09:54:27 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
-  │    2022-03-10 09:54:27 slip39           1st  1 starting   8 hesitate  15 diet      
-  │    2022-03-10 09:54:27 slip39                2 steady     9 endless   16 browser   
-  │    2022-03-10 09:54:27 slip39                3 beard     10 advance   17 dish      
-  │    2022-03-10 09:54:27 slip39                4 romp      11 insect    18 paces     
-  │    2022-03-10 09:54:27 slip39                5 bishop    12 prepare   19 eyebrow   
-  │    2022-03-10 09:54:27 slip39                6 orange    13 trash     20 ecology   
-  │    2022-03-10 09:54:27 slip39                7 item      14 pregnant  
-  │    2022-03-10 09:54:27 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
-  │    2022-03-10 09:54:27 slip39           1st  1 starting   8 bulb      15 research  
-  │    2022-03-10 09:54:27 slip39                2 steady     9 company   16 genre     
-  │    2022-03-10 09:54:27 slip39                3 ceramic   10 garbage   17 unfold    
-  │    2022-03-10 09:54:27 slip39                4 roster    11 wrist     18 equation  
-  │    2022-03-10 09:54:27 slip39                5 diminish  12 black     19 retailer  
-  │    2022-03-10 09:54:27 slip39                6 fatigue   13 visitor   20 swing     
-  │    2022-03-10 09:54:27 slip39                7 worthy    14 actress   
-  │    2022-03-10 09:54:27 slip39           2nd  1 starting   8 phrase    15 wealthy   
-  │    2022-03-10 09:54:27 slip39                2 steady     9 yield     16 adjust    
-  │    2022-03-10 09:54:27 slip39                3 ceramic   10 cluster   17 network   
-  │    2022-03-10 09:54:27 slip39                4 scared    11 focus     18 makeup    
-  │    2022-03-10 09:54:27 slip39                5 drift     12 sympathy  19 space     
-  │    2022-03-10 09:54:27 slip39                6 herald    13 fantasy   20 seafood   
-  │    2022-03-10 09:54:27 slip39                7 explain   14 cleanup   
-  │    2022-03-10 09:54:27 slip39           3rd  1 starting   8 satoshi   15 firm      
-  │    2022-03-10 09:54:27 slip39                2 steady     9 fishing   16 blue      
-  │    2022-03-10 09:54:27 slip39                3 ceramic   10 prevent   17 emphasis  
-  │    2022-03-10 09:54:27 slip39                4 shadow    11 rainbow   18 bolt      
-  │    2022-03-10 09:54:27 slip39                5 cause     12 coastal   19 staff     
-  │    2022-03-10 09:54:27 slip39                6 cultural  13 document  20 society   
-  │    2022-03-10 09:54:27 slip39                7 ordinary  14 estimate  
-  │    2022-03-10 09:54:27 slip39           4th  1 starting   8 laser     15 bishop    
-  │    2022-03-10 09:54:27 slip39                2 steady     9 mayor     16 insect    
-  │    2022-03-10 09:54:27 slip39                3 ceramic   10 spew      17 depict    
-  │    2022-03-10 09:54:27 slip39                4 sister    11 believe   18 spit      
-  │    2022-03-10 09:54:27 slip39                5 crucial   12 unfold    19 remember  
-  │    2022-03-10 09:54:27 slip39                6 being     13 paces     20 shrimp    
-  │    2022-03-10 09:54:27 slip39                7 daughter  14 hour      
-  │    2022-03-10 09:54:27 slip39           Frens(3/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
-  │    2022-03-10 09:54:27 slip39           1st  1 starting   8 geology   15 tackle    
-  │    2022-03-10 09:54:27 slip39                2 steady     9 capture   16 envelope  
-  │    2022-03-10 09:54:27 slip39                3 decision  10 album     17 payment   
-  │    2022-03-10 09:54:27 slip39                4 round     11 garbage   18 diploma   
-  │    2022-03-10 09:54:27 slip39                5 dance     12 ticket    19 sheriff   
-  │    2022-03-10 09:54:27 slip39                6 fitness   13 adequate  20 knife     
-  │    2022-03-10 09:54:27 slip39                7 estimate  14 extra     
-  │    2022-03-10 09:54:27 slip39           2nd  1 starting   8 junk      15 envy      
-  │    2022-03-10 09:54:27 slip39                2 steady     9 gross     16 nervous   
-  │    2022-03-10 09:54:27 slip39                3 decision  10 flame     17 material  
-  │    2022-03-10 09:54:27 slip39                4 scatter   11 dream     18 wireless  
-  │    2022-03-10 09:54:27 slip39                5 easel     12 ticket    19 withdraw  
-  │    2022-03-10 09:54:27 slip39                6 tolerate  13 capital   20 python    
-  │    2022-03-10 09:54:27 slip39                7 research  14 strike    
-  │    2022-03-10 09:54:27 slip39           3rd  1 starting   8 filter    15 mouse     
-  │    2022-03-10 09:54:27 slip39                2 steady     9 bundle    16 owner     
-  │    2022-03-10 09:54:27 slip39                3 decision  10 exact     17 traffic   
-  │    2022-03-10 09:54:27 slip39                4 shaft     11 remove    18 rhyme     
-  │    2022-03-10 09:54:27 slip39                5 ceramic   12 true      19 tenant    
-  │    2022-03-10 09:54:27 slip39                6 alcohol   13 finance   20 race      
-  │    2022-03-10 09:54:27 slip39                7 enlarge   14 jump      
-  │    2022-03-10 09:54:27 slip39           4th  1 starting   8 evil      15 adult     
-  │    2022-03-10 09:54:27 slip39                2 steady     9 goat      16 exotic    
-  │    2022-03-10 09:54:27 slip39                3 decision  10 canyon    17 secret    
-  │    2022-03-10 09:54:27 slip39                4 skin      11 subject   18 impact    
-  │    2022-03-10 09:54:27 slip39                5 deal      12 true      19 spend     
-  │    2022-03-10 09:54:27 slip39                6 reaction  13 episode   20 kernel    
-  │    2022-03-10 09:54:27 slip39                7 regular   14 very      
-  │    2022-03-10 09:54:27 slip39           5th  1 starting   8 paid      15 axis      
-  │    2022-03-10 09:54:27 slip39                2 steady     9 spend     16 market    
-  │    2022-03-10 09:54:27 slip39                3 decision  10 carpet    17 wine      
-  │    2022-03-10 09:54:27 slip39                4 snake     11 system    18 submit    
-  │    2022-03-10 09:54:27 slip39                5 anxiety   12 class     19 forbid    
-  │    2022-03-10 09:54:27 slip39                6 froth     13 busy      20 crowd     
-  │    2022-03-10 09:54:27 slip39                7 become    14 lungs     
-  │    2022-03-10 09:54:27 slip39           6th  1 starting   8 losing    15 loan      
-  │    2022-03-10 09:54:27 slip39                2 steady     9 prepare   16 friar     
-  │    2022-03-10 09:54:27 slip39                3 decision  10 exhaust   17 spill     
-  │    2022-03-10 09:54:27 slip39                4 spider    11 reward    18 bolt      
-  │    2022-03-10 09:54:27 slip39                5 bulge     12 class     19 helpful   
-  │    2022-03-10 09:54:27 slip39                6 unfair    13 academic  20 thorn     
-  │    2022-03-10 09:54:27 slip39                7 teaspoon  14 adapt     
-  │    2022-03-10 09:54:27 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x6EBc248EC0F32c3B30a232A338775a67F2d5D450
-  │    2022-03-10 09:54:27 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q28hagl72l8qsj6j3y6xfgms3rjghxy2k7g0qh6
-  │    2022-03-10 09:54:27 slip39.recovery  Recovered 128-bit SLIP-39 secret with 5 (1st, 2nd, 3rd, 7th, 8th) of 8 supplied mnemonics
+  │    2022-03-10 14:51:39 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
+  │    2022-03-10 14:51:39 slip39           First(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+  │    2022-03-10 14:51:39 slip39           1st  1 drug       8 minister  15 column    
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 legal     16 dish      
+  │    2022-03-10 14:51:39 slip39                3 acrobat   10 public    17 phantom   
+  │    2022-03-10 14:51:39 slip39                4 romp      11 pharmacy  18 strategy  
+  │    2022-03-10 14:51:39 slip39                5 class     12 scandal   19 smear     
+  │    2022-03-10 14:51:39 slip39                6 beyond    13 library   20 sister    
+  │    2022-03-10 14:51:39 slip39                7 retreat   14 scandal   
+  │    2022-03-10 14:51:39 slip39           Second(1/1): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+  │    2022-03-10 14:51:39 slip39           1st  1 drug       8 party     15 mental    
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 academic  16 arena     
+  │    2022-03-10 14:51:39 slip39                3 beard     10 shame     17 testify   
+  │    2022-03-10 14:51:39 slip39                4 romp      11 typical   18 twin      
+  │    2022-03-10 14:51:39 slip39                5 clay      12 knit      19 spine     
+  │    2022-03-10 14:51:39 slip39                6 survive   13 carbon    20 huge      
+  │    2022-03-10 14:51:39 slip39                7 vexed     14 realize   
+  │    2022-03-10 14:51:39 slip39           Fam(2/4): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+  │    2022-03-10 14:51:39 slip39           1st  1 drug       8 cradle    15 agree     
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 estimate  16 olympic   
+  │    2022-03-10 14:51:39 slip39                3 ceramic   10 exceed    17 exhaust   
+  │    2022-03-10 14:51:39 slip39                4 roster    11 picture   18 false     
+  │    2022-03-10 14:51:39 slip39                5 carpet    12 legal     19 threaten  
+  │    2022-03-10 14:51:39 slip39                6 smirk     13 sympathy  20 broken    
+  │    2022-03-10 14:51:39 slip39                7 busy      14 rainbow   
+  │    2022-03-10 14:51:39 slip39           2nd  1 drug       8 ordinary  15 forward   
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 hamster   16 jacket    
+  │    2022-03-10 14:51:39 slip39                3 ceramic   10 ruin      17 math      
+  │    2022-03-10 14:51:39 slip39                4 scared    11 survive   18 repair    
+  │    2022-03-10 14:51:39 slip39                5 adjust    12 dramatic  19 problem   
+  │    2022-03-10 14:51:39 slip39                6 plastic   13 tackle    20 course    
+  │    2022-03-10 14:51:39 slip39                7 criminal  14 learn     
+  │    2022-03-10 14:51:39 slip39           3rd  1 drug       8 valuable  15 spark     
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 episode   16 timber    
+  │    2022-03-10 14:51:39 slip39                3 ceramic   10 execute   17 senior    
+  │    2022-03-10 14:51:39 slip39                4 shadow    11 finance   18 elevator  
+  │    2022-03-10 14:51:39 slip39                5 clay      12 forecast  19 ecology   
+  │    2022-03-10 14:51:39 slip39                6 advocate  13 bundle    20 result    
+  │    2022-03-10 14:51:39 slip39                7 inmate    14 tadpole   
+  │    2022-03-10 14:51:39 slip39           4th  1 drug       8 employer  15 market    
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 hazard    16 acrobat   
+  │    2022-03-10 14:51:39 slip39                3 ceramic   10 safari    17 answer    
+  │    2022-03-10 14:51:39 slip39                4 sister    11 daisy     18 predator  
+  │    2022-03-10 14:51:39 slip39                5 dive      12 tolerate  19 angel     
+  │    2022-03-10 14:51:39 slip39                6 greatest  13 branch    20 material  
+  │    2022-03-10 14:51:39 slip39                7 elephant  14 triumph   
+  │    2022-03-10 14:51:39 slip39           Frens(3/6): Recover w/ 2 of 4 groups First(1), Second(1), Fam(2/4), Frens(3/6)
+  │    2022-03-10 14:51:39 slip39           1st  1 drug       8 magazine  15 provide   
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 aspect    16 safari    
+  │    2022-03-10 14:51:39 slip39                3 decision  10 problem   17 corner    
+  │    2022-03-10 14:51:39 slip39                4 round     11 satoshi   18 extend    
+  │    2022-03-10 14:51:39 slip39                5 duke      12 cinema    19 hazard    
+  │    2022-03-10 14:51:39 slip39                6 spend     13 process   20 mixed     
+  │    2022-03-10 14:51:39 slip39                7 species   14 predator  
+  │    2022-03-10 14:51:39 slip39           2nd  1 drug       8 afraid    15 cricket   
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 muscle    16 famous    
+  │    2022-03-10 14:51:39 slip39                3 decision  10 dynamic   17 dough     
+  │    2022-03-10 14:51:39 slip39                4 scatter   11 express   18 envelope  
+  │    2022-03-10 14:51:39 slip39                5 easel     12 game      19 email     
+  │    2022-03-10 14:51:39 slip39                6 headset   13 calcium   20 invasion  
+  │    2022-03-10 14:51:39 slip39                7 general   14 result    
+  │    2022-03-10 14:51:39 slip39           3rd  1 drug       8 depict    15 downtown  
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 loud      16 priority  
+  │    2022-03-10 14:51:39 slip39                3 decision  10 aviation  17 radar     
+  │    2022-03-10 14:51:39 slip39                4 shaft     11 percent   18 capital   
+  │    2022-03-10 14:51:39 slip39                5 cowboy    12 research  19 pregnant  
+  │    2022-03-10 14:51:39 slip39                6 legs      13 evoke     20 herald    
+  │    2022-03-10 14:51:39 slip39                7 traveler  14 drink     
+  │    2022-03-10 14:51:39 slip39           4th  1 drug       8 remove    15 paper     
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 carpet    16 drove     
+  │    2022-03-10 14:51:39 slip39                3 decision  10 overall   17 pile      
+  │    2022-03-10 14:51:39 slip39                4 skin      11 costume   18 alcohol   
+  │    2022-03-10 14:51:39 slip39                5 course    12 secret    19 license   
+  │    2022-03-10 14:51:39 slip39                6 duration  13 yoga      20 lyrics    
+  │    2022-03-10 14:51:39 slip39                7 founder   14 cricket   
+  │    2022-03-10 14:51:39 slip39           5th  1 drug       8 likely    15 endorse   
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 rebuild   16 blanket   
+  │    2022-03-10 14:51:39 slip39                3 decision  10 parking   17 purchase  
+  │    2022-03-10 14:51:39 slip39                4 snake     11 estate    18 privacy   
+  │    2022-03-10 14:51:39 slip39                5 alcohol   12 beard     19 treat     
+  │    2022-03-10 14:51:39 slip39                6 rival     13 total     20 payment   
+  │    2022-03-10 14:51:39 slip39                7 pregnant  14 estate    
+  │    2022-03-10 14:51:39 slip39           6th  1 drug       8 analysis  15 survive   
+  │    2022-03-10 14:51:39 slip39                2 guilt      9 deadline  16 living    
+  │    2022-03-10 14:51:39 slip39                3 decision  10 deal      17 papa      
+  │    2022-03-10 14:51:39 slip39                4 spider    11 script    18 realize   
+  │    2022-03-10 14:51:39 slip39                5 alive     12 holy      19 screw     
+  │    2022-03-10 14:51:39 slip39                6 actress   13 fiber     20 enforce   
+  │    2022-03-10 14:51:39 slip39                7 carbon    14 friendly  
+  │    2022-03-10 14:51:39 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xF7859478bb3F2b0eE8491BB3BbA0BaB6458258db
+  │    2022-03-10 14:51:39 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qrfu9awlugvf3mpmj2uwzzsqypsl7gptxukxfpj
+  │    2022-03-10 14:51:39 slip39.recovery  Recovered 128-bit SLIP-39 secret with 5 (1st, 2nd, 3rd, 7th, 8th) of 8 supplied mnemonics
   └────
 
 
@@ -643,8 +647,8 @@ Table of Contents
   │                         (eg. output from slip39.recover)
   │   -f FORMAT, --format FORMAT
   │                         Specify crypto address formats: legacy, segwit,
-  │                         bech32; default BTC:bech32, DOGE:legacy, ETH:legacy,
-  │                         LTC:bech32
+  │                         bech32; default: ETH:legacy, BTC:bech32, LTC:bech32,
+  │                         DOGE:legacy, CRO:bech32, BNB:legacy
   │   -c CRYPTOCURRENCY, --cryptocurrency CRYPTOCURRENCY
   │                         A crypto name and optional derivation path (default:
   │                         "ETH:{Account.path_default('ETH')}"), optionally w/
@@ -737,11 +741,11 @@ Table of Contents
   ┌────
   │ 
   │ 
-  │ nonce: d067c805926fe7bffbff14d95c04ecb62ecee5b71bf5254c9af39007
-  │     0: 793e897ed6cae356924cbcf70b534caeac596e5716921c13e7727e5965f90baeca613896259253c0a4071816fd1f367c70bbed1c0e6e723825bab99fdea543ce19e68186f0e08b906ea33409d960ae1766e959284ed1060724992f90fe9ce523147df7edaefa77d3ba1b139e459d9bfeb849836a86113e5823d9ac112328706d6d0d53674c0b29c74736eb7c78705a6b7de93ae86ac0eb55019662119270b14ba17e316513
-  │     1: b8d17ac7b26e90c550d3114f2132e0c867b431633d0ac3bad5c1a07841aa90c92a63594ca8b9ff7643e94ef923eb5c87c168a737e8e88b01656312bdfeabcca8008f9c3b6a608a2b9f841990cd17d3b3ec51ad21075e206019bee6d18d1162e4c392a64d110724eb23ae174483eeac42aa5dccc920e3a0e6268214f0c3aa72e2db30b512ee174812771650e064c711d0a0cab0b475c6338f86a1a5ce51431c17ce1e25eb1b
-  │     2: fe59b222d944172302d0696f43e6c4080346f072c2e87e421c29d43d3dd96ccf15c5ae3f3c2ad16ff8e7399292513c6284acc9aa1640dae019959bd657b8704c8024543446bd265bfa17f468ffa6200e3037c2e748da2d07caec4123748571f013a80a3cd922b2f3d2e827f06da63a27715468abf8d095a030331a340429dea0b24e23c576dd25e6740f8d351022ce55b4d81ffb2f04feacbfd8b7436bdd35674292cf023f
-  │     3: 711a2f237e28ca0e7950a5d490177030adbf90eb874030697805d9b0c4c251aaa7fc723e855926ce20900d76c86568b93cf6e5ccd32124f4cb8c22d48881daccffc71373e05a74b37440618e40c1baded85d092ab5125c375698e8f6ea2331fe679a32252505aca9832dc7d0e2272fc91271de3d98cc59c7fc3e354dfe5ab64ba6545e8ace96baebd676d1e132d4c658994eb23130fe3da67b6a8ea67a55c73fe013997a2e
+  │ nonce: e1dca3b8f26d299fe2eafd4d9151a46bbcd7a0a2154b72df094911b2
+  │     0: c8ee8eb20f8c90a4d64f087cb5c96c157abcb3aee1c0470ed89a95715ebbee0462d8509648f291145e4d80ca1b8c8f1bb9e9beb61edc80f1d0c031add257ab23ba30bf5bd73a1e1fee41e735e9f07f8cfd1e0306b19c2a634d5941d5b3673d58cb945d01c736d991109c233a59524263f31734e8e57e8f1077db50f50ee8c8f0e0fca376a92235f25de5aaef4e7dbf7bf9b35e913a22437e1d8dd496547adac2cd0a683bbc
+  │     1: 11cdde7c002ff3edf6739a61f164479c2836456f96d79d2f5e17ca10ee93305d75c0b17956033c5265b0c8d4f7eec525baaa0b89e197382e67846729aa5715fd816bdce40301f4d450be1c4840299bf3d96dde638bb15a254db7ac508e119460be233b0a6371bf076560a43aa6ebad448b1f9a5230c12dbea4610f728f7475d65f931903e96252dea3f4138623a915debe1787fc740c1f075095e3c5994b17d1d56a2efa35
+  │     2: a429538fd64300d93ad9b8a7cf95c0be6c967e05e6f42b409f9a828c67e5575c8a5911b355f5e6511a7b66f515e13cc45cbe257d58c928bfd3efac9c765a9517c4cec0b041e30790ea2e6018827fa3b3538da1b260a0577d4064a29395a6e18bb542c69a80519f77537ae13a6a6a526536965d55c41e21db78789db4a87b4f8ad121f33dfc871cbd041468e82917c96133df1c392dfbf927981f18fa0332a21f0ac0318132
+  │     3: 724442c1a570a45ea8d950770cdd09ef0171eb7e6f6bc40b2ae828f497442a5fc1569ac12cb99e3d07a84aa75978d01e44328fdcdfe51a2370a6848e5595cf78c02c58cbb262d7d50f14f69f794aaddf124ff6c0c7d34759ebb9bc46c4ca7975d4a4d7b03e18c897c566fe20be4907b3675edb01766102446882e9c0922ab0fb89e373ad124186a30460e781052d822a2765dd85fa423982e117932b66324c089a127779df
   └────
 
 
@@ -1093,8 +1097,8 @@ Table of Contents
                                  0 
   ─────────────────────────────────
    Valid random 12-word mnemonics: 
-                             6.21% 
-                          ~ 1/16.1 
+                             5.91% 
+                          ~ 1/16.9 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Sure enough, about 1/16 random 12-word phrases are valid BIP-39
@@ -1356,7 +1360,7 @@ Table of Contents
   │    ) 2>&1
   └────
   ┌────
-  │ 2022-03-10 09:54:38 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+  │ 2022-03-10 14:51:50 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
   │ b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
   └────
 
@@ -1370,10 +1374,10 @@ Table of Contents
   │    ) 2>&1
   └────
   ┌────
-  │ 2022-03-10 09:54:38 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-  │ 2022-03-10 09:54:38 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
-  │ 2022-03-10 09:54:38 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │ 2022-03-10 09:54:38 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │ 2022-03-10 14:51:50 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+  │ 2022-03-10 14:51:50 slip39           The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead
+  │ 2022-03-10 14:51:50 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │ 2022-03-10 14:51:50 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
   └────
 
   This `0xfc20..1B5E' address is the same Ethereum address as is
