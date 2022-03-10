@@ -126,6 +126,13 @@ def groups_layout(
     LO				= LAYOUT_OPTIONS[controls] if controls is not None else LAYOUT
     LO_REC			= LO != LAYOUT_OPTIONS[0]		# True iff LO == Recover or Pro
     LO_PRO			= LO == LAYOUT_OPTIONS[-1]		# True iff LO == Pro
+
+    CRYPTO_DISPLAY		= list(
+        symbol
+        for symbol in Account.CRYPTO_NAMES.values()  # Retains desired ordering (vs. CRYPTOCURRENCIES set)
+        if LO_PRO or symbol not in Account.CRYPTOCURRENCIES_BETA
+    )
+
     layout                      = [
         [
             sg.Frame( '1. Name(s) and formats of SLIP-39 Cards for output PDF File(s)', [
@@ -270,8 +277,9 @@ def groups_layout(
                                                         key=f"-CRYPTO-{c}-",                    **B_kwds )
                             for c in c_row
                         ]
-                        for c_row in chunker( sorted( Account.CRYPTOCURRENCIES ),
-                                              int( round( math.sqrt( len( Account.CRYPTOCURRENCIES )))))
+                        for c_row in chunker(
+                            CRYPTO_DISPLAY, int( round( math.sqrt( len( CRYPTO_DISPLAY )) + .25 ))
+                        )
                     ],                                                          visible=LO_REC )
                 ] + [
                     sg.Frame( 'Paper Wallet Password/Hint (empty, if no Paper Wallets desired)', [
@@ -1167,8 +1175,9 @@ recoverable SLIP-39 Mnemonic encoding.
                      help="A group name[[<require>/]<size>] (default: <size> = 1, <require> = half of <size>, rounded up, eg. 'Frens(3/5)' )." )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:"
-                     f" {', '.join( f'{c}:{Account.path_default(c)}' for c in Account.CRYPTOCURRENCIES)}" )
+                     help="A crypto name and optional derivation path ('../<range>/<range>' allowed); defaults:" + ', '.join(
+                         f'{c}:{Account.path_default(c)}' for c in Account.CRYPTO_NAMES.values()
+                     ))
     ap.add_argument( '-p', '--path',
                      default=None,
                      help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")

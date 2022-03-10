@@ -8,12 +8,14 @@ import math
 import re
 import secrets
 
+from functools		import wraps
 from collections	import namedtuple
 from typing		import Dict, List, Sequence, Tuple, Union, Callable
 
 from shamir_mnemonic	import generate_mnemonics
 
 import hdwallet
+from hdwallet		import cryptocurrencies
 
 # Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
 try:
@@ -61,34 +63,117 @@ def path_edit(
         return edit
 
 
+class CronosMainnet( cryptocurrencies.Cryptocurrency ):
+
+    NAME = "Cronos"
+    SYMBOL = "CRO"
+    NETWORK = "mainnet"
+    SOURCE_CODE = "https://github.com/crypto-org-chain/chain-main"
+    COIN_TYPE = cryptocurrencies.CoinType({
+        "INDEX": 60,
+        "HARDENED": True
+    })
+
+    SCRIPT_ADDRESS = 0x05
+    PUBLIC_KEY_ADDRESS = 0x00
+    SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
+        "HRP": "crc",
+        "VERSION": 0x00
+    })
+
+    EXTENDED_PRIVATE_KEY = cryptocurrencies.ExtendedPrivateKey({
+        "P2PKH": 0x0488ade4,
+        "P2SH": 0x0488ade4,
+        "P2WPKH": 0x04b2430c,
+        "P2WPKH_IN_P2SH": 0x049d7878,
+        "P2WSH": 0x02aa7a99,
+        "P2WSH_IN_P2SH": 0x0295b005
+    })
+    EXTENDED_PUBLIC_KEY = cryptocurrencies.ExtendedPublicKey({
+        "P2PKH": 0x0488b21e,
+        "P2SH": 0x0488b21e,
+        "P2WPKH": 0x04b24746,
+        "P2WPKH_IN_P2SH": 0x049d7cb2,
+        "P2WSH": 0x02aa7ed3,
+        "P2WSH_IN_P2SH": 0x0295b43f
+    })
+
+    MESSAGE_PREFIX = None
+    DEFAULT_PATH = f"m/44'/{str(COIN_TYPE)}/0'/0/0"
+    WIF_SECRET_KEY = 0x80
+
+
+class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
+
+    NAME = "Binance"
+    SYMBOL = "BNB"
+    NETWORK = "mainnet"
+    SOURCE_CODE = "https://github.com/bnb-chain/bsc"
+    COIN_TYPE = cryptocurrencies.CoinType({
+        "INDEX": 60,
+        "HARDENED": True
+    })
+
+    SCRIPT_ADDRESS = 0x05
+    PUBLIC_KEY_ADDRESS = 0x00
+    SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
+        "HRP": "bc",
+        "VERSION": 0x00
+    })
+
+    EXTENDED_PRIVATE_KEY = cryptocurrencies.ExtendedPrivateKey({
+        "P2PKH": 0x0488ade4,
+        "P2SH": 0x0488ade4,
+        "P2WPKH": 0x04b2430c,
+        "P2WPKH_IN_P2SH": 0x049d7878,
+        "P2WSH": 0x02aa7a99,
+        "P2WSH_IN_P2SH": 0x0295b005
+    })
+    EXTENDED_PUBLIC_KEY = cryptocurrencies.ExtendedPublicKey({
+        "P2PKH": 0x0488b21e,
+        "P2SH": 0x0488b21e,
+        "P2WPKH": 0x04b24746,
+        "P2WPKH_IN_P2SH": 0x049d7cb2,
+        "P2WSH": 0x02aa7ed3,
+        "P2WSH_IN_P2SH": 0x0295b43f
+    })
+
+    MESSAGE_PREFIX = None
+    DEFAULT_PATH = f"m/44'/{str(COIN_TYPE)}/0'/0/0"
+    WIF_SECRET_KEY = 0x80
+
+    
 class Account( hdwallet.HDWallet ):
 
     """Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
     addresses use standard BIP44 derivation.
 
-
-    | Crypto | Semantic | Path             | Address |
-    |        |          |                  | <       |
-    |--------+----------+------------------+---------|
-    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |
-    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |
-    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |
-    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |
-    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |
-    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |
-    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |
-    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |
+    | Crypto | Semantic | Path             | Address | Support |
+    |--------+----------+------------------+---------+---------|
+    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
+    | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
+    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
+    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
+    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
+    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
+    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
+    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
+    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
+    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
 
     """
-    CRYPTO_NAMES		= dict(				# Currently supported
+    CRYPTO_NAMES		= dict(				# Currently supported (in order of visibility)
         ethereum	= 'ETH',
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
         dogecoin	= 'DOGE',
+        cronos		= 'CRO',
+        binance		= 'BNB',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
+    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'CRO') )
 
-    ETHJS_ENCRYPT		= set( ('ETH',) )			# Can be encrypted w/ Ethereum JSON wallet
+    ETHJS_ENCRYPT		= set( ('ETH', 'CRO', 'BNB') )		# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
@@ -96,12 +181,32 @@ class Account( hdwallet.HDWallet ):
         BTC		= "bech32",
         LTC		= "bech32",
         DOGE		= "legacy",
+        CRO		= "bech32",
+        BNB		= "legacy",
     )
+
+    # Any locally-defined python-hdwallet cryptocurrencies, and any that may require some
+    # adjustments when calling python-hdwallet address and other functions.
+    CRYPTO_LOCAL		= dict(
+        CRO		= CronosMainnet,
+        BNB		= BinanceMainnet,
+    )
+    CRYPTO_LOCAL_SYMBOL		= dict(
+        BNB		= "ETH"
+    )
+
+    # The available address formats and default derivation paths.
     FORMATS		= ("legacy", "segwit", "bech32")
 
     CRYPTO_FORMAT_PATH		= dict(
         ETH		= dict(
             legacy	= "m/44'/60'/0'/0/0",
+        ),
+        BNB		= dict(
+            legacy	= "m/44'/60'/0'/0/0",
+        ),
+        CRO		= dict(
+            bech32	= "m/44'/60'/0'/0/0",
         ),
         BTC		= dict(
             legacy	= "m/44'/0'/0'/0/0",
@@ -162,11 +267,12 @@ class Account( hdwallet.HDWallet ):
 
     def __init__( self, crypto, format=None ):
         crypto			= Account.supported( crypto )
+        cryptocurrency		= self.CRYPTO_LOCAL.get( crypto, None )  # None, unless locally defined, above
         self.format		= format.lower() if format else Account.address_format( crypto )
         if self.format in ("legacy", "segwit",):
-            self.hdwallet	= hdwallet.BIP44HDWallet( symbol=crypto )
+            self.hdwallet	= hdwallet.BIP44HDWallet( symbol=crypto, cryptocurrency=cryptocurrency )
         elif self.format in ("bech32",):
-            self.hdwallet	= hdwallet.BIP84HDWallet( symbol=crypto )
+            self.hdwallet	= hdwallet.BIP84HDWallet( symbol=crypto, cryptocurrency=cryptocurrency )
         else:
             raise ValueError( f"{crypto} does not support address format {self.format}" )
 
@@ -206,6 +312,31 @@ class Account( hdwallet.HDWallet ):
             return self.bech32_address()
         raise ValueError( f"Unknown addresses semantic: {self.format}" )
 
+    def substitute_symbol( method ):
+        """For some locally-defined cryptocurrencies, the python-hdwallet code specifically checks
+        for "ETH" and represents the address in the standard Ethereum 0x... format.  For those
+        cryptocurrencies that need the underlying hdwallet._cryptocurrency.symbol adjusted during
+        the call, place the entry in the CRYPTO_LOCAL_SYMBOL dict, above.
+
+        Decorate the target methods that require the underlying .hdwallet._cryptocurrency.SYMBOL to
+        be adjusted for the duration of the method.
+
+        See: python-hdwallet/hdwallet/hdwallet.py, line 1102.
+
+        """
+        @wraps( method )
+        def wrapper( self, *args, **kwds ):
+            symbol              = self.hdwallet._cryptocurrency.SYMBOL
+            try:
+                self.hdwallet._cryptocurrency.SYMBOL \
+                                = self.CRYPTO_LOCAL_SYMBOL.get( symbol, symbol )
+                return method( self, *args, **kwds )
+            finally:
+                self.hdwallet._cryptocurrency.SYMBOL \
+                                = symbol
+        return wrapper
+ 
+    @substitute_symbol
     def legacy_address( self ):
         return self.hdwallet.p2pkh_address()
 

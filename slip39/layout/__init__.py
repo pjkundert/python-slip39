@@ -643,7 +643,7 @@ def write_pdfs(
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
     paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
     filename		= None,		# A file name format w/ {path}, etc. formatters
-    filepath		= None,		# A file path, if PDF output to file is desired; empty implies current dir.
+    filepath		= True,		# A file path, if PDF output to file is desired; ''/True implies current dir.
     printer		= None,		# A printer name (or True for default), if output to printer is desired
     json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
@@ -894,8 +894,10 @@ def write_pdfs(
                     pdf.image( qrcode.make( json_str ).get_image(), h=min(pdf.eph, pdf.epw)/2, w=min(pdf.eph, pdf.epw)/2 )
 
         if pdf:
-            if filepath is not None:  # empty path implies current dir.
-                pdf_path	= os.path.join( filepath, pdf_name ) if filepath else pdf_name
+            if filepath is not None:  # ''/True path implies current dir.
+                if filepath is True:
+                    filepath	= ''
+                pdf_path		= os.path.join( filepath, pdf_name ) if filepath else pdf_name
                 log.warning( f"Writing SLIP39-encoded wallet for {name!r} to: {pdf_path}" )
                 pdf.output( pdf_path )
             if printer is not None:  # if True, uses "default" printer
