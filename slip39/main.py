@@ -42,8 +42,8 @@ def main( argv=None ):
                      ))
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
-                     help=f"A crypto name and optional derivation path (eg. '../<range>/<range>'); defaults: " + ', '.join(
-                         f'{c}:{Account.path_default(c)}' for c in Account.CRYPTO_NAMES.values()
+                     help="A crypto name and optional derivation path (eg. '../<range>/<range>'); defaults: " + ', '.join(
+                         f"{c}:{Account.path_default(c)}" for c in Account.CRYPTO_NAMES.values()
                      ))
     ap.add_argument( '-p', '--path',
                      default=None,

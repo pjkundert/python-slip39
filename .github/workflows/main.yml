@@ -35,7 +35,7 @@ jobs:
         python3 -m pip install -r requirements-tests.txt
     - name: Lint with flake8
       run: |
-        make analyze || true
+        make analyze
     - name: Test with pytest
       run: |
         make test

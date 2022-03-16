@@ -18,6 +18,9 @@ from shamir_mnemonic	import generate_mnemonics
 import hdwallet
 from hdwallet		import cryptocurrencies
 
+from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
+from .util		import ordinal
+
 log				= logging.getLogger( __package__ )
 
 # Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
@@ -46,17 +49,13 @@ except ImportError as exc:
         log.exception( message )
     paper_wallet_issues.append( message )
 
-from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
-from .util		import ordinal
-
 
 RANDOM_BYTES			= secrets.token_bytes
 
 
-
 def paper_wallet_available():
     """Determine if encrypted BIP-38 and Ethereum JSON Paper Wallets are available."""
-    available			=  AES and scrypt and eth_account
+    available			= AES and scrypt and eth_account
     if not available:
         log.warning( f"Paper Wallets unavailable; perhaps run: 'python3 -m pip install slip39[gui,wallet]': {', '.join( paper_wallet_issues )}" )
     return available
@@ -161,7 +160,7 @@ class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
     DEFAULT_PATH = f"m/44'/{str(COIN_TYPE)}/0'/0/0"
     WIF_SECRET_KEY = 0x80
 
-    
+
 class Account( hdwallet.HDWallet ):
 
     """Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
@@ -348,13 +347,13 @@ class Account( hdwallet.HDWallet ):
             symbol              = self.hdwallet._cryptocurrency.SYMBOL
             try:
                 self.hdwallet._cryptocurrency.SYMBOL \
-                                = self.CRYPTO_LOCAL_SYMBOL.get( symbol, symbol )
+                                = self.CRYPTO_LOCAL_SYMBOL.get( symbol, symbol )        # noqa: E126
                 return method( self, *args, **kwds )
             finally:
                 self.hdwallet._cryptocurrency.SYMBOL \
-                                = symbol
+                                = symbol						# noqa: E126
         return wrapper
- 
+
     @substitute_symbol
     def legacy_address( self ):
         return self.hdwallet.p2pkh_address()

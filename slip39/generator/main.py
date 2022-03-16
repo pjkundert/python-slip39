@@ -85,8 +85,8 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                      help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' (default) reads it from stdin (eg. output from slip39.recover)" )
     ap.add_argument( '-f', '--format', action='append',
                      default=[],
-                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default: " +', '.join(
-                         f'{c}:{Account.address_format(c)}' for c in Account.CRYPTO_NAMES.values()
+                     help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default: " + ', '.join(
+                         f"{c}:{Account.address_format(c)}" for c in Account.CRYPTO_NAMES.values()
                      ))
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
