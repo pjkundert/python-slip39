@@ -540,6 +540,7 @@ def produce_pdf(
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
+    orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
 ) -> Tuple[Tuple[str,str], FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
@@ -548,7 +549,8 @@ def produce_pdf(
     """
     if paper_format is None:
         paper_format		= PAPER
-
+    if orientations is None:
+        orientations		= ('portrait', 'landscape')
     # Deduce the card size
     try:
         (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
@@ -568,7 +570,7 @@ def produce_pdf(
     page_margin_mm		= PAGE_MARGIN * MM_IN
     cards_pp,orientation,page_xy,pdf = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
-        for orientation in ('portrait', 'landscape')
+        for orientation in orientations
     )
     log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
                f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
@@ -709,12 +711,14 @@ def write_pdfs(
                     print( f"{name}{name and ': ' or ''}{mnem}" )
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
-        # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>)
+        # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
+        # we're producing paper wallets, always force portrait orientation for the cards, to match.
         if card_format is not False or wallet_pwd:
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 card_format	= card_format or CARD,
-                paper_format	= paper_format or PAPER
+                paper_format	= paper_format or PAPER,
+                orientations	= ('portrait', ) if wallet_pwd else None,
             )
 
         now			= datetime.now()
