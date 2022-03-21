@@ -18,6 +18,7 @@
  setq org-latex-tables-centered nil
       org-src-preserve-indentation t
       org-edit-src-content-indentation 0
+      org-confirm-babel-evaluate nil
 )
 nil
 #+END_SRC
