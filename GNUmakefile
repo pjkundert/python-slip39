@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no
-PYTESTOPTS	= -vv # --capture=no --log-cli-level=INFO
+PYTESTOPTS	= -vv --doctest-modules # --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -74,7 +74,7 @@ help:
 	@echo "  print-PLATFORM		  prints the detected PLATFORM"
 
 test:
-	$(PY3TEST)
+	cd slip39 && $(PY3TEST)
 
 
 analyze:
@@ -112,6 +112,7 @@ GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
 slip39/gui/SLIP-39.txt:
 	toilet --font ascii12 SLIP-39 > $@
 	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
+	@echo "           (explanations and instructions will appear here)" >> $@
 
 # Any build dependencies that are dynamically generated, and may need updating from time to time
 build-deps:		$(GUI_TXT) slip39/gui/SLIP-39.txt
@@ -639,10 +640,10 @@ clean:
 
 # Run only tests with a prefix containing the target string, eg test-blah
 test-%:
-	$(PY3TEST) *$*_test.py
+	cd slip39 && $(PY3TEST) *$*_test.py
 
 unit-%:
-	$(PY3TEST) -k $*
+	cd slip39 && $(PY3TEST) -k $*
 
 
 #

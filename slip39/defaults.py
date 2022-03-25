@@ -35,6 +35,7 @@ GROUPS				= [
     "Frens3/6"
 ]
 
+THEME				= 'DarkAmber'   # PySimpleGUI Theme
 FONTS				= dict(
     sans	= 'helvetica',
     mono	= 'courier',
@@ -44,17 +45,17 @@ FONTS				= dict(
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
 CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
 INDEX_CARD			= (3,     5),     1/16  # noqa: E241
-PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default outer border
 HALF_LETTER			= (13.5/3,8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
 THIRD_LETTER			= (13.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
 QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 4/letter, 5/legal)
+PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default outer border
 
 # SLIP-39 Mnemonic Card Sizes
-CARD				= 'index'
+CARD				= 'business'
 CARD_SIZES			= dict(
-    index	= INDEX_CARD,
-    credit	= CREDIT_CARD,
     business	= BUSINESS_CARD,
+    credit	= CREDIT_CARD,
+    index	= INDEX_CARD,
     half	= HALF_LETTER,
     third	= THIRD_LETTER,
     quarter	= THIRD_LETTER,

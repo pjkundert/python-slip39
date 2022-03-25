@@ -199,9 +199,16 @@ def layout_card(
         Region( 'card-interior', x1=+card_margin, y1=+card_margin, x2=-card_margin, y2=-card_margin )
     )
     for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
-        card_interior.add_region_proportional(
-            Text( f'card-g{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16, foreground=int( COLOR[c_n % len( COLOR )], 16 ), rotate=-45 )
-        )
+        card_interior.add_region_proportional( Text(
+            f'card-g{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16,
+            foreground	= int( COLOR[c_n % len( COLOR )], 16 ),
+            rotate	= -45,
+        ))
+    card_interior.add_region_proportional( Text(
+        f'card-link', x1=2/8, y1=-2/32, x2=8/8, y2=4/32,
+        foreground	= int( COLOR[-1], 16 ),
+        rotate		= -45,
+    ))
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
     )
@@ -625,7 +632,7 @@ def produce_pdf(
                 tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 tpl['card-qr2']	= qr[1].get_image()
             tpl[f'card-g{g_n}']	= f"{g_name:6.6}..{mn_n+1}" if len(g_name) > 7 else f"{g_name} {mn_n+1}"
-
+            tpl['card-link']	= 'slip39.kundert.ca'
             for n,m in enumerate_mnemonic( mnem ).items():
                 tpl[f"mnem-{n}"] = m
 

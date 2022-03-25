@@ -2,34 +2,36 @@
 #+OPTIONS: toc:nil title:nil author:nil
 
 #+BEGIN_ABSTRACT
-Cryptocurrencies Wallet addresses to display, and Paper Wallets to produce (if password supplied).
+Cryptocurrencies Wallet addresses to display, and the Paper Wallets to produce (if a password is
+supplied).  The cryptocurrencies supported, and the standard BIP-44 derivation paths (Trezor
+compatible) displayed are:
+
+| Controls | Crypto | Semantic | Path             | Address | Support |
+|----------+--------+----------+------------------+---------+---------|
+| Basic    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
+| Basic    | BTC    | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
+|          |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
+|          |        | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
+| Extra    | LTC    | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
+|          |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
+|          |        | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
+| Extra    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
+| Pro      | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
+| Pro      | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
 
 On each SLIP-39 card, up to 2 Wallet addresses and QR codes will be displayed, for information
-purposes only, to illustrate *which* Wallets are derived from this Seed.  The cryptocurrencies
-supported, and the standard BIP-44 derivation paths (Trezor compatible) displayed are:
-
-* Cryptocurrencies Supported
-
-  | Crypto | Semantic | Path             | Address | Support |
-  |--------+----------+------------------+---------+---------|
-  | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
-  | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
-  | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
-  | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
-  |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
-  |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
-  | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
-  |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
-  |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
-  | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
-
-
-** Cryptocurrencies In Beta Testing
-
-   The BNB and CRO wallet addresses are also supported, if desired (currently in Beta testing
-   quality).  Generated Paper Wallets should be /tested/ to ensure that generated and recovered
-   private keys are valid.
-
-
-
+purposes only, to illustrate *which* Wallets are derived from this Seed.
 #+END_ABSTRACT
+
+* Semantics
+
+  By default, we produce address semantics compatible with what the Trezor hardware wallet produces
+  (ie. Bech32, for =BTC= and =LTC=).  The underlying =slip39= library is capable of producing the
+  Legacy and SegWit forms of these addresses, if necessary.
+
+* Cryptocurrencies In Beta Testing
+
+  The BNB and CRO wallet addresses are also supported, if desired (currently in Beta testing
+  quality).  Generated Paper Wallets should be /tested/ to ensure that generated and recovered
+  private keys are valid.
+

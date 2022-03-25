@@ -1,0 +1,55 @@
+Provide extra Entropy, to improve the randomness of your Seed.
+
+ Controls  Extra Entropy   Description                                          
+--------------------------------------------------------------------------------
+ Basic     None            No extra randness; you trust ours completely. :)     
+ Extra     Die Rolls, ...  Provide any data; we'll SHA-256 hash it              
+ Pro       Hex             You can provide raw hex data from an external source 
+
+It is wise not to trust *anyone* (including this program) to provide
+randomness for your Seed!
+
+Many tools have been made that produce a "predictable" Seed (mostly
+pre-defined, with a small amount of randomness added to make them seem
+legitimate.)  Then, after you derive your addresses and fund your
+wallets, the attacker who created the tool can also derive your private
+keys, and steal your cryptocurrency.
+
+
+1 None
+======
+
+  We are using Python's `secrets.token_bytes', which is designed to
+  provide ["cryptographically strong random numbers"], to produce
+  entropy for your Seed.
+
+  So, using the default Random Seed source should be fine for most
+  purposes.
+
+
+["cryptographically strong random numbers"]
+<https://docs.python.org/3/library/secrets.html>
+
+
+2 Die Rolls, ...
+================
+
+  For higher security, provide yourself with a source of high-quality
+  randomness.
+
+  A couple hand-fulls of high-quality dice is a good option.  Roll 'em,
+  and enter them here.
+
+  We will SHA-512 hash them; you can [confirm our SHA-512] results here,
+  to prove we aren't lying.
+
+
+[confirm our SHA-512]
+<https://emn178.github.io/online-tools/sha512.html>
+
+
+3 Hex
+=====
+
+  For the most extreme, generate entropy elsewhere (counting photons,
+  for example), and enter the hex data here.

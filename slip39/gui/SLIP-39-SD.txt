@@ -1,9 +1,11 @@
 Create (or recover) Seed Data for your SLIP-39 Mnemonic.
 
- Random   Create SLIP-39 Mnemonic creation from secure Entropy 
- SLIP-39  (Extra) Recover Seed from SLIP-39 Mnemonics          
- BIP-39   (Pro) Recover Seed from BIP-39 Mnemonics             
- Fixed    (Pro) Hex data may be supplied for the Seed          
+ Controls  Source   Description                                          
+-------------------------------------------------------------------------
+ Basic     Random   Create SLIP-39 Mnemonic creation from secure Entropy 
+ Extra     SLIP-39  (Extra) Recover Seed from SLIP-39 Mnemonics          
+ Pro       BIP-39   (Pro) Recover Seed from BIP-39 Mnemonics             
+ Pro       Fixed    (Pro) Hex data may be supplied for the Seed          
 
 
 1 Random

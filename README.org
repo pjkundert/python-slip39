@@ -135,7 +135,7 @@ by entering the mnemonics right on the device.
    #+ATTR_LATEX: :width 6in :options angle=0
    [[./images/slip39-cards.png]]
 
-   Run the following to obtain a PDF file containing index cards with the default SLIP-39 groups for
+   Run the following to obtain a PDF file containing business cards with the default SLIP-39 groups for
    a new account seed named "Personal"; insert a USB drive to collect the output, and run:
 
    #+LATEX: {\scriptsize
@@ -151,9 +151,10 @@ by entering the mnemonics right on the device.
   
    The resultant PDF will be output into the designated file.
   
-   This PDF file can be printed on 3x5 index cards, or on regular paper or card stock and the cards
-   can be cut out (=--card credit= , =business=, =half= (page) and =third= (page) are also
-   available, as well as custom ="(<h>,<w>),<margin>"=).
+   This PDF file contains business card sized SLIP-39 Mnemonic cards, and will print on a single
+   page of 8-1/2"x11" paper or card stock, and the cards can be cut out (=--card index=, =credit=,
+   =half= (page), =third= and =quarter= are also available, as well as 4x6 =photo= and custom
+   ="(<h>,<w>),<margin>"=).
   
    To get the data printed on the terminal as in this example (so you could write it down on cards
    instead), add a =-v= (to see it logged in a tabular format), or =--text= to have it printed to
@@ -320,9 +321,9 @@ by entering the mnemonics right on the device.
     :   --passphrase PASSPHRASE
     :                         Encrypt the master secret w/ this passphrase, '-'
     :                         reads it from stdin (default: None/'')
-    :   -C CARD, --card CARD  Card size; index, credit, business, half, third,
+    :   -C CARD, --card CARD  Card size; business, credit, index, half, third,
     :                         quarter, photo or '(<h>,<w>),<margin>' (default:
-    :                         index)
+    :                         business)
     :   --paper PAPER         Paper size (default: Letter)
     :   --no-card             Disable PDF SLIP-39 mnemonic card output
     :   --text                Enable textual SLIP-39 mnemonic output to stdout

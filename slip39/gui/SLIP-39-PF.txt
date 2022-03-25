@@ -1,0 +1,22 @@
+Select the desired PDF paper size.
+
+ Controls  Paper Size  Width   Height          
+-----------------------------------------------
+ Basic     Letter      8-1/2"  11"     Default 
+ Basic     Legal       8-1/2"  14"             
+ Extra     A4          210mm   297mm           
+ Pro       Photo       4"      6"              
+
+
+1 Orientation
+=============
+
+  SLIP-39 Cards will be laid out on the desired paper size in the most
+  optimal orientation, to fit the most Cards on the selected paper.
+
+
+1.1 Paper Wallets
+~~~~~~~~~~~~~~~~~
+
+  However, if Cryptocurrency "Paper Wallet" are printed, the selected
+  Paper will always be printed in Portrait orientation.
