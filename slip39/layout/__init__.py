@@ -205,7 +205,7 @@ def layout_card(
             rotate	= -45,
         ))
     card_interior.add_region_proportional( Text(
-        f'card-link', x1=2/8, y1=-2/32, x2=8/8, y2=4/32,
+        'card-link', x1=2/8, y1=-2/32, x2=8/8, y2=4/32,
         foreground	= int( COLOR[-1], 16 ),
         rotate		= -45,
     ))

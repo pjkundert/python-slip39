@@ -831,7 +831,7 @@ def app(
     timeout			= 0		# First time thru; refresh immediately
     controls			= 0		# What level of controls complexity is desired?
     instructions		= ''		# The last instructions .txt payload found
-    instructions_kwds		= dict()	# .. and its colors
+    instructions_kwds		= dict()        # .. and its colors
     while event not in events_termination:
         # A Controls layout selection, eg. '-LO-2-'; closes and re-generates window layout
         if event and event.startswith( '-LO-' ):
