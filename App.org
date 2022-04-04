@@ -22,13 +22,14 @@ nil
 #+RESULTS:
 
 #+BEGIN_ABSTRACT
-Creating Ethereum, Bitcoin and other accounts is complex and fraught with potential for loss of funds.
+Creating personal Ethereum, Bitcoin and other Cryptocurrency accounts is /urgently/ needed, but is
+complex and fraught with potential for loss of funds.
 
-All Crypto wallets start with a "Seed": a large, random number used to generate all of the actual
-Bitcoin, Ethereum, etc. wallets.  
+All Crypto wallets start with a "Seed": a large, random number used to derive all of your actual
+Bitcoin, Ethereum, etc. wallets.
 
 The best practice for using these wallets is to load this "Seed" into a secure hardware device, like
-a Trezor "Model T" hardware wallet.  SLIP-39 Mnemonic cards contain the recovery words, which are
+a [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] hardware wallet.  SLIP-39 Mnemonic cards contain the recovery words, which are
 typed directly into the Trezor device to recover the Seed, and all of its Cryptocurrency accounts.
 
 The [[https://github.com/pjkundert/python-slip39/releases/latest][macOS and win32 SLIP-39 App]] helps you generate Mnemonic cards and back up this Seed, securely
@@ -67,9 +68,9 @@ related to the Seed.
    *you* can find it, but that nobody else *ever* finds it!
 
    Instead, generate a number of SLIP-39 Mnemonic cards, which can be collected to recover the Seed:
-   #+CAPTION: SLIP-39 Cards PDF
    #+ATTR_LATEX: :width 4in
    [[./images/slip39-cards.png]]
+   #+CAPTION: SLIP-39 Cards PDF
 
 *** Why Not a BIP-39 Mnemonic Phrase?
 
@@ -105,9 +106,9 @@ related to the Seed.
    If desired, you can produce encrypted Paper Wallets, to support software crypto wallets
    (eg. Metamask, Brave or various mobile- and computer-based wallets):
    
-   #+CAPTION: Paper Wallets
    #+ATTR_LATEX: :width 4in
    [[./images/slip39-wallets.png]]
+   #+CAPTION: Paper Wallets
 
 *** Walking-Around Money
 
@@ -136,7 +137,7 @@ related to the Seed.
 
 ** Trezor
 
-   The [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor Model T hardware wallet]] has built-in SLIP-39 generation and recovery capability.
+   The [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] hardware wallet has built-in SLIP-39 generation and recovery capability.
    Enter the words on the SLIP-39 cards directly into the screen of the Trezor to recover your
    Cryptocurrency accounts.
 
