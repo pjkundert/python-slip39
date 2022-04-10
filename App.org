@@ -69,8 +69,8 @@ related to the Seed.
 
    Instead, generate a number of SLIP-39 Mnemonic cards, which can be collected to recover the Seed:
    #+ATTR_LATEX: :width 4in
-   [[./images/slip39-cards.png]]
    #+CAPTION: SLIP-39 Cards PDF
+   [[./images/slip39-cards.png]]
 
 *** Why Not a BIP-39 Mnemonic Phrase?
 
@@ -107,8 +107,8 @@ related to the Seed.
    (eg. Metamask, Brave or various mobile- and computer-based wallets):
    
    #+ATTR_LATEX: :width 4in
-   [[./images/slip39-wallets.png]]
    #+CAPTION: Paper Wallets
+   [[./images/slip39-wallets.png]]
 
 *** Walking-Around Money
 

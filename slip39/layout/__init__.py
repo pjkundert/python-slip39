@@ -208,6 +208,7 @@ def layout_card(
         'card-link', x1=2/8, y1=-2/32, x2=8/8, y2=4/32,
         foreground	= int( COLOR[-1], 16 ),
         rotate		= -45,
+        align		= 'C'
     ))
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
@@ -632,7 +633,7 @@ def produce_pdf(
                 tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 tpl['card-qr2']	= qr[1].get_image()
             tpl[f'card-g{g_n}']	= f"{g_name:6.6}..{mn_n+1}" if len(g_name) > 7 else f"{g_name} {mn_n+1}"
-            tpl['card-link']	= 'slip39.kundert.ca'
+            tpl['card-link']	= 'slip39.com'
             for n,m in enumerate_mnemonic( mnem ).items():
                 tpl[f"mnem-{n}"] = m
 
