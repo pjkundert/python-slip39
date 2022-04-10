@@ -21,12 +21,12 @@ SLIP-39 Mnemonic cards contain the recovery words, which are typed
 directly into the Trezor device to recover the Seed, and all of its
 Cryptocurrency accounts.
 
-The [macOS and win32 SLIP-39 App] helps you generate Mnemonic cards and
-back up this Seed, securely and reliably, by distributing Mnemonic cards
-for the Seed to partners, family and friends.  Also, encrypted "Paper
-Wallets" can be output, to support safer use of software cryptocurrency
-wallets such as Metamask, Brave or various mobile- and computer-based
-wallets.
+The [macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi
+for Windows)] helps you generate Mnemonic cards and back up this Seed,
+securely and reliably, by distributing Mnemonic cards for the Seed to
+partners, family and friends.  Also, encrypted "Paper Wallets" can be
+output, to support software cryptocurrency wallets such as Metamask,
+Brave or various mobile-phone and computer-based wallets.
 
 Later, if you (or your heirs!) need to recover *all* of your
 Cryptocurrency accounts, they can collect a sufficient threshold of the
@@ -53,8 +53,8 @@ Table of Contents
 [Trezor "Model T"]
 <https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
 
-[macOS and win32 SLIP-39 App]
-<https://github.com/pjkundert/python-slip39/releases/latest>
+[macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi for
+Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
 
 
 1 Security with Availability
