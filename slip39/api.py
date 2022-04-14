@@ -161,23 +161,110 @@ class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
     WIF_SECRET_KEY = 0x80
 
 
-class Account( hdwallet.HDWallet ):
+class RippleMainnet( cryptocurrencies.Cryptocurrency ):
+    """The standard HDWallet.p2pkh_address (Pay to Public Key Hash) encoding is used, w/ a prefix of
+    00.  However, the XRP-specific base-58 encoding is used, resulting in a fixed 'r' prefix.
 
-    """Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
+    See: https://xrpl.org/accounts.html#address-encoding.
+
+    """
+    NAME = "Ripple"
+    SYMBOL = "XRP"
+    NETWORK = "mainnet"
+    SOURCE_CODE = "https://github.com/ripple/rippled"
+    COIN_TYPE = cryptocurrencies.CoinType({
+        "INDEX": 144,
+        "HARDENED": True
+    })
+
+    PUBLIC_KEY_ADDRESS = 0x00 # Results in the prefix r..., when used w/ the Ripple base-58 alphabet
+    SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
+        "HRP": None,
+        "VERSION": 0x00
+    })
+
+    EXTENDED_PRIVATE_KEY = cryptocurrencies.ExtendedPrivateKey({
+        "P2PKH": None,
+        "P2SH": None,
+        "P2WPKH": None,
+        "P2WPKH_IN_P2SH": None,
+        "P2WSH": None,
+        "P2WSH_IN_P2SH": None,
+    })
+    EXTENDED_PUBLIC_KEY = cryptocurrencies.ExtendedPublicKey({
+        "P2PKH": None,
+        "P2SH": None,
+        "P2WPKH": None,
+        "P2WPKH_IN_P2SH": None,
+        "P2WSH": None,
+        "P2WSH_IN_P2SH": None,
+    })
+
+    MESSAGE_PREFIX = None
+    DEFAULT_PATH = f"m/44'/{str(COIN_TYPE)}/0'/0/0"
+    WIF_SECRET_KEY = 0x80
+
+
+class XRPHDWallet( hdwallet.HDWallet ) :
+    """The XRP address format uses the standard p2pkh_address formulation, from
+    https://xrpl.org/accounts.html#creating-accounts:
+
+    The ripemd160 hash of sha256 hash of public key, then base58-encoded w/ 4-byte checksum.  The
+    base-58 dictionary used is the standard Ripple (not Bitcoin!) alphabet:
+
+        rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz
+
+    NOTE: Only secp256k1 keypairs are supported; these are the default for the Ripple ledger.
+
+    """
+    def p2pkh_address( self ):
+        p2pkh_btc	= super( XRPHDWallet, self ).p2pkh_address()
+        p2pkh		= base58.b58decode_check( p2pkh_btc )
+        return base58.b58encode_check( p2pkh, base58.RIPPLE_ALPHABET ).decode( 'UTF-8' )
+
+
+class Account:
+    """A Cryptocurrency "Account" / Wallet, based on a variety of underlying Python crypto-asset
+    support modules.  Presently, only meherett/python-hdwallet is used
+
+    An appropriate hdwallet-like wrapper is built, for any crypto-asset supported using another
+    module.  The required hdwallet API calls are:
+
+      .from_seed	-- start deriving from the provided seed
+      .from_mnemonic	-- start deriving from the provided seed via BIP-39 mnemonic
+      .clean_derivation	-- forget any prior derivation path
+      .from_path	-- derive a wallet from the specified derivation path
+      .p2pkh_address	-- produce a Legacy format address
+      .p2sh_address	-- produce a SegWit format address
+      .p2wpkh_address	-- produce a Bech32 format address
+      .path		-- return the current wallet derivation path
+      .private_key	-- return the current wallet's private key
+
+    For testing eg. BIP-38 encrypted wallets:
+
+      .from_private_key	-- import a specific private key
+      .from_encrypted	-- import an encrypted wallet
+
+    Also expect the following attributes to be available:
+
+      ._cryptocurrency.SYMBOL:	The short name of the crypto-asset, eg 'XRP'
+
+    Supports producing Legacy addresses for Bitcoin, and Litecoin.  Doge (D...) and Ethereum (0x...)
     addresses use standard BIP44 derivation.
 
-    | Crypto | Semantic | Path             | Address | Support |
-    |--------+----------+------------------+---------+---------|
-    | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
-    | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
-    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
-    | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
-    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
-    |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
-    | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
-    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
-    |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
-    | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
+    | Crypto | Semantic | Path              | Address | Support |
+    |--------+----------+-------------------+---------+---------|
+    | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
+    | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
+    | CRO    | Bech32   | m/44'/ 60'/0'/0/0 | crc1... | Beta    |
+    | BTC    | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
+    |        | SegWit   | m/44'/  0'/0'/0/0 | 3...    |         |
+    |        | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
+    | LTC    | Legacy   | m/44'/  2'/0'/0/0 | L...    |         |
+    |        | SegWit   | m/44'/  2'/0'/0/0 | M...    |         |
+    |        | Bech32   | m/84'/  2'/0'/0/0 | ltc1... |         |
+    | DOGE   | Legacy   | m/44'/  3'/0'/0/0 | D...    |         |
+    | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
 
     """
     CRYPTO_NAMES		= dict(				# Currently supported (in order of visibility)
@@ -187,9 +274,10 @@ class Account( hdwallet.HDWallet ):
         dogecoin	= 'DOGE',
         cronos		= 'CRO',
         binance		= 'BNB',
+        ripple		= 'XRP',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
-    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'CRO') )
+    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'CRO', 'XRP') )
 
     ETHJS_ENCRYPT		= set( ('ETH', 'CRO', 'BNB') )		# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
@@ -201,13 +289,18 @@ class Account( hdwallet.HDWallet ):
         DOGE		= "legacy",
         CRO		= "bech32",
         BNB		= "legacy",
+        XRP		= "legacy",
     )
 
-    # Any locally-defined python-hdwallet cryptocurrencies, and any that may require some
-    # adjustments when calling python-hdwallet address and other functions.
+    # Any locally-defined python-hdwallet classes, cryptocurrency definitions, and any that may
+    # require some adjustments when calling python-hdwallet address and other functions.
+    CRYPTO_WALLET_CLS		= dict(
+        XRP		= XRPHDWallet,
+    )
     CRYPTO_LOCAL		= dict(
         CRO		= CronosMainnet,
         BNB		= BinanceMainnet,
+        XRP		= RippleMainnet,
     )
     CRYPTO_LOCAL_SYMBOL		= dict(
         BNB		= "ETH"
@@ -237,7 +330,10 @@ class Account( hdwallet.HDWallet ):
             bech32	= "m/84'/2'/0'/0/0",
         ),
         DOGE		= dict(
-            legacy	="m/44'/3'/0'/0/0",
+            legacy	= "m/44'/3'/0'/0/0",
+        ),
+        XRP		= dict(
+            legacy	= "m/44'/144'/0'/0/0",
         )
     )
 
@@ -285,14 +381,16 @@ class Account( hdwallet.HDWallet ):
 
     def __init__( self, crypto, format=None ):
         crypto			= Account.supported( crypto )
-        cryptocurrency		= self.CRYPTO_LOCAL.get( crypto, None )  # None, unless locally defined, above
+        cryptocurrency		= self.CRYPTO_LOCAL.get( crypto )
         self.format		= format.lower() if format else Account.address_format( crypto )
-        if self.format in ("legacy", "segwit",):
-            self.hdwallet	= hdwallet.BIP44HDWallet( symbol=crypto, cryptocurrency=cryptocurrency )
-        elif self.format in ("bech32",):
-            self.hdwallet	= hdwallet.BIP84HDWallet( symbol=crypto, cryptocurrency=cryptocurrency )
-        else:
+        hdwallet_cls		= self.CRYPTO_WALLET_CLS.get( crypto )
+        if hdwallet_cls is None and self.format in ("legacy", "segwit",):
+            hdwallet_cls	= hdwallet.BIP44HDWallet
+        if hdwallet_cls is None and self.format in ("bech32",):
+            hdwallet_cls	= hdwallet.BIP84HDWallet
+        if hdwallet_cls is None:
             raise ValueError( f"{crypto} does not support address format {self.format}" )
+        self.hdwallet		= hdwallet_cls( symbol=crypto, cryptocurrency=cryptocurrency )
 
     def from_seed( self, seed: str, path: str = None ) -> "Account":
         """Derive the Account from the supplied seed and (optionally) path; uses the default derivation path
@@ -302,6 +400,15 @@ class Account( hdwallet.HDWallet ):
         if type( seed ) is bytes:
             seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
         self.hdwallet.from_seed( seed )
+        self.from_path( path )
+        return self
+
+    def from_mnemonic( self, mnemonic: str, path: str = None ) -> "Account":
+        """Derive the Account from the supplied BIP-39 mnemonic and (optionally) path; uses the
+        default derivation path for the Account address format, if None provided.
+
+        """
+        self.hdwallet.from_mnemonic( mnemonic )
         self.from_path( path )
         return self
 
@@ -375,6 +482,10 @@ class Account( hdwallet.HDWallet ):
     @property
     def key( self ):
         return self.hdwallet.private_key()
+
+    @property
+    def pubkey( self ):
+        return self.hdwallet.public_key()
 
     def from_private_key( self, private_key ):
         self.hdwallet.from_private_key( private_key )

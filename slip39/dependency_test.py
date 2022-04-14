@@ -18,6 +18,9 @@ PASS_TREZOR			= b"TREZOR"
 SEED_XMAS_HEX			= b"dd0e2f02b1f6c92a1a265561bc164135"
 SEED_XMAS			= codecs.decode( SEED_XMAS_HEX, 'hex_codec' )
 
+SEED_ONES_HEX			= b'FF' * 16
+SEED_ONES			= codecs.decode( SEED_ONES_HEX, 'hex_codec' )
+
 
 class substitute( contextlib.ContextDecorator ):
     """The SLIP-39 standard includes random data in portions of the as share.  Replace the random
