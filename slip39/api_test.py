@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import json
 import pytest
+import codecs
 
 try:
     import eth_account
@@ -18,7 +19,7 @@ import shamir_mnemonic
 from .			import account, create, addresses, addressgroups, accountgroups, Account
 from .recovery		import recover
 
-from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
 
 
 def test_account():
@@ -38,10 +39,19 @@ def test_account():
     acct			= account( SEED_XMAS, crypto='Bitcoin', format='Legacy' )
     assert acct.address == '19FQ983heQEBXmopVNyJKf93XG7pN7sNFa'
     assert acct.path == "m/44'/0'/0'/0/0"
+    assert acct.pubkey == '02d0bca9d976ad7303d1c0c3fd6ad0cb6bb78077d2ff158c16ac21bed763fb49a8'
 
     acct			= account( SEED_XMAS, crypto='Bitcoin', format='SegWit' )
     assert acct.address == '3HxUpD7E8Y31vDDgDq1VFdNXWViAgBjYJe'
     assert acct.path == "m/44'/0'/0'/0/0"
+
+    # And, confirm that we retrieve the same Bech32 address for the all-ones seed,
+    # as on a real Trezor "Model T".
+    acct			= account( SEED_ONES, crypto='Bitcoin' )
+    assert acct.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+    assert acct.path == "m/84'/0'/0'/0/0"
+    assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
+
 
     acct			= account( SEED_XMAS, crypto='Litecoin' )
     assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
@@ -58,6 +68,31 @@ def test_account():
     acct			= account( SEED_XMAS, crypto='Dogecoin' )
     assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
     assert acct.path == "m/44'/3'/0'/0/0"
+
+
+    acct			= account( SEED_ONES, crypto='Ripple' )
+    assert acct.path == "m/44'/144'/0'/0/0"  # Default
+    assert acct.address == 'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'
+
+    # Fake up some known Ripple pubkey --> addresses, by replacing the underlying "compressed"
+    # public key function to return a fixed value.  Test values from:
+    # trezor-firmware/core/tests/test_apps.ripple.address.py
+    compressed_save		= acct.hdwallet.compressed
+    acct.hdwallet.compressed	= lambda: 'ed9434799226374926eda3b54b1b461b4abf7237962eae18528fea67595397fa32'
+    assert acct.pubkey == 'ed9434799226374926eda3b54b1b461b4abf7237962eae18528fea67595397fa32'
+    assert acct.address == 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN'
+    acct.hdwallet.compressed	= lambda: '03e2b079e9b09ae8916da8f5ee40cbda9578dbe7c820553fe4d5f872eec7b1fdd4'
+    assert acct.address == 'rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8'
+    acct.hdwallet.compressed	= lambda: '0282ee731039929e97db6aec242002e9aa62cd62b989136df231f4bb9b8b7c7eb2'    
+    assert acct.address == 'rKzE5DTyF9G6z7k7j27T2xEas2eMo85kmw'
+    acct.hdwallet.compressed	= compressed_save
+
+    # Test values from a Trezor "Model T" w/ root seed 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' loaded.
+    # The Trezor Suite UI produced the following account derivation path and public address for:
+    acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    assert acct.path == "m/44'/144'/0'/0/0"  # Default
+    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/ 
+    assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
 
 
 @pytest.mark.skipif( not scrypt or not eth_account,
@@ -134,6 +169,20 @@ def test_account_encrypt():
         '6PYSUhj4mPTNdSvm2dxLRszieSBmzPqPQX699ECUrd69sWteFAUqmW1FLq',
         'something'
     ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+
+    # Ripple BIP-38 encrypted wallets.  Should round-trip via BIP-38
+    acct_xrp = Account( crypto='XRP' )
+    acct_xrp.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    assert acct_xrp.path == "m/44'/144'/0'/0/0"  # Default
+    assert acct_xrp.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/
+    assert acct_xrp.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
+    acct_xrp_encrypted		= acct_xrp.encrypted( 'password' )
+    assert acct_xrp_encrypted == '6PYTRxHt4sPM9i6zagBJ4pWdaefJ1FfVQwFCWQxDhVBw7fJYpYP3kMPfro'
+
+    acct_dec			= Account( crypto='XRP' ).from_encrypted( acct_xrp_encrypted, 'password' )
+    acct_dec.path == "m/44'/144'/0'/0/0"
+    assert acct_dec.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
+    assert acct_dec.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
