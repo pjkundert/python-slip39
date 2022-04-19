@@ -1,7 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import json
 import pytest
-import codecs
 
 try:
     import eth_account
@@ -52,7 +51,6 @@ def test_account():
     assert acct.path == "m/84'/0'/0'/0/0"
     assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
 
-
     acct			= account( SEED_XMAS, crypto='Litecoin' )
     assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
     assert acct.path == "m/84'/2'/0'/0/0"
@@ -69,7 +67,6 @@ def test_account():
     assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
     assert acct.path == "m/44'/3'/0'/0/0"
 
-
     acct			= account( SEED_ONES, crypto='Ripple' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'
@@ -83,7 +80,7 @@ def test_account():
     assert acct.address == 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN'
     acct.hdwallet.compressed	= lambda: '03e2b079e9b09ae8916da8f5ee40cbda9578dbe7c820553fe4d5f872eec7b1fdd4'
     assert acct.address == 'rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8'
-    acct.hdwallet.compressed	= lambda: '0282ee731039929e97db6aec242002e9aa62cd62b989136df231f4bb9b8b7c7eb2'    
+    acct.hdwallet.compressed	= lambda: '0282ee731039929e97db6aec242002e9aa62cd62b989136df231f4bb9b8b7c7eb2'
     assert acct.address == 'rKzE5DTyF9G6z7k7j27T2xEas2eMo85kmw'
     acct.hdwallet.compressed	= compressed_save
 
@@ -91,7 +88,7 @@ def test_account():
     # The Trezor Suite UI produced the following account derivation path and public address for:
     acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
-    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/ 
+    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
     assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
 
 

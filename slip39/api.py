@@ -177,7 +177,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
         "HARDENED": True
     })
 
-    PUBLIC_KEY_ADDRESS = 0x00 # Results in the prefix r..., when used w/ the Ripple base-58 alphabet
+    PUBLIC_KEY_ADDRESS = 0x00  # Results in the prefix r..., when used w/ the Ripple base-58 alphabet
     SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
         "HRP": None,
         "VERSION": 0x00
@@ -205,7 +205,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
     WIF_SECRET_KEY = 0x80
 
 
-class XRPHDWallet( hdwallet.HDWallet ) :
+class XRPHDWallet( hdwallet.HDWallet ):
     """The XRP address format uses the standard p2pkh_address formulation, from
     https://xrpl.org/accounts.html#creating-accounts:
 

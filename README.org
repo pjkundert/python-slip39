@@ -59,10 +59,10 @@ by entering the mnemonics right on the device.
 
 * Security with Availability
 
-  For both BIP-39 and SLIP-39, a 128-bit random "seed" is the source of an unlimited sequence of
-  Ethereum and Bitcoin HD (Heirarchical Deterministic) derived Wallet accounts.  Anyone who can
-  obtain this seed gains control of all Ethereum, Bitcoin (and other) accounts derived from it, so
-  it must be securely stored.
+  For both BIP-39 and SLIP-39, a 128- or 256-bit random "seed" is the source of an unlimited
+  sequence of Ethereum and Bitcoin HD (Heirarchical Deterministic) derived Wallet accounts.  Anyone
+  who can obtain this seed gains control of all Ethereum, Bitcoin (and other) accounts derived from
+  it, so it must be securely stored.
 
   Losing this seed means that all of the HD Wallet accounts are permanently lost.  It must be /both/
   backed up securely, /and/ be readily accessible.
@@ -78,15 +78,19 @@ by entering the mnemonics right on the device.
 
    [[https://github.com/satoshilabs/slips/blob/master/slip-0039.md][Satoshi Lab's (Trezor) SLIP-39]] uses SSSS to distribute the ability to recover the key to 1 or
    more "groups".  Collecting the mnemonics from the required number of groups allows recovery of
-   the seed.  For BIP-39, the number of groups is always 1, and the number of mnemonics required for
-   that group is always 1.
+   the seed.
 
-   For SLIP-39, a "group_threshold" of how many groups must bet successfully collected to recover
-   the key.  Then key is (conceptually) split between 1 or more groups (not really; each group's
-   data alone gives away no information about the key).
+   For BIP-39, the number of groups is always 1, and the number of mnemonics required for that group
+   is always 1.  This selection is both insecure (easy to accidentally disclose) and unreliable
+   (easy to accidentally lose), but since most hardware wallets, *only* accept BIP-39 phrases, we
+   also provide a way to /backup your BIP-39 phrase/ using SLIP-39!
+
+   For SLIP-39, you specify a "group_threshold" of /how many/ of your groups must be successfully
+   collected, to recover the seed; this seed is (conceptually) split between 1 or more groups
+   (though not in reality -- each group's data /alone/ gives away /no information/ about the seed).
 
    For example, you might have First, Second, Fam and Frens groups, and decide that any 2 groups can
-   be combined to recover the key.  Each group has members with varying levels of trust and
+   be combined to recover the seed.  Each group has members with varying levels of trust and
    persistence, so have different number of Members, and differing numbers Required to recover that
    group's data:
 
@@ -103,17 +107,18 @@ by entering the mnemonics right on the device.
    The account owner might store their First and Second group data in their home and office safes.
    These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)
 
-   If the account needs to be recovered, collecting the First and Second cards from the home and
-   office safe is sufficient to recover the seed, and re-generate the HD Wallet accounts.
+   If the seed needs to be recovered, collecting the First and Second cards from the home and
+   office safe is sufficient to recover the seed, and re-generate all of the HD Wallet accounts.
 
-   Only 2 Fam member's cards must be collected to recover the Fam group's data.  So, if the HD
-   Wallet owner loses their home and First group card in a fire, they could get the Second group
-   card from the office safe, and 2 cards from Fam group members, and recover the wallet.
+   Only 2 Fam group member's cards must be collected to recover the Fam group's data.  So, if the HD
+   Wallet owner loses their home (and the one and only First group card) in a fire, they could get
+   the one Second group card from the office safe, and also 2 cards from Fam group members, and
+   recover the seed and all of their wallets.
 
-   If catastrophe strikes and the owner dies, and the heirs don't have access to either the First
-   (at home) or Second (at the office), they can collect 2 Fam cards and 3 Frens cards (at the
-   funeral, for example), completing the Fam and Frens groups' data, and recover the seed, and all
-   derived HD Wallet accounts.
+   If catastrophe strikes and the wallet owner dies, and the heirs don't have access to either the
+   First (at home) or Second (at the office) cards, they can collect 2 Fam cards and 3 Frens cards
+   (at the funeral, for example), completing the Fam and Frens groups' data, and recover the seed,
+   and all derived HD Wallet accounts.
 
    Since Frens are less likely to persist long term, we'll produce more (6) of these cards.
    Depending on how trustworthy the group is, adjust the Fren group's Required number higher (less

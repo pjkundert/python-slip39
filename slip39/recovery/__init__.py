@@ -1,7 +1,7 @@
 import itertools
 import logging
 
-from typing		import List
+from typing		import List, Optional
 
 from shamir_mnemonic	import combine_mnemonics
 from mnemonic		import Mnemonic
@@ -49,12 +49,35 @@ def recover(
 def recover_bip39(
     mnemonic: str,
     passphrase: bytes		= b"",
+    as_entropy			= False,  # Recover original 128- or 256-bit Entropy (not 512-bit Seed)
 ) -> bytes:
-    """Recover a 512-bit seed from a single BIP-39 mnemonic phrase, detecting the language."""
+    """Recover a secret 512-bit BIP-39 generated seed (or just the original 128- or 256-bit entropy)
+    from a single BIP-39 mnemonic phrase, detecting the language.
+
+    """
+    assert not ( bool( passphrase ) and bool( as_entropy )), \
+        "When recovering original BIP-39 entropy, no passphrase may be specified"
     language			= Mnemonic.detect_language( mnemonic )
     m				= Mnemonic( language )
+    # Polish up the supplied mnemonic, by eliminating extra spaces; Mnemonic is fragile...
+    mnemonic			= ' '.join( w.lower() for w in mnemonic.split( ' ' ) if w )
     assert m.check( mnemonic ), \
         f"Invalid BIP-39 mnemonic: {mnemonic}"
-    secret			= Mnemonic.to_seed( mnemonic, passphrase )
+    if as_entropy:
+        secret			= m.to_entropy( mnemonic )
+    else:
+        secret			= Mnemonic.to_seed( mnemonic, passphrase )
     log.warning( f"Recovered {len(secret)*8}-bit BIP-39 secret from {language} mnemonic" )
-    return secret
+    return bytes( secret )  # bytearray --> bytes
+
+
+def produce_bip39(
+    entropy: Optional[bytes],
+    strength: Optional[int]	= None,
+    language: str		= "english",
+):
+    """Produce a BIP-38 Mnemonic from the provided entropy (or generated, default 128 bits)."""
+    mnemo			= Mnemonic( language )
+    if entropy:
+        return mnemo.to_mnemonic( entropy )
+    return mnemo.generate( strength or 128 )

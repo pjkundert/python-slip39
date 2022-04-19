@@ -7,7 +7,7 @@ Provide extra Entropy, to improve the randomness of your Seed.
 | Controls | Extra Entropy  | Description                                          |
 |----------+----------------+------------------------------------------------------|
 | Basic    | None           | No extra randness; you trust ours completely. :)     |
-| Extra    | Die Rolls, ... | Provide any data; we'll SHA-256 hash it              |
+| Recover  | Die Rolls, ... | Provide any data; we'll SHA-512 hash it              |
 | Pro      | Hex            | You can provide raw hex data from an external source |
 
 It is wise not to trust *anyone* (including this program) to provide randomness for your Seed!

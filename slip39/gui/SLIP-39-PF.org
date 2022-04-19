@@ -8,7 +8,7 @@ Select the desired PDF paper size.
 |----------+------------+--------+--------+---------|
 | Basic    | Letter     | 8-1/2" | 11"    | Default |
 | Basic    | Legal      | 8-1/2" | 14"    |         |
-| Extra    | A4         | 210mm  | 297mm  |         |
+| Recover  | A4         | 210mm  | 297mm  |         |
 | Pro      | Photo      | 4"     | 6"     |         |
 #+END_ABSTRACT
 

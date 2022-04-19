@@ -87,7 +87,7 @@ PAPER_FORMATS			= dict(
 LAYOUT				= 'Basic'
 LAYOUT_OPTIONS			= [
     'Basic',
-    'Extra',
+    'Recover',
     'Pro',
 ]
 

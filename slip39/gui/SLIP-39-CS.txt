@@ -5,9 +5,9 @@ Select the desired SLIP-39 card size.
  Basic     Business   3-1/2"  2"      Default 
  Basic     Credit     3-3/8"  2-1/4"          
  Basic     Index      5"      3"              
- Extra     Half       8"      4.5"            
- Extra     Third      8"      3-3/8"          
- Extra     Quarter    8"      2-5/8"          
+ Recover   Half       8"      4.5"            
+ Recover   Third      8"      3-3/8"          
+ Recover   Quarter    8"      2-5/8"          
  Pro       Photo      5-1/2"  3-1/5"          
 
 

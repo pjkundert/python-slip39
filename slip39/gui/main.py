@@ -13,7 +13,7 @@ from itertools import islice
 import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
-from ..recovery		import recover, recover_bip39
+from ..recovery		import recover, recover_bip39, produce_bip39
 from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
@@ -23,6 +23,10 @@ from ..defaults		import (
 )
 
 log				= logging.getLogger( __package__ )
+
+
+BIP39_EXAMPLE_128		= "zoo " * 11 + "wrong"
+BIP39_EXAMPLE_256		= "zoo " * 23 + "vote"
 
 
 def theme_color( thing, theme=None ):
@@ -121,7 +125,7 @@ def groups_layout(
                 ],                                      key='-GROUP-NAMES-' )
             ]
         ],                                                                                      **F_kwds ),
-        sg.Frame( '#', [
+        sg.Frame( '# cards', [
             [
                 sg.Column( [
                     [
@@ -178,14 +182,14 @@ def groups_layout(
                         [
                             sg.Text( "Controls:",                                                **T_hue( T_kwds, 2/20 )),
                         ] + [
-                            sg.Radio( f"{lo:6}",  "LO", key=f"-LO-{li}-",       default=(lo == LO),
+                            sg.Radio( f"{lo:7}",  "LO", key=f"-LO-{li}-",       default=(lo == LO),
                                                                                                  **T_hue( B_kwds, 2/20 ))
                             for li,lo in enumerate( LAYOUT_OPTIONS )
                         ],
                         [
                             sg.Text( "on Paper:",                                               **T_hue( T_kwds, 3/20 )),
                         ] + [
-                            sg.Radio( f"{pf:6}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),
+                            sg.Radio( f"{pf:7}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),
                                                                                                 **T_hue( B_kwds, 3/20 ))
                             for pi,pf in enumerate( PAPER_FORMATS )
                             if LO_PRO or ( LO_REC and pf.lower() != "photo" ) or pi < len( PAPER_FORMATS ) // 2
@@ -201,12 +205,12 @@ def groups_layout(
                 [
                     sg.Text( "Random:",                                                         **T_hue( T_kwds, 0/20 )),
                     sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=True,   **T_hue( B_kwds, 0/20 )),
-                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     default=False,  **T_hue( B_kwds, 0/20 )),
-                    sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     default=False,  **T_hue( B_kwds, 0/20 )),
+                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',                     **T_hue( B_kwds, 0/20 )),
+                    sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     visible=LO_PRO, **T_hue( B_kwds, 0/20 )),
                     sg.Text( "Recover:",                                        visible=LO_REC, **T_hue( T_kwds, 2/20 )),
                     sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **T_hue( B_kwds, 2/20 )),
-                    sg.Checkbox( 'SLIP-39 Passphrase (NOT Trezor compatible)',
+                    sg.Checkbox( 'Passphrase',
                                                         key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
                 ],
                 [
@@ -215,9 +219,9 @@ def groups_layout(
                     sg.Radio( f"{b}-bit",  "SD", key=f"-SD-{b}-FIX-",           visible=LO_PRO, **T_hue( B_kwds, 1/20 ))
                     for b in BITS
                 ] + [
-                    sg.Frame( 'Only if a Passphrase was provided when Mnemonic was created)', [
+                    sg.Frame( 'SLIP-39 Passphrase; NOT Trezor compatible; use "Hidden wallet"?', [
                         [
-                            sg.Text( "Passphrase (decrypt): ",                  size=prefix,    **T_kwds ),
+                            sg.Text( "Passphrase (decrypt): ",                                  **T_kwds ),
                             sg.Input( "",               key='-SD-PASS-',        size=inputs,    **I_kwds ),
                         ],
                     ],                                  key='-SD-PASS-F-',      visible=False,  **F_kwds ),
@@ -225,7 +229,6 @@ def groups_layout(
                 [
                     sg.Frame( 'From Mnemonic(s):', [
                         [
-                            #sg.Text( "Mnemonic(s): ",   key='-SD-DATA-T-',      size=prefix,    **T_kwds ),
                             sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,    **I_kwds_small ),
                         ],
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
@@ -267,8 +270,13 @@ def groups_layout(
         [
             sg.Frame( '4. Seed & SLIP-39 Recovery Groups', [
                 [
-                    sg.Text( "Seed To Secure: ",                                size=prefix,    **T_kwds ),
+                    sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
+                ],
+                [
+                    sg.Checkbox( "Using BIP-39:",       key='-AS-BIP-CB-',      visible=LO_REC,
+                                                                                size=prefix,    **T_hue( B_kwds, -1/20 )),
+                    sg.Text( '',                        key='-AS-BIP-',         visible=LO_REC, **T_hue( T_kwds_dense, -1/20 )),
                 ],
                 [
                     sg.Column( [
@@ -277,12 +285,11 @@ def groups_layout(
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=tiny,      **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
-                            sg.Text( "Mnemonic Groups",                                         **T_kwds ),
-                            sg.Checkbox( 'SLIP-39 Passphrase',
-                                                        key='-PASSPHRASE-C-',   visible=LO_PRO, **B_kwds ),
+                            sg.Text( "Mnemonic Card Groups",                                    **T_kwds ),
+                            sg.Checkbox( 'Passphrase',  key='-PASSPHRASE-C-',   visible=LO_REC, **B_kwds ),  # Either SLIP-39 or BIP-39
                         ],
                         [
-                            sg.Frame( 'NOT Trezor compatible; perhaps use \"Hidden wallet\" on device instead?', [
+                            sg.Frame( 'SLIP-39 Passphrase', [
                                 [
                                     sg.Text( "Passphrase (encrypt): ",                          **T_kwds ),
                                     sg.Input( f"{passphrase or ''}",
@@ -292,7 +299,7 @@ def groups_layout(
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",           key='-INSTRUCTIONS-',   size=(80,12),           **T_kwds_dense ),
+                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,12),   **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds_big ),
         ],
@@ -494,19 +501,24 @@ def update_seed_data( event, window, values ):
 
     # We got our working -SD-DATA- into 'dat' (maybe from last time 'round), compute seed_data.
     status			= None
+    bits			= None
     if 'BIP' in update_seed_data.src:
-        bits			= 512
+        # When recovering from BIP-39 for use in SLIP-39, we always recover the ORIGINAL 128- or
+        # 256-bit Entropy used to create the BIP-39 Mnemonic.  This is what we want to back up --
+        # NOT the 512-bit Seed output from the processing the BIP-39 Mnemonic + passphrase; thus, we
+        # can always re-produce the BIP-39 mnemonic.  Later, (when producing wallets) we'll see if
+        # the desired target device seed will be transmitted via BIP-39 + passphrase, or SLIP-39, and
+        # produce the correct Seed for deriving predicted wallet addresses.
         try:
-            passphrase		= pwd.strip().encode( 'UTF-8' )
             seed_data		= recover_bip39(
                 mnemonic	= dat.strip(),
-                passphrase	= passphrase,
+                as_entropy	= True,  # No passphrase allowed/required, to get original Entropy
             )
+            bits		= len( seed_data ) * 8
         except Exception as exc:
-            log.exception( f"BIP-39 recovery failed w/ {dat!r} w/ passphrase: {pwd!r}: {exc}" )
+            log.exception( f"BIP-39 recovery failed w/ {dat!r}: {exc}" )
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
     elif 'SLIP' in update_seed_data.src:
-        bits			= 128
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
             passphrase		= pwd.strip().encode( 'UTF-8' )
@@ -514,9 +526,9 @@ def update_seed_data( event, window, values ):
                 mnemonics	= list( mnemonic_continuation( dat.strip().split( '\n' ))),
                 passphrase	= passphrase,
             )
-            bits		= len( seed_data ) * 4
+            bits		= len( seed_data ) * 8
         except Exception as exc:
-            log.exception( f"SLIP-39 recovery failed w/ {dat!r} w/ passphrase: {pwd!r}: {exc}" )
+            log.exception( f"SLIP-39 recovery failed w/ {dat!r}: {exc}" )
             status		= f"Invalid SLIP-39 recovery mnemonics: {exc}"
     elif 'FIX' in update_seed_data.src:
         bits			= int( update_seed_data.src.split( '-' )[2] )
@@ -525,15 +537,29 @@ def update_seed_data( event, window, values ):
             data		= f"{dat:<0{bits // 4}.{bits // 4}}"
             seed_data 		= codecs.decode( data, 'hex_codec' )
         except Exception as exc:
+            log.exception( f"Fixed hex recovery failed w/ {dat!r}: {exc}" )
             status		= f"Invalid Hex for {bits}-bit fixed seed: {exc}"
     elif changed or not seed_data:  # Random.  Regenerated each time changed, or not valid
         bits			= int( update_seed_data.src.split( '-' )[2] )
         seed_data		= random_secret( bits // 8 )
-    # Compute the Seed Data as hex.  Will be 128-, 256- or 512-bit hex data.
-    if status:
+
+    # Compute any newly computed/recovered binary Seed Data bytes as hex. Must be 128-, 256- or
+    # 512-bit hex data.
+    try:
+        if type(seed_data) is not str:
+            seed_data		= codecs.encode( seed_data, 'hex_codec' ).decode( 'ascii' )
+        if bits is None:  # For previously defined seed_data, compute length
+            bits		= len( seed_data ) * 4
+        assert len( seed_data ) * 4 == bits, \
+            f"{len(seed_data)*4}-bit data recovered; expected {bits} bits: {seed_data}"
+        assert bits in BITS, \
+            f"Invalid {bits}-bit data size: {seed_data}"
+    except Exception as exc:
+        status			= f"Invalid seed data: {exc}"
+        if not bits:
+            bits		= 128
         seed_data		= '-' * (bits // 4)
-    elif type( seed_data ) is bytes:
-        seed_data		= codecs.encode( seed_data, 'hex_codec' ).decode( 'ascii' )
+
     # Since a window[...].update() doesn't show up to a .get() 'til the next cycle of the display,
     # we'll communicate updates to successive functions via values.
     values['-SD-SEED-'] 	= seed_data
@@ -541,7 +567,7 @@ def update_seed_data( event, window, values ):
     return status
 update_seed_data.src		= None  # noqa: E305
 update_seed_data.was		= {
-    '-SD-BIP-': ("zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong","")  # "<mnemnonic>","<passphrase>"
+    '-SD-BIP-': (BIP39_EXAMPLE_128,"")  # "<mnemnonic>","pwd"n
 }
 
 
@@ -648,7 +674,7 @@ def compute_master_secret( window, values, n=0 ):
     secret seed.
 
     This is a critical feature -- without this visual confirmation, it is NOT POSSIBLE to trust any
-    cryptocurrency seed generation algorithm.
+    cryptocurrency seed generation algorithm!
 
     This function must have knowledge of the extra Seed Entropy settings, so it inspects the
     -SE-{NON/HEX}- checkbox values.
@@ -968,11 +994,45 @@ def app(
         # From this point forward, detect if we have seen any change in the computed Master Seed, or
         # in the SLIP-39 groups recovered; avoid unnecessary update of the SLIP-39 Mnemonics.  And,
         # if any status was reported in the computation of Seed Data, extra Seed Entropy or Master
-        # Secret, report it now.
-        if master_secret != master_secret_was:
-            window['-SEED-'].update( master_secret )
+        # Secret, report it now.  We'll also force this if someone clicks "Using BIP-39".  Remember
+        # -- the BIP-39 Mnemonic encodes only the original Seed Entropy, so there is no concept of a
+        # Passphrase.  Later, when we use the Entropy to produce wallets -- if "Using BIP-39" is
+        # selected, each successive master_secret_n produces a different BIP-39 Mnemonic, and the
+        # actual Seed is generated also using the specified Passphrase.
+        if master_secret != master_secret_was or event == '-AS-BIP-CB-':
             log.info( "Updating SLIP-39 due to changing Master Seed" )
+            window['-SEED-'].update( master_secret )
+            try:
+                bip39		= produce_bip39(
+                    entropy	= codecs.decode( master_secret, 'hex_codec' ),
+                    strength	= len( master_secret ) * 4,
+                )
+                window['-AS-BIP-'].update( bip39 )
+            except Exception as exc:
+                # Incompatible 512-bit master_secret; Disable BIP-39 representation
+                log.warning( f"Error computing BIP-39: {exc}" )
+                window['-AS-BIP-CB-'].update( False )
+                values['-AS-BIP-CB-']	= False
+                window['-AS-BIP-CB-'].update( disabled=True )
+            else:
+                # The seed is BIP-39 compatible; give the option to indicating they're using BIP-39
+                log.warning( f"Produced BIP-39 from {len(master_secret)*4}-bit Seed: {bip39}" )
+                window['-AS-BIP-CB-'].update( disabled=False )
             details		= None
+
+        # See if we should display the BIP-39 version of the Master Secret Seed.  Also, re-labels
+        # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
+        # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
+        # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed.  In other
+        # words, the same Passphrase must be entered on the hardware wallet along with the Mnemonic.
+        as_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
+        window['-AS-BIP-'].update( visible=as_bip39 )
+        window['-PASSPHRASE-F-'].update(
+            'BIP-39 Passphrase; Use when recovering Mnemonic on device'
+            if as_bip39 else
+            'SLIP-39 Passphrase; NOT Trezor compatible; use "Hidden wallet"?'
+        )
+
         status			= status_sd or status_se or status_ms
         if status:
             update_seed_recovered( window, values, None )
@@ -1068,8 +1128,8 @@ def app(
         # Produce a summary of the SLIP-39 recovery groups, including any passphrase needed for
         # decryption of the SLIP-39 seed, and how few/many cards will need to be collected to
         # recover the Seed.  If the SLIP-39 passphrase has changed, force regeneration of SLIP-39.
-        # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; use the Trezor "hidden
-        # wallet" feature instead.
+        # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; warn to use the Trezor
+        # "hidden wallet" feature instead.
         summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups.items())
         summary			= f"Recovery needs {group_threshold} of {len(groups)} Groups: {summary_groups}"
 
@@ -1102,9 +1162,9 @@ def app(
         # no extra Seed Entropy, we will fail to produce subsequent seeds.  Recompute the desired
         # cryptopaths w/ any path adjusts, in case derivation of multiple Paper Wallets is desired.
         #
-        # We avoid recomputing this unless something about the seed or the recovered groups changes; each
-        # time we recompute -- even without any changes -- the SLIP-39 Mnemonics will change, due to the use
-        # of entropy in the SLIP-39 process.
+        # We avoid recomputing this unless something about the seed or the recovered groups changes;
+        # each time we recompute -- even without any changes -- the SLIP-39 Mnemonics will change,
+        # due to the use of entropy in the SLIP-39 process.
         if not details or names[0] not in details:
             log.info( f"SLIP39 details for {names}..." )
             try:
@@ -1113,15 +1173,35 @@ def app(
                     master_secret_n	= compute_master_secret( window, values, n=n )
                     assert n > 0 or codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' ) == master_secret, \
                         "Computed Seed for 1st SLIP39 Mnemonics didn't match"
-                    log.info( f"SLIP39 for {name} from master_secret: {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )} (w/ passphrase: {passphrase!r}" )
-                    details[name]	= create(
-                        name		= name,
-                        group_threshold	= group_threshold,
-                        master_secret	= master_secret_n,
-                        groups		= groups,
-                        cryptopaths	= cryptopaths,
-                        passphrase	= passphrase,
-                    )
+
+                    if as_bip39:
+                        # Seed from Entropy recovered from SLIP-39 Mnemonics, encoded into a BIP-39
+                        # Mnemonic, and optionally encrypted w/ Passphrase; No SLIP-39 Passphrase.
+                        bip39_mnem_n = produce_bip39( entropy=master_secret_n )
+                        bip39_seed_n = recover_bip39(
+                            mnemonic	= bip39_mnem_n,
+                            passphrase	= passphrase
+                        )
+                        log.info( f"SLIP39 for {name} from {ordinal(n+1)} Entropy as BIP-39 Mnemonic: {bip39_mnem_n} (w/ BIP-39 Passphrase: {passphrase!r}" )
+                        details[name] = create(
+                            name		= name,
+                            group_threshold	= group_threshold,
+                            master_secret	= bip39_seed_n,
+                            groups		= groups,
+                            cryptopaths		= cryptopaths,
+                        )
+                    else:
+                        # Seed from Entropy recover from SLIP-39 Mnemonics; optionally encrypted w/
+                        # Passphrase (we've warned that this is not Trezor-compatible).
+                        log.info( f"SLIP39 for {name} from {ordinal(n+1)} Entropy directly: {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )} (w/ SLIP-39 Passphrase: {passphrase!r}" )
+                        details[name] = create(
+                            name		= name,
+                            group_threshold	= group_threshold,
+                            master_secret	= master_secret_n,
+                            groups		= groups,
+                            cryptopaths		= cryptopaths,
+                            passphrase		= passphrase,
+                        )
             except Exception as exc:
                 status		= f"Error creating: {exc}"
                 logging.exception( f"{status}" )
