@@ -646,6 +646,7 @@ def write_pdfs(
     names		= None,		# sequence of [ <name>, ... ], or { "<name>": <details> }
     master_secret	= None,		# Derive SLIP-39 details from this seed (if not supplied in names)
     passphrase		= None,		# UTF-8 encoded passphrase; default is '' (empty)
+    using_bip39		= False,        # Generate Seed from Entropy via BIP-39 generation algorithm
     group		= None,		# Group specifications, [ "Frens(3/6)", ... ]
     group_threshold	= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
@@ -683,8 +684,14 @@ def write_pdfs(
 
     cryptopaths			= cryptopaths_parser( cryptocurrency, edit=edit )
 
-    # If account details not provided in names, generate them.
-    if not isinstance( names, dict ):
+    # If account details not provided in names, generate them.  If using_bip39 is specified, this is
+    # where we use BIP-39 Seed generation to produce the wallet Seed, instead of SLIP-39 which uses
+    # the entropy directly (optionally, with a passphrase, which is not typically done, and isn't
+    # Trezor compatible).
+    if isinstance( names, dict ):
+        assert not using_bip39, \
+            "Specified BIP-39 Seed generation, but supplied pre-defined wallet details"
+    else:
         assert not master_secret or not names or len( names ) == 1, \
             "Creating multiple account details from the same secret entropy doesn't make sense"
         names			= {
@@ -694,11 +701,11 @@ def write_pdfs(
                 groups		= groups,
                 master_secret	= master_secret,
                 passphrase	= passphrase.encode( 'utf-8' ) if passphrase else b'',
+                using_bip39	= using_bip39,  # Derive wallet Seed using BIP-39 Mnemonic + passphrase generation
                 cryptopaths	= cryptopaths,
             )
             for name in names or [ "SLIP39" ]
         }
-
     # Generate each desired SLIP-39 Mnemonic file.  Supports --card (the default).  Remember any
     # deduced orientation and paper_format for below.
     results			= {}
@@ -713,7 +720,9 @@ def write_pdfs(
 
         if text:
             # Output the SLIP-39 mnemonics as text:
-            #    name: mnemonic
+            #    name: <mnemonic>
+            # or, if no name, just:
+            #    <mnemonic>
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for mnem in g_mnems:
                     print( f"{name}{name and ': ' or ''}{mnem}" )

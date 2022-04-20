@@ -1182,7 +1182,10 @@ def app(
                             mnemonic	= bip39_mnem_n,
                             passphrase	= passphrase
                         )
-                        log.info( f"SLIP39 for {name} from {ordinal(n+1)} Entropy as BIP-39 Mnemonic: {bip39_mnem_n} (w/ BIP-39 Passphrase: {passphrase!r}" )
+                        log.info(
+                            f"SLIP39 for {name} from {ordinal(n+1)} Entropy as BIP-39 Mnemonic"
+                            #f": {bip39_mnem_n} (w/ BIP-39 Passphrase: {passphrase!r}"  # WARNING: Reveals Secret!
+                        )
                         details[name] = create(
                             name		= name,
                             group_threshold	= group_threshold,
@@ -1193,14 +1196,17 @@ def app(
                     else:
                         # Seed from Entropy recover from SLIP-39 Mnemonics; optionally encrypted w/
                         # Passphrase (we've warned that this is not Trezor-compatible).
-                        log.info( f"SLIP39 for {name} from {ordinal(n+1)} Entropy directly: {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )} (w/ SLIP-39 Passphrase: {passphrase!r}" )
+                        log.info(
+                            f"SLIP39 for {name} from {ordinal(n+1)} Entropy directly"
+                            #f": {codecs.encode( master_secret_n, 'hex_codec' ).decode( 'ascii' )} (w/ SLIP-39 Passphrase: {passphrase!r}"  # WARNING: Reveals Secret!
+                        )
                         details[name] = create(
                             name		= name,
                             group_threshold	= group_threshold,
                             master_secret	= master_secret_n,
+                            passphrase		= passphrase,
                             groups		= groups,
                             cryptopaths		= cryptopaths,
-                            passphrase		= passphrase,
                         )
             except Exception as exc:
                 status		= f"Error creating: {exc}"

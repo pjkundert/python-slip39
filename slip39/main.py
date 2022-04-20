@@ -66,6 +66,9 @@ def main( argv=None ):
     ap.add_argument( '--bits',
                      default=None,  # Do not enforce default of 128-bit seeds
                      help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
+    ap.add_argument( '--bip39', action='store_true',
+                     default=False,
+                     help="Generate Seed from secret Entropy using BIP-39 generation algorithm (encode as BIP-39 Mnemonics, encrypted using --passphrase)" )
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -81,7 +84,7 @@ def main( argv=None ):
                      default=None,
                      help="Enable textual SLIP-39 mnemonic output to stdout" )
     ap.add_argument( 'names', nargs="*",
-                     help="Account names to produce")
+                     help="Account names to produce; if --secret Entropy is supplied, only one is allowed.")
     args			= ap.parse_args( argv )
 
     # Set up logging; also, handle the degenerate case where logging has *already* been set up (and
@@ -128,7 +131,8 @@ def main( argv=None ):
 
     # SLIP-39 Passphrase.  This is not recommended, as A) it is another thing that must be saved in
     # addition to the SLIP-39 Mnemonics in order to recover the Seed, and B) it is not implemented
-    # by the Trezor hardware wallet.
+    # by the Trezor hardware wallet.  Also used for --bip39, where the wallets are produced from the
+    # master_secret Entropy using BIP-39 standard Seed generation.
     passphrase			= args.passphrase or ""
     if passphrase == '-':
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
@@ -158,6 +162,7 @@ def main( argv=None ):
             names		= args.names,
             master_secret	= master_secret,
             passphrase		= passphrase,
+            using_bip39		= args.bip39,   # Use BIP-39 generation to produce the Seed
             group		= args.group,
             group_threshold	= args.threshold,
             cryptocurrency	= args.cryptocurrency,
