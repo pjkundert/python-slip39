@@ -1,19 +1,22 @@
 SLIP-39 support for Hardware Wallets that require BIP-39 Mnemonics for
-Seed recovery.
+Seed recovery, such as to your Ledger Nano.  Recover your BIP-39
+Mnemonic phrase from these SLIP-39 cards using the GUI (or command-line)
+whenever you need it, to restore your Cryptocurrency accounts to your
+hardware wallet.
 
- Controls  Description                                                        
-------------------------------------------------------------------------------
- Basic     Generate SLIP-39 Cards, "Using BIP-39" to recover hardware wallet  
- Recover   Use SLIP-39 to recover Seed Entropy, then "Using BIP-39" on wallet 
- Pro       Convert existing BIP-39 Mnemonic to SLIP-39 Cards for safer backup 
+ Controls  Description                                                          
+--------------------------------------------------------------------------------
+ Basic     Generate SLIP-39 Cards, "Using BIP-39" to recover hardware wallet    
+ Recover   Use SLIP-39/BIP-39 to recover Seed Entropy, "Using BIP-39" on wallet 
+ Pro       Convert existing BIP-39 Seed to SLIP-39 for "Paper Wallet" backup    
 
 
 1 Using BIP-39
 ==============
 
   To support older or less expensive existing hardware wallets that
-  *only* support BIP-39 recovery, *or* to convert existing BIP-39
-  Mnemonic backups to SLIP-39 (to avoid moving all of your old BIP-39
+  *only* support BIP-39 recovery, *or* to backup existing BIP-39
+  Mnemonic phrases to SLIP-39 (to avoid moving all of your old BIP-39
   Seed derived wallets to new SLIP-39 Seed derived wallets), click the
   "Using BIP-39" checkbox.
 
@@ -28,15 +31,15 @@ Seed recovery.
 
   We'll even include one BIP-39 card in the output PDF.  You can store
   this card (very safely and securely), but we recommend you destroy it,
-  and use the SLIP-39 App with your SLIP-39 Card Mnemonics to recover it
-  when needed, instead.
+  and instead use the SLIP-39 App with your SLIP-39 Mnemonic Cards to
+  recover the BIP-39 Mnemonic phrase when needed.
 
 
 1.2 Use BIP-39 Seed Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  Any Cryptocurrency wallet QR codes and Paper Wallets will use BIP-39
-  Seed generation.
+  Any Cryptocurrency wallet QR codes and Paper Wallets will be derived
+  using standard BIP-39 Seed generation.
 
   Since BIP-39 uses the Seed Entropy *differently* than SLIP-39 does,
   this produces *different* wallets in the hardware wallet device!  In
@@ -46,17 +49,18 @@ Seed recovery.
   recovered from BIP-39.
 
   This is usually not a problem: just ensure that if you're intending to
-  use a hardware wallet that natively supports SLIP-39, *do not select*
-  "Using BIP-39".  Then, the QR codes and Paper Wallets printed will
-  match those produced in the hardware wallet after SLIP-39 recovery.
+  use a hardware wallet that natively supports SLIP-39 (like the Trezor
+  "Model T"), *do not select* "Using BIP-39".  Then, the QR codes and
+  Paper Wallets printed will match those produced in the hardware wallet
+  after SLIP-39 recovery.
 
   If your hardware wallet only supports BIP-39 (or you're just backing
-  up an existing BIP-39 Mnemonic using SLIP-39, and you want to continue
-  using the original BIP-39 wallets), then *do select* "Using BIP-39".
-  Then, when you recover your Trezor or Ledger from BIP-39, the printed
-  QR codes and Paper Wallets will use the BIP-39 Seed generation
-  standard, and will match those produced in the hardware after BIP-39
-  recovery.
+  up the Seed Entropy of an existing BIP-39 Mnemonic using SLIP-39, and
+  you want to continue using the original BIP-39 wallets), then *do
+  select* "Using BIP-39".  Then, when you recover your Trezor or Ledger
+  from BIP-39, the printed QR codes and Paper Wallets will use the
+  BIP-39 Seed generation standard, and will match those produced in the
+  hardware after BIP-39 recovery.
 
 
 [Trezor "Model T"]

@@ -8,7 +8,7 @@ BIP-39 Mnemonic using SLIP-39.
 | Controls | Source  | Description                                          |
 |----------+---------+------------------------------------------------------|
 | Basic    | Random  | Create SLIP-39 Mnemonic creation from secure Entropy |
-| Recover  | SLIP-39 | Recover Seed from SLIP-39 Mnemonics                  |
+| Recover  | SLIP-39 | Recover Seed from SLIP-39 Mnemonics, Using BIP-39    |
 | Pro      | BIP-39  | Recover Seed from BIP-39 Mnemonics                   |
 | Pro      | Fixed   | Hex data may be supplied for the Seed                |
 #+END_ABSTRACT

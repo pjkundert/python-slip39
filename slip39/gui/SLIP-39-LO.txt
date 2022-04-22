@@ -1,14 +1,25 @@
 Select an appropriate level of Controls detail.
 
- Basic    SLIP-39 Mnemonic creation                 
- Recover  Enhanced SLIP-39 creation and recovery    
- Pro      Conversion of BIP-39 Mnemonics to SLIP-39 
+ Basic    SLIP-39 Mnemonic creation, "Using BIP-39" wallet support 
+ Recover  Enhanced SLIP-39 creation and SLIP-39/BIP-39 recovery    
+ Pro      Advanced Seeds, conversion of BIP-39 Seed to SLIP-39     
 
 
 1 Basic
 =======
 
-  A basic SLIP-39 Mnemonic creation interface.
+  A basic SLIP-39 Mnemonic creation interface.  Default support for
+  [Trezor "Model T"] with native SLIP-39 Mnemonics recovery.
+
+  Select "Using BIP-39" for traditional BIP-39 Mnemonic phrase, to use
+  other hardware wallets, such as the [Ledger Nano].
+
+
+[Trezor "Model T"]
+<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+
+[Ledger Nano]
+<https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
 
 
 2 Recovery
@@ -16,6 +27,9 @@ Select an appropriate level of Controls detail.
 
   Greater control over the Mnemonic creation process.  Recovery of Seed
   Entropy from SLIP-39 Mnemonics.
+
+  Recover Seed Entropy from existing BIP-39 Mnemonic phrases by
+  selecting "BIP-39 Entropy" in Seed Source.
 
 
 2.1 Extra Seed Randomness

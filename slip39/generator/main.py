@@ -71,7 +71,6 @@ random nonce, encrypted with the password, itself with a known nonce of all 0 by
 data is random, while the nonce is not, but since this construction is only used once, it should be
 satisfactory.  This first nonce record is transmitted with an enumeration prefix of "nonce".
 
-
 """ )
 
     ap.add_argument( '-v', '--verbose', action="count",
@@ -91,13 +90,13 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
                      help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:../0/-" )
-    ap.add_argument( '-p', '--path',
+    ap.add_argument( '--path',
                      default=None,
                      help="Modify all derivation paths by replacing the final segment(s) w/ the supplied range(s), eg. '.../1/-' means .../1/[0,...)")
     ap.add_argument( '-d', '--device', type=str,
                      default=None,
                      help="Use this serial device to transmit (or --receive) records" )
-    ap.add_argument( '-b', '--baudrate', type=int,
+    ap.add_argument( '--baudrate', type=int,
                      default=None,
                      help="Set the baud rate of the serial device (default: 115200)" )
     ap.add_argument( '-e', '--encrypt',

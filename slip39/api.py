@@ -723,6 +723,10 @@ Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts
 
 
 def enumerate_mnemonic( mnemonic ):
+    """Return a dict containing the supplied mnemonics stored by their indexed, starting from 0.
+    Each Mnemonic is labelled with its ordinal index (ie. beginning at 1).
+
+    """
     if isinstance( mnemonic, str ):
         mnemonic		= mnemonic.split( ' ' )
     return dict(
@@ -786,9 +790,9 @@ def create(
     name: str,
     group_threshold: int,
     groups: Dict[str,Tuple[int, int]],
-    master_secret: bytes	= None,	        # Default: 128-bit seeds
+    master_secret: bytes	= None,	        # Default: 128-bit Seed Entropy
     passphrase: bytes		= b"",
-    using_bip39: bool		= False,        # Generate wallet Seed from master_secret Entropy using BIP-39 generation
+    using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # default: ETH, BTC at default paths
     strength: int		= 128,
@@ -801,11 +805,10 @@ def create(
     used in the SLIP-39 standard fashion (not recommended -- not Trezor "Model T" compatible).
 
     If using_bip39, creates the Cryptocurrency accountgroups from the supplied master_secret
-    Entropy, but by generating the Seed from a BIP-38 Mnemonic produced from the provided entropy
-    (or generated, default 128 bits), plus the supplied passphrase.
+    Entropy, by generating the Seed from a BIP-38 Mnemonic produced from the provided entropy
+    (or generated, default 128 bits), plus any supplied passphrase.
 
     """
-
     if master_secret is None:
         assert strength in BITS, f"Invalid {strength}-bit secret length specified"
         master_secret		= random_secret( strength // 8 )
@@ -822,6 +825,12 @@ def create(
             mnemonic	= bip39_mnem,
             passphrase	= passphrase,
         )
+        log.info(
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy using BIP-39 Mnemonic" + (
+                f": {bip39_mnem:.10}... (w/ BIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
+                if log.isEnabledFor( logging.DEBUG ) else ""
+            )
+        )
         accts			= list( accountgroups(
             master_secret	= bip39_seed,
             cryptopaths		= cryptopaths,
@@ -831,13 +840,22 @@ def create(
     else:
         # For SLIP-39, accounts are generated directly from supplied Entropy, and passphrase
         # encrypts the SLIP-39 Mnemonics, below.
+        log.info(
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy directly" + (
+                f": {codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ):.10}... (w/ SLIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
+                if log.isEnabledFor( logging.DEBUG ) else ""
+            )
+        )
         accts			= list( accountgroups(
             master_secret	= master_secret,
             cryptopaths		= cryptopaths,
             allow_unbounded	= False,
         ))
 
-    # Generate the SLIP-39 Mnemonics representing the supplied
+    # Generate the SLIP-39 Mnemonics representing the supplied master_secret Seed Entropy.  This
+    # always recovers the Seed Entropy; if not using_bip39, this is also the wallet derivation Seed;
+    # if using_bip39, the wallet derivation Seed was produced from the BIP-39 Seed generation
+    # process (and the SLIP-39 password is always b"", here).
     mnems			= mnemonics(
         group_threshold	= group_threshold,
         groups		= g_dims,

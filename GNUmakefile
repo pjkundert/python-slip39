@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no
-PYTESTOPTS	= -vv --doctest-modules # --capture=no --log-cli-level=INFO
+PYTESTOPTS	= -vv --doctest-modules --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -102,20 +102,25 @@ build:			clean wheel
 # 
 # org-mode products.
 #
-#     deps-txt:  All of the gui/.txt files needed to built, before the sdist, wheel or app
+#     deps:  All of the gui/.txt files needed to built, before the sdist, wheel or app
 # 
 %.txt: %.org
 	emacs $< --batch -f org-ascii-export-to-ascii --kill
 
-GUI_TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/gui/*.org))
+TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/*/*.org))
 
 slip39/gui/SLIP-39.txt:
 	toilet --font ascii12 SLIP-39 > $@
 	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
 	@echo "           (explanations and instructions will appear here)" >> $@
 
+slip39/layout/COVER.txt:
+	toilet --width 200 https://slip39.com > $@
+	@echo "        Safe & Effective (tm) Crypto Wallet Backup and Recovery" >> $@
+	@echo "           (explanations and instructions will appear here)" >> $@
+
 # Any build dependencies that are dynamically generated, and may need updating from time to time
-build-deps:		$(GUI_TXT) slip39/gui/SLIP-39.txt
+deps:			$(TXT) slip39/gui/SLIP-39.txt slip39/layout/COVER.txt
 
 # 
 # VirtualEnv build, install and activate
@@ -149,7 +154,7 @@ $(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
 	@bash --init-file $</venv-activate.sh -i
 
 
-wheel:			build-deps dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			deps dist/slip39-$(VERSION)-py3-none-any.whl
 
 dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
@@ -167,10 +172,10 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
 installer:		$(INSTALLER)
 
-dmg:			build-deps app-dmg-valid
-msi:			build-deps dist/slip39-$(VERSION)-win64.msi
-exe:			build-deps build/exe.$(CXFREEZE_EXT)/SLIP-39.exe
-app:			build-deps dist/SLIP-39.app
+dmg:			deps app-dmg-valid
+msi:			deps dist/slip39-$(VERSION)-win64.msi
+exe:			deps build/exe.$(CXFREEZE_EXT)/SLIP-39.exe
+app:			deps dist/SLIP-39.app
 
 app-packages:		app-zip-valid app-dmg-valid app-pkg-valid
 app-upload:		app-dmg-upload

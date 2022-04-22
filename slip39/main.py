@@ -66,7 +66,7 @@ def main( argv=None ):
     ap.add_argument( '--bits',
                      default=None,  # Do not enforce default of 128-bit seeds
                      help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
-    ap.add_argument( '--bip39', action='store_true',
+    ap.add_argument( '--using-bip39', action='store_true',
                      default=False,
                      help="Generate Seed from secret Entropy using BIP-39 generation algorithm (encode as BIP-39 Mnemonics, encrypted using --passphrase)" )
     ap.add_argument( '--passphrase',
@@ -75,11 +75,16 @@ def main( argv=None ):
     ap.add_argument( '-C', '--card',
                      default=None,
                      help=f"Card size; {', '.join(CARD_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {CARD})" )
+    ap.add_argument( '--no-card', dest="card", action='store_false',
+                     help="Disable PDF SLIP-39 mnemonic card output" )
     ap.add_argument( '--paper',
                      default=None,
                      help=f"Paper size (default: {PAPER})" )
-    ap.add_argument( '--no-card', dest="card", action='store_false',
-                     help="Disable PDF SLIP-39 mnemonic card output" )
+    ap.add_argument( '--cover', dest="cover_page", action='store_true',
+                     default=True,
+                     help="Produce PDF SLIP-39 cover page" )
+    ap.add_argument( '--no-cover', dest="cover_page", action='store_false',
+                     help="Disable PDF SLIP-39 cover page" )
     ap.add_argument( '--text', action='store_true',
                      default=None,
                      help="Enable textual SLIP-39 mnemonic output to stdout" )
@@ -138,7 +143,8 @@ def main( argv=None ):
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
-    log.warning( "The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'hidden wallet' feature instead" )
+    if passphrase:
+        log.warning( "The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'Hidden wallet' feature instead" )
 
     # Optional Paper Wallet and/or JSON Wallet file passwords
     wallet_pwd			= args.wallet
@@ -162,7 +168,7 @@ def main( argv=None ):
             names		= args.names,
             master_secret	= master_secret,
             passphrase		= passphrase,
-            using_bip39		= args.bip39,   # Use BIP-39 generation to produce the Seed
+            using_bip39		= args.using_bip39,
             group		= args.group,
             group_threshold	= args.threshold,
             cryptocurrency	= args.cryptocurrency,
@@ -175,6 +181,7 @@ def main( argv=None ):
             wallet_pwd		= wallet_pwd,
             wallet_pwd_hint	= wallet_pwd_hint,
             wallet_format	= wallet_format,
+            cover_page		= args.cover_page,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )
