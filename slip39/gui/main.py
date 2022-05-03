@@ -18,8 +18,8 @@ from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_DEFAULT,
-    CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET,
-    MNEM_CONT, LAYOUT, LAYOUT_OPTIONS, THEME,
+    CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
+    LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
 
 log				= logging.getLogger( __package__ )
@@ -85,7 +85,7 @@ B_kwds				= dict(
     enable_events	= True,
 )
 
-prefix				= (15, 1)
+prefix				= (18, 1)
 inputs				= (40, 1)
 inlong				= (128,1)       # 512-bit seeds require 128 hex nibbles
 shorty				= (10, 1)
@@ -157,9 +157,14 @@ def groups_layout(
     if wallet_pwd is False:
         log.warning( "Disabling Paper Wallets capability: API unavailable" )
 
+    # Select Controls complexity.
     LO				= LAYOUT_OPTIONS[controls] if controls is not None else LAYOUT
-    LO_REC			= LO != LAYOUT_OPTIONS[0]		# True iff LO == Recover or Pro
-    LO_PRO			= LO == LAYOUT_OPTIONS[-1]		# True iff LO == Pro
+    controls			= LAYOUT_OPTIONS.index( LO )
+    assert controls >= 0, f"Invalid controls index {controls}"
+    LO_BAK			= controls == LAYOUT_BAK		# True iff LO == Backup (simplest)
+    LO_CRE			= controls >= LAYOUT_CRE		# True iff non-Backup (usual)
+    LO_REC			= controls >= LAYOUT_REC		# True iff LO == Recover or Pro
+    LO_PRO			= controls == LAYOUT_PRO		# True iff LO == Pro
 
     CRYPTO_DISPLAY		= list(
         symbol
@@ -169,11 +174,11 @@ def groups_layout(
 
     layout                      = [
         [
-            sg.Frame( '1. Seed Name & Format for SLIP-39 Recovery Cards', [
+            sg.Frame( 'Seed Name & Format for SLIP-39 Recovery Cards', [
                 [
                     sg.Column( [
                         [
-                            sg.Text( f"Seed Name{LO_PRO and 's, ...' or ''}:",size=prefix,    **T_kwds ),
+                            sg.Text( f"Seed Name{LO_PRO and 's, ...' or ''}:",  size=prefix,    **T_kwds ),
                             sg.Input( f"{', '.join(names)}",key='-NAMES-',      size=inputs,    **I_kwds ),
                         ],
                         [
@@ -189,15 +194,13 @@ def groups_layout(
                         [
                             sg.Text( "Controls:",                                                **T_hue( T_kwds, 2/20 )),
                         ] + [
-                            sg.Radio( f"{lo:7}",  "LO", key=f"-LO-{li}-",       default=(lo == LO),
-                                                                                                 **T_hue( B_kwds, 2/20 ))
+                            sg.Radio( f"{lo:7}",  "LO", key=f"-LO-{li}-",    default=(lo == LO), **T_hue( B_kwds, 2/20 ))  # eg. -LO-1-
                             for li,lo in enumerate( LAYOUT_OPTIONS )
                         ],
                         [
                             sg.Text( "on Paper:",                                               **T_hue( T_kwds, 3/20 )),
                         ] + [
-                            sg.Radio( f"{pf:7}",  "PF", key=f"-PF-{pf}-",       default=(pf == PAPER),
-                                                                                                **T_hue( B_kwds, 3/20 ))
+                            sg.Radio( f"{pf:7}",  "PF", key=f"-PF-{pf}-", default=(pf == PAPER), **T_hue( B_kwds, 3/20 ))
                             for pi,pf in enumerate( PAPER_FORMATS )
                             if LO_PRO or ( LO_REC and pf.lower() != "photo" ) or pi < len( PAPER_FORMATS ) // 2
                         ],
@@ -208,15 +211,18 @@ def groups_layout(
     ] + [
         [
             # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
-            sg.Frame( '2. Seed Source', [
+            sg.Frame( 'Seed Source', [
                 [
-                    sg.Text( "Random:",                                                         **T_hue( T_kwds, 0/20 )),
-                    sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=True,   **T_hue( B_kwds, 0/20 )),
-                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',                     **T_hue( B_kwds, 0/20 )),
+                    sg.Text( "Random:" if not LO_BAK else "Source:",                            **T_hue( T_kwds, 0/20 )),
+                    sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=LO_CRE,
+                                                                                visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
+                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     visible=LO_PRO, **T_hue( B_kwds, 0/20 )),
                     sg.Text( "Recover:",                                        visible=LO_REC, **T_hue( T_kwds, 2/20 )),
                     sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **T_hue( B_kwds, 2/20 )),
-                    sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         visible=LO_REC, **T_hue( B_kwds, 2/20 )),
+                    sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         default=LO_BAK,
+                                                                                visible=LO_REC or LO_BAK,
+                                                                                                **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
                     sg.Checkbox( 'Passphrase',
                                                         key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
@@ -251,7 +257,7 @@ def groups_layout(
         ],
     ] + [
         [
-            sg.Frame( '3. Seed Extra Randomness (Trust but Verify ;-)', [
+            sg.Frame( 'Seed Extra Randomness (Trust but Verify ;-)', [
                 [
                     sg.Radio( "None",             "SE", key='-SE-NON-',         visible=LO_REC,
                                                                                 default=True,   **B_kwds ),
@@ -272,47 +278,42 @@ def groups_layout(
                     sg.Text( "",                        key='-SE-SEED-',        visible=LO_REC,
                                                                                 size=inlong,    **T_kwds ),
                 ],
-            ],                                          key='-SE-SEED-F-',                      **F_kwds_big ),
+            ],                                          key='-SE-SEED-F-',      visible=LO_CRE, **F_kwds_big ),
         ]
     ] + [
         [
-            sg.Frame( '4. Seed & SLIP-39 Recovery Groups', [
+            sg.Frame( 'Seed & SLIP-39 Recovery Groups', [
                 [
                     sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
                 ],
                 [
-                    sg.Checkbox( "Using BIP-39:",       key='-AS-BIP-CB-',      size=prefix,    **T_hue( B_kwds, -1/20 )),
-                    sg.Text( '',                        key='-AS-BIP-',         visible=LO_REC, **T_hue( T_kwds_dense, -1/20 )),
+                    sg.Checkbox( "Using BIP-39:",       key='-AS-BIP-CB-',      default=True,
+                                                                                size=prefix,    **T_hue( B_kwds, -1/20 )),
+                    sg.Text( '',                        key='-AS-BIP-',         visible=True,   **T_hue( T_kwds_dense, -1/20 )),
                 ],
                 [
                     sg.Column( [
+                        [
+                            sg.Text( "Passphrase:",     key='-PASSPHRASE-L-',   size=prefix,    **T_kwds ),
+                            sg.Input( f"{passphrase or ''}",    key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
+                        ],
                         [
                             sg.Text( "Recovery needs: ",                        size=prefix,    **T_kwds ),
                             sg.Input( f"{group_threshold}", key='-THRESHOLD-',  size=tiny,      **I_kwds ),
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
                             sg.Text( "Mnemonic Card Groups",                                    **T_kwds ),
-                            sg.Checkbox( 'Passphrase',  key='-PASSPHRASE-C-',   visible=LO_REC, **B_kwds ),  # Either SLIP-39 or BIP-39
-                        ],
-                        [
-                            sg.Frame( 'SLIP-39 Passphrase', [
-                                [
-                                    sg.Text( "Passphrase (encrypt): ",                          **T_kwds ),
-                                    sg.Input( f"{passphrase or ''}",
-                                                        key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
-                                ],
-                            ],                          key='-PASSPHRASE-F-',   visible=False,  **F_kwds ),
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,12),   **T_kwds_dense ),
+                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15),   **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds_big ),
         ],
     ] + [
         [
-            sg.Frame( '5. Cryptocurrencies and Paper Wallets', [
+            sg.Frame( 'Cryptocurrencies and Paper Wallets', [
                 [
                     sg.Column( [
                         [
@@ -352,12 +353,12 @@ def groups_layout(
                         ],
                     ],                                                          visible=LO_REC )
                 ],
-            ],                                          key='-WALLET-F-',       visible=wallet_pwd is not False,
+            ],                                          key='-WALLET-F-',       visible=LO_CRE and wallet_pwd is not False,
                                                                                                 **F_kwds_big ),  # noqa: E126
         ],
     ] + [
         [
-            sg.Frame( f"6. Your SLIP-39 Recovery Groups ({'Print directly, or ' if printers is not None else ''}Save to removable USB)!", [
+            sg.Frame( f"Your SLIP-39 Recovery Groups ({'Print directly, or ' if printers is not None else ''}Save to removable USB)!", [
                 [
                     sg.Input( sg.user_settings_get_entry( "-target folder-", ""),
                                                         key='-SAVE-',           visible=False,  **I_kwds ),
@@ -373,7 +374,7 @@ def groups_layout(
         ],
     ] + [
         [
-            sg.Frame( '7. Status; Wallets derived from Seed, or any problems we detect.', [
+            sg.Frame( 'Status; Wallets derived from Seed, or any problems we detect.', [
                 [
                     sg.Text(                            key='-STATUS-',                         **T_kwds ),
                 ]
@@ -381,7 +382,7 @@ def groups_layout(
         ],
     ] + [
         [
-            sg.Frame( '8. SLIP-39 Recovery Mnemonics on the Cards saved to PDF.', [
+            sg.Frame( 'SLIP-39 Recovery Mnemonics on the Cards saved to PDF.', [
                 [
                     sg.Multiline( "",                   key='-MNEMONICS-'+sg.WRITE_ONLY_KEY,
                                                                                 size=mnemos,    **I_kwds_small )
@@ -390,7 +391,7 @@ def groups_layout(
         ],
     ] + [
         [
-            sg.Frame( '9. Seed Recovered from SLIP-39 Mnemonics', [
+            sg.Frame( 'Seed Recovered from SLIP-39 Mnemonics', [
                 [
                     sg.Text( "Seed Verified: ",                                 size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-RECOVERED-', size=inlong,    **T_kwds ),
@@ -501,20 +502,19 @@ def update_seed_data( event, window, values ):
                 window['-SD-PASS-C-'].update( visible=False )
                 window['-SD-PASS-F-'].update( visible=False )
             elif 'BIP-SEED' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Generation): " )
+                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
                 window['-SD-DATA-F-'].update( visible=True )
                 window['-SD-PASS-C-'].update( visible=True )
                 window['-SD-PASS-F-'].update(
-                    "BIP-39 Passphrase",
+                    "BIP-39 passphrase (won't be needed for Recovery)",
                     visible=values['-SD-PASS-C-']
                 )
             elif 'BIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for Seed Entropy Recovery): " )
+                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for Mnemonic Recovery): " )
                 window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=True )
+                window['-SD-PASS-C-'].update( visible=False )
                 window['-SD-PASS-F-'].update(
-                    "BIP-39 Passphrase",
-                    visible=values['-SD-PASS-C-']
+                    visible=False
                 )
             elif 'SLIP' in update_seed_data.src:
                 window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
@@ -546,7 +546,8 @@ def update_seed_data( event, window, values ):
         # produce the correct Seed for deriving predicted wallet addresses.
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
-            # No passphrase allowed/required, to get original BIP-39 Seed Entropy
+            # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy
+            # Only needed (later) for Account generation
             passphrase		= pswd.strip().encode( 'UTF-8' )
             as_entropy		= 'BIP-SEED' not in update_seed_data.src
             seed		= recover_bip39(
@@ -752,7 +753,8 @@ def update_seed_recovered( window, values, details, passphrase=None ):
         256  33
         512  59
 
-    There must always be a passphrase; it may be empty (b'').
+    There must always be a SLIP-39 passphrase; it may be empty (b'').  When using BIP-39, do would
+    generally *not* supply a SLIP-39 passphrase.
 
     """
     mnemonics			= []
@@ -784,8 +786,9 @@ def update_seed_recovered( window, values, details, passphrase=None ):
         recohex			= codecs.encode( reco, 'hex_codec' ).decode( 'ascii' )
     window['-SEED-RECOVERED-'].update( recohex )
 
-    # Ensure that our recovered Seed matches the computed Seed!
-    if window['-SEED-'].get() != recohex:
+    # Ensure that our recovered Seed (if any) matches the computed Seed!  This is ignored
+    # when run without any details (ie. to clear any displayed -MNEMONICS-).
+    if recohex and window['-SEED-'].get() != recohex:
         return f"Recovered Seed {recohex!r} doesn't match expected: {window['-SEED-'].get()!r}"
 
 
@@ -847,6 +850,7 @@ def app(
     passphrase			= None,
     scaling			= None,
     no_titlebar			= False,
+    controls			= LAYOUT_BAK,   # What level of controls complexity is desired?
 ):
     """Convert sequence of group specifications into standard { "<group>": (<needs>, <size>) ... }"""
 
@@ -899,7 +903,6 @@ def app(
     details			= None		# The SLIP-39 details produced from groups; make None to force SLIP-39 Mnemonic update
     cryptopaths			= None
     timeout			= 0		# First time thru; refresh immediately
-    controls			= 0		# What level of controls complexity is desired?
     instructions		= ''		# The last instructions .txt payload found
     instructions_kwds		= dict()        # .. and its colors
     while event not in events_termination:
@@ -1035,6 +1038,13 @@ def app(
         if type(master_secret) is bytes:
             master_secret	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
 
+        # See if we should display/use the BIP-39 version of the Master Secret Seed.  Also, re-labels
+        # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
+        # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
+        # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed; the same
+        # Passphrase must be entered on the hardware wallet along with the Mnemonic.  
+        using_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
+
         # From this point forward, detect if we have seen any change in the computed Master Seed, or
         # in the SLIP-39 groups recovered; avoid unnecessary update of the SLIP-39 Mnemonics.  And,
         # if any status was reported in the computation of Seed Data, extra Seed Entropy or Master
@@ -1055,27 +1065,24 @@ def app(
             except Exception as exc:
                 # Incompatible 512-bit master_secret; Disable BIP-39 representation
                 log.warning( f"Error computing BIP-39: {exc}" )
+                using_bip39	= False
                 window['-AS-BIP-CB-'].update( False )
                 values['-AS-BIP-CB-']	= False
                 window['-AS-BIP-CB-'].update( disabled=True )
+                window['-AS-BIP-'].update( '' )
             else:
                 # The seed is BIP-39 compatible; give the option to indicating they're using BIP-39
-                log.warning( f"Produced BIP-39 from {len(master_secret)*4}-bit Seed: {bip39}" )
                 window['-AS-BIP-CB-'].update( disabled=False )
             details		= None
 
-        # See if we should display the BIP-39 version of the Master Secret Seed.  Also, re-labels
-        # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
-        # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
-        # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed.  In other
-        # words, the same Passphrase must be entered on the hardware wallet along with the Mnemonic.
-        using_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
-        window['-AS-BIP-'].update( visible=using_bip39 )
-        window['-PASSPHRASE-F-'].update(
-            'BIP-39 Passphrase; Use when recovering Mnemonic on device'
-            if using_bip39 else
-            passphrase_trezor_incompatible
-        )
+        # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
+        # default for both SLIP-39 and BIP-39.
+        window['-PASSPHRASE-L-'].update(
+            'BIP-39 passphrase:' if using_bip39 else 'SLIP-39 passphrase:' )
+        passphrase_now		= values['-PASSPHRASE-'].strip().encode( 'UTF-8' )
+        if passphrase != passphrase_now:
+            passphrase		= passphrase_now
+            details		= None
 
         status			= status_sd or status_se or status_ms
         if status:
@@ -1175,27 +1182,14 @@ def app(
         # NOTE: this SLIP-39 standard passphrase is NOT Trezor-compatible; warn to use the Trezor
         # "hidden wallet" feature instead.
         summary_groups		= ', '.join( f"{n}({need}/{size})" for n,(need,size) in groups.items())
-        summary			= f"Recovery needs {group_threshold} of {len(groups)} Groups: {summary_groups}"
+        summary			= f"Recover w/ {group_threshold} of {len(groups)} Groups: {summary_groups}"
 
         tot_cards		= sum( size for _,size in groups.values() )
         min_req			= sum( islice( sorted( ( need for need,_ in groups.values() ), reverse=False ), group_threshold ))
         max_req			= sum( islice( sorted( ( need for need,_ in groups.values() ), reverse=True  ), group_threshold ))
-        summary		       += f" (from {min_req}-{max_req} of {tot_cards} Mnemonic cards)"
-
-        if values['-PASSPHRASE-C-']:
-            window['-PASSPHRASE-F-'].update( visible=True )
-            passphrase_now	= values['-PASSPHRASE-'].strip()
-            if passphrase_now:
-                summary	       += f", w/ passphrase: {passphrase_now!r})"
-            passphrase_now	= passphrase_now.encode( 'UTF-8' )
-            if passphrase != passphrase_now:
-                passphrase	= passphrase_now
-                details		= None
-        else:
-            window['-PASSPHRASE-F-'].update( visible=False )
-            if passphrase:
-                details		= None
-            passphrase		= b''
+        summary		       += f" (from {min_req}-{max_req} of {tot_cards} cards)"
+        if passphrase:
+            summary	       += f", w/ {'BIP-39' if using_bip39 else 'SLIP-39'} password: {passphrase.decode( 'UTF-8' )!r})"
 
         window['-SUMMARY-'].update( summary )
 
@@ -1234,7 +1228,10 @@ def app(
                 continue
 
         # Display the computed SLIP-39 Mnemonics for the first name.  We know names[0] is in details...
-        if status := update_seed_recovered( window, values, details[names[0]], passphrase=passphrase ):
+        # If we're using BIP-39, any supplied passphrase is *not* a SLIP-39 passphrase, so don't attempt
+        # to decode SLIP-39 using the passphrase.
+        if status := update_seed_recovered( window, values, details[names[0]],
+                                            passphrase=b'' if using_bip39 else passphrase ):
             details		= None
             continue
 
