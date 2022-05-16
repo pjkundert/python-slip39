@@ -4,18 +4,28 @@
 #+BEGIN_ABSTRACT
 Select an appropriate level of Controls detail.
 
-| Basic   | SLIP-39 Mnemonic creation, "Using BIP-39" wallet support |
-| Recover | Enhanced SLIP-39 creation and SLIP-39/BIP-39 recovery    |
-| Pro     | Advanced Seeds, conversion of BIP-39 Seed to SLIP-39     |
+| Backup  | Create SLIP-39 Mnemonics from existing BIP-39 Seed Phrase           |
+| Create  | SLIP-39 Mnemonic creation, "Using BIP-39" wallet support            |
+| Recover | Enhanced SLIP-39 creation and SLIP-39/BIP-39 recovery               |
+| Pro     | Advanced Seeds, conversion of BIP-39 Phrase + passphrase to SLIP-39 |
 #+END_ABSTRACT
 
-* Basic
+* Backup
+
+  The simplest mode, to "back up" a BIP-39 Seed Phrase Mnemonic to SLIP-39 Mnemonic Card Groups.
+
+  Once you print, test recovery and distribute the SLIP-39 Mnemonic Cards, you can safely destroy
+  your unreliable and insecure BIP-39 Seed Phrase Mnemonic backups; you can securely and reliably
+  recover your BIP-39 Seed Phrase whenever you need it, by collecting a sufficient number of the
+  SLIP-39 Cards.
+
+* Create
 
   A basic SLIP-39 Mnemonic creation interface.  Default support for [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] with native
   SLIP-39 Mnemonics recovery.
 
-  Select "Using BIP-39" for traditional BIP-39 Mnemonic phrase, to use other hardware wallets, such
-  as the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]].
+  Select "Using BIP-39" for a traditional BIP-39 Seed Phrase Mnemonic, to use any other hardware
+  wallets such as the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]] (or even the Trezor "Model T", in BIP-39 Recovery mode).
 
 * Recovery
 

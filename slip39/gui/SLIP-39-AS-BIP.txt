@@ -1,13 +1,16 @@
-SLIP-39 support for Hardware Wallets that require BIP-39 Mnemonics for
-Seed recovery, such as to your Ledger Nano.  Recover your BIP-39
-Mnemonic phrase from these SLIP-39 cards using the GUI (or command-line)
-whenever you need it, to restore your Cryptocurrency accounts to your
-hardware wallet.
+SLIP-39 Mnemonics can be used directly on a Trezor "Model T" to
+backup/restore the Seed.
+
+Also supports other Hardware Wallets that require a BIP-39 Mnemonic for
+Seed recovery, such as to your Ledger Nano.  Recover your BIP-39 Seed
+Phrase from these SLIP-39 cards using the GUI (or command-line) whenever
+you need it, to restore your Crypto accounts to your hardware wallet.
 
  Controls  Description                                                          
 --------------------------------------------------------------------------------
- Basic     Generate SLIP-39 Cards, "Using BIP-39" to recover hardware wallet    
- Recover   Use SLIP-39/BIP-39 to recover Seed Entropy, "Using BIP-39" on wallet 
+ Backup    Already using a BIP-39 Seed Phrase? Back it up using SLIP-39 Cards   
+ Create    Generate SLIP-39 Cards, even if using BIP-39 on your hardware wallet 
+ Recover   Use SLIP-39/BIP-39 to recover Seed, supports using BIP-39 on wallet  
  Pro       Convert existing BIP-39 Seed to SLIP-39 for "Paper Wallet" backup    
 
 
@@ -18,9 +21,8 @@ hardware wallet.
   *only* support BIP-39 recovery, *or* to backup existing BIP-39
   Mnemonic phrases to SLIP-39 (to avoid moving all of your old BIP-39
   Seed derived wallets to new SLIP-39 Seed derived wallets), click the
-  "Using BIP-39" checkbox.
-
-  This will do two things:
+  "Using BIP-39" checkbox (this is the default). This will do two
+  things:
 
 
 1.1 Output BIP-39 Mnemonics

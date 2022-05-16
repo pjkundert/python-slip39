@@ -719,7 +719,7 @@ def random_secret(
     return RANDOM_BYTES( seed_length )
 
 
-Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts') )
+Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts', 'using_bip39') )
 
 
 def enumerate_mnemonic( mnemonic ):
@@ -790,15 +790,18 @@ def create(
     name: str,
     group_threshold: int,
     groups: Dict[str,Tuple[int, int]],
-    master_secret: bytes	= None,	        # Default: 128-bit Seed Entropy
+    master_secret: bytes	= None,	        # Default: generate 128-bit Seed Entropy
     passphrase: bytes		= b"",
     using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # default: ETH, BTC at default paths
     strength: int		= 128,
-) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]]]:
+) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
-    accounts.  Returns the details, in a form directly compatible with the layout.produce_pdf API.
+    accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
+
+    The master_secret Seed Entropy is discarded (because it is, of course, always recoverable from
+    the SLIP-39 mnemonics).
 
     Creates accountgroups derived from the Seed Entropy.  By default, this is done in the SLIP-39
     standard, using the master_secret Entropy directly.  If a passphrase is supplied, this is also
@@ -879,7 +882,7 @@ def create(
                 for line,_ in organize_mnemonic( mnem, label=f"{ordinal(mn_n+1)} " ):
                     log.info( f"{line}" )
 
-    return Details(name, group_threshold, groups, accts)
+    return Details(name, group_threshold, groups, accts, using_bip39)
 
 
 def mnemonics(

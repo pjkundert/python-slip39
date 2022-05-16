@@ -5,12 +5,13 @@
 Create (or recover) Seed Data for your SLIP-39 Mnemonic.  Or, backup your insecure/unreliable
 BIP-39 Mnemonic using SLIP-39.
 
-| Controls | Source  | Description                                          |
-|----------+---------+------------------------------------------------------|
-| Basic    | Random  | Create SLIP-39 Mnemonic creation from secure Entropy |
-| Recover  | SLIP-39 | Recover Seed from SLIP-39 Mnemonics, Using BIP-39    |
-| Pro      | BIP-39  | Recover Seed from BIP-39 Mnemonics                   |
-| Pro      | Fixed   | Hex data may be supplied for the Seed                |
+| Controls | Source  | Description                                               |
+|----------+---------+-----------------------------------------------------------|
+| Backup   | BIP-39  | Create SLIP-39 Mnemonics from existing BIP-39 Seed Phrase |
+| Create   | Random  | Create SLIP-39 Mnemonics from secure randomnes            |
+| Recover  | SLIP-39 | Recover Seed from SLIP-39 Mnemonics                       |
+| Pro      | BIP-39  | Recover BIP-39 Seed resulting from Mnemonics + passphrase |
+| Pro      | Fixed   | Hex data may be supplied for the Seed                     |
 #+END_ABSTRACT
 
 * Random
@@ -47,8 +48,8 @@ BIP-39 Mnemonic using SLIP-39.
   Here's where you can restore a lost Seed using recovered SLIP-39 Mnemonics.
 
   You don't have to worry about sorting the Mnemonics into Groups or anything; we'll be able to
-  recover the Seed, if you provide us with a sufficient threshold of SLIP-39 Mnemonic cards, from
-  the required threshold number of separate Groups.
+  recover the Seed, if you provide us with a sufficient threshold of SLIP-39 Mnemonic cards from the
+  required number of separate Mnemonic Card Groups.
 
 ** Fixing Partially Lost Groups
 
@@ -65,9 +66,10 @@ BIP-39 Mnemonic using SLIP-39.
   Create a new BIP-39 Mnemonic, or convert an existing 12- or 24-word BIP-39 Mnemonic into a 128- or
   256-bit Seed.
 
-  This allows you to "back up" your BIP-39 Seed Entropy to a set of SLIP-39 Mnemonic cards.  You can
-  then securely destroy your BIP-39 Mnemonic card(s) (or, keep a copy in some *extremely* secure
-  location), and use the SLIP-39 Mnemonic cards as your distributed backup in case of its loss.
+  This allows you to "back up" your BIP-39 Seed Entropy to a set of SLIP-39 Mnemonic Card Groups.
+  You can then securely destroy your BIP-39 Mnemonic card(s) (or, keep a copy in some *extremely*
+  secure location), and use the SLIP-39 Mnemonic cards as your distributed backup in case of its
+  loss.
 
 ** SLIP-39 vs. BIP-39 Seed
 

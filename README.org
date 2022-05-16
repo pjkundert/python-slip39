@@ -111,7 +111,7 @@ wallet.
    #+LATEX: }
 
    The account owner might store their First and Second group data in their home and office safes.
-   These are 1/1 groups (1 required, and only 1 member, so each of these are3 1-card groups.)
+   These are 1/1 groups (1 required, and only 1 member, so each of these are 1-card groups.)
 
    If the Seed needs to be recovered, collecting the First and Second cards from the home and
    office safe is sufficient to recover the Seed, and re-generate all of the HD Wallet accounts.

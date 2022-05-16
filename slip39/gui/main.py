@@ -282,7 +282,7 @@ def groups_layout(
         ]
     ] + [
         [
-            sg.Frame( 'Seed & SLIP-39 Recovery Groups', [
+            sg.Frame( 'Secret Seed & SLIP-39 Recovery Groups', [
                 [
                     sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
@@ -510,7 +510,7 @@ def update_seed_data( event, window, values ):
                     visible=values['-SD-PASS-C-']
                 )
             elif 'BIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for Mnemonic Recovery): " )
+                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
                 window['-SD-DATA-F-'].update( visible=True )
                 window['-SD-PASS-C-'].update( visible=False )
                 window['-SD-PASS-F-'].update(
@@ -1074,9 +1074,10 @@ def app(
                 # The seed is BIP-39 compatible; give the option to indicating they're using BIP-39
                 window['-AS-BIP-CB-'].update( disabled=False )
             details		= None
-
+        
         # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
         # default for both SLIP-39 and BIP-39.
+        window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
         window['-PASSPHRASE-L-'].update(
             'BIP-39 passphrase:' if using_bip39 else 'SLIP-39 passphrase:' )
         passphrase_now		= values['-PASSPHRASE-'].strip().encode( 'UTF-8' )
@@ -1214,10 +1215,10 @@ def app(
                     details[name] = create(
                         name		= name,
                         group_threshold	= group_threshold,
+                        groups		= groups,
                         master_secret	= master_secret_n,
                         passphrase	= passphrase,
                         using_bip39	= using_bip39,
-                        groups		= groups,
                         cryptopaths	= cryptopaths,
                     )
             except Exception as exc:
@@ -1265,6 +1266,7 @@ def app(
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
                 details		= write_pdfs(
                     names		= details,
+                    using_bip39		= using_bip39,
                     card_format		= card_format,
                     paper_format	= paper_format,
                     cryptocurrency	= cryptocurrency,

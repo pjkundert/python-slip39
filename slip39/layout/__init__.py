@@ -19,7 +19,7 @@ from fpdf		import FPDF, FlexTemplate
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
 from ..util		import ordinal, chunker
-from ..recovery		import produce_bip39
+from ..recovery		import recover, produce_bip39
 from ..defaults		import (
     FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES, COLOR,
@@ -558,10 +558,11 @@ def produce_pdf(
     group_threshold: int,			# SLIP-39 Group Threshold required
     groups: Dict[str,Tuple[int,List[str]]],     # SLIP-39 Groups {<name>: (<need>,[<mnemonic>,...])
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
+    using_bip39: bool,				# Using BIP-39 wallets Seed generation
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
-    cover_text: Optional[str]	= None,		# Any Cover Page text
+    cover_text: Optional[str]	= None,		# Any Cover Page text; we'll append BIP-39 if 'using_bip39'
 ) -> Tuple[Tuple[str,str], FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
@@ -629,8 +630,11 @@ def produce_pdf(
                 log.info( line.strip() )
 
     if cover_text:
+        # Cover page is always laid out in landscape, and rotated if necessary
+        cvw			= max( pdf.epw, pdf.eph )
+        cvh			= min( pdf.epw, pdf.eph )
         cover			= Region(
-            'cover', 0, 0, pdf.epw / MM_IN, pdf.eph / MM_IN
+            'cover', 0, 0, cvw / MM_IN, cvh / MM_IN
         ).add_region_relative(
             Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
         )
@@ -642,6 +646,11 @@ def produce_pdf(
         cover.add_region_proportional(
             Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
         )
+        cover.add_region_proportional(
+            Region( 'cover-rhs', x1=3/5, y1=1/5 )  # On right, below full-width header
+        ).add_region_proportional(
+            Text( 'cover-sent', y2=1/25, font='mono', multiline=True )  # 1st line
+        )
 
         cover_elements		= list( cover.elements() )
         if log.isEnabledFor( logging.DEBUG ):
@@ -650,9 +659,40 @@ def produce_pdf(
         images			= os.path.dirname( __file__ )
         tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
         tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
+
+        slip39_mnems		= []
+        slip39_group		= []
+        g_nam_max		= max( map( len, groups.keys() ))
+        for g_nam,(g_of,g_mns) in groups.items():
+            slip39_mnems.extend( g_mns )
+            slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
+            slip39_group.extend( f"  {i+1:2}: ____________________" for i in range( len( g_mns )))
+        if using_bip39:
+            # Add the BIP-39 Mnemonics to the cover_text, by recovering the master_secret from the
+            # SLIP-39 Mnemonics.
+            master_secret	= recover( slip39_mnems )
+            bip39_enum		= enumerate_mnemonic( produce_bip39( entropy=master_secret ) )
+            rows		= ( len( bip39_enum ) + 4 ) // 5
+            cols		= ( len( bip39_enum ) + rows - 1 ) // rows
+            cover_text	       += "\n--------------8<-------------[ cut here ]------------------"
+            cover_text	       += f"\n\n            Your BIP-39 Mnemonic Phrase is:\n"
+            for r in range( rows ):
+                cover_text     += "\n    "
+                for c in range( cols ):
+                    word	= bip39_enum.get( c * rows + r ) 
+                    cover_text += f"{word or '':12}"
+            cover_text	       += "\n"
+
         tpl_cover['cover-text']	= cover_text
+        cover_sent		= f"SLIP-39 Mnemonic Card Recipients:\n\n"
+        cover_sent	       += "\n".join( slip39_group )
+        tpl_cover['cover-sent']	= cover_sent
+
         pdf.add_page()
-        tpl_cover.render()
+        if orientation.lower().startswith( 'p' ):
+            tpl_cover.render( offsetx=pdf.epw, rotate=-90.0 )
+        else:
+            tpl_cover.render()
 
     card_n			= 0
     page_n			= None
@@ -701,18 +741,22 @@ def write_pdfs(
     wallet_pwd_hint	= None,		# an optional password hint
     wallet_format	= None,		# and a paper wallet format (eg. 'quarter')
     wallet_paper	= None,		# default Wallets to output on Letter format paper,
-    cover_page		= False,        # Produce a cover page (including BIP-39 Mnemonic, if using_bip39)
+    cover_page		= True,         # Produce a cover page (including BIP-39 Mnemonic, if using_bip39)
 ):
     """Writes a PDF containing a unique SLIP-39 encoded Seed Entropy for each of the names specified.
 
-    A number of Cryptocurrency wallet public addresses and QR codes are generated; optionally,
-    'using_bip39' to force BIP-39 standard Seed generation (instead of SLIP-39 standard, which uses
-    the Seed Entropy directly).
+    If a sequence of multiple 'names' are supplied, then no master_secret is allowed (we must
+    generate for each name), or a dict of { 'name': <details>, ... } for each name must be provided
+    (neither master_secret nor using_bip39 allowed).
 
-    If 'using_bip39', a single BIP-39 Mnemonic phrase card is also produced.  It is recommended to
-    destroy this card (ideally), or store it very, very securely (not recommended).  Use the SLIP-39
-    "Recover" Controls, instead, to get the BIP-39 Mnemonic phrase, when needed to restore a
-    hardware wallet.
+    If we are generating master_secrets, and accounts, a number of Cryptocurrency wallet public
+    addresses and QR codes are generated; optionally, 'using_bip39' to force BIP-39 standard Seed
+    generation (instead of SLIP-39 standard, which uses the Seed Entropy directly).
+
+    If 'using_bip39' and 'cover_page', the BIP-39 Mnemonic phrase card is also produced.  It is
+    recommended to destroy this BIP-39 Mnemonic (ideally), or store it very, very securely (not
+    recommended).  Use the SLIP-39 "Recover" Controls, instead, to recover the BIP-39 Mnemonic
+    phrase when needed to restore a hardware wallet.
 
     Returns a { "<filename>": <details>, ... } dictionary of all PDF files written, and each of
     their account details.
@@ -737,10 +781,7 @@ def write_pdfs(
     # where we use BIP-39 Seed generation to produce the wallet Seed, instead of SLIP-39 which uses
     # the entropy directly (optionally, with a passphrase, which is not typically done, and isn't
     # Trezor compatible).
-    if isinstance( names, dict ):
-        assert not using_bip39, \
-            "Specified BIP-39 Seed generation, but supplied pre-defined wallet details"
-    else:
+    if not isinstance( names, dict ):
         assert not master_secret or not names or len( names ) == 1, \
             "Creating multiple account details from the same secret entropy doesn't make sense"
         names			= {
@@ -765,18 +806,7 @@ def write_pdfs(
     if cover_page:
         cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt')).read()
         if using_bip39:
-            bip39_enum		= enumerate_mnemonic( produce_bip39( entropy=master_secret ) )
-            rows		= ( len( bip39_enum ) + 4 ) // 5
-            cols		= ( len( bip39_enum ) + rows - 1 ) // rows
-
             cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt')).read()
-            cover_text	       += f"\n\n            Your BIP-39 Mnemonic Phrase is:\n\n"
-            for r in range( rows ):
-                cover_text     += "\n    "
-                for c in range( cols ):
-                    word	= bip39_enum.get( c * rows + r ) 
-                    cover_text += f"{word or '':12}"
-            cover_text	       += "\n"
         else:
             cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt')).read()
 
@@ -797,10 +827,10 @@ def write_pdfs(
             #    name: <mnemonic>
             # or, if no name, just:
             #    <mnemonic>
-            g_name_width	= max( map( len, details.groups.keys() ))
+            g_nam_max		= max( map( len, details.groups.keys() ))
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
-                    print( f"{name} {g_name:{g_name_width}} {i+1}: {mnem}" )
+                    print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
