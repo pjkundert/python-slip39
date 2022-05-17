@@ -82,24 +82,24 @@ related to the Seed.
 
     It is estimated that 20% of Bitcoin is already lost in the first 10 years of its existence,
     stored in wallet addresses that can never be accessed because the corresponding "Private Key"
-    has been lost, or the password forgotten.
+    has been lost, or the passphrase forgotten.
 
     The statistical chances of anyone successfully passing a Cryptocurrency wallet Private Key +
-    password or Seed to their heirs over a 50-year period is therefore very low.  Since memory fades
+    passphrase or Seed to their heirs over a 50-year period is therefore very low.  Since memory fades
     and "safe" storage places are lost, destroyed or forgotten, this risk actually increases
     exponentially over time.
 
-    I estimate the probability of successfully inheriting such a Paper Wallet + password or BIP-39
+    I estimate the probability of successfully inheriting such a Paper Wallet + passphrase or BIP-39
     Mnemonic protected Seed is probably less than 50%.  Perhaps *much* less.
 
-*** Why Not a BIP-38 Encrypted Wallet + Password?
+*** Why Not a BIP-38 Encrypted Wallet + Passphrase?
 
     Have you ever forgotten a password to an online account?
 
-    Well, with a BIP-38 Encrypted Wallet + Password, there is /no password reset/ option; there is
-    no way to recover the password.
+    Well, with a BIP-38 Encrypted Wallet + passphrase, there is /no password reset/ option; there is
+    no way to recover the passphrase.
 
-    If the Wallet is lost, there is of course no way to recover it, even if you have the password.
+    If the Wallet is lost, there is of course no way to recover it, even if you have the passphrase.
 
     This option is perhaps even less desirable than using a BIP-39 Mnemonic Seed phrase, because
     each and every Encrypted Wallet is exposed to this risk of loss.

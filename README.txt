@@ -44,20 +44,22 @@ from the seed, to /illustrate/ what accounts are associated with the
 backed-up seed.  Recovery of the seed to a [Trezor "Model T"] is simple,
 by entering the mnemonics right on the device.
 
-We also support backup of existing insecure and unreliable BIP-39
-recover phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware
-wallets like the [Ledger Nano]!  Recover from your existing BIP-39
-Mnemonic, select "Using BIP-39", and generate a set of SLIP-39 Mnemonic
-cards.  Later, use the SLIP-39 App to recover from your SLIP-39 Mnemonic
-cards, click "Using BIP-39" to get your BIP-39 Mnemonic back, and use it
-to recover your accounts to your Ledger (or other) hardware wallet.
+We also support backup of existing insecure and unreliable BIP-39 Seed
+Phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware wallets
+like the [Ledger Nano], etc.!  Recover from your existing BIP-39 Seed
+Phrase Mnemonic, select "Using BIP-39" (and enter your BIP-39
+passphrase), and generate a set of SLIP-39 Mnemonic cards.  Later, use
+the SLIP-39 App to recover from your SLIP-39 Mnemonic cards, click
+"Using BIP-39" to get your BIP-39 Mnemonic back, and use it (and your
+passphrase) to recover your accounts to your Ledger (or other) hardware
+wallet.
 
 Table of Contents
 ─────────────────
 
 1. Security with Availability
 .. 1. Shamir's Secret Sharing System (SSSS)
-2. SLIP-39 Account Creation, Recovery and Address Generation
+2. SLIP-39 Account Creation, Recovery and Generation
 .. 1. Creating New SLIP-39 Recoverable Seeds
 ..... 1. Paper Wallets
 ..... 2. Supported Cryptocurrencies
@@ -173,7 +175,7 @@ Table of Contents
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   The account owner might store their First and Second group data in
   their home and office safes.  These are 1/1 groups (1 required, and
-  only 1 member, so each of these are3 1-card groups.)
+  only 1 member, so each of these are 1-card groups.)
 
   If the Seed needs to be recovered, collecting the First and Second
   cards from the home and office safe is sufficient to recover the Seed,
@@ -203,8 +205,8 @@ Table of Contents
 <https://github.com/satoshilabs/slips/blob/master/slip-0039.md>
 
 
-2 SLIP-39 Account Creation, Recovery and Address Generation
-═══════════════════════════════════════════════════════════
+2 SLIP-39 Account Creation, Recovery and Generation
+═══════════════════════════════════════════════════
 
   Generating a new SLIP-39 encoded Seed is easy, with results available
   as PDF and text.  Any number of derived HD wallet account addresses
@@ -284,8 +286,8 @@ Table of Contents
   └────
 
   ┌────
-  │ 2022-04-22 16:20:17 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ passphrase
-  │ 2022-04-22 16:20:17 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2022-05-16 21:19:53 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ passphrase
+  │ 2022-05-16 21:19:53 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ ffffffffffffffffffffffffffffffff
   └────
 
@@ -590,11 +592,11 @@ Table of Contents
   │     ) 2>&1
   └────
   ┌────
-  │ 2022-04-22 16:20:20 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x5e944187d3aad8925d68D591c5A9699eA126B5D6
-  │ 2022-04-22 16:20:20 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qmtck3uh6tsa74zhry7hk7r27vg2cazc2un7ne8
+  │ 2022-05-16 21:19:56 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x0c7A25D2304a66e88ed978780983ef3F157Bcdc0
+  │ 2022-05-16 21:19:56 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qyc54w63uxnsx9x9a4npk8tr9lnhqsecqsyz7ty
   │ ...later...
-  │ 2022-04-22 16:20:20 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x5e944187d3aad8925d68D591c5A9699eA126B5D6
-  │ 2022-04-22 16:20:20 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qmtck3uh6tsa74zhry7hk7r27vg2cazc2un7ne8
+  │ 2022-05-16 21:19:56 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x0c7A25D2304a66e88ed978780983ef3F157Bcdc0
+  │ 2022-05-16 21:19:56 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qyc54w63uxnsx9x9a4npk8tr9lnhqsecqsyz7ty
   └────
 
 
@@ -683,15 +685,14 @@ Table of Contents
   stdout or to a serial port.
 
   ┌────
-  │     slip39-generator --secret ffffffffffffffffffffffffffffffff --path '../-3' 2>&1
+  │     echo ffffffffffffffffffffffffffffffff | slip39-generator --secret - --path '../-3' 2>&1
   └────
 
   ┌────
-  │ 2022-04-22 16:20:21 slip39.generator It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  │     0: [["ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"], ["BTC", "m/84'/0'/0'/0/0", "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"]]
-  │     1: [["ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"], ["BTC", "m/84'/0'/0'/0/1", "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"]]
-  │     2: [["ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"], ["BTC", "m/84'/0'/0'/0/2", "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"]]
-  │     3: [["ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"], ["BTC", "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"]]
+  │ 0: [["ETH", "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"], ["BTC", "m/84'/0'/0'/0/0", "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"]]
+  │ 1: [["ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"], ["BTC", "m/84'/0'/0'/0/1", "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"]]
+  │ 2: [["ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"], ["BTC", "m/84'/0'/0'/0/2", "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"]]
+  │ 3: [["ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"], ["BTC", "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"]]
   └────
 
   To produce accounts from a BIP-39 or SLIP-39 seed, recover it using
@@ -725,11 +726,11 @@ Table of Contents
   ┌────
   │ 
   │ 
-  │ nonce: 8a8d56a3a966649243635e7f7279145cb46513f7c0b31748c71bd687
-  │     0: b545a80c5944039ba164ca3e02cd4d45f4688a3a159a15eacb391aab758c78d0802e79e0b21602424f843234e5164faa1da2bbe5abdbf0a6a630ada572cacdd6653d2a228508a5463ca08557d68501db3248da365c978c21cfecc1674a294641f2ac52bd0365dd35e05b8410825525516a83096cbc1d6bed5c41308d80436433986377b88669a6ccb05f5e1989311c463a13937537e054cd885a07c0fa45a97bd0032094bc
-  │     1: f676289005cdd3625ecedfbc48dffa999c228b6d76e60e0ac40f510fc603c9e9e22ce4037aeee4fe0542055b116d64f2f20efd2b2e1a2bc3674fec2c63b0764929bac50d524d8e7c6dc9679316cdb187abc3452204f9a4be1277c275d7ecdd2bffe5833162f56da66282621d05804fb784b693d0c0be2c2ea72f8ebfc799a61de4a2ed3e64f3765442a65023a9b580a656c1173e03d9299420f0e3452cc7565a825644b0c6
-  │     2: fe9430ed4d29b809b64e43ad0b64c9d0b257811e203b505133ea000391a9855c8fdedd80b4fda156c058aee8365caf30eb8590bf1d47d5a017811625c00c75fa6308153b0885e3a35041eef1e15847eb068d99d39ff39ac85eb62fab0e35093c73aa29c7505ab7e0e4e2b0a70c27ea939e0943232183547246823797bab1aa27e96aa8c75d1079ed167ed0ff83dd4436e2ffc8b1814ab24bcc19a6dcfb8655e33144d2f2e8
-  │     3: eeb476da3687511487364a8bf5748c7f729ced5c3f3974e2291146f1ae64ddc0731dfc068ed7fb382d21991cb608937dea6745513d471a19af58f308f595a95f836802fb15c06dab6c78a2c82cdb5791a442bb5d0611d2c22f729ae2e5fb993dc500784bb2bd4aa215e36f53fb3d1719afa0bfff023eea9a9839eac0c6120ee1f74dd264e90db07177e902d3d6c35567f2d7cc1d1545dbaf9c5a45e9420d5b004a756a7e9a
+  │ nonce: 1ac81b830d832b4943dc8a4b56d17f13d222830fa67d993c9cb0fe36
+  │     0: d9261cde874a385193bf2bdd51189577b0d7c17a1337d7e3d5db88cc47fd958ed029151e546e09db90a317eded375d255cc8c2af997697c0aa1e148c421018a27ff403b6b9ff6981ef90959e73d1b39deeb06d89599a5002fb2f61687237b75cbd11e4ce7cf12f6123878cb6e09770ca751c4e40725313f69273cb6707b9d35482125d8007fd00346be5e2edb686e82d6d12f2563725f6b92ac8514c51f537adc4f1a91417
+  │     1: 75627e4b6afee4f7f2a7b022ed33a6bf7d99d253720bbe16b9123c15a000a6d10be8f2580eaad37d538ed59331c76579ac7f9387ec5741e6394bc9fc56be792d46368d093794a2153ae6eaab6f47d0bb171b6d26b7be63aea4bd006a9a4efe08035d28238c855fe1319ee0ffd906a32b23fce2fe8e496895bcb36964f201702abaf69fbc84b373aac7f98641ab3fdc07e2e111b6bff183185194a3f506c5e39657003ed5cb
+  │     2: a5398e18847598f39183710b99f0d2965ad210ce9dc7d1cbd2fe2019539f9c9541ef3ce2804c74fdd68c17fe5c0c15a2d68af33cc94314abff029f399da0ec7fb860ab7edd5aa9ae99842647480e132548199e4deb156efe8fb2e16997ac7f47d1e39aee703ef5597d436cb5be58ee63e2ca63ec8146f91c0c4cc6e65c5d0d352d13ba4e4889146c81c4924ac780ebf50990a9229c92932c47009047dcd63e32fae8652125
+  │     3: 008ef7e844ac13b2bc62f68dbbe0001bafd703c7ffa28e9da5aa48dff20c8980b7d766ddd4769e7fdd4a2c4d2e09735ddb399a2d04f9ec668530d1468a52f108422ebed22579fc822f1a324ecef0f683c9860f8df2b2a7a7584eee7d10d357915616e785f58d4274af53ae27beb67c91abca5e160eb49ac0aae462bac3a40c16f9fbca2f961fc6477d9d3163c9fd56f9405e9844d4d579906a9f90f6a276e7d6624c72b2b8
   └────
 
   On the receiving computer, we can decrypt and recover the stream of
@@ -775,14 +776,15 @@ Table of Contents
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Outputs a `slip39.Details' namedtuple containing:
 
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Key              Description                                     
-  ──────────────────────────────────────────────────────────────────
-   name             (same)                                          
-   group_threshold  (same)                                          
-   groups           Like groups, w/ <members> =  ["<mnemonics>", …] 
-   accounts         Resultant list of groups of accounts            
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Key              Description                                        
+  ─────────────────────────────────────────────────────────────────────
+   name             (same)                                             
+   group_threshold  (same)                                             
+   groups           Like groups, w/ <members> =  ["<mnemonics>", …]    
+   accounts         Resultant list of groups of accounts               
+   using_bip39      Seed produced from entropy using BIP-39 generation 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   This is immediately usable to pass to `slip39.output'.
 
   ┌────
@@ -875,16 +877,19 @@ Table of Contents
 2.6.2 `slip39.produce_pdf'
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Key              Description                                     
-  ──────────────────────────────────────────────────────────────────
-   name             (same as `slip39.create')                       
-   group_threshold  (same as `slip39.create')                       
-   groups           Like groups, w/ <members> =  ["<mnemonics>", …] 
-   accounts         Resultant { "path": Account, …}                 
-   card_format      'index', '(<h>,<w>),<margin>', …                
-   paper_format     'Letter', …                                     
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Key              Description                                                         
+  ──────────────────────────────────────────────────────────────────────────────────────
+   name             (same as `slip39.create')                                           
+   group_threshold  (same as `slip39.create')                                           
+   groups           Like groups, w/ <members> =  ["<mnemonics>", …]                     
+   accounts         Resultant { "path": Account, …}                                     
+   using_bip39      Generate Seed from Entropy via BIP-39 generation algorithm          
+   card_format      'index', '(<h>,<w>),<margin>', …                                    
+   paper_format     'Letter', …                                                         
+   orientation      Force an orientation (default: portrait, landscape)                 
+   cover_text       Produce a cover page w/ the text (and BIP-39 Phrase if using_bip39) 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Layout and produce a PDF containing all the SLIP-39 details on cards
   for the crypto accounts, on the paper_format provided.  Returns the
   paper (orientation,format) used, the FPDF, and passes through the
@@ -920,6 +925,7 @@ Table of Contents
    names            A sequence of Seed names, or a dict of { name: <details> } (from slip39.create)                       
    master_secret    A Seed secret (only appropriate if exactly one name supplied)                                         
    passphrase       A SLIP-39 passphrase (not Trezor compatible; use "hidden wallet" phrase on device instead)            
+   using_bip39      Generate Seed from Entropy via BIP-39 generation algorithm                                            
    group            A dict of {"<group>":(<required>, <members>), …}                                                      
    group_threshold  How many groups are required to recover the Seed                                                      
    cryptocurrency   A sequence of [ "<crypto>", "<crypto>:<derivation>", … ] w/ optional ranges                           
@@ -934,6 +940,8 @@ Table of Contents
    wallet_pwd       If password supplied, produces encrypted BIP-38 or JSON Paper Wallets to PDF (preferred vs. json_pwd) 
    wallet_pwd_hint  An optional passphrase hint, printed on paper wallet                                                  
    wallet_format    Paper wallet size, (eg. "third"); the default is 1/3 letter size                                      
+   wallet_paper     Other paper format (default: Letter)                                                                  
+   cover_page       A bool indicating whether to produce a cover page (default: True)                                     
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   For each of the names provided, produces a separate PDF containing all
   the SLIP-39 details and optionally encrypted BIP-38 paper wallets and
@@ -1048,10 +1056,18 @@ Table of Contents
 ──────────────────────────────────────
 
   Unfortunately, it is *not possible* to cleanly convert a BIP-39
-  generated wallet Seed into a SLIP-39 wallet.  Both BIP-39 and SLIP-39
-  preserve the original 128- to 256-bit Seed Entropy (random) bits, but
-  these bits are used *very differently* – and incompatibly – to
-  generate the resultant wallet Seed.
+  /generated/ wallet Seed into a SLIP-39 wallet.  Both BIP-39 and
+  SLIP-39 preserve the original 128- to 256-bit Seed Entropy (random)
+  bits, but these bits are used *very differently* – and incompatibly –
+  to generate the resultant wallet Seed.
+
+  In native SLIP-39, the original, recovered Seed Entropy (128- or
+  256-bits) is used directly by the BIP-44 wallet derivation.  In
+  BIP-39, the Seed entropy is not directly used /at all/!  It is only
+  *indirectly* used; the BIP-39 Seed Phrase (which contains the exact,
+  original entropy) is used, as normalized text, as input to a hashing
+  function, along with some other fixed text, to produce a 512-bit Seed,
+  which is then fed into the BIP-44 wallet derivation process.
 
   The least desirable method is to preserve the 512-bit *output* of the
   BIP-39 mnemonic phrase as a set of 512-bit (59-word) SLIP-39
@@ -1129,8 +1145,8 @@ Table of Contents
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    0                                       1 
   ───────────────────────────────────────────
-   Valid random 12-word mnemonics:     6.32% 
-   Or, about:                       1 / 15.8 
+   Valid random 12-word mnemonics:     5.97% 
+   Or, about:                       1 / 16.8 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Sure enough, about 1/16 random 12-word phrases are valid BIP-39
   mnemonics.  OK, we've got the contents of the BIP-39 phrase dialed in.
@@ -1209,7 +1225,7 @@ Table of Contents
   Mnemonic phrases.
 
   ┌────
-  │     name,thrs,grps,acct = slip39.create(
+  │     name,thrs,grps,acct,ub39 = slip39.create(
   │         "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy )
   │     [
   │      [ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
@@ -1378,8 +1394,8 @@ Table of Contents
 3.3.1 Emergency Recovery: Using Recovered Paper Wallets
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
-  There is one approach which can preserve an original BIP-39 generated
-  wallet addresses, using SLIP-39 mnemonics.
+  There is one approach which can preserve an original BIP-39
+  /generated/ wallet addresses, using SLIP-39 mnemonics.
 
   It is clumsy, as it preserves the BIP-39 *output* 512-bit stretched
   seed, and the resultant 59-word SLIP-39 mnemonics cannot be used (at
@@ -1387,8 +1403,8 @@ Table of Contents
   to recover the HD wallet private keys without access to the original
   BIP-39 Mnemonic phrase /or passphrase/ – you could generate and
   distribute a set of more secure SLIP-39 Mnemonic phrases, instead of
-  trying to secure the original BIP-39 mnemonic – without abandoning
-  your BIP-39 wallets.
+  trying to secure the original BIP-39 mnemonic + passphrase – without
+  abandoning your existing BIP-39 wallets.
 
   We'll use `slip39.recovery --bip39 ...' to recover the 512-bit
   stretched seed from BIP-39:
@@ -1399,8 +1415,8 @@ Table of Contents
   │     ) 2>&1
   └────
   ┌────
-  │ 2022-04-22 16:20:31 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-  │ 2022-04-22 16:20:31 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2022-05-16 21:20:06 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+  │ 2022-05-16 21:20:06 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
   └────
 
@@ -1414,26 +1430,26 @@ Table of Contents
   │     ) 2>&1 | tail -20
   └────
   ┌────
-  │     2022-04-22 16:20:31 slip39                7 sugar     19 species   31 diet      43 obesity   55 reward    
-  │     2022-04-22 16:20:31 slip39                8 veteran   20 animal    32 dismiss   44 climate   56 python    
-  │     2022-04-22 16:20:31 slip39                9 vampire   21 story     33 injury    45 capacity  57 tendency  
-  │     2022-04-22 16:20:31 slip39               10 plains    22 leaf      34 vitamins  46 order     58 require   
-  │     2022-04-22 16:20:31 slip39               11 capital   23 relate    35 ecology   47 duration  59 submit    
-  │     2022-04-22 16:20:31 slip39               12 predator  24 ounce     36 puny      48 bucket    
-  │     2022-04-22 16:20:31 slip39           6th  1 evoke     13 depart    25 agree     37 weapon    49 damage    
-  │     2022-04-22 16:20:31 slip39                2 discuss   14 omit      26 wrap      38 deal      50 avoid     
-  │     2022-04-22 16:20:31 slip39                3 decision  15 flame     27 emperor   39 criminal  51 suitable  
-  │     2022-04-22 16:20:31 slip39                4 spider    16 fact      28 flavor    40 source    52 script    
-  │     2022-04-22 16:20:31 slip39                5 acid      17 mandate   29 hearing   41 slow      53 triumph   
-  │     2022-04-22 16:20:31 slip39                6 knit      18 dish      30 destroy   42 march     54 repair    
-  │     2022-04-22 16:20:31 slip39                7 shrimp    19 trouble   31 client    43 library   55 guard     
-  │     2022-04-22 16:20:31 slip39                8 privacy   20 package   32 frequent  44 robin     56 injury    
-  │     2022-04-22 16:20:31 slip39                9 junior    21 prize     33 cylinder  45 deal      57 argue     
-  │     2022-04-22 16:20:31 slip39               10 warmth    22 timber    34 bike      46 guitar    58 curly     
-  │     2022-04-22 16:20:31 slip39               11 smith     23 ladle     35 fragment  47 total     59 best      
-  │     2022-04-22 16:20:31 slip39               12 benefit   24 exercise  36 scroll    48 various   
-  │     2022-04-22 16:20:31 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │     2022-04-22 16:20:31 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │     2022-05-16 21:20:07 slip39                7 cylinder  19 platform  31 language  43 woman     55 anatomy   
+  │     2022-05-16 21:20:07 slip39                8 boring    20 eyebrow   32 document  44 coal      56 chest     
+  │     2022-05-16 21:20:07 slip39                9 cradle    21 satisfy   33 laser     45 science   57 webcam    
+  │     2022-05-16 21:20:07 slip39               10 physics   22 alto      34 aircraft  46 national  58 sister    
+  │     2022-05-16 21:20:07 slip39               11 kind      23 blanket   35 gasoline  47 eraser    59 material  
+  │     2022-05-16 21:20:07 slip39               12 crisis    24 cinema    36 fiction   48 arcade    
+  │     2022-05-16 21:20:07 slip39           6th  1 depart    13 require   25 album     37 hanger    49 marathon  
+  │     2022-05-16 21:20:07 slip39                2 smug      14 mustang   26 medical   38 fangs     50 wrist     
+  │     2022-05-16 21:20:07 slip39                3 decision  15 keyboard  27 suitable  39 cinema    51 writing   
+  │     2022-05-16 21:20:07 slip39                4 spider    16 laden     28 morning   40 upgrade   52 papa      
+  │     2022-05-16 21:20:07 slip39                5 acid      17 pregnant  29 problem   41 stay      53 network   
+  │     2022-05-16 21:20:07 slip39                6 acne      18 relate    30 blanket   42 wildlife  54 story     
+  │     2022-05-16 21:20:07 slip39                7 damage    19 august    31 drink     43 leaf      55 solution  
+  │     2022-05-16 21:20:07 slip39                8 tendency  20 category  32 change    44 insect    56 upstairs  
+  │     2022-05-16 21:20:07 slip39                9 language  21 practice  33 rhyme     45 seafood   57 yelp      
+  │     2022-05-16 21:20:07 slip39               10 fluff     22 zero      34 mandate   46 steady    58 quantity  
+  │     2022-05-16 21:20:07 slip39               11 scandal   23 voting    35 exclude   47 exercise  59 glasses   
+  │     2022-05-16 21:20:07 slip39               12 vocal     24 moment    36 order     48 check     
+  │     2022-05-16 21:20:07 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │     2022-05-16 21:20:07 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
   └────
   This `0xfc20..1B5E' address is the same Ethereum address as is
   recovered on a Trezor using this BIP-39 mnemonic phrase.  Thus, we can
@@ -1462,8 +1478,9 @@ Table of Contents
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   The best solution is to use SLIP-39 to back up the original BIP-39
-  Seed Entropy, and then later recover that Seed Entropy and re-generate
-  the BIP-39 Mnemonic phrase:
+  Seed /Entropy/ (/not/ the generated Seed), and then later recover that
+  Seed Entropy and re-generate the BIP-39 Mnemonic phrase.  You will
+  continue to need to remember and use your original BIP-39 passphrase:
 
   <file:images/BIP-39-backup-entropy.png>
 
@@ -1475,8 +1492,8 @@ Table of Contents
   │     ) 2>&1
   └────
   ┌────
-  │ 2022-04-22 16:20:33 slip39.recovery  Recovered 128-bit BIP-39 secret from english mnemonic
-  │ 2022-04-22 16:20:33 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2022-05-16 21:20:08 slip39.recovery  Recovered 128-bit BIP-39 secret from english mnemonic
+  │ 2022-05-16 21:20:08 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ ffffffffffffffffffffffffffffffff
   └────
 
@@ -1494,26 +1511,26 @@ Table of Contents
   │     ) 2>&1 | tail -20
   └────
   ┌────
-  │     2022-04-22 16:20:33 slip39                4 skin      11 username  18 join      
-  │     2022-04-22 16:20:33 slip39                5 cricket   12 activity  19 genuine   
-  │     2022-04-22 16:20:33 slip39                6 pipeline  13 luxury    20 champion  
-  │     2022-04-22 16:20:33 slip39                7 science   14 yelp      
-  │     2022-04-22 16:20:33 slip39           5th  1 expand     8 submit    15 peaceful  
-  │     2022-04-22 16:20:33 slip39                2 item       9 judicial  16 answer    
-  │     2022-04-22 16:20:33 slip39                3 decision  10 blessing  17 guard     
-  │     2022-04-22 16:20:33 slip39                4 snake     11 dominant  18 eyebrow   
-  │     2022-04-22 16:20:33 slip39                5 boundary  12 desire    19 deploy    
-  │     2022-04-22 16:20:33 slip39                6 source    13 stick     20 evoke     
-  │     2022-04-22 16:20:33 slip39                7 penalty   14 guest     
-  │     2022-04-22 16:20:33 slip39           6th  1 expand     8 hand      15 venture   
-  │     2022-04-22 16:20:33 slip39                2 item       9 home      16 hush      
-  │     2022-04-22 16:20:33 slip39                3 decision  10 evoke     17 stadium   
-  │     2022-04-22 16:20:33 slip39                4 spider    11 reward    18 sweater   
-  │     2022-04-22 16:20:33 slip39                5 breathe   12 unfair    19 agree     
-  │     2022-04-22 16:20:33 slip39                6 depend    13 plains    20 pacific   
-  │     2022-04-22 16:20:33 slip39                7 laundry   14 boundary  
-  │     2022-04-22 16:20:33 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-  │     2022-04-22 16:20:33 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+  │     2022-05-16 21:20:08 slip39                4 skin      11 epidemic  18 health    
+  │     2022-05-16 21:20:08 slip39                5 alive     12 research  19 both      
+  │     2022-05-16 21:20:08 slip39                6 already   13 island    20 warn      
+  │     2022-05-16 21:20:08 slip39                7 false     14 universe  
+  │     2022-05-16 21:20:08 slip39           5th  1 glad       8 duke      15 angel     
+  │     2022-05-16 21:20:08 slip39                2 pipeline   9 climate   16 worthy    
+  │     2022-05-16 21:20:08 slip39                3 decision  10 recall    17 cylinder  
+  │     2022-05-16 21:20:08 slip39                4 snake     11 float     18 short     
+  │     2022-05-16 21:20:08 slip39                5 acne      12 yoga      19 lily      
+  │     2022-05-16 21:20:08 slip39                6 fused     13 ticket    20 dragon    
+  │     2022-05-16 21:20:08 slip39                7 diet      14 aircraft  
+  │     2022-05-16 21:20:08 slip39           6th  1 glad       8 triumph   15 evidence  
+  │     2022-05-16 21:20:08 slip39                2 pipeline   9 wrote     16 verdict   
+  │     2022-05-16 21:20:08 slip39                3 decision  10 short     17 smear     
+  │     2022-05-16 21:20:08 slip39                4 spider    11 network   18 black     
+  │     2022-05-16 21:20:08 slip39                5 cinema    12 soldier   19 fitness   
+  │     2022-05-16 21:20:08 slip39                6 emperor   13 antenna   20 public    
+  │     2022-05-16 21:20:08 slip39                7 declare   14 loan      
+  │     2022-05-16 21:20:08 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+  │     2022-05-16 21:20:08 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
   └────
   Because we must tell `slip39' to that we're using the BIP-39 Mnemonic
   and Seed generation process to derived the wallet addresses from the
@@ -1527,26 +1544,26 @@ Table of Contents
   │     ) 2>&1 | tail -20
   └────
   ┌────
-  │     2022-04-22 16:20:34 slip39                4 skin      11 taxi      18 armed     
-  │     2022-04-22 16:20:34 slip39                5 coastal   12 solution  19 moment    
-  │     2022-04-22 16:20:34 slip39                6 fragment  13 failure   20 pulse     
-  │     2022-04-22 16:20:34 slip39                7 entrance  14 aluminum  
-  │     2022-04-22 16:20:34 slip39           5th  1 material   8 brother   15 repair    
-  │     2022-04-22 16:20:34 slip39                2 axis       9 biology   16 charity   
-  │     2022-04-22 16:20:34 slip39                3 decision  10 already   17 lunch     
-  │     2022-04-22 16:20:34 slip39                4 snake     11 density   18 estimate  
-  │     2022-04-22 16:20:34 slip39                5 budget    12 weapon    19 trust     
-  │     2022-04-22 16:20:34 slip39                6 tofu      13 suitable  20 revenue   
-  │     2022-04-22 16:20:34 slip39                7 clay      14 both      
-  │     2022-04-22 16:20:34 slip39           6th  1 material   8 animal    15 involve   
-  │     2022-04-22 16:20:34 slip39                2 axis       9 galaxy    16 wrap      
-  │     2022-04-22 16:20:34 slip39                3 decision  10 sprinkle  17 wildlife  
-  │     2022-04-22 16:20:34 slip39                4 spider    11 senior    18 union     
-  │     2022-04-22 16:20:34 slip39                5 cover     12 require   19 hesitate  
-  │     2022-04-22 16:20:34 slip39                6 devote    13 mild      20 welfare   
-  │     2022-04-22 16:20:34 slip39                7 building  14 lunar     
-  │     2022-04-22 16:20:34 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │     2022-04-22 16:20:34 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │     2022-05-16 21:20:09 slip39                4 skin      11 idea      18 elbow     
+  │     2022-05-16 21:20:09 slip39                5 dilemma   12 browser   19 object    
+  │     2022-05-16 21:20:09 slip39                6 superior  13 flexible  20 evening   
+  │     2022-05-16 21:20:09 slip39                7 earth     14 have      
+  │     2022-05-16 21:20:09 slip39           5th  1 paid       8 counter   15 problem   
+  │     2022-05-16 21:20:09 slip39                2 provide    9 client    16 animal    
+  │     2022-05-16 21:20:09 slip39                3 decision  10 mental    17 mixture   
+  │     2022-05-16 21:20:09 slip39                4 snake     11 species   18 science   
+  │     2022-05-16 21:20:09 slip39                5 destroy   12 license   19 symbolic  
+  │     2022-05-16 21:20:09 slip39                6 inform    13 undergo   20 cluster   
+  │     2022-05-16 21:20:09 slip39                7 bucket    14 brother   
+  │     2022-05-16 21:20:09 slip39           6th  1 paid       8 suitable  15 voter     
+  │     2022-05-16 21:20:09 slip39                2 provide    9 response  16 boring    
+  │     2022-05-16 21:20:09 slip39                3 decision  10 gravity   17 eraser    
+  │     2022-05-16 21:20:09 slip39                4 spider    11 item      18 inmate    
+  │     2022-05-16 21:20:09 slip39                5 ceramic   12 laden     19 grocery   
+  │     2022-05-16 21:20:09 slip39                6 pacific   13 dish      20 downtown  
+  │     2022-05-16 21:20:09 slip39                7 install   14 chubby    
+  │     2022-05-16 21:20:09 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │     2022-05-16 21:20:09 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
   └────
   And, there we have it – we've recovered exactly the same Ethereum and
   Bitcoin wallets as would a native BIP-39 hardware wallet like a Ledger
