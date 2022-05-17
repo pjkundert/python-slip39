@@ -211,17 +211,17 @@ def groups_layout(
     ] + [
         [
             # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
-            sg.Frame( 'Seed Source', [
+            sg.Frame( 'Seed Source: Input or Create your Seed Entropy here', [
                 [
-                    sg.Text( "Random:" if not LO_BAK else "Source:",                            **T_hue( T_kwds, 0/20 )),
+                    sg.Text( "Random:" if not LO_BAK else "Source:",            visible=LO_CRE, **T_hue( T_kwds, 0/20 )),
                     sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=LO_CRE,
                                                                                 visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     visible=LO_PRO, **T_hue( B_kwds, 0/20 )),
-                    sg.Text( "Recover:",                                        visible=LO_REC, **T_hue( T_kwds, 2/20 )),
+                    sg.Text( "Recover:",                                        visible=LO_BAK, **T_hue( T_kwds, 2/20 )),
                     sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         default=LO_BAK,
-                                                                                visible=LO_REC or LO_BAK,
+                                                                                visible=LO_BAK or LO_CRE,
                                                                                                 **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
                     sg.Checkbox( 'Passphrase',
@@ -282,7 +282,7 @@ def groups_layout(
         ]
     ] + [
         [
-            sg.Frame( 'Secret Seed & SLIP-39 Recovery Groups', [
+            sg.Frame( 'Seed Secret & SLIP-39 Recovery Groups', [
                 [
                     sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
