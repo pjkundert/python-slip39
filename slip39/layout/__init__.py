@@ -675,16 +675,16 @@ def produce_pdf(
             rows		= ( len( bip39_enum ) + 4 ) // 5
             cols		= ( len( bip39_enum ) + rows - 1 ) // rows
             cover_text	       += "\n--------------8<-------------[ cut here ]------------------"
-            cover_text	       += f"\n\n            Your BIP-39 Mnemonic Phrase is:\n"
+            cover_text	       += "\n\n            Your BIP-39 Mnemonic Phrase is:\n"
             for r in range( rows ):
                 cover_text     += "\n    "
                 for c in range( cols ):
-                    word	= bip39_enum.get( c * rows + r ) 
+                    word	= bip39_enum.get( c * rows + r )
                     cover_text += f"{word or '':12}"
             cover_text	       += "\n"
 
         tpl_cover['cover-text']	= cover_text
-        cover_sent		= f"SLIP-39 Mnemonic Card Recipients:\n\n"
+        cover_sent		= "SLIP-39 Mnemonic Card Recipients:\n\n"
         cover_sent	       += "\n".join( slip39_group )
         tpl_cover['cover-sent']	= cover_sent
 

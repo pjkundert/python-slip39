@@ -1042,7 +1042,7 @@ def app(
         # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
         # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
         # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed; the same
-        # Passphrase must be entered on the hardware wallet along with the Mnemonic.  
+        # Passphrase must be entered on the hardware wallet along with the Mnemonic.
         using_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
 
         # From this point forward, detect if we have seen any change in the computed Master Seed, or
@@ -1074,7 +1074,7 @@ def app(
                 # The seed is BIP-39 compatible; give the option to indicating they're using BIP-39
                 window['-AS-BIP-CB-'].update( disabled=False )
             details		= None
-        
+
         # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
         # default for both SLIP-39 and BIP-39.
         window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
