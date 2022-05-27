@@ -19,6 +19,20 @@ recommended.  Leave it empty!
   lost.
 
 
+1.1 Safely Using BIP-39 Passphrases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Once you Backup your BIP-39 Seed Phrase to a set of SLIP-39 Mnemonic
+  Card Groups, you *must* also arrange to secure and recover any BIP-39
+  Passphrase(s).  Remembre; you can have multiple Passphrases, to
+  produce several sets of Cryptocurrency accounts from the same BIP-39
+  Seed Phrase.
+
+  Make certain that each Passphrase is made available to each intended
+  recipient, and also in at least one additional location (eg. with
+  someone else who will be at your funeral).
+
+
 2 SLIP-39 Passphrase
 ====================
 
@@ -33,9 +47,10 @@ recommended.  Leave it empty!
 2.1 Hardware Wallet Doesn't Support Passphrase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  The Trezor "Model T" doesn't presently support a SLIP-39 Passphrase.
-  So, if you supply one here, you will not be able to use it when
-  recovering your SLIP-39 Mnemonics on your Trezor "Model T".
+  The Trezor "Model T" doesn't presently support using a Passphrase on
+  SLIP-39 recovery.  So, if you supply one here, you will not be able to
+  use it when recovering your SLIP-39 Mnemonics on your Trezor "Model
+  T".
 
 
 2.1.1 Use Trezor's "Hidden Wallets" Instead
