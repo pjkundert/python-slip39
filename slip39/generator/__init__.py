@@ -168,7 +168,6 @@ def file_outputline(
 
     # Confirm that the file is healthy before writing output
     if ( health := healthy is None or healthy( file )):
-        log.info( f"File {file!r:.36} writing {len(output):3}: {output!r:.36}{'...' if len(output) >36 else ''}" )
         file.write( output )
     if not health:
         log.warning( f"File {file!r:.36} became unhealthy before output of {output!r}" )

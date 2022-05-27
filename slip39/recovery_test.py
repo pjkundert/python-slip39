@@ -1,16 +1,19 @@
+import codecs
 import pytest
 
 import shamir_mnemonic
 
 from .api		import create
 from .recovery		import recover, recover_bip39
-from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
+
+groups_example			= dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) )
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_recover():
     details			= create(
-        "recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ), SEED_XMAS
+        "recovery test", 2, groups_example, SEED_XMAS
     )
     #import json
     #print( json.dumps( details.groups, indent=4 ))
@@ -77,15 +80,19 @@ def test_recover():
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
-def test_bip39():
+def test_recover_bip39():
+    """Go through the 3 methods for producing accounts from the same 0xffff...ffff Seed Entropy."""
+
+    # Get BIP-39 Seed generated from Mnemonic Entropy + passphrase
     bip39seed			= recover_bip39( 'zoo ' * 11 + 'wrong' )
-    details			= create(
-        "bip39 recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ),
-        master_secret=bip39seed,
+    assert codecs.encode( bip39seed, 'hex_codec' ).decode( 'ascii' ) \
+        == 'b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6'
+    details_bip39		= create(
+        "bip39 recovery test", 2, groups_example, master_secret=bip39seed,
     )
     #import json
-    #print( json.dumps( details.groups, indent=4 ))
-    assert details.groups == {
+    #print( json.dumps( details_bip39.groups, indent=4 ))
+    assert details_bip39.groups == {
         "one": (
             1,
             [
@@ -141,4 +148,77 @@ def test_bip39():
             ]
         )
     }
-    assert recover( details.groups['one'][1][:] + details.groups['fren'][1][:3] ) == bip39seed
+    assert recover( details_bip39.groups['one'][1][:] + details_bip39.groups['fren'][1][:3] ) == bip39seed
+
+    [(eth,btc)] = details_bip39.accounts
+    assert eth.address == "0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E"
+    assert btc.address == "bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2"
+
+    #
+    # Now, get the exact same derived accounts, but by passing the BIP-39 Seed Entropy (not the generated Seed!)
+    #
+    bip39entropy		= recover_bip39( 'zoo ' * 11 + 'wrong', as_entropy=True )
+    assert codecs.encode( bip39entropy, 'hex_codec' ).decode( 'ascii' ) \
+        == 'ff' * 16
+    details_bip39entropy	= create(
+        "bip39 recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ),
+        master_secret=bip39entropy,
+        using_bip39=True,
+    )
+    assert recover( details_bip39entropy.groups['one'][1][:] + details_bip39entropy.groups['fren'][1][:3] ) == bip39entropy
+
+    [(eth,btc)] = details_bip39entropy.accounts
+    assert eth.address == "0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E"
+    assert btc.address == "bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2"
+
+    #
+    # Finally, test that the basic SLIP-39 encoding and derivation using the raw Seed Entropy is
+    # different, and yields the expected well-known accounts.
+    #
+    details_slip39		= create(
+        "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
+    )
+    import json
+    print( json.dumps( details_slip39.groups, indent=4 ))
+    assert details_slip39.groups == {
+        "one": (
+            1,
+            [
+                "academic acid acrobat romp change injury painting safari drug browser trash fridge busy finger standard angry similar overall prune ladybug"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic acid beard romp believe impulse species holiday demand building earth warn lunar olympic clothes piece campus alpha short endless"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic acid ceramic roster desire unwrap depend silent mountain agency fused primary clinic alpha database liberty silver advance replace medical",
+                "academic acid ceramic scared column screw hawk dining invasion bumpy identify anxiety august sunlight intimate satoshi hobo traveler carbon class",
+                "academic acid ceramic shadow believe revenue type class station domestic already fact desktop penalty omit actress rumor beaver forecast group",
+                "academic acid ceramic sister actress mortgage random talent device clogs craft volume cargo item scramble easy grumpy wildlife wrist simple"
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic acid decision round academic academic academic academic academic academic academic academic academic academic academic academic academic ranked flame amount",
+                "academic acid decision scatter biology trial escape element unfair cage wavy afraid provide blind pitch ultimate hybrid gravity formal voting",
+                "academic acid decision shaft crunch glance exclude stilt grill numb smug stick obtain raisin force theater duke taught license scramble",
+                "academic acid decision skin disaster mama alive nylon mansion listen cowboy suitable crisis pancake velvet aviation exhaust decent medal dominant",
+                "academic acid decision snake aunt frozen flip crystal crystal observe equip maximum maiden dragon wine crazy nervous crystal profile fiction"
+            ]
+        )
+    }
+
+    # These are the well-known SLIP-39 0xffff...ffff Seed accounts
+    [(eth,btc)] = details_slip39.accounts
+    assert eth.address == "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
+    assert btc.address == "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
+
+    # And ensure that the SLIP-39 encoding of the BIP-39 "zoo zoo ... wrong" w/ BIP-39
+    # Entropy was identically to the raw SLIP-39 encoding.
+    assert details_slip39.groups == details_bip39entropy.groups

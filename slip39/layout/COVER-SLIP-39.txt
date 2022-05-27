@@ -1,0 +1,17 @@
+                            _______________
+
+                             USING SLIP-39
+                            _______________
+
+
+SLIP-39 support for Hardware Wallets that natively support it, such as
+your Trezor "Model T".  Recover your Cryptocurrency accounts to your
+hardware wallet directly from these SLIP-39 cards, by entering them on
+the screen of the device.
+
+- Collect these "SLIP-39" Card Mnemonics, with sufficient:
+  - Different Groups to satisfy Recovery Card Groups threshold
+  - Cards in each Group to meet each groups' recovery minimums
+- Enter recovery mode on your hardware wallet
+- Restore your Cryptocurrency accounts to your hardware wallet by
+  entering the SLIP-39 Mnemonic phrases.

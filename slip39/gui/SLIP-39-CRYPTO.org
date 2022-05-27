@@ -3,22 +3,22 @@
 
 #+BEGIN_ABSTRACT
 Cryptocurrencies Wallet addresses to display, and the Paper Wallets to produce (if a password is
-supplied).  The cryptocurrencies supported, and the standard BIP-44 derivation paths (Trezor
-compatible) displayed are:
+supplied).  The cryptocurrencies supported, and the standard BIP-44 derivation paths (Trezor,
+Ledger, etc.  compatible) displayed are:
 
-| Controls | Crypto | Semantic | Path              | Address | Support |
-|----------+--------+----------+-------------------+---------+---------|
-| Basic    | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
-| Basic    | BTC    | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
-|          |        | SegWit   | m/44'/  0'/0'/0/0 | 3...    |         |
-|          |        | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
-| Extra    | LTC    | Bech32   | m/84'/  2'/0'/0/0 | ltc1... |         |
-|          |        | SegWit   | m/44'/  2'/0'/0/0 | M...    |         |
-|          |        | Legacy   | m/44'/  2'/0'/0/0 | L...    |         |
-| Extra    | DOGE   | Legacy   | m/44'/  3'/0'/0/0 | D...    |         |
-| Pro      | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
-| Pro      | CRO    | Bech32   | m/44'/ 60'/0'/0/0 | crc1... | Beta    |
-| Pro      | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
+| Controls  | Crypto | Semantic | Path              | Address | Support |
+|-----------+--------+----------+-------------------+---------+---------|
+| (default) | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
+| (default) | BTC    | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
+|           |        | SegWit   | m/44'/  0'/0'/0/0 | 3...    |         |
+|           |        | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
+| Recover   | LTC    | Bech32   | m/84'/  2'/0'/0/0 | ltc1... |         |
+|           |        | SegWit   | m/44'/  2'/0'/0/0 | M...    |         |
+|           |        | Legacy   | m/44'/  2'/0'/0/0 | L...    |         |
+| Recover   | DOGE   | Legacy   | m/44'/  3'/0'/0/0 | D...    |         |
+| Pro       | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
+| Pro       | CRO    | Bech32   | m/44'/ 60'/0'/0/0 | crc1... | Beta    |
+| Pro       | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
 
 On each SLIP-39 card, up to 2 Wallet addresses and QR codes will be displayed, for information
 purposes only, to illustrate *which* Wallets are derived from this Seed.

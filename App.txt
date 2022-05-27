@@ -19,7 +19,9 @@ The best practice for using these wallets is to load this "Seed" into a
 secure hardware device, like a [Trezor "Model T"] hardware wallet.
 SLIP-39 Mnemonic cards contain the recovery words, which are typed
 directly into the Trezor device to recover the Seed, and all of its
-Cryptocurrency accounts.
+Cryptocurrency accounts.  For the [Ledger Nano] and other hardware
+wallets supporting only BIP-39 Mnemonics, you can now use the SLIP-39
+App to securely and reliably back up these BIP-39 phrases.
 
 The [macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi
 for Windows)] helps you generate Mnemonic cards and back up this Seed,
@@ -39,19 +41,23 @@ Table of Contents
 1. Security with Availability
 .. 1. SLIP-39 Mnemonic Recovery Cards
 ..... 1. Why Not a BIP-39 Mnemonic Phrase?
-..... 2. Why Not a BIP-38 Encrypted Wallet + Password?
+..... 2. Why Not a BIP-38 Encrypted Wallet + Passphrase?
 .. 2. Paper Wallets
 ..... 1. Walking-Around Money
 2. Affiliate Links
 .. 1. Trezor
-.. 2. Netcoins.app
-.. 3. Crypto.com
-.. 4. Protecting your SLIP-39 Cards
+.. 2. Ledger
+.. 3. Netcoins.app
+.. 4. Crypto.com
+.. 5. Protecting your SLIP-39 Cards
 3. Privacy Policy
 
 
 [Trezor "Model T"]
 <https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+
+[Ledger Nano]
+<https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
 
 [macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi for
 Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
@@ -101,29 +107,29 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   It is estimated that 20% of Bitcoin is already lost in the first 10
   years of its existence, stored in wallet addresses that can never be
   accessed because the corresponding "Private Key" has been lost, or the
-  password forgotten.
+  passphrase forgotten.
 
   The statistical chances of anyone successfully passing a
-  Cryptocurrency wallet Private Key + password or Seed to their heirs
+  Cryptocurrency wallet Private Key + passphrase or Seed to their heirs
   over a 50-year period is therefore very low.  Since memory fades and
   "safe" storage places are lost, destroyed or forgotten, this risk
   actually increases exponentially over time.
 
   I estimate the probability of successfully inheriting such a Paper
-  Wallet + password or BIP-39 Mnemonic protected Seed is probably less
+  Wallet + passphrase or BIP-39 Mnemonic protected Seed is probably less
   than 50%.  Perhaps *much* less.
 
 
-1.1.2 Why Not a BIP-38 Encrypted Wallet + Password?
-╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+1.1.2 Why Not a BIP-38 Encrypted Wallet + Passphrase?
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   Have you ever forgotten a password to an online account?
 
-  Well, with a BIP-38 Encrypted Wallet + Password, there is /no password
-  reset/ option; there is no way to recover the password.
+  Well, with a BIP-38 Encrypted Wallet + passphrase, there is /no
+  password reset/ option; there is no way to recover the passphrase.
 
   If the Wallet is lost, there is of course no way to recover it, even
-  if you have the password.
+  if you have the passphrase.
 
   This option is perhaps even less desirable than using a BIP-39
   Mnemonic Seed phrase, because each and every Encrypted Wallet is
@@ -186,12 +192,48 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   feature is, simply, so fundamentally important for Cryptocurrency Seed
   security and reliability that we consider it a necessity.
 
+  If you already have one of the less expensive Trezor wallets that only
+  support BIP-39 backup, we also support those, using the same BIP-39
+  Seed Entropy backup via SLIP-39 as for the Ledger, and other
+  traditional hardware wallets.
+
 
 [Trezor "Model T"]
 <https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
 
 
-2.2 Netcoins.app
+2.2 Ledger
+──────────
+
+  The Ledger hardware wallets are also very popular – but they can be
+  recovered only using BIP-39 Mnemonics.  However, you can now use the
+  SLIP-39 App to backup your BIP-39 Seed Entropy!  Therefore, we now
+  support the Ledger hardware wallets.
+
+  If you already have a BIP-39 Mnemonic, and would like back it up using
+  SLIP-39 for more security and recovery reliability, you can use the
+  Pro Controls to do so.  Later, when you need to recover your BIP-39
+  Mnemonic, use the SLIP-39 App, select the Pro Controls, enter the
+  SLIP-39 card Mnemonics, and click "Using BIP-39" to reveal your
+  original BIP-39 Mnemonic phrase.  Then, proceed with Ledger wallet
+  recovery as normal, using the BIP-39 Mnemonic.
+
+  The [Ledger Nano S Plus] has a large screen, at a reasonable price
+  point, and connects via USB-C.
+
+  The [Ledger Nano X] has a large screen and supports connectivity via
+  Bluetooth, for much easier connectivity with mobile phone and laptop
+  wallet software.
+
+
+[Ledger Nano S Plus]
+<https://shop.ledger.com/pages/ledger-nano-s-plus?r=2cd1cb6ae51f>
+
+[Ledger Nano X]
+<https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
+
+
+2.3 Netcoins.app
 ────────────────
 
   In Canada, one of the more highly regulatory-compliant Cryptocurrency
@@ -208,7 +250,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
 <https://netcoins.app/r?ac=5YO1MZ>
 
 
-2.3 Crypto.com
+2.4 Crypto.com
 ──────────────
 
   Use my referral link for [Crypto.com (referral code: 2x4hk92dnf)] to
@@ -222,7 +264,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
 <https://crypto.com/app/2x4hk92dnf>
 
 
-2.4 Protecting your SLIP-39 Cards
+2.5 Protecting your SLIP-39 Cards
 ─────────────────────────────────
 
   Protect your printed SLIP-39 cards from water damage by laminating

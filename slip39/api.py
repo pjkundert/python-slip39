@@ -11,7 +11,7 @@ import warnings
 
 from functools		import wraps
 from collections	import namedtuple
-from typing		import Dict, List, Sequence, Tuple, Union, Callable
+from typing		import Dict, List, Sequence, Tuple, Optional, Union, Callable
 
 from shamir_mnemonic	import generate_mnemonics
 
@@ -20,6 +20,7 @@ from hdwallet		import cryptocurrencies
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
 from .util		import ordinal
+from .recovery		import produce_bip39, recover_bip39
 
 log				= logging.getLogger( __package__ )
 
@@ -72,7 +73,7 @@ def path_edit(
     if edit.startswith( '.' ):
         new_segs	= edit.lstrip( './' ).split( '/' )
         cur_segs	= path.split( '/' )
-        log.info( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
+        log.debug( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
         if len( new_segs ) >= len( cur_segs ):
             raise ValueError( f"Cannot use {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
         res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + new_segs
@@ -177,7 +178,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
         "HARDENED": True
     })
 
-    PUBLIC_KEY_ADDRESS = 0x00 # Results in the prefix r..., when used w/ the Ripple base-58 alphabet
+    PUBLIC_KEY_ADDRESS = 0x00  # Results in the prefix r..., when used w/ the Ripple base-58 alphabet
     SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
         "HRP": None,
         "VERSION": 0x00
@@ -205,7 +206,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
     WIF_SECRET_KEY = 0x80
 
 
-class XRPHDWallet( hdwallet.HDWallet ) :
+class XRPHDWallet( hdwallet.HDWallet ):
     """The XRP address format uses the standard p2pkh_address formulation, from
     https://xrpl.org/accounts.html#creating-accounts:
 
@@ -267,7 +268,7 @@ class Account:
     | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
 
     """
-    CRYPTO_NAMES		= dict(				# Currently supported (in order of visibility)
+    CRYPTO_NAMES		= dict(  # Currently supported (in order of visibility)
         ethereum	= 'ETH',
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
@@ -371,13 +372,25 @@ class Account:
         for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
 
         """
-        validated			= cls.CRYPTO_NAMES.get(
+        validated		= cls.CRYPTO_NAMES.get(
             crypto.lower(),
             crypto.upper() if crypto.upper() in cls.CRYPTOCURRENCIES else None
         )
         if validated:
             return validated
         raise ValueError( f"{crypto} not presently supported; specify {', '.join( cls.CRYPTOCURRENCIES )}" )
+
+    def __str__( self ):
+        """Until from_seed/from_path are invoked, may not have an address or derivation path."""
+        address			= None
+        try:
+            address		= self.address
+        except Exception:
+            pass
+        return f"{self.crypto}: {address}"
+
+    def __repr__( self ):
+        return f"{self.__class__.__name__}({self} @{self.path})"
 
     def __init__( self, crypto, format=None ):
         crypto			= Account.supported( crypto )
@@ -416,15 +429,14 @@ class Account:
         """Change the Account to derive from the provided path.
 
         If a partial path is provided (eg "...1'/0/3"), then use it to replace the given segments in
-        current account path, leaving the remainder alone.
+        current (or the default) account path, leaving the remainder alone.
 
         """
+        from_path		= self.path or Account.path_default( self.crypto, self.format )
         if path:
-            path		= path_edit( self.path, path )
-        else:
-            path		= Account.path_default( self.crypto, self.format )
+            from_path		= path_edit( from_path, path )
         self.hdwallet.clean_derivation()
-        self.hdwallet.from_path( path )
+        self.hdwallet.from_path( from_path )
         return self
 
     @property
@@ -656,15 +668,19 @@ def path_sequence(
 
 
 def cryptopaths_parser( cryptocurrency, edit=None ):
-    """
-    Generate a standard cryptopaths list, from the given list of "<crypto>[:<paths>]"
-    cryptocurrencies (default: CRYPTO_PATHS).
+    """Generate a standard cryptopaths list, from the given sequnce of (<crypto>,<paths>) or
+    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS).
 
-    Adjusts the provided derivation paths by an optional eg. "../-" path adjustment."""
+    Adjusts the provided derivation paths by an optional eg. "../-" path adjustment.
+
+    """
     cryptopaths 		= []
     for crypto in cryptocurrency or CRYPTO_PATHS:
         try:
-            crypto,paths	= crypto.split( ':' )
+            if type(crypto) is str:
+                crypto,paths	= crypto.split( ':' )   # A sequence of str
+            else:
+                crypto,paths	= crypto                # A sequence of tuples
         except ValueError:
             crypto,paths	= crypto,None
         crypto			= Account.supported( crypto )
@@ -703,10 +719,14 @@ def random_secret(
     return RANDOM_BYTES( seed_length )
 
 
-Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts') )
+Details = namedtuple( 'Details', ('name', 'group_threshold', 'groups', 'accounts', 'using_bip39') )
 
 
 def enumerate_mnemonic( mnemonic ):
+    """Return a dict containing the supplied mnemonics stored by their indexed, starting from 0.
+    Each Mnemonic is labelled with its ordinal index (ie. beginning at 1).
+
+    """
     if isinstance( mnemonic, str ):
         mnemonic		= mnemonic.split( ' ' )
     return dict(
@@ -770,20 +790,75 @@ def create(
     name: str,
     group_threshold: int,
     groups: Dict[str,Tuple[int, int]],
-    master_secret: bytes	= None,		# Default: 128-bit seeds
+    master_secret: bytes	= None,	        # Default: generate 128-bit Seed Entropy
     passphrase: bytes		= b"",
+    using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
-    cryptopaths: Sequence[Tuple[str,str]] = None,  # default: ETH, BTC at default paths
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # default: ETH, BTC at default paths
     strength: int		= 128,
-) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]]]:
-    """Creates a SLIP-39 encoding and 1 or more Ethereum accounts.  Returns the details, in a form
-    directly compatible with the layout.produce_pdf API.
+) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
+    """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
+    accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
+
+    The master_secret Seed Entropy is discarded (because it is, of course, always recoverable from
+    the SLIP-39 mnemonics).
+
+    Creates accountgroups derived from the Seed Entropy.  By default, this is done in the SLIP-39
+    standard, using the master_secret Entropy directly.  If a passphrase is supplied, this is also
+    used in the SLIP-39 standard fashion (not recommended -- not Trezor "Model T" compatible).
+
+    If using_bip39, creates the Cryptocurrency accountgroups from the supplied master_secret
+    Entropy, by generating the Seed from a BIP-38 Mnemonic produced from the provided entropy
+    (or generated, default 128 bits), plus any supplied passphrase.
 
     """
     if master_secret is None:
         assert strength in BITS, f"Invalid {strength}-bit secret length specified"
         master_secret		= random_secret( strength // 8 )
+
     g_names,g_dims		= list( zip( *groups.items() ))
+
+    # Derive the desired account(s) at the specified derivation paths, or the default, using either
+    # BIP-39 Seed generation, or directly from Entropy for SLIP-39.
+    if using_bip39:
+        # For BIP-39, the passphrase is consumed here, and Cryptocurrency accounts are generated
+        # using the BIP-39 Seed generated from entropy + passphrase
+        bip39_mnem		= produce_bip39( entropy=master_secret )
+        bip39_seed		= recover_bip39(
+            mnemonic	= bip39_mnem,
+            passphrase	= passphrase,
+        )
+        log.info(
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy using BIP-39 Mnemonic" + (
+                f": {bip39_mnem:.10}... (w/ BIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
+                if log.isEnabledFor( logging.DEBUG ) else ""
+            )
+        )
+        accts			= list( accountgroups(
+            master_secret	= bip39_seed,
+            cryptopaths		= cryptopaths,
+            allow_unbounded	= False,
+        ))
+        passphrase		= b""
+    else:
+        # For SLIP-39, accounts are generated directly from supplied Entropy, and passphrase
+        # encrypts the SLIP-39 Mnemonics, below.
+        log.info(
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy directly" + (
+                f": {codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ):.10}... (w/ SLIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
+                if log.isEnabledFor( logging.DEBUG ) else ""
+            )
+        )
+        accts			= list( accountgroups(
+            master_secret	= master_secret,
+            cryptopaths		= cryptopaths,
+            allow_unbounded	= False,
+        ))
+
+    # Generate the SLIP-39 Mnemonics representing the supplied master_secret Seed Entropy.  This
+    # always recovers the Seed Entropy; if not using_bip39, this is also the wallet derivation Seed;
+    # if using_bip39, the wallet derivation Seed was produced from the BIP-39 Seed generation
+    # process (and the SLIP-39 password is always b"", here).
     mnems			= mnemonics(
         group_threshold	= group_threshold,
         groups		= g_dims,
@@ -791,12 +866,6 @@ def create(
         passphrase	= passphrase,
         iteration_exponent= iteration_exponent
     )
-    # Derive the desired account(s) at the specified derivation paths, or the default
-    accts			= list( accountgroups(
-        master_secret	= master_secret,
-        cryptopaths	= cryptopaths or [('ETH',None), ('BTC',None)],
-        allow_unbounded	= False,
-    ))
 
     groups			= {
         g_name: (g_of, g_mnems)
@@ -813,7 +882,7 @@ def create(
                 for line,_ in organize_mnemonic( mnem, label=f"{ordinal(mn_n+1)} " ):
                     log.info( f"{line}" )
 
-    return Details(name, group_threshold, groups, accts)
+    return Details(name, group_threshold, groups, accts, using_bip39)
 
 
 def mnemonics(
@@ -859,6 +928,7 @@ def account(
         seed		= master_secret,
         path		= path,
     )
+    log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {path}" )
     return acct
 
 
@@ -879,7 +949,7 @@ def accounts(
 
 def accountgroups(
     master_secret: bytes,
-    cryptopaths: Sequence[Tuple[str,str]],
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default: ETH, BTC
     allow_unbounded: bool	= True,
 ) -> Sequence[Sequence[Account]]:
     """Generate the desired cryptocurrency account(s) at each crypto's given path(s).  This is useful
@@ -910,7 +980,7 @@ def accountgroups(
             crypto		= crypto,
             allow_unbounded	= allow_unbounded,
         )
-        for crypto,paths in cryptopaths
+        for crypto,paths in cryptopaths_parser( cryptopaths )
     ])
 
 
@@ -947,7 +1017,7 @@ def addresses(
 
 def addressgroups(
     master_secret: bytes,
-    cryptopaths: Sequence[Tuple[str,str]],
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default ETH, BTC
     allow_unbounded: bool	= True,
 ) -> Sequence[str]:
     """Yields account (<crypto>, <path>, <address>) records for the desired cryptocurrencies at paths.
@@ -960,5 +1030,5 @@ def addressgroups(
             crypto		= crypto,
             allow_unbounded	= allow_unbounded,
         )
-        for crypto,paths in cryptopaths
+        for crypto,paths in cryptopaths_parser( cryptopaths )
     ])

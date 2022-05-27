@@ -1,4 +1,4 @@
-#import json
+import json
 import qrcode
 
 from pytest 		import approx
@@ -23,17 +23,27 @@ def test_Region():
     assert card_interior.x2 - card_interior.x1 == card_size.x - card_margin * 2
 
     card_qr			= card_interior.add_region_proportional(
-        Image( 'card-qr', x1=3/4, y1=1/2, x2=1, y2=1 )
-    )
-    card_qr.x1			= card_qr.x2 - 1.0
-    card_qr.y1			= card_qr.y2 - 1.0
+        Image( 'card-qr', x1=1/2, y1=1/4, x2=1, y2=1 )
+    ).square( maximum=1, justify='BR' )
+    card_interior.add_region_proportional(
+        Box( 'card-box-ul', x1=1/2, y1=1/4, x2=1, y2=1 )
+    ).square( maximum=.5, justify='TL' )
+    card_interior.add_region_proportional(
+        Box( 'card-box-cm', x1=1/2, y1=1/4, x2=1, y2=1 )
+    ).square( maximum=.5 )
+    card_interior.add_region_proportional(
+        Box( 'card-box-br', x1=1/2, y1=1/4, x2=1, y2=1 )
+    ).square( maximum=.5, justify='BR' )
+
+    #card_qr.x1			= card_qr.x2 - 1.0
+    #card_qr.y1			= card_qr.y2 - 1.0
     #print( card_qr )
     assert card_qr.x1 == 2.25
     assert card_qr.y1 == 1.125
 
     elements			= list( card.elements() )[1:]
-    #print( json.dumps( elements, indent=4 ))
-    assert len( elements ) == 1
+    print( json.dumps( elements, indent=4 ))
+    assert len( elements ) == 4
     assert elements[0]['type'] == 'I'
 
     card_top			= card_interior.add_region_proportional(
@@ -44,10 +54,10 @@ def test_Region():
     )
 
     elements			= list( card.elements() )[1:]
-    #print( json.dumps( elements, indent=4 ))
-    assert elements[1]['type'] == 'T'
-    assert elements[1]['font'] == 'helvetica'
-    assert elements[1]['size'] == approx( 14.4 )
+    print( json.dumps( elements, indent=4 ))
+    assert elements[-1]['type'] == 'T'
+    assert elements[-1]['font'] == 'helvetica'
+    assert elements[-1]['size'] == approx( 14.4 )
 
     pdf				= FPDF()
     pdf.add_page()
@@ -55,10 +65,12 @@ def test_Region():
     tpl				= FlexTemplate( pdf, list( card.elements() ) )
     tpl['card-qr']		= qrcode.make( 'abc' ).get_image()
     tpl['card-title']		= 'Abc'
+    # Abc in upper-left
     tpl.render()
 
     tpl['card-qr']		= qrcode.make( 'abc' ).get_image()
     tpl['card-title']		= 'Xyz'
+    # Xyz in lower-right
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment

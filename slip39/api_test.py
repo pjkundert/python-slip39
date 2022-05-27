@@ -1,7 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import json
 import pytest
-import codecs
 
 try:
     import eth_account
@@ -52,7 +51,6 @@ def test_account():
     assert acct.path == "m/84'/0'/0'/0/0"
     assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
 
-
     acct			= account( SEED_XMAS, crypto='Litecoin' )
     assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
     assert acct.path == "m/84'/2'/0'/0/0"
@@ -69,7 +67,6 @@ def test_account():
     assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
     assert acct.path == "m/44'/3'/0'/0/0"
 
-
     acct			= account( SEED_ONES, crypto='Ripple' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'
@@ -83,7 +80,7 @@ def test_account():
     assert acct.address == 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN'
     acct.hdwallet.compressed	= lambda: '03e2b079e9b09ae8916da8f5ee40cbda9578dbe7c820553fe4d5f872eec7b1fdd4'
     assert acct.address == 'rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8'
-    acct.hdwallet.compressed	= lambda: '0282ee731039929e97db6aec242002e9aa62cd62b989136df231f4bb9b8b7c7eb2'    
+    acct.hdwallet.compressed	= lambda: '0282ee731039929e97db6aec242002e9aa62cd62b989136df231f4bb9b8b7c7eb2'
     assert acct.address == 'rKzE5DTyF9G6z7k7j27T2xEas2eMo85kmw'
     acct.hdwallet.compressed	= compressed_save
 
@@ -91,7 +88,7 @@ def test_account():
     # The Trezor Suite UI produced the following account derivation path and public address for:
     acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
-    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/ 
+    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
     assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
 
 
@@ -187,6 +184,7 @@ def test_account_encrypt():
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create():
+    """Standard SLIP-39 Mnemonic and account creation"""
     details			= create(
         "SLIP39 Wallet: Test",
         1,
@@ -210,6 +208,28 @@ def test_create():
     assert btc.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
 
     assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_bip39():
+    """Standard SLIP-39 Mnemonic from BIP-39 backup and account creation.
+
+    """
+    details			= create(
+        "SLIP39 Wallet: Test",
+        1,
+        dict( fren = (3,5) ),
+        SEED_ONES,
+        using_bip39	= True,
+        cryptopaths	= ('ETH','BTC','XRP'),
+    )
+
+    assert len(details.accounts) == 1
+    [(eth,btc,xrp)] = details.accounts
+    # recognizable ETH, BTC accounts generated from the 0xffff...ffff (zoo zoo ...  wrong) Seed.
+    assert eth.address == '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'
+    assert btc.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+    assert xrp.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
 
 
 def test_addresses():
@@ -299,16 +319,17 @@ def test_addresses():
 
 
 def test_addressgroups():
-    master_secret		= b'\xFF' * 16
+    master_secret		= SEED_ONES
     addrgrps			= list( enumerate( addressgroups(
         master_secret	= master_secret,
         cryptopaths	= [
-            ('ETH', ".../-3"),
-            ('BTC', ".../-3"),
-            ('LTC', ".../-3"),
-            ('Doge', ".../-3"),
-            ('CRO', ".../-3"),
-            ('Binance', ".../-3"),
+            ('ETH',	".../-3"),
+            ('BTC',	".../-3"),
+            ('LTC',	".../-3"),
+            ('Doge',	".../-3"),
+            ('CRO',	".../-3"),
+            ('Binance',	".../-3"),
+            ('Ripple',	".../-3"),
         ],
     )))
     # print( addrgrps )
@@ -318,25 +339,29 @@ def test_addressgroups():
              ('LTC',  "m/84'/2'/0'/0/0",  'ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake'),
              ('DOGE', "m/44'/3'/0'/0/0",  'DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy'),
              ('CRO',  "m/84'/60'/0'/0/0", 'crc1q4hdzumgzgfda84hvt67e4znnfxxnnnc42jgqt9'),
-             ('BNB',  "m/44'/60'/0'/0/0", '0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1'))),
-        (1, (("ETH", "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"),
-             ("BTC", "m/84'/0'/0'/0/1", "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"),
-             ('LTC', "m/84'/2'/0'/0/1", 'ltc1qm0hwvvk28wlyfu3sed66e9yyvmwm35xtfexva3'),
-             ('DOGE', "m/44'/3'/0'/0/1",'DJYE9WWaCA1CbV9x23qkcgNX7Yr9YjCebA'),
-             ('CRO', "m/84'/60'/0'/0/1", 'crc1qalq0kk8j8mwljneavgmqytcv63vnjjhsn8cfhs'),
-             ('BNB', "m/44'/60'/0'/0/1", '0x8D342083549C635C0494d3c77567860ee7456963'))),
-        (2, (("ETH", "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"),
-             ("BTC", "m/84'/0'/0'/0/2", "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"),
-             ('LTC', "m/84'/2'/0'/0/2", 'ltc1qx3r3efsmupn34gmwu25fu39tn4h79cjfwvlpfu'),
-             ('DOGE', "m/44'/3'/0'/0/2",'DQfJcJzLFW9LJPJXNkLeq1WqPfLsRq47Jj'),
-             ('CRO', "m/84'/60'/0'/0/2", 'crc1qnr2z9wv2z5p54k8sm35fv7m5u86sutwa7m7e99'),
-             ('BNB', "m/44'/60'/0'/0/2", '0x52787E24965E1aBd691df77827A3CfA90f0166AA'))),
-        (3, (("ETH", "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"),
-             ("BTC", "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"),
-             ('LTC', "m/84'/2'/0'/0/3", 'ltc1qnqzyear8kct0yjzupe2pxtq0mwee5kl642mj78'),
+             ('BNB',  "m/44'/60'/0'/0/0", '0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1'),
+             ('XRP',  "m/44'/144'/0'/0/0",'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'))),
+        (1, (("ETH",  "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"),
+             ("BTC",  "m/84'/0'/0'/0/1",  "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"),
+             ('LTC',  "m/84'/2'/0'/0/1",  'ltc1qm0hwvvk28wlyfu3sed66e9yyvmwm35xtfexva3'),
+             ('DOGE', "m/44'/3'/0'/0/1",  'DJYE9WWaCA1CbV9x23qkcgNX7Yr9YjCebA'),
+             ('CRO',  "m/84'/60'/0'/0/1", 'crc1qalq0kk8j8mwljneavgmqytcv63vnjjhsn8cfhs'),
+             ('BNB',  "m/44'/60'/0'/0/1", '0x8D342083549C635C0494d3c77567860ee7456963'),
+             ('XRP',  "m/44'/144'/0'/0/1",'rfMBrTc7VRTLUZu2K517r594Ky9qU5fQ5i'))),
+        (2, (("ETH",  "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"),
+             ("BTC",  "m/84'/0'/0'/0/2",  "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"),
+             ('LTC',  "m/84'/2'/0'/0/2",  'ltc1qx3r3efsmupn34gmwu25fu39tn4h79cjfwvlpfu'),
+             ('DOGE', "m/44'/3'/0'/0/2",  'DQfJcJzLFW9LJPJXNkLeq1WqPfLsRq47Jj'),
+             ('CRO',  "m/84'/60'/0'/0/2", 'crc1qnr2z9wv2z5p54k8sm35fv7m5u86sutwa7m7e99'),
+             ('BNB',  "m/44'/60'/0'/0/2", '0x52787E24965E1aBd691df77827A3CfA90f0166AA'),
+             ('XRP',  "m/44'/144'/0'/0/2",'rn7vgevVmF8HXq7FYNhL34gdJMUFukghPz'))),
+        (3, (("ETH",  "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"),
+             ("BTC",  "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"),
+             ('LTC',  "m/84'/2'/0'/0/3", 'ltc1qnqzyear8kct0yjzupe2pxtq0mwee5kl642mj78'),
              ('DOGE', "m/44'/3'/0'/0/3", 'DLVPiM5763cyNJfoa13cv4kV3b87FgVMCS'),
-             ('CRO', "m/84'/60'/0'/0/3", 'crc1qtlwuk2p8znv43xpxvupe7ye3ueuxen3475yn8n'),
-             ('BNB', "m/44'/60'/0'/0/3", '0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e'))),
+             ('CRO',  "m/84'/60'/0'/0/3", 'crc1qtlwuk2p8znv43xpxvupe7ye3ueuxen3475yn8n'),
+             ('BNB',  "m/44'/60'/0'/0/3", '0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e'),
+             ('XRP',  "m/44'/144'/0'/0/3",'rB1KWkYEg7n78eA2GWWrKWvjkHDhVEdRXC'))),
     ]
 
 

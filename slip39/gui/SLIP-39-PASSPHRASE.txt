@@ -1,0 +1,63 @@
+BIP-39 Seed Phrases are often protected by a Passphrase, to partially
+offset their insecurity.  This often makes the Seed unrecoverable,
+because the Passphrase can be so easily lost or forgotten.
+
+SLIP-39 Mnemonic Card Groups are *much* more reliable (to recover) and
+secure (against accidental disclosure); a Passphrase is *not*
+recommended.  Leave it empty!
+
+
+1 BIP-39 Passphrase
+===================
+
+  Since anyone who sees a BIP-39 phrase can immediately attempt to
+  recover the Seed, it is often considered necessary to use a
+  Passphrase.
+
+  It is estimated that 20%+ of all Cryptocurrency has been lost, often
+  because the BIP-39 Mnemonic is available but the Passphrase has been
+  lost.
+
+
+1.1 Safely Using BIP-39 Passphrases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Once you Backup your BIP-39 Seed Phrase to a set of SLIP-39 Mnemonic
+  Card Groups, you *must* also arrange to secure and recover any BIP-39
+  Passphrase(s).  Remembre; you can have multiple Passphrases, to
+  produce several sets of Cryptocurrency accounts from the same BIP-39
+  Seed Phrase.
+
+  Make certain that each Passphrase is made available to each intended
+  recipient, and also in at least one additional location (eg. with
+  someone else who will be at your funeral).
+
+
+2 SLIP-39 Passphrase
+====================
+
+  If you use SLIP-39 Mnemonic Card Groups, it is usually not necessary
+  to use a Passphrase.
+
+  Since SLIP-39's security is so much greater (chance of accidentally
+  disclosing your Seed is so low compared to BIP-39), no hardware wallet
+  vendor has implemented SLIP-39 recovery Passphrase.
+
+
+2.1 Hardware Wallet Doesn't Support Passphrase
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  The Trezor "Model T" doesn't presently support using a Passphrase on
+  SLIP-39 recovery.  So, if you supply one here, you will not be able to
+  use it when recovering your SLIP-39 Mnemonics on your Trezor "Model
+  T".
+
+
+2.1.1 Use Trezor's "Hidden Wallets" Instead
+-------------------------------------------
+
+  You can provide as many "Hidden Wallets" on your Trezor device as you
+  wish, by entering a passphrase to switch between them.
+
+  This works regardless of whether you recovered your Hardware Wallet
+  from BIP-39 or SLIP-39.

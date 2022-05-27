@@ -13,12 +13,13 @@ from datetime		import datetime
 from collections	import namedtuple
 from collections.abc	import Callable
 
-from typing		import Dict, List, Tuple, Sequence, Any
+from typing		import Dict, List, Tuple, Optional, Sequence, Any
 import qrcode
 from fpdf		import FPDF, FlexTemplate
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
 from ..util		import ordinal, chunker
+from ..recovery		import recover, produce_bip39
 from ..defaults		import (
     FONTS, MNEM_ROWS_COLS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES, COLOR,
@@ -86,15 +87,14 @@ class Region:
         region.y1		= self.y1 if region.y1 is None else region.y1
         region.x2		= self.x2 if region.x2 is None else region.x2
         region.y2		= self.y2 if region.y2 is None else region.y2
-
         self.regions.append( region )
         return region
 
     def add_region_relative( self, region ):
-        region.x1	       += self.x1
-        region.y1	       += self.y1
-        region.x2	       += self.x2
-        region.y2	       += self.y2
+        region.x1		= self.x1 + ( region.x1 or 0 )
+        region.y1		= self.y1 + ( region.y1 or 0 )
+        region.x2		= self.x2 + ( region.x2 or 0 )
+        region.y2		= self.y2 + ( region.y2 or 0 )
         self.regions.append( region )
         return region
 
@@ -106,9 +106,31 @@ class Region:
         self.regions.append( region )
         return region
 
-    def dimensions( self ):
-        "Converts to mm."
+    def square( self, maximum=None, justify=None ):
+        """Make a region square (of 'maximum' size), justifying it L/C/R, and/or T/M/B; default is Center/Middle"""
+        dims			= min( self.w, self.h )
+        if maximum:
+            dims		= min( dims, maximum )
+        justify			= ( justify or '' ).upper()
+        if 'L' in justify:
+            self.x2		= self.x1 + dims
+        elif 'R' in justify:
+            self.x1		= self.x2 - dims
+        else:  # 'C' is default
+            self.x1, self.x2	= self.x1 + ( self.w - dims ) / 2, self.x2 - ( self.w - dims ) / 2
+        if 'T' in justify:
+            self.y2		= self.y1 + dims
+        elif 'B' in justify:
+            self.y1		= self.y2 - dims
+        else:  # 'M' is default
+            self.y1, self.y2	= self.y1 + ( self.h - dims ) / 2, self.y2 - ( self.h - dims ) / 2
+        return self
+
+    def mm( self ):
+        "Dimensions as Coordinate( x, y ) in mm."
         return Coordinate( self.w * MM_IN, self.h * MM_IN )
+
+    dimensions 			= mm
 
     def elements( self ):
         """Yield a sequence of { 'name': "...", 'x1': #,  ... }."""
@@ -122,11 +144,12 @@ class Region:
 class Text( Region ):
     SIZE_RATIO			= 3/4
 
-    def __init__( self, *args, font=None, text=None, size=None, size_ratio=None, align=None,
+    def __init__( self, *args, font=None, text=None, size=None, size_ratio=None, align=None, multiline=None,
                   foreground=None, background=None, bold=None, italic=None, underline=None,
                   **kwds ):
         self.font		= font
         self.text		= text
+        self.multiline		= multiline
         self.size		= size
         self.size_ratio		= size_ratio or self.SIZE_RATIO
         self.align		= align
@@ -153,6 +176,8 @@ class Text( Region ):
             d['underline']	= True
         if self.align is not None:
             d['align']		= self.align
+        if self.multiline is not None:
+            d['multiline']	= bool( self.multiline )
         if self.foreground is not None:
             d['foreground']	= self.foreground
         if self.background is not None:
@@ -221,19 +246,12 @@ def layout_card(
     )
 
     # QR codes sqaare, and anchored to top and bottom of card.
-    card_qr1			= card_bottom.add_region_proportional(
+    card_bottom.add_region_proportional(
         Image( 'card-qr1', x1=13/16, y1=0, x2=1, y2=1/2 )
-    )
-    card_qr1_size		= min( card_qr1.w, card_qr1.h )
-    card_qr1.x1			= card_qr1.x2 - card_qr1_size
-    card_qr1.y2			= card_qr1.y1 + card_qr1_size
-
-    card_qr2			= card_bottom.add_region_proportional(
+    ).square( justify='TR' )
+    card_bottom.add_region_proportional(
         Image( 'card-qr2', x1=13/16, y1=1/2, x2=1, y2=1 )
-    )
-    card_qr2_size		= min( card_qr2.w, card_qr2.h )
-    card_qr2.x1			= card_qr2.x2 - card_qr2_size
-    card_qr2.y1			= card_qr2.y2 - card_qr2_size
+    ).square( justify='BR' )
 
     card_top.add_region_proportional(
         Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
@@ -397,10 +415,7 @@ def layout_wallet(
     )
     public_qr			= public.add_region_proportional(
         Image( 'address-qr-bg',	x1=1/16, y1=6/16, x2=1, y2=15/16 )
-    )
-    public_qr_size		= min( public_qr.w, public_qr.h )
-    public_qr.x2		= public_qr.x1 + public_qr_size
-    public_qr.y1		= public_qr.y2 - public_qr_size
+    ).square( justify='BL' )
     public_qr.add_region(
         Image( 'address-qr' )
     )
@@ -411,22 +426,19 @@ def layout_wallet(
     public_qr_r			= public.add_region_proportional(
         Text( 'address-qr-r',	x1=1/16, y1=6/16, x2=1, y2=7/16, rotate=-90 )
     )
-    public_qr_r.x1	       += public_qr_size + public_qr_r.h
-    public_qr_r.x2	       += public_qr_size
+    public_qr_r.x1	       += public_qr.w + public_qr_r.h
+    public_qr_r.x2	       += public_qr.w
 
     # Private region
 
     private.add_region_proportional(
         Text( 'private-qr-t',	x1=0/16, y1=5/16, x2=1, y2=6/16 )
     )
-    private_qr			= private.add_region_proportional(
-        Image( 'private-qr-bg',	x1=0/16, y1=6/16, x2=1, y2=15/16, priority=prio_contrast )
-    )
     # QR code at most 5/8 the width, to retain sufficient space for large Ethereum encrypted JSON
     # wallet private keys
-    private_qr_size		= min( private_qr.w, private_qr.h, private.w * 5 / 8 )
-    private_qr.x2		= private_qr.x1 + private_qr_size
-    private_qr.y1		= private_qr.y2 - private_qr_size
+    private_qr			= private.add_region_proportional(
+        Image( 'private-qr-bg',	x1=0/16, y1=6/16, x2=1, y2=15/16, priority=prio_contrast )
+    ).square( maximum=private.w * 5 / 8, justify='BL' )
     private_qr.add_region(
         Image( 'private-qr' )
     )
@@ -546,9 +558,11 @@ def produce_pdf(
     group_threshold: int,			# SLIP-39 Group Threshold required
     groups: Dict[str,Tuple[int,List[str]]],     # SLIP-39 Groups {<name>: (<need>,[<mnemonic>,...])
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
+    using_bip39: bool,				# Using BIP-39 wallets Seed generation
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
+    cover_text: Optional[str]	= None,		# Any Cover Page text; we'll append BIP-39 if 'using_bip39'
 ) -> Tuple[Tuple[str,str], FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
@@ -571,7 +585,7 @@ def produce_pdf(
     num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
     card			= layout_card(  # converts to mm
         card_size, card_margin, num_mnemonics=num_mnemonics )
-    card_dim			= card.dimensions()
+    card_dim			= card.mm()
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
     # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
@@ -583,10 +597,10 @@ def produce_pdf(
     log.debug( f"Page: {paper_format} {orientation} {pdf.epw:.8}mm w x {pdf.eph:.8}mm h w/ {page_margin_mm}mm margins,"
                f" Card: {card_format} {card_dim.x:.8}mm w x {card_dim.y:.8}mm h == {cards_pp} cards/page" )
 
-    elements			= list( card.elements() )
+    card_elements		= list( card.elements() )
     if log.isEnabledFor( logging.DEBUG ):
-        log.debug( f"Card elements: {json.dumps( elements, indent=4)}" )
-    tpl				= FlexTemplate( pdf, list( card.elements() ))
+        log.debug( f"Card elements: {json.dumps( card_elements, indent=4)}" )
+    tpl				= FlexTemplate( pdf, card_elements )
 
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
@@ -614,6 +628,71 @@ def produce_pdf(
             f.seek( 0 )
             for line in f:
                 log.info( line.strip() )
+
+    if cover_text:
+        # Cover page is always laid out in landscape, and rotated if necessary
+        cvw			= max( pdf.epw, pdf.eph )
+        cvh			= min( pdf.epw, pdf.eph )
+        cover			= Region(
+            'cover', 0, 0, cvw / MM_IN, cvh / MM_IN
+        ).add_region_relative(
+            Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
+        )
+        cover.add_region_proportional(
+            Image( 'cover-image', x1=1/4, x2=3/4, y1=1/4, y2=3/4, priority=-3 )
+        ).square().add_region(
+            Image( 'cover-fade', priority=-2 )
+        )
+        cover.add_region_proportional(
+            Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
+        )
+        cover.add_region_proportional(
+            Region( 'cover-rhs', x1=3/5, y1=1/5 )  # On right, below full-width header
+        ).add_region_proportional(
+            Text( 'cover-sent', y2=1/25, font='mono', multiline=True )  # 1st line
+        )
+
+        cover_elements		= list( cover.elements() )
+        if log.isEnabledFor( logging.DEBUG ):
+            log.debug( f"Cover elements: {json.dumps( cover_elements, indent=4)}" )
+        tpl_cover		= FlexTemplate( pdf, cover_elements )
+        images			= os.path.dirname( __file__ )
+        tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
+        tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
+
+        slip39_mnems		= []
+        slip39_group		= []
+        g_nam_max		= max( map( len, groups.keys() ))
+        for g_nam,(g_of,g_mns) in groups.items():
+            slip39_mnems.extend( g_mns )
+            slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
+            slip39_group.extend( f"  {i+1:2}: ____________________" for i in range( len( g_mns )))
+        if using_bip39:
+            # Add the BIP-39 Mnemonics to the cover_text, by recovering the master_secret from the
+            # SLIP-39 Mnemonics.
+            master_secret	= recover( slip39_mnems )
+            bip39_enum		= enumerate_mnemonic( produce_bip39( entropy=master_secret ) )
+            rows		= ( len( bip39_enum ) + 4 ) // 5
+            cols		= ( len( bip39_enum ) + rows - 1 ) // rows
+            cover_text	       += "\n--------------8<-------------[ cut here ]------------------"
+            cover_text	       += "\n\n            Your BIP-39 Mnemonic Phrase is:\n"
+            for r in range( rows ):
+                cover_text     += "\n    "
+                for c in range( cols ):
+                    word	= bip39_enum.get( c * rows + r )
+                    cover_text += f"{word or '':12}"
+            cover_text	       += "\n"
+
+        tpl_cover['cover-text']	= cover_text
+        cover_sent		= "SLIP-39 Mnemonic Card Recipients:\n\n"
+        cover_sent	       += "\n".join( slip39_group )
+        tpl_cover['cover-sent']	= cover_sent
+
+        pdf.add_page()
+        if orientation.lower().startswith( 'p' ):
+            tpl_cover.render( offsetx=pdf.epw, rotate=-90.0 )
+        else:
+            tpl_cover.render()
 
     card_n			= 0
     page_n			= None
@@ -646,6 +725,7 @@ def write_pdfs(
     names		= None,		# sequence of [ <name>, ... ], or { "<name>": <details> }
     master_secret	= None,		# Derive SLIP-39 details from this seed (if not supplied in names)
     passphrase		= None,		# UTF-8 encoded passphrase; default is '' (empty)
+    using_bip39		= False,        # Generate Seed from Entropy via BIP-39 generation algorithm
     group		= None,		# Group specifications, [ "Frens(3/6)", ... ]
     group_threshold	= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
@@ -660,9 +740,23 @@ def write_pdfs(
     wallet_pwd		= None,		# If paper wallet images desired, supply password
     wallet_pwd_hint	= None,		# an optional password hint
     wallet_format	= None,		# and a paper wallet format (eg. 'quarter')
-    wallet_paper	= None,		# default Wallets to output on Letter format paper
+    wallet_paper	= None,		# default Wallets to output on Letter format paper,
+    cover_page		= True,         # Produce a cover page (including BIP-39 Mnemonic, if using_bip39)
 ):
-    """Writes a PDF containing a unique SLIP-39 encoded seed for each of the names specified.
+    """Writes a PDF containing a unique SLIP-39 encoded Seed Entropy for each of the names specified.
+
+    If a sequence of multiple 'names' are supplied, then no master_secret is allowed (we must
+    generate for each name), or a dict of { 'name': <details>, ... } for each name must be provided
+    (neither master_secret nor using_bip39 allowed).
+
+    If we are generating master_secrets, and accounts, a number of Cryptocurrency wallet public
+    addresses and QR codes are generated; optionally, 'using_bip39' to force BIP-39 standard Seed
+    generation (instead of SLIP-39 standard, which uses the Seed Entropy directly).
+
+    If 'using_bip39' and 'cover_page', the BIP-39 Mnemonic phrase card is also produced.  It is
+    recommended to destroy this BIP-39 Mnemonic (ideally), or store it very, very securely (not
+    recommended).  Use the SLIP-39 "Recover" Controls, instead, to recover the BIP-39 Mnemonic
+    phrase when needed to restore a hardware wallet.
 
     Returns a { "<filename>": <details>, ... } dictionary of all PDF files written, and each of
     their account details.
@@ -683,7 +777,10 @@ def write_pdfs(
 
     cryptopaths			= cryptopaths_parser( cryptocurrency, edit=edit )
 
-    # If account details not provided in names, generate them.
+    # If account details not provided in names, generate them.  If using_bip39 is specified, this is
+    # where we use BIP-39 Seed generation to produce the wallet Seed, instead of SLIP-39 which uses
+    # the entropy directly (optionally, with a passphrase, which is not typically done, and isn't
+    # Trezor compatible).
     if not isinstance( names, dict ):
         assert not master_secret or not names or len( names ) == 1, \
             "Creating multiple account details from the same secret entropy doesn't make sense"
@@ -694,13 +791,27 @@ def write_pdfs(
                 groups		= groups,
                 master_secret	= master_secret,
                 passphrase	= passphrase.encode( 'utf-8' ) if passphrase else b'',
+                using_bip39	= using_bip39,  # Derive wallet Seed using BIP-39 Mnemonic + passphrase generation
                 cryptopaths	= cryptopaths,
             )
             for name in names or [ "SLIP39" ]
         }
 
-    # Generate each desired SLIP-39 Mnemonic file.  Supports --card (the default).  Remember any
-    # deduced orientation and paper_format for below.
+    if text and using_bip39:
+        # Output the BIP-39 Mnemonic phrase we're using to generate the Seed as text.  We'll label
+        # it as BIP-39, but it will just be ignored by standard SLIP-39 recovery attempts.
+        print( f"Using BIP-39 Mnemonic: {produce_bip39( entropy=master_secret )}" )
+
+    cover_text			= None
+    if cover_page:
+        cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt')).read()
+        if using_bip39:
+            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt')).read()
+        else:
+            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt')).read()
+
+    # Generate each desired SLIP-39 Mnemonic cards PDF.  Supports --card (the default).  Remember
+    # any deduced orientation and paper_format for below.
     results			= {}
     (pdf_paper,pdf_orient),pdf	= (None,None),None
     for name, details in names.items():
@@ -712,11 +823,14 @@ def write_pdfs(
             log.warning( f"{account.crypto:6} {account.path:20}: {account.address}" )
 
         if text:
-            # Output the SLIP-39 mnemonics as text:
-            #    name: mnemonic
+            # Output the SLIP-39 mnemonics as text, to stdout:
+            #    name: <mnemonic>
+            # or, if no name, just:
+            #    <mnemonic>
+            g_nam_max		= max( map( len, details.groups.keys() ))
             for g_name,(g_of,g_mnems) in details.groups.items():
-                for mnem in g_mnems:
-                    print( f"{name}{name and ': ' or ''}{mnem}" )
+                for i,mnem in enumerate( g_mnems ):
+                    print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
@@ -727,6 +841,7 @@ def write_pdfs(
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
                 orientations	= ('portrait', ) if wallet_pwd else None,
+                cover_text	= cover_text,
             )
 
         now			= datetime.now()
@@ -751,7 +866,7 @@ def write_pdfs(
                 (wall_h,wall_w),wall_margin = ast.literal_eval( wallet_format )
 
             wall		= layout_wallet( Coordinate( y=wall_h, x=wall_w ), wall_margin )  # converts to mm
-            wall_dim		= wall.dimensions()
+            wall_dim		= wall.mm()
 
             # Lay out wallets, always in Portrait orientation, defaulting to the Card paper_format
             # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.  Printers may
@@ -763,10 +878,10 @@ def write_pdfs(
             page_margin_mm	= PAGE_MARGIN * MM_IN
 
             walls_pp,page_xy	= layout_components( pdf, comp_dim=wall_dim, page_margin_mm=page_margin_mm )
-            elements		= list( wall.elements() )
+            wall_elements	= list( wall.elements() )
             if log.isEnabledFor( logging.DEBUG ):
-                log.debug( f"Wallet elements: {json.dumps( elements, indent=4)}" )
-            wall_tpl		= FlexTemplate( pdf, elements )
+                log.debug( f"Wallet elements: {json.dumps( wall_elements, indent=4)}" )
+            wall_tpl		= FlexTemplate( pdf, wall_elements )
 
             # Place each Paper Wallet adding pages as necessary (we already have the first fresh page).
             wall_n		= 0
@@ -833,7 +948,7 @@ def write_pdfs(
                     # third-page vs. quarter-page Paper Wallets), the line length increases, but the
                     # number of lines available decreases.  Estimate the number of characters on
                     # each line.
-                    line_elm			= next( e for e in elements if e['name'] == 'private-0' )
+                    line_elm			= next( e for e in wall_elements if e['name'] == 'private-0' )
                     line_points			= ( line_elm['x2'] - line_elm['x1'] ) / MM_IN * PT_IN
                     line_fontsize		= line_elm['size']
                     line_chars			= int( line_points / line_fontsize / ( 5 / 8 ))  # Chars ~ 5/8 width vs. height

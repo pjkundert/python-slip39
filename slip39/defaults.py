@@ -84,12 +84,17 @@ PAPER_FORMATS			= dict(
 )
 
 # The available GUI controls Layout Options
-LAYOUT				= 'Basic'
+LAYOUT				= 'Backup'
 LAYOUT_OPTIONS			= [
-    'Basic',
-    'Extra',
+    'Backup',
+    'Create',
+    'Recover',
     'Pro',
 ]
+LAYOUT_BAK			= 0
+LAYOUT_CRE			= 1
+LAYOUT_REC			= 2
+LAYOUT_PRO			= 3
 
 BITS				= (128, 256, 512)
 BITS_DEFAULT			= 128

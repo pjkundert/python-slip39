@@ -4,15 +4,15 @@
 #+BEGIN_ABSTRACT
 Select the desired SLIP-39 card size.
 
-| Controls | Card Size | Width  | Height |         |
-|----------+-----------+--------+--------+---------|
-| Basic    | Business  | 3-1/2" | 2"     | Default |
-| Basic    | Credit    | 3-3/8" | 2-1/4" |         |
-| Basic    | Index     | 5"     | 3"     |         |
-| Extra    | Half      | 8"     | 4.5"   |         |
-| Extra    | Third     | 8"     | 3-3/8" |         |
-| Extra    | Quarter   | 8"     | 2-5/8" |         |
-| Pro      | Photo     | 5-1/2" | 3-1/5" |         |
+| Controls  | Card Size | Width  | Height |
+|-----------+-----------+--------+--------|
+| (default) | Business  | 3-1/2" | 2"     |
+| All       | Credit    | 3-3/8" | 2-1/4" |
+| All       | Index     | 5"     | 3"     |
+| Recover   | Half      | 8"     | 4.5"   |
+| Recover   | Third     | 8"     | 3-3/8" |
+| Recover   | Quarter   | 8"     | 2-5/8" |
+| Pro       | Photo     | 5-1/2" | 3-1/5" |
 
 #+END_ABSTRACT
 
@@ -23,5 +23,5 @@ orientation, to fit the most Cards on the selected paper.
 
 ** Paper Wallets
 
-However, if Cryptocurrency "Paper Wallet" are printed, the selected Paper will always
-be printed in Portrait orientation.
+If Cryptocurrency "Paper Wallet" are printed, the selected Paper will always be printed in Portrait
+orientation.
