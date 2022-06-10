@@ -173,6 +173,7 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 installer:		$(INSTALLER)
 
 dmg:			deps app-dmg-valid
+pkg:			deps app-pkg-valid
 msi:			deps dist/slip39-$(VERSION)-win64.msi
 exe:			deps build/exe.$(CXFREEZE_EXT)/SLIP-39.exe
 app:			deps dist/SLIP-39.app
