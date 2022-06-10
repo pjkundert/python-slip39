@@ -65,6 +65,21 @@ related to the Seed.
 
   How can we address these conflicting requirements?
 
+** Back Up Your BIP-39 Phrase!
+
+   The [[https://slip39.com.app][SLIP-39 App (https://slip39.com/app)]] helps you to break your BIP-39 recovery phrase into
+   multiple "Groups" and "Cards", and recover it any time you need it.  Any individual cards are
+   *not* usable to access or recover the BIP-39 recovery phrase.
+
+   Even if you don't want to distributed the cards to multiple people, but just wish to more
+   securely and reliably store your BIP-39 recover phrase, SLIP-39's Shamir's Secret Sharing System
+   allows you to "break up" your BIP-39 recovery phrase into several pieces which you can store in
+   different locations.  If you lose some of them, you can still recover the BIP-39 recovery phrase!
+
+   #+ATTR_LATEX: :width 4in
+   #+CAPTION: SLIP-39 App
+   [[./images/slip39.png]]
+
 ** SLIP-39 Mnemonic Recovery Cards
 
    We don't recommend writing down one BIP-39 12-word or 24-word Mnemonic phrase, and hoping that
@@ -133,7 +148,7 @@ related to the Seed.
     If the Paper Wallet is ever lost, you can recover the Private Key (it was derived from your
     Seed!), and transfer the Cryptocurrency back into one of your own wallets.
 
-* Affiliate Links
+* Recommended Vendors
 
   To assist you in obtaining various SLIP-39 compatible components, we have established some
   relationship with reliable vendors.

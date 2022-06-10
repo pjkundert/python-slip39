@@ -190,13 +190,13 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-04-21 06:20:17 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-    : 2022-04-21 06:20:17 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-    : 2022-04-21 06:20:17 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    : 2022-04-21 06:20:17 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-    : 2022-04-21 06:20:17 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-    : 2022-04-21 06:20:17 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-    : 2022-04-21 06:20:19 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-04-21+06.20.17-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+    : 2022-06-10 06:25:39 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+    : 2022-06-10 06:25:39 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+    : 2022-06-10 06:25:39 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    : 2022-06-10 06:25:39 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    : 2022-06-10 06:25:39 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+    : 2022-06-10 06:25:39 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+    : 2022-06-10 06:25:43 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-06-10+06.25.40-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
     #+LATEX: }
 
     And what they look like:
@@ -217,8 +217,8 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-04-21 06:20:53 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ passphrase
-    : 2022-04-21 06:20:53 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2022-06-10 06:26:00 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ passphrase
+    : 2022-06-10 06:26:00 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : ffffffffffffffffffffffffffffffff
     #+LATEX: }
 
@@ -236,12 +236,12 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-04-21 06:21:29 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-    : 2022-04-21 06:21:29 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    : 2022-04-21 06:21:29 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-    : 2022-04-21 06:21:29 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-    : 2022-04-21 06:21:29 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-    : 2022-04-21 06:21:32 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-04-21+06.21.29-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+    : 2022-06-10 06:26:04 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+    : 2022-06-10 06:26:04 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    : 2022-06-10 06:26:04 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    : 2022-06-10 06:26:04 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+    : 2022-06-10 06:26:04 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+    : 2022-06-10 06:26:08 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-06-10+06.26.05-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
     #+LATEX: }
 
 *** Supported Cryptocurrencies
@@ -325,8 +325,9 @@ recover your accounts to your Ledger (or other) hardware wallet.
     : usage: slip39 [-h] [-v] [-q] [-o OUTPUT] [-t THRESHOLD] [-g GROUP] [-f FORMAT]
     :               [-c CRYPTOCURRENCY] [-p PATH] [-j JSON] [-w WALLET]
     :               [--wallet-hint WALLET_HINT] [--wallet-format WALLET_FORMAT]
-    :               [-s SECRET] [--bits BITS] [--bip39] [--passphrase PASSPHRASE]
-    :               [-C CARD] [--paper PAPER] [--no-card] [--text]
+    :               [-s SECRET] [--bits BITS] [--using-bip39]
+    :               [--passphrase PASSPHRASE] [-C CARD] [--no-card] [--paper PAPER]
+    :               [--cover] [--no-cover] [--text]
     :               [names ...]
     : 
     : Create and output SLIP-39 encoded Seeds and Paper Wallets to a PDF file.
@@ -379,7 +380,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
     :                         from slip39.recover)
     :   --bits BITS           Ensure that the seed is of the specified bit length;
     :                         128, 256, 512 supported.
-    :   --bip39               Generate Seed from secret Entropy using BIP-39
+    :   --using-bip39         Generate Seed from secret Entropy using BIP-39
     :                         generation algorithm (encode as BIP-39 Mnemonics,
     :                         encrypted using --passphrase)
     :   --passphrase PASSPHRASE
@@ -388,8 +389,10 @@ recover your accounts to your Ledger (or other) hardware wallet.
     :   -C CARD, --card CARD  Card size; business, credit, index, half, third,
     :                         quarter, photo or '(<h>,<w>),<margin>' (default:
     :                         business)
-    :   --paper PAPER         Paper size (default: Letter)
     :   --no-card             Disable PDF SLIP-39 mnemonic card output
+    :   --paper PAPER         Paper size (default: Letter)
+    :   --cover               Produce PDF SLIP-39 cover page
+    :   --no-cover            Disable PDF SLIP-39 cover page
     :   --text                Enable textual SLIP-39 mnemonic output to stdout
     #+end_example
     #+LATEX: }
@@ -421,11 +424,11 @@ recover your accounts to your Ledger (or other) hardware wallet.
   #+END_SRC
 
   #+RESULTS:
-  : 2022-04-21 06:23:54 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  : 2022-04-21 06:23:54 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-  : 2022-04-21 06:23:55 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  : 2022-04-21 06:23:55 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
-  : 2022-04-21 06:23:56 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-04-21+06.23.55-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  : 2022-06-10 06:26:22 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  : 2022-06-10 06:26:22 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  : 2022-06-10 06:26:23 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  : 2022-06-10 06:26:23 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
+  : 2022-06-10 06:26:25 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-06-10+06.26.23-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   #+LATEX: }
 
 *** =slip39.recovery= Synopsis
@@ -503,11 +506,11 @@ recover your accounts to your Ledger (or other) hardware wallet.
     ) 2>&1
    #+END_SRC
    #+RESULTS:
-   : 2022-04-21 06:30:45 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x8A9C01610614EE6c6a8d38f18c7A6f10c853dFf8
-   : 2022-04-21 06:30:45 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcmdeh03m06dy8gp8qc7usk82r44j6xcsl73v5f
+   : 2022-06-10 06:26:37 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xD1701483AC2bDe364C01D8C2A04D1F59fb80aAA0
+   : 2022-06-10 06:26:37 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qktmcplw5yazvpzsrmxdfrppvkdw4w0r8qmxfqe
    : ...later...
-   : 2022-04-21 06:30:45 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x8A9C01610614EE6c6a8d38f18c7A6f10c853dFf8
-   : 2022-04-21 06:30:45 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcmdeh03m06dy8gp8qc7usk82r44j6xcsl73v5f
+   : 2022-06-10 06:26:37 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xD1701483AC2bDe364C01D8C2A04D1F59fb80aAA0
+   : 2022-06-10 06:26:37 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qktmcplw5yazvpzsrmxdfrppvkdw4w0r8qmxfqe
    #+LATEX: }
 
 ** Generation of Addresses
@@ -632,11 +635,11 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+RESULTS:
     : 
     : 
-    : nonce: 312721ad5a6548f417582da22c26ea12a825f9ccde985b1c0fdfa701
-    :     0: 9b4e012dc146c0b8616c2869df990c4ebe93df67069c27a8a1f73c6a53481ef2ca1089342986649fccff8a5fa61fc7dd4acfb96d73f8eec963692199fc0d0ccd9b215950d33133eb465504ee98cdfe90df3c231698554fc514bbf0ade9c715707b3d8e447c103c415469da56582c3b3f56c0315ba36f8854d0286371c43a292c0f6fd4e9c1d5e820f1b20105f67368662b678c3f391dddaed4c31939fa7e9b90a0ecd3e486
-    :     1: e3a37429a444fe0ee868c4f2b1bc6306c2906524b75581fdfec4fac9a756b3a67b487f96f5c667362fbbc6bde04623c2a91b186187784315df31bb612feb0b07a9b0ca5ea67a1b0786611f455f0049b0444c76f9afb5ee3889a2e6b088bb4569531bbeb414b4a4de8106c6e0531f32222e780dbec17b314c2632ab749e54cb05dfe4bbfa559980d03e68f63ac8d33f0eafc977363b006bba5a52468002107026320f4dad3b
-    :     2: f2acf29d52a388859cc673cf2e31de35ca84818807a6c5acf6a1102fecab7aba0f737ac4fbf97cfe2be06f0a5f890081f138136ac213cd200b34691146b331f4f0e01c3aac3f6623efb311b79b1800e195ec9733dfe403f018696b430122a1aff08f7990838e499b22468b776c01319b760b50e73cd28bf306ee89acd06474e3a20b262f834511f503521e84df1fa262e46543d130f32dd01006d7e3da55916c7469e99a5b
-    :     3: ff557d463a30cb1917985b5b932999e7af43011ce2929250c8eb53dbc9e365b991cfbd664b726d699c494be4346d9bcf44813b1f889388e86dc8677ba308264f8d0d25dcb38d36f6828480e0fc6df8ba20783602566dd9908f4f7c574c50f9dc63c01a9efe6b17f8d1d3ba87aa9fb07e9b8851b5ab908708ce3235de20a1641d527290fcaf3b96776d17b838c57db707ca204124f6e4aa67de88d37f5bd3b5283781f7867d
+    : nonce: 6fcc59c2edec925c2bce6d7cd24b78f475dee0e13b5aadebd8f6b5ad
+    :     0: 722d48835b80062aaa41db839cc010c41a9b3b27044b4d7640c02ad14cc49c2451d0f696610a5e913c939776fb10f0a40a7de2ba62b5ada9de955cee8c5b40344d729779719aa2f9d25756eb91e24bf6a7d2418f8d3feaff854c1f0fa603c8dc974b33fbf68b2eb416583be0bb85b24e7cbc4a07d3bde11377febf503b4a708bd79faa8f8ebbc533ee16beee920dd78c0ecd8433cdb9f906b8b658561e2fccc4bdcd666e5e
+    :     1: 617f1ad0862f25c16f826b9bc23830142d03f6afca8efffa93848490646fab5e3afff8d43773a8354726e0e7cb7e3f4d835dab2b71718d2cda5fda76e311e390d46ddd56f02472c19cfd7fe298377fdae0b39454604ee4450933b5022485d85d6ab69e2828bc6d3365e6781681bc80d67cf2fdecd49f2f69a405dd9c80e586bd2262d4041c2cbca1b584ef1c1ec6c8d6eb16fbaabcedc18bd2101b3e5025e68e9988315654
+    :     2: c3644f4d71b9050aadba90bdd13e0ca4c7cf353c565b783155c87417ef08bf4a9420e0648e8bc03e329c85bca62632e206df5d2a2916b140e915c2119b3b477bdc941e2898f32fe9255d68e06f5cc6e9f52a6e0c0be25344ad21cc30f32aa0cfcb085b83c4d587df39f42b58b8e3f8ae1d1af033668ee263ca3214f8c899532db72413a4db2eb11f5dfa41689296880cd5222fda23ff418e1df800e669a3296a56bf44b187
+    :     3: 8730fc53e9aef587f10f3e13554536a58dea7c2459c57485fd2ac95a6309acac8f3f603f5fdc94fd1df93d98715924a9ebb48e73ba068113ff69cb19117b25fe5ff68487d96eabe02c584b2406e781d8105744497a819ee9eaa66ca3881248166a4e5c2c6972b23ff6df2314474a04d38f3e8c787a4b20aeeab9fd029f479f553fdd878c6a14f0d3f3be02d4851e8af89bda113f9fb189db06f634e45eff2b34997308b647
     #+LATEX: }
 
     On the receiving computer, we can decrypt and recover the stream of accounts from the wallet
@@ -728,7 +731,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[2]:
+    # Out[1]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -775,7 +778,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[6]:
+    # Out[2]:
     | 0                | 1                                          |
     |------------------+--------------------------------------------|
     | m/44'/60'/0'/0/0 | 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1 |
@@ -821,13 +824,13 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[7]:
+    # Out[4]:
     | 0            | 1         |
     |--------------+-----------|
     | Orientation: | landscape |
     | Paper:       | Letter    |
     | PDF Pages:   | 1         |
-    | PDF Size:    | 13031     |
+    | PDF Size:    | 13028     |
     :end:
 
     #+LATEX: }
@@ -916,7 +919,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[9]:
+    # Out[5]:
     | 0                         | 1                                |
     |---------------------------+----------------------------------|
     | 128-bit secret (decoy):   | 2e522cea2b566840495c220cf79c756e |
@@ -1007,7 +1010,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[14]:
+    # Out[6]:
     | 0                 | 1                                                     |
     |-------------------+-------------------------------------------------------|
     | Original Entropy  | ffffffffffffffffffffffffffffffff                      |
@@ -1046,11 +1049,11 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[11]:
+    # Out[7]:
     | 0                               | 1        |
     |---------------------------------+----------|
-    | Valid random 12-word mnemonics: | 6.42%    |
-    | Or, about:                      | 1 / 15.6 |
+    | Valid random 12-word mnemonics: | 6.34%    |
+    | Or, about:                      | 1 / 15.8 |
     :end:
     #+LATEX: }
 
@@ -1075,7 +1078,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[13]:
+    # Out[8]:
     | 0             | 1                                                     |
     |---------------+-------------------------------------------------------|
     | 512-bit seed: | b6a6d8921942dd9806607ebc2750416b289adea669198769f2... |
@@ -1105,7 +1108,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[21]:
+    # Out[9]:
     | 0                         | 1                                                                |
     |---------------------------+------------------------------------------------------------------|
     | 256-bit derived key path: | m/44'/60'/0'/0/0                                                 |
@@ -1140,7 +1143,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[22]:
+    # Out[10]:
     | 0             | 1          | 2           | 3           |
     |---------------+------------+-------------+-------------|
     | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
@@ -1192,7 +1195,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[23]:
+    # Out[11]:
     | 0      | 1                | 2                                          |
     |--------+------------------+--------------------------------------------|
     | Crypto | HD Wallet Path:  | Ethereum Address:                          |
@@ -1224,7 +1227,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[24]:
+    # Out[12]:
     | 0             | 1                                |
     |---------------+----------------------------------|
     | 128-bit Seed: | ffffffffffffffffffffffffffffffff |
@@ -1248,7 +1251,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
     #+RESULTS:
     :results:
-    # Out[25]:
+    # Out[13]:
     | 0                         | 1                                                                |
     |---------------------------+------------------------------------------------------------------|
     | 256-bit derived key path: | m/44'/60'/0'/0/0                                                 |
@@ -1314,8 +1317,8 @@ recover your accounts to your Ledger (or other) hardware wallet.
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2022-04-21 07:01:46 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-    : 2022-04-21 07:01:46 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2022-06-10 06:28:20 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+    : 2022-06-10 06:28:20 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
     #+LATEX: }
 
@@ -1330,26 +1333,26 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-04-21 07:08:50 slip39                7 grant     19 transfer  31 dance     43 sack      55 kitchen   
-    2022-04-21 07:08:50 slip39                8 slap      20 submit    32 sheriff   44 home      56 terminal  
-    2022-04-21 07:08:50 slip39                9 total     21 execute   33 acne      45 express   57 exceed    
-    2022-04-21 07:08:50 slip39               10 uncover   22 western   34 spelling  46 reunion   58 mild      
-    2022-04-21 07:08:50 slip39               11 military  23 behavior  35 width     47 rapids    59 category  
-    2022-04-21 07:08:50 slip39               12 lizard    24 equip     36 analysis  48 biology   
-    2022-04-21 07:08:50 slip39           6th  1 artwork   13 blanket   25 regular   37 syndrome  49 daughter  
-    2022-04-21 07:08:50 slip39                2 guilt     14 forecast  26 crowd     38 visitor   50 peasant   
-    2022-04-21 07:08:50 slip39                3 decision  15 patent    27 fancy     39 spirit    51 tension   
-    2022-04-21 07:08:50 slip39                4 spider    16 national  28 large     40 voter     52 element   
-    2022-04-21 07:08:50 slip39                5 acquire   17 slap      29 garlic    41 loan      53 spelling  
-    2022-04-21 07:08:50 slip39                6 island    18 bulb      30 advance   42 typical   54 warmth    
-    2022-04-21 07:08:50 slip39                7 toxic     19 march     31 emerald   43 loyalty   55 element   
-    2022-04-21 07:08:50 slip39                8 spirit    20 type      32 ruler     44 glad      56 avoid     
-    2022-04-21 07:08:50 slip39                9 emerald   21 emphasis  33 home      45 blind     57 crunch    
-    2022-04-21 07:08:50 slip39               10 order     22 slavery   34 patent    46 burning   58 boring    
-    2022-04-21 07:08:50 slip39               11 shaft     23 sprinkle  35 wrap      47 victim    59 income    
-    2022-04-21 07:08:50 slip39               12 medal     24 emperor   36 ranked    48 remove    
-    2022-04-21 07:08:50 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2022-04-21 07:08:50 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2022-06-10 06:28:24 slip39                7 salary    19 visual    31 extend    43 impulse   55 quarter   
+    2022-06-10 06:28:24 slip39                8 aluminum  20 evoke     32 failure   44 fitness   56 cylinder  
+    2022-06-10 06:28:24 slip39                9 estimate  21 ladybug   33 junior    45 behavior  57 have      
+    2022-06-10 06:28:24 slip39               10 work      22 else      34 hour      46 frost     58 grumpy    
+    2022-06-10 06:28:24 slip39               11 space     23 laundry   35 entrance  47 avoid     59 expand    
+    2022-06-10 06:28:24 slip39               12 peaceful  24 unknown   36 paper     48 kitchen   
+    2022-06-10 06:28:24 slip39           6th  1 remove    13 game      25 discuss   37 gray      49 metric    
+    2022-06-10 06:28:24 slip39                2 steady    14 index     26 daisy     38 hunting   50 slice     
+    2022-06-10 06:28:24 slip39                3 decision  15 ivory     27 problem   39 breathe   51 lair      
+    2022-06-10 06:28:24 slip39                4 spider    16 exotic    28 beaver    40 equip     52 view      
+    2022-06-10 06:28:24 slip39                5 acne      17 cricket   29 reaction  41 glance    53 ounce     
+    2022-06-10 06:28:24 slip39                6 luxury    18 screw     30 slush     42 random    54 glad      
+    2022-06-10 06:28:24 slip39                7 says      19 therapy   31 ultimate  43 increase  55 victim    
+    2022-06-10 06:28:24 slip39                8 depart    20 drove     32 dive      44 senior    56 vampire   
+    2022-06-10 06:28:24 slip39                9 very      21 strike    33 ajar      45 scroll    57 brave     
+    2022-06-10 06:28:24 slip39               10 listen    22 steady    34 ending    46 depart    58 rebuild   
+    2022-06-10 06:28:24 slip39               11 invasion  23 climate   35 lying     47 dough     59 engage    
+    2022-06-10 06:28:24 slip39               12 treat     24 verify    36 scroll    48 very      
+    2022-06-10 06:28:24 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2022-06-10 06:28:24 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
     #+end_example
     #+LATEX: }
     
@@ -1399,8 +1402,8 @@ recover your accounts to your Ledger (or other) hardware wallet.
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2022-04-21 07:11:10 slip39.recovery  Recovered 128-bit BIP-39 secret from english mnemonic
-    : 2022-04-21 07:11:10 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2022-06-10 06:28:39 slip39.recovery  Recovered 128-bit BIP-39 secret from english mnemonic
+    : 2022-06-10 06:28:39 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : ffffffffffffffffffffffffffffffff
     #+LATEX: }
 
@@ -1419,26 +1422,26 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-04-21 07:13:15 slip39                4 skin      11 tidy      18 repeat    
-    2022-04-21 07:13:15 slip39                5 amount    12 body      19 plan      
-    2022-04-21 07:13:15 slip39                6 owner     13 alto      20 hairy     
-    2022-04-21 07:13:15 slip39                7 viral     14 adapt     
-    2022-04-21 07:13:15 slip39           5th  1 dominant   8 costume   15 guest     
-    2022-04-21 07:13:15 slip39                2 smug       9 lawsuit   16 omit      
-    2022-04-21 07:13:15 slip39                3 decision  10 transfer  17 nail      
-    2022-04-21 07:13:15 slip39                4 snake     11 watch     18 carpet    
-    2022-04-21 07:13:15 slip39                5 aide      12 fiber     19 sidewalk  
-    2022-04-21 07:13:15 slip39                6 render    13 arcade    20 civil     
-    2022-04-21 07:13:15 slip39                7 submit    14 burden    
-    2022-04-21 07:13:15 slip39           6th  1 dominant   8 ranked    15 paces     
-    2022-04-21 07:13:15 slip39                2 smug       9 filter    16 machine   
-    2022-04-21 07:13:15 slip39                3 decision  10 axis      17 symbolic  
-    2022-04-21 07:13:15 slip39                4 spider    11 always    18 reject    
-    2022-04-21 07:13:15 slip39                5 both      12 stilt     19 acid      
-    2022-04-21 07:13:15 slip39                6 single    13 curious   20 luxury    
-    2022-04-21 07:13:15 slip39                7 paper     14 silver    
-    2022-04-21 07:13:15 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    2022-04-21 07:13:15 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    2022-06-10 06:28:43 slip39                4 skin      11 sheriff   18 dynamic   
+    2022-06-10 06:28:43 slip39                5 document  12 album     19 diminish  
+    2022-06-10 06:28:43 slip39                6 station   13 overall   20 metric    
+    2022-06-10 06:28:43 slip39                7 smear     14 depend    
+    2022-06-10 06:28:43 slip39           5th  1 desert     8 gather    15 auction   
+    2022-06-10 06:28:43 slip39                2 pipeline   9 living    16 finger    
+    2022-06-10 06:28:43 slip39                3 decision  10 view      17 work      
+    2022-06-10 06:28:43 slip39                4 snake     11 public    18 organize  
+    2022-06-10 06:28:43 slip39                5 dish      12 predator  19 beard     
+    2022-06-10 06:28:43 slip39                6 crucial   13 withdraw  20 health    
+    2022-06-10 06:28:43 slip39                7 extra     14 clock     
+    2022-06-10 06:28:43 slip39           6th  1 desert     8 bracelet  15 game      
+    2022-06-10 06:28:43 slip39                2 pipeline   9 muscle    16 blanket   
+    2022-06-10 06:28:43 slip39                3 decision  10 holiday   17 element   
+    2022-06-10 06:28:43 slip39                4 spider    11 flexible  18 birthday  
+    2022-06-10 06:28:43 slip39                5 buyer     12 acne      19 manager   
+    2022-06-10 06:28:43 slip39                6 minister  13 judicial  20 agency    
+    2022-06-10 06:28:43 slip39                7 pink      14 agency    
+    2022-06-10 06:28:43 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    2022-06-10 06:28:43 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
     #+end_example
     #+LATEX: }
 
@@ -1455,38 +1458,55 @@ recover your accounts to your Ledger (or other) hardware wallet.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-04-21 07:23:50 slip39                4 skin      11 source    18 eraser    
-    2022-04-21 07:23:50 slip39                5 dwarf     12 rival     19 ivory     
-    2022-04-21 07:23:50 slip39                6 hybrid    13 rumor     20 starting  
-    2022-04-21 07:23:50 slip39                7 fiber     14 coastal   
-    2022-04-21 07:23:50 slip39           5th  1 software   8 pupal     15 herd      
-    2022-04-21 07:23:50 slip39                2 leaf       9 dance     16 thunder   
-    2022-04-21 07:23:50 slip39                3 decision  10 scout     17 gross     
-    2022-04-21 07:23:50 slip39                4 snake     11 fortune   18 idle      
-    2022-04-21 07:23:50 slip39                5 already   12 national  19 ceiling   
-    2022-04-21 07:23:50 slip39                6 treat     13 exotic    20 flea      
-    2022-04-21 07:23:50 slip39                7 promise   14 filter    
-    2022-04-21 07:23:50 slip39           6th  1 software   8 unhappy   15 boring    
-    2022-04-21 07:23:50 slip39                2 leaf       9 theater   16 company   
-    2022-04-21 07:23:50 slip39                3 decision  10 presence  17 painting  
-    2022-04-21 07:23:50 slip39                4 spider    11 charity   18 marvel    
-    2022-04-21 07:23:50 slip39                5 describe  12 identify  19 wireless  
-    2022-04-21 07:23:50 slip39                6 capital   13 prayer    20 mustang   
-    2022-04-21 07:23:50 slip39                7 pickup    14 already   
-    2022-04-21 07:23:50 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2022-04-21 07:23:50 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2022-06-10 06:28:50 slip39                4 skin      11 grill     18 national  
+    2022-06-10 06:28:50 slip39                5 being     12 brother   19 capture   
+    2022-06-10 06:28:50 slip39                6 election  13 royal     20 switch    
+    2022-06-10 06:28:50 slip39                7 ivory     14 juice     
+    2022-06-10 06:28:50 slip39           5th  1 guitar     8 punish    15 ivory     
+    2022-06-10 06:28:50 slip39                2 training   9 fantasy   16 born      
+    2022-06-10 06:28:50 slip39                3 decision  10 therapy   17 survive   
+    2022-06-10 06:28:50 slip39                4 snake     11 patrol    18 garden    
+    2022-06-10 06:28:50 slip39                5 demand    12 that      19 axle      
+    2022-06-10 06:28:50 slip39                6 camera    13 unusual   20 deploy    
+    2022-06-10 06:28:50 slip39                7 revenue   14 home      
+    2022-06-10 06:28:50 slip39           6th  1 guitar     8 flip      15 relate    
+    2022-06-10 06:28:50 slip39                2 training   9 scandal   16 square    
+    2022-06-10 06:28:50 slip39                3 decision  10 spew      17 rocky     
+    2022-06-10 06:28:50 slip39                4 spider    11 style     18 deploy    
+    2022-06-10 06:28:50 slip39                5 answer    12 playoff   19 ugly      
+    2022-06-10 06:28:50 slip39                6 entrance  13 lift      20 intimate  
+    2022-06-10 06:28:50 slip39                7 timely    14 promise   
+    2022-06-10 06:28:50 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2022-06-10 06:28:50 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
     #+end_example
     #+LATEX: }
 
     And, there we have it -- we've recovered exactly the same Ethereum and Bitcoin wallets as would
     a native BIP-39 hardware wallet like a Ledger Nano.
 
-**** On the GUI: Select "Using BIP-39"
+**** Using SLIP-39 App "Backup" Controls
 
-     In the SLIP-39 App, change Controls to "Recovery".  In "Seed Source", select "BIP-39", and in
-     "Seed & SLIP-39 Recover Groups", select "Using BIP-39".
+     In the SLIP-39 App, the default Controls presented are to "Backup" a BIP-39 recovery phrase.
 
-     This will
+     In "Seed Source", enter your existing BIP-39 recovery phrase.  In "Seed Secret", make sure
+     "Using BIP-39" is selected, and enter your BIP-39 passphrase.  This allows us to display the
+     proper wallet addresses -- we do *not* store your password, or save it as part of the SLIP-39
+     cards!  You will need to remember and use your passphrase whenever you use your BIP-39 phrase
+     to initialize a hardware wallet.
+
+     Check that the Recovery needs ... Mnemonic Card Groups are correct for your application, and
+     hit Save!
+
+     Later, use the "Recover" Controls to get your BIP-39 recovery phrase back, from your SLIP-39
+     cards, whenever you need it.
+
+     Practice this a few times (using the "zoo zoo ... wrong" 12-word or "zoo zoo ... vote" 24-word
+     phrase) until you're confident.  Then, back up your real BIP-39 recovery phrase.
+
+     Once you're convinced you can securely and reliably recover your BIP-39 phrase any time you
+     need it, we recommend that you destroy your original BIP-39 recovery phrase backup(s).  They
+     are dangerous and unreliable, and only serve to make your Cryptocurrency accounts *less*
+     secure!
 
 * Building & Installing
 

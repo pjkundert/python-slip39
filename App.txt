@@ -39,12 +39,13 @@ Table of Contents
 ─────────────────
 
 1. Security with Availability
-.. 1. SLIP-39 Mnemonic Recovery Cards
+.. 1. Back Up Your BIP-39 Phrase!
+.. 2. SLIP-39 Mnemonic Recovery Cards
 ..... 1. Why Not a BIP-39 Mnemonic Phrase?
 ..... 2. Why Not a BIP-38 Encrypted Wallet + Passphrase?
-.. 2. Paper Wallets
+.. 3. Paper Wallets
 ..... 1. Walking-Around Money
-2. Affiliate Links
+2. Recommended Vendors
 .. 1. Trezor
 .. 2. Ledger
 .. 3. Netcoins.app
@@ -86,7 +87,28 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   How can we address these conflicting requirements?
 
 
-1.1 SLIP-39 Mnemonic Recovery Cards
+1.1 Back Up Your BIP-39 Phrase!
+───────────────────────────────
+
+  The [SLIP-39 App (https://slip39.com/app)] helps you to break your
+  BIP-39 recovery phrase into multiple "Groups" and "Cards", and recover
+  it any time you need it.  Any individual cards are *not* usable to
+  access or recover the BIP-39 recovery phrase.
+
+  Even if you don't want to distributed the cards to multiple people,
+  but just wish to more securely and reliably store your BIP-39 recover
+  phrase, SLIP-39's Shamir's Secret Sharing System allows you to "break
+  up" your BIP-39 recovery phrase into several pieces which you can
+  store in different locations.  If you lose some of them, you can still
+  recover the BIP-39 recovery phrase!
+
+  <./images/slip39.png>
+
+
+[SLIP-39 App (https://slip39.com/app)] <https://slip39.com.app>
+
+
+1.2 SLIP-39 Mnemonic Recovery Cards
 ───────────────────────────────────
 
   We don't recommend writing down one BIP-39 12-word or 24-word Mnemonic
@@ -98,7 +120,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   <./images/slip39-cards.png>
 
 
-1.1.1 Why Not a BIP-39 Mnemonic Phrase?
+1.2.1 Why Not a BIP-39 Mnemonic Phrase?
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   If *everyone* you talk to is recommending that you just write down
@@ -120,7 +142,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   than 50%.  Perhaps *much* less.
 
 
-1.1.2 Why Not a BIP-38 Encrypted Wallet + Passphrase?
+1.2.2 Why Not a BIP-38 Encrypted Wallet + Passphrase?
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   Have you ever forgotten a password to an online account?
@@ -136,7 +158,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   exposed to this risk of loss.
 
 
-1.2 Paper Wallets
+1.3 Paper Wallets
 ─────────────────
 
   If desired, you can produce encrypted Paper Wallets, to support
@@ -146,7 +168,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   <./images/slip39-wallets.png>
 
 
-1.2.1 Walking-Around Money
+1.3.1 Walking-Around Money
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   Money that doesn't /work/ has low utility and hence low value.  There
@@ -172,8 +194,8 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   into one of your own wallets.
 
 
-2 Affiliate Links
-═════════════════
+2 Recommended Vendors
+═════════════════════
 
   To assist you in obtaining various SLIP-39 compatible components, we
   have established some relationship with reliable vendors.
