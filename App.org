@@ -67,9 +67,9 @@ related to the Seed.
 
 ** Back Up Your BIP-39 Phrase!
 
-   The [[https://slip39.com.app][SLIP-39 App (https://slip39.com/app)]] helps you to break your BIP-39 recovery phrase into
-   multiple "Groups" and "Cards", and recover it any time you need it.  Any individual cards are
-   *not* usable to access or recover the BIP-39 recovery phrase.
+   The [[https://slip39.com/app][SLIP-39 App]] helps you to break your BIP-39 recovery phrase into multiple "Groups" and
+   "Cards", and recover it any time you need it.  Any individual cards are *not* usable to access or
+   recover the BIP-39 recovery phrase.
 
    Even if you don't want to distributed the cards to multiple people, but just wish to more
    securely and reliably store your BIP-39 recover phrase, SLIP-39's Shamir's Secret Sharing System

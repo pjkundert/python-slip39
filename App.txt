@@ -90,10 +90,10 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
 1.1 Back Up Your BIP-39 Phrase!
 ───────────────────────────────
 
-  The [SLIP-39 App (https://slip39.com/app)] helps you to break your
-  BIP-39 recovery phrase into multiple "Groups" and "Cards", and recover
-  it any time you need it.  Any individual cards are *not* usable to
-  access or recover the BIP-39 recovery phrase.
+  The [SLIP-39 App] helps you to break your BIP-39 recovery phrase into
+  multiple "Groups" and "Cards", and recover it any time you need it.
+  Any individual cards are *not* usable to access or recover the BIP-39
+  recovery phrase.
 
   Even if you don't want to distributed the cards to multiple people,
   but just wish to more securely and reliably store your BIP-39 recover
@@ -105,7 +105,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   <./images/slip39.png>
 
 
-[SLIP-39 App (https://slip39.com/app)] <https://slip39.com.app>
+[SLIP-39 App] <https://slip39.com/app>
 
 
 1.2 SLIP-39 Mnemonic Recovery Cards
