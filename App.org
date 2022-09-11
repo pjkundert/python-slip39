@@ -223,22 +223,22 @@ related to the Seed.
    Protect your printed SLIP-39 cards from water damage by laminating them in plastic or storing
    them in [[https://amzn.to/3KxvQ1G][foil ziplock bags]] before [[https://amzn.to/3HCX8lv][mailing them]].
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=ef9c22a5d125ab5b1a8d3f3cd27456fb"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=06e0f5d889c93f5427c379ddc5fa6857"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=ef9c22a5d125ab5b1a8d3f3cd27456fb"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=06e0f5d889c93f5427c379ddc5fa6857"></iframe>
    #+END_EXPORT
 
    Print the SLIP-39 cards and cut them out, and then lay them out with 1/2" margins (so you can cut
    them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3K6wp2p][self-adhesive full-page
    laminating sheets]] - no machine required (or [[https://amzn.to/3vyyKPw][index-card size]] sheets), 
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00007E7D2&linkId=608ce5dd44a7a227327c9000d6442c92"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=4ef3861c37b523826fcf6d3a87349890"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00007E7D2&linkId=608ce5dd44a7a227327c9000d6442c92"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=4ef3861c37b523826fcf6d3a87349890"></iframe>
    #+END_EXPORT
    or with a [[https://amzn.to/3IyMkGt][heat-laminating machine]] in [[https://amzn.to/3C1N3NI][full-page pouches]] (or in [[https://amzn.to/35z7RA5][index-card size pouches]]).
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=12211cd757266604642e6fb78d04377d"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=dcc0671406aa42d30b3e09a1cc08154f"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=6c8f34fe77e3b87e6f8c53e3485bf594"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=12211cd757266604642e6fb78d04377d"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=dcc0671406aa42d30b3e09a1cc08154f"></iframe>
+   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=6c8f34fe77e3b87e6f8c53e3485bf594"></iframe>
    #+END_EXPORT
    
 * Privacy Policy
