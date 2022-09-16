@@ -1,3 +1,20 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
 import argparse
 import codecs
 import logging
@@ -57,6 +74,9 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     ap.add_argument( '-u', '--using-bip39', action='store_true',
                      default=False,
                      help="Recover Entropy from SLIP-39, generate 512-bit secret Seed using BIP-39 Mnemonic + passphrase" )
+    ap.add_argument( '--binary', action='store_true',
+                     default=False,
+                     help="Output seed in binary instead of hex" )
     ap.add_argument( '-p', '--passphrase',
                      default=None,
                      help="Decrypt the SLIP-39 or BIP-39 master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -120,5 +140,7 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     if secret:
         secret			= codecs.encode( secret, 'hex_codec' ).decode( 'ascii' )
         log.info( f"Recovered {algo} secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -" )
+        if args.binary:
+            secret		= ''.join( f"{int(h,16):0>4b}" for h in secret )
         print( secret )
     return 0 if secret else 1

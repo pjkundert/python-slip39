@@ -125,17 +125,3 @@ def test_groups_pty():
         file		= ser
     ):
         logging.info( f"Receive: {group}" )
-
-
-# def transmitter():
-
-
-#     yield from addresses(
-#         master_secret			= b"\xFF" * 16,
-#         paths
-
-
-# def test_serial_xonxoff():
-#     """Ensure that flow-control works.  The idealy secure solution is to use hardware RTS/CTS flow
-#     control, with no tx circuit.  However, even a regular serial link with software XON/XOFF flow
-#     control is much more secure than a network-connected peer."""

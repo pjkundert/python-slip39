@@ -1,11 +1,16 @@
 import codecs
+import csv
+import logging
+import os
 import pytest
 
 import shamir_mnemonic
 
-from .api		import create
+from .api		import create, account
 from .recovery		import recover, recover_bip39
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
+
+log				= logging.getLogger( __package__ )
 
 groups_example			= dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) )
 
@@ -222,3 +227,79 @@ def test_recover_bip39():
     # And ensure that the SLIP-39 encoding of the BIP-39 "zoo zoo ... wrong" w/ BIP-39
     # Entropy was identically to the raw SLIP-39 encoding.
     assert details_slip39.groups == details_bip39entropy.groups
+
+
+def into_boolean( val, truthy=(), falsey=() ):
+    """Check if the provided numeric or str val content is truthy or falsey; additional tuples of
+    truthy/falsey lowercase values may be provided.  The empty/whitespace string is Falsey."""
+    if isinstance( val, (int,float,bool)):
+        return bool( val )
+    assert isinstance( val, str )
+    if val.strip().lower() in ( 't', 'true', 'y', 'yes' ) + truthy:
+        return True
+    elif val.strip().lower() in ( 'f', 'false', 'n', 'no', '' ) + falsey:
+        return False
+    raise ValueError( val )
+
+
+def test_recover_bip39_vectors():
+    # Test some BIP-39 encodings that have caused issues for other platforms:
+    # 
+    #   - https://github.com/iancoleman/bip39/issues/58
+
+    # If passphrase is None, signals BIP-39 recover as_entropy, and account generation using_bip39
+    # bip39_tests		= [
+    #     ['zoo ' * 11 + 'wrong', "", True, (
+    #         None, 'bech32', 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2')],
+    #     ['zoo ' * 11 + 'wrong', "", None, (
+    #         None, 'bech32', 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl')],
+    #     [ 'fruit wave dwarf banana earth journey tattoo true farm silk olive fence', 'banana', True, (
+    #         None, 'legacy', '17rxURoF96VhmkcEGCj5LNQkmN9HVhWb7F')]
+    # ]
+    with open( os.path.join( os.path.splitext( __file__ )[0] + '.csv' )) as bip32_csv:
+        bip39_tests		= list( csv.DictReader( bip32_csv, quotechar='"', delimiter=',', quoting=csv.QUOTE_ALL, skipinitialspace=True ))
+
+    for i,t in enumerate( bip39_tests ):
+        log.info( f"Testing: {t!r}" )
+        # Decode the entropy; either hex or BIP-39 mnemonics support
+        entropy			= t.get( 'entropy' )
+        if all( c in '0123456789abcdef' for c in entropy.lower() ):
+            master_secret	= codecs.decode( entropy, 'hex_codec' )  # Hex entropy allowed
+        else:
+            passphrase		= ( t.get( 'passphrase', '' )).strip()
+            if into_boolean( t.get( 'using_bip39', False )):
+                # When using BIP-39, we obtain the 512-bit seed from the 128/256-bit BIP-39 mnemonic
+                # entropy + passphrase, and use that to derive the wallets.
+                master_secret	= recover_bip39( entropy, passphrase=passphrase )
+            else:
+                # For SLIP-39 wallets, we recover the 128/256-bit entropy, which is used directly as the
+                # seed to derive the wallets.  The passphrase would be used to secure the SLIP-39
+                # mnemonics.
+                assert not passphrase, \
+                    "row {i+1}: passphrase unsupported unless using_bip39"
+                master_secret	= recover_bip39( entropy, passphrase=None, as_entropy=True )
+
+        master_secret_hex	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ) 
+        log.debug( f"Entropy {entropy!r} ==> {master_secret_hex!r}" )
+
+        # Decode the desired address; 1... and xpub... are legacy, 3... and ypub... are segwit and
+        # bc1... and zpub are bech32.
+        address			= t.get( 'address' )
+        format			= {
+            '1': 'legacy',
+            'x': 'legacy',
+            '3': 'segwit',
+            'y': 'segwit',
+            'b': 'bech32',
+            'z': 'bech32',
+        }[address[0]]
+        acct			= account(
+            master_secret	= master_secret,
+            crypto		= "BTC",
+            path		= t.get( 'path' ),
+            format		= format
+        )
+        # Finally, generate the account's address or xpubkey
+        addresses		= [ acct.address, acct.xpubkey ]
+        assert address in addresses, \
+            f"row {i+1}: BTC account {address} not in {addresses!r} for entropy {entropy} ==> {master_secret}"
