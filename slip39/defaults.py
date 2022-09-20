@@ -158,15 +158,3 @@ COLOR				= [
     f"0x{__m}{__m}{__m}",  # Medium grey,
     f"0x{__d}{__d}{__d}",  # Dark grey,
 ]
-
-# Include any known seed bit sequences here; any seed containing any of these
-# segments will be printed with a "watermark" indicating that the seed is
-# invalid, indicating that it should probably not be used!  These are clearly
-# non-random sequences of bits, or sequences known to be part of publicly
-# disclosed test sequences.  The probability of these sequences showing up in a
-# legitimate, random seed is about 1 in 2^40 =~= 1 Trillion.
-KNOWN_SEQUENCES			= [
-    40 * "1",
-    40 * "0",
-    20 * "01",
-]

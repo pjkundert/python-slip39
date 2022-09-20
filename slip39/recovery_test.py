@@ -3,11 +3,14 @@ import csv
 import logging
 import os
 import pytest
+import math
+import cmath
 
 import shamir_mnemonic
 
 from .api		import create, account
-from .recovery		import recover, recover_bip39
+from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy
+from .recovery.entropy	import fft, dft, idft, dft_magnitude, dft_on_real
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
 
 log				= logging.getLogger( __package__ )
@@ -244,7 +247,7 @@ def into_boolean( val, truthy=(), falsey=() ):
 
 def test_recover_bip39_vectors():
     # Test some BIP-39 encodings that have caused issues for other platforms:
-    # 
+    #
     #   - https://github.com/iancoleman/bip39/issues/58
 
     # If passphrase is None, signals BIP-39 recover as_entropy, and account generation using_bip39
@@ -279,7 +282,7 @@ def test_recover_bip39_vectors():
                     "row {i+1}: passphrase unsupported unless using_bip39"
                 master_secret	= recover_bip39( entropy, passphrase=None, as_entropy=True )
 
-        master_secret_hex	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ) 
+        master_secret_hex	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
         log.debug( f"Entropy {entropy!r} ==> {master_secret_hex!r}" )
 
         # Decode the desired address; 1... and xpub... are legacy, 3... and ypub... are segwit and
@@ -303,3 +306,133 @@ def test_recover_bip39_vectors():
         addresses		= [ acct.address, acct.xpubkey ]
         assert address in addresses, \
             f"row {i+1}: BTC account {address} not in {addresses!r} for entropy {entropy} ==> {master_secret}"
+
+
+def test_dft():
+    print()
+    print( "Real-valued samples, recovered from inverse DFT:" )
+    x				= [ 2, 3, 5, 7, 11 ]
+    print( "vals:  " + ' '.join( f"{f:11.2f}" for f in x ))
+    y				= dft( x )
+    print( "dft:   " + ' '.join( f"{f:11.2f}" for f in y ))
+    z				= idft( y )
+    print( "idft:  " + ' '.join( f"{f:11.2f}" for f in z ))
+    print( "recov.:" + ' '.join( f"{f:11.2f}" for f in dft_magnitude( z )))
+
+    # Lets determine how dft organizes its output buckets.  Lets find the bucket contain any DC
+    # offset, by supplying a 0Hz signal w/ a large DC offset.
+
+    # What about a single full real-valued waveform (complex component is always 0j)?
+    print()
+    print( "Real-valued signal, 1-4 cycles in 8 samples:" )
+    dc				= [1.0] * 8
+    print( "DC:     " + ' '.join( f"{f:11.2f}" for f in dc ))
+    dft_dc			= dft( dc )
+    print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_dc ))
+    print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_dc )))
+    assert dft_dc[0] == pytest.approx( 8+0j )
+    #1Hz:           1.000          0.707          0.000         -0.707         -1.000         -0.707         -0.000          0.707
+    #1Hz_d: -0.000+0.000j   4.000-0.000j  -0.000-0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   4.000+0.000j
+    oneHz			= [math.sin(+math.pi/2+math.pi*2*i/8) for i in range( 8 )]
+    print( "+1Hz:   " + ' '.join( f"{f:11.2f}" for f in oneHz ))
+    dft_oneHz			= dft( oneHz )
+    print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_oneHz ))
+    fft_oneHz			= fft( oneHz )
+    print( "  FFT:  " + ' '.join( f"{f:11.2f}" for f in fft_oneHz ))
+    print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_oneHz )))
+    #2Hz:           1.000          0.000         -1.000         -0.000          1.000          0.000         -1.000         -0.000
+    #2Hz_d: -0.000+0.000j  -0.000-0.000j   4.000-0.000j  -0.000-0.000j   0.000-0.000j   0.000-0.000j   4.000+0.000j   0.000-0.000j
+    twoHz			= [math.sin(+math.pi/2+math.pi*2*i/4) for i in range( 8 )]
+    print( "+2Hz:   " + ' '.join( f"{f:11.2f}" for f in twoHz ))
+    dft_twoHz			= dft( twoHz )
+    print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_twoHz ))
+    print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_twoHz )))
+    #4Hz:           1.000         -1.000          1.000         -1.000          1.000         -1.000          1.000         -1.000
+    #4Hz_d:  0.000+0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   8.000+0.000j  -0.000+0.000j   0.000-0.000j  -0.000-0.000j
+    forHz			= [math.sin(+math.pi/2+math.pi*2*i/2) for i in range( 8 )]
+    print( "+4Hz:   " + ' '.join( f"{f:11.2f}" for f in forHz ))
+    dft_forHz			= dft( forHz )
+    print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_forHz ))
+    print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_forHz )))
+    # Same, but just shifted -PI/2, instead of +PI/2: reverses the highest frequency bucket.
+    #4Hz:          -1.000          1.000         -1.000          1.000         -1.000          1.000         -1.000          1.000
+    #4Hz_d:  0.000+0.000j   0.000+0.000j  -0.000+0.000j  -0.000+0.000j  -8.000-0.000j   0.000-0.000j  -0.000+0.000j   0.000+0.000j
+    forHz			= [math.sin(-math.pi/2-math.pi*2*i/2) for i in range( 8 )]
+    print( "-4Hz:   " + ' '.join( f"{f:11.2f}" for f in forHz ))
+    dft_forHz			= dft( forHz )
+    print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_forHz ))
+    print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_forHz )))
+
+    # So, the frequency buckets are symmetrical, from DC, 1B/N up to (N/2)B/N (which is also
+    # -(N/2)B/N), and then back down to -1B/N.  We do complex signals, so we can see signals of the
+    # same frequency on +'ve and -'ve side of DC.  Note that -4/8 and +4/8 are indistinguishable --
+    # both rotate the complex signal by 1/2 on each steop, so the "direction" of rotation in complex
+    # space is not known.  This is why the signal must be filtered; any frequency components at or
+    # above B/2 will simply be mis-interpreted as artifacts in other lower frequency buckets.
+    N				= 8
+    print()
+    print( f"Complex signal, 1-4 cycles in {N} samples:" )
+    for rot_i,rot in enumerate((0, 1, 2, 3, -4, -3, -2, -1)):  # buckets, in ascending index order
+        sig			= [
+            # unit-magnitude complex samples, rotated through 2Pi 'rot' times, in N steps
+            cmath.rect(
+                1, math.pi*2*rot/N*i
+            )
+            for i in range( N )
+        ]
+        print( f"{rot:2} cyc.:" + ' '.join( f"{f:11.2f}" for f in sig ))
+        dft_sig			= dft( sig )
+        print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_sig ))
+        print( "   ABS: " + ' '.join( f"{abs(f):11.2f}" for f in dft_sig ))
+        assert dft_sig[rot_i] == pytest.approx( 8+0j )
+
+
+def test_signal_entropy():
+    print()
+    entropy			= codecs.decode( 'ff00' * 8, 'hex_codec' )
+    signal			= signal_entropy( entropy, 8, 8 )
+    assert signal.dB == pytest.approx( 13.11755068 )
+    signal			= signal_entropy( SEED_XMAS, 8, 8 )
+    assert signal.dB == pytest.approx( 8.712742582 )
+
+
+def test_shannon_entropy():
+
+    shannon			= shannon_entropy( SEED_ONES )
+    shannon			= shannon_entropy( SEED_ONES, overlap=False )
+    shannon			= shannon_entropy( SEED_ONES, stride=4 )
+    shannon			= shannon_entropy( SEED_ONES, stride=4, overlap=False )
+
+    SEED_ZERO_HEX		= b'00' * 16
+    SEED_ZERO			= codecs.decode( SEED_ZERO_HEX, 'hex_codec' )
+
+    shannon			= shannon_entropy( SEED_ONES+SEED_ZERO )
+    shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, overlap=False )
+    shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, stride=4 )
+    shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, stride=4, overlap=False )
+
+    shannon			= shannon_entropy( SEED_ONES+SEED_XMAS )
+    shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, overlap=False )
+    shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, stride=4 )
+    shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, stride=4, overlap=False )
+
+    shannon			= shannon_entropy( SEED_XMAS )
+    shannon			= shannon_entropy( SEED_XMAS, stride=16 )
+    shannon			= shannon_entropy( SEED_XMAS, stride=16, overlap=False )
+    shannon			= shannon_entropy( SEED_XMAS, stride=10 )
+    shannon			= shannon_entropy( SEED_XMAS, stride=10, overlap=False )
+    shannon			= shannon_entropy( SEED_XMAS, stride=6 )
+    shannon			= shannon_entropy( SEED_XMAS, stride=6, overlap=False )
+    shannon			= shannon_entropy( SEED_XMAS, stride=4 )
+    assert shannon.dB == pytest.approx( -0.29758997 )
+    shannon			= shannon_entropy( SEED_XMAS )
+    assert shannon.dB == pytest.approx( -40.0 )
+    # Now, add some duplicates, reducing the entropy.
+    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:3] )
+    assert shannon.dB == pytest.approx( -2.5456588 )
+    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:4] )
+    assert shannon.dB == pytest.approx( -0.66536314 )
+    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:5] )
+    assert shannon.dB == pytest.approx( 0.694995717 )
+    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:6] )
+    assert shannon.dB == pytest.approx( 1.73372033 )
