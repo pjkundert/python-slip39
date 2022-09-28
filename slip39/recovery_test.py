@@ -1,17 +1,23 @@
+import base64
+import cmath
 import codecs
 import csv
+import json
 import logging
+import math
 import os
 import pytest
-import math
-import cmath
+import statistics
+
+from collections	import deque
 
 import shamir_mnemonic
 
 from .api		import create, account
-from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy
-from .recovery.entropy	import fft, dft, idft, dft_magnitude, dft_on_real
+from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
+from .recovery.entropy	import fft, dft, idft, dft_on_real, entropy_bin_dfts, signal_draw, signal_recover_real
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
+from .util		import avg
 
 log				= logging.getLogger( __package__ )
 
@@ -186,7 +192,6 @@ def test_recover_bip39():
     details_slip39		= create(
         "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
     )
-    import json
     print( json.dumps( details_slip39.groups, indent=4 ))
     assert details_slip39.groups == {
         "one": (
@@ -317,7 +322,11 @@ def test_dft():
     print( "dft:   " + ' '.join( f"{f:11.2f}" for f in y ))
     z				= idft( y )
     print( "idft:  " + ' '.join( f"{f:11.2f}" for f in z ))
-    print( "recov.:" + ' '.join( f"{f:11.2f}" for f in dft_magnitude( z )))
+    print( "recov.:" + ' '.join( f"{f.real:11.2f}" for f in z ))
+
+    # Ensure a DFT on a power-of-2 length sequence is the same as the FFT
+    assert dft( x[:4] ) == pytest.approx( fft( x[:4] ))
+
 
     # Lets determine how dft organizes its output buckets.  Lets find the bucket contain any DC
     # offset, by supplying a 0Hz signal w/ a large DC offset.
@@ -387,17 +396,167 @@ def test_dft():
         assert dft_sig[rot_i] == pytest.approx( 8+0j )
 
 
-def test_signal_entropy():
+def test_signal_dft():
+    for (size,symbols) in ((8, 4), ( 16, 8), (32, 16)):
+        stride			= 8
+        mags_all		= []
+        print()
+        print( f"{size*stride=:3} bits: {symbols=}" )
+        for _ in range( 1000 ):
+            entropy		= os.urandom( 32 )
+            entropy_hex		= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
+            entropy_bin		= ''.join( f"{int(h,16):0>4b}" for h in entropy_hex )
+            dfts		= entropy_bin_dfts( entropy_bin, offset=0, symbols=symbols, stride=stride )
+            mags		= dft_on_real( dfts )  # abs energy bins, from DC to max freq
+
+            #print( f"mags: {' '.join( f'{m:{stride}.1f}' for m in mags )}: {sum(mags):7.2f}" )
+            mags_all.append( mags )
+
+        mags_avgs			= [sum(col)/len(mags_all) for col in zip(*mags_all)]
+        mags_avgs_avg			= sum(mags_avgs)/len(mags_avgs)
+        print( "---" )
+        print( f"avgs: {' '.join( f'{m:{stride}.1f}' for m in mags_avgs )}: {sum(mags_avgs):7.2f} {mags_avgs_avg:7.2f} avg." )
+        assert 64 * 90/100 < mags_avgs_avg < 64 * 110/100
+
+
+SEED_HIGH			= bytes([
+    255,      1,
+])
+SEED_MID			= bytes([
+    255,    128,      1,    128,
+])
+SEED_LOW			= bytes([
+    255, 128+90,    128, 128-90,   1, 128-90,    128, 128+90,
+])
+SEED_SLOW			= bytes([
+    255, 128+117, 128+90,  128+49,    128, 128-49,  128-90,  128-117,   1, 128-117, 128-90,  128-49,  128, 128+49, 128+90, 128+117
+])
+def test_signal_draw():
+    # Detect a signal, and draw it at different rates.  First, we need to discover how to "in-fill"
+    # a DFT so that the recovered signal is produced at a higher sample rate.  This allows us to
+    # analyze a signal in 8-bit values, but produce a recovered signal over 2x 4-bit hex nibbles, or
+    # 8x 1-bit bits.
     print()
-    entropy			= codecs.decode( 'ff00' * 8, 'hex_codec' )
-    signal			= signal_entropy( entropy, 8, 8 )
-    assert signal.dB == pytest.approx( 13.11755068 )
-    signal			= signal_entropy( SEED_XMAS, 8, 8 )
-    assert signal.dB == pytest.approx( 8.712742582 )
+    print( ''.join( signal_draw( s )           for s in range( -128, 128 )))
+    print( ''.join( signal_draw( s, pos=True ) for s in range( -128, 128 )))
+    print( ''.join( signal_draw( s, neg=True ) for s in range( -128, 128 )))
+
+    for entropy in (
+            SEED_HIGH,     SEED_MID,     SEED_LOW,
+            SEED_HIGH * 2, SEED_MID * 2, SEED_LOW * 2,
+            SEED_HIGH * 4, SEED_MID * 4, SEED_LOW * 4,
+    ):
+        print()
+        print( "Signal into DFT:" )
+        entropy_hex		= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
+        entropy_bin		= ''.join( f"{int(h,16):0>4b}" for h in entropy_hex )
+        symbols			= len( entropy )
+        stride			= 8
+        offset			= 0
+        dfts			= entropy_bin_dfts( entropy_bin, offset, symbols, stride )
+
+        print( "Signal from DFT:" )
+        sigR			= signal_recover_real( dfts, integer=True )
+        print( f"{entropy_bin}" )
+        print( ''.join( stride * signal_draw( s ) for s in sigR ))
+
+        print( "Signal from DFT x 2 deduced (for hex output:" )
+        sigR			= signal_recover_real( dfts, scale=2, integer=True )
+        print( f"{entropy_hex}" )
+        print( ''.join( signal_draw( s ) for s in sigR ))
+        print( ''.join( signal_draw( s, neg=False ) for s in sigR ))
+        print( ''.join( signal_draw( s, neg=True ) for s in sigR ))
+
+        print( "Signal from DFT x 8 deduced (for bin output):" )
+        sigR			= signal_recover_real( dfts, scale=8, integer=True )
+        print( f"{entropy_bin}" )
+        print( ''.join( signal_draw( s ) for s in sigR ))
+        print( ''.join( signal_draw( s, neg=False ) for s in sigR ))
+        print( ''.join( signal_draw( s, neg=True ) for s in sigR ))
+
+
+def test_signal_entropy():
+    # See if we can detect patterns of bits in various frequency bins.  With 8x 8-bit real-valued
+    # samples, we get DC + 4 frequency bins, with the highest frequency bin representing changes in
+    # samples at the peak Nyquist rate; every 2 symbols.  The lowest
+    #
+    #               256
+    #       128+90      128+90
+    #   128                      128
+    #                                128-90      128+90
+    #                                         0
+    #
+    # We can estimate what perfect noise looks like across all energy bins, and compare our signal
+    # against that baseline.
+    #
+
+    print()
+    SEED_SINE			= bytes([
+        # 255,    255,    255,    255,
+        # 255,    255,    255,    255,
+        # 128,    128,    128,    128,
+        # 128,    128,    128,    128,
+        #   0,      0,      0,      0,
+        #   0,      0,      0,      0,
+        128,    230,    128,     25,
+        128,    230,    128,     25,
+        128, 128+90,    255, 128+90,
+        128, 128-90,      0, 128-90,
+    ])
+    signal			= signal_entropy( SEED_SINE, 8, 8, threshold=10/100 )
+    assert signal.dB == pytest.approx( 13.1, abs=1e-1 )
+
+    SEED_FF00			= codecs.decode( 'ff00' * 8, 'hex_codec' )
+    signal			= signal_entropy( SEED_FF00, 8, 8, threshold=10/100 )
+    assert signal.dB == pytest.approx( 13.1, abs=1e-1 )
+    signal			= signal_entropy( SEED_FF00, 4, 8, threshold=10/100 )
+    assert signal.dB == pytest.approx( 12.3, abs=1e-1 )
+
+    SEED_F0F0			= codecs.decode( 'f0f0' * 8, 'hex_codec' )
+    signal			= signal_entropy( SEED_F0F0, 8, 8, threshold=10/100 )
+    assert signal.dB == pytest.approx( 13.2, abs=1e-1 )
+    signal			= signal_entropy( SEED_F0F0, 4, 8, threshold=10/100 )
+    assert signal.dB == pytest.approx( 12.6, abs=1e-1 )
+
+    SEED_RAMP			= codecs.decode( '000102030405060708090A0B0C0D0E0F', 'hex_codec' )
+    signal			= signal_entropy( SEED_RAMP, 8, 8 )
+    assert signal.dB == pytest.approx( 7.74, abs=1e-1 )
+    signal			= signal_entropy( SEED_RAMP, 4, 8 )
+    assert signal.dB == pytest.approx( 6.12, abs=1e-1 )
+
+    signal			= signal_entropy( SEED_XMAS, 8, 4, threshold=50/100 )
+    assert signal.dB == pytest.approx( 5.1, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8, 8, threshold=50/100 )
+    assert signal.dB == pytest.approx( 4.9, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=50/100 )
+    assert signal.dB == pytest.approx( 2.1, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8, 4, threshold=75/100 )
+    assert signal.dB == pytest.approx( 3.8, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8, 8, threshold=75/100 )  # bytes, allow 75%
+    assert signal.dB == pytest.approx( 3.6, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=75/100 )
+    assert signal.dB == pytest.approx( 0.7, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=75/100, middle=statistics.median )
+    assert signal.dB == pytest.approx( 2.9, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 4, 8, threshold=75/100 )  # nibbles
+    assert signal.dB == pytest.approx( 3.8, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 4,16, threshold=75/100 )
+    assert signal.dB == pytest.approx( 4.7, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 4,32, threshold=75/100 )
+    assert signal.dB == pytest.approx( 3.4, abs=1e-1 )
+
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=80/100 )
+    assert signal.dB == pytest.approx( 0.5, abs=1e-1 )
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=90/100 )
+    assert signal.dB == pytest.approx( 0.05, abs=1e-3 )
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=95/100 )
+    assert signal.dB == pytest.approx( -0.176, abs=1e-3 )
+
+    signal			= signal_entropy( SEED_XMAS, 8,16, threshold=1 )
+    assert signal.dB == pytest.approx( -0.396, abs=1e-3 )
 
 
 def test_shannon_entropy():
-
     shannon			= shannon_entropy( SEED_ONES )
     shannon			= shannon_entropy( SEED_ONES, overlap=False )
     shannon			= shannon_entropy( SEED_ONES, stride=4 )
@@ -417,22 +576,106 @@ def test_shannon_entropy():
     shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, stride=4, overlap=False )
 
     shannon			= shannon_entropy( SEED_XMAS )
-    shannon			= shannon_entropy( SEED_XMAS, stride=16 )
-    shannon			= shannon_entropy( SEED_XMAS, stride=16, overlap=False )
-    shannon			= shannon_entropy( SEED_XMAS, stride=10 )
-    shannon			= shannon_entropy( SEED_XMAS, stride=10, overlap=False )
     shannon			= shannon_entropy( SEED_XMAS, stride=6 )
     shannon			= shannon_entropy( SEED_XMAS, stride=6, overlap=False )
     shannon			= shannon_entropy( SEED_XMAS, stride=4 )
-    assert shannon.dB == pytest.approx( -0.29758997 )
+    assert shannon.dB == pytest.approx( -6.6, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS )
-    assert shannon.dB == pytest.approx( -40.0 )
-    # Now, add some duplicates, reducing the entropy.
-    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:3] )
-    assert shannon.dB == pytest.approx( -2.5456588 )
-    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:4] )
-    assert shannon.dB == pytest.approx( -0.66536314 )
-    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:5] )
-    assert shannon.dB == pytest.approx( 0.694995717 )
-    shannon			= shannon_entropy( SEED_XMAS+SEED_XMAS[:6] )
-    assert shannon.dB == pytest.approx( 1.73372033 )
+    assert shannon.dB == pytest.approx( -40.0, abs=1e-1 )
+    # Now, add some duplicates, reducing the entropy, 'til we fail the Shannon entropy test.
+    shannon			= shannon_entropy( SEED_XMAS[:-3]+SEED_XMAS[:3] )
+    assert shannon.dB == pytest.approx( -1.5, abs=1e-1 )
+    shannon			= shannon_entropy( SEED_XMAS[:-4]+SEED_XMAS[:4] )
+    assert shannon.dB == pytest.approx( +0.98, abs=1e-1 )
+
+
+def test_shannon_limits():
+    """Compute the threshold at which 99% of good random entropy are accepted, at each combination
+    of stride.  Only runs full test only at high logging levels.
+
+    """
+    shannon_limits		= {}
+    #avg_over			= [ 2 ** n for n in range( 7, 13 ) ]
+    avg_over			= (128, 256, 512, 1024, 2048, 4096, 8192)
+    strengths			= (128, 256)
+    strides			= (3, 4, 5, 6, 7, 8)
+    overlapping			= (False, True)
+    cycles			= 100001
+    if not log.isEnabledFor( logging.INFO ):
+        strengths		= strengths[-1:]
+        strides			= strides[-1:]
+        #overlapping		= overlapping[:1]
+        cycles			= 10001
+
+    for bits in strengths:
+      for overlap in overlapping:  # noqa: E111
+        for stride in strides:
+            threshold		= 10/100
+            setpoint		= 1/100
+            rejects		= deque( maxlen=16384 )
+            rejected		= setpoint
+            for i in range( cycles ):
+                entropy		= os.urandom( bits // 8 )
+                threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
+                signal		= shannon_entropy( entropy, stride=stride, overlap=overlap, threshold=threshold )
+                reject		= signal.dB >= 0
+                rejects.append( reject )
+                #rejected	= sum( rejects ) / len( rejects )
+                #rejected	= exponential_moving_average( rejected, reject, 1/1000 )
+                rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
+                if reject or i % 10000 == 0:
+                    ( log.info if i % 10000 == 0 else log.debug )(
+                        f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
+                        + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
+                        + f": {signal}"
+                    )
+            print( f"Shannon for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
+            shannon_limits.setdefault( bits, {} ).setdefault( overlap, {} )[stride] = threshold
+    print( f"Shannon limits per for {strengths!r}-bit entropy w/ {overlapping=!r}, {strides=!r}: {json.dumps( shannon_limits, indent=4, default=str, sort_keys=True )}" )
+
+
+def test_poor_entropy():
+    """Test various entropy to determine if we see a failure of Shannon entropy or Signals.
+
+    """
+    # Some really bad entropy that perfectly match the highest frequency DFT bins in an 16-symbol
+    # complex DFT (DC+5 magnitudes real).  Try to determine how to determine the frequency buckets.
+    entropy			= SEED_HIGH * 8
+    signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal high frequency: {signal}" )
+    assert signal.dB == pytest.approx( +13.0, abs=1e-1 )
+
+    entropy			= SEED_MID * 4
+    signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal mid. frequency: {signal}" )
+    assert signal.dB == pytest.approx( +13.0, abs=1e-1 )
+    
+    entropy			= SEED_LOW * 2
+    signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal low  frequency: {signal}" )
+    assert signal.dB == pytest.approx( +13.0, abs=1e-1 )
+
+    entropy			= SEED_SLOW
+    signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal slow  frequency: {signal}" )
+    assert signal.dB == pytest.approx( +13.0, abs=1e-1 )
+    
+
+    # Some bad "random" dice rolls.  These are ASCII data, so only 8-bit symbol strides, and ignore
+    # DC offset.
+    entropy			= "13633523353224651234354124456235".encode( 'ASCII' )
+    signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal in bad dice rolls: {signal}" )
+    assert signal.dB == pytest.approx( +2.6, abs=1e-1 )
+
+    analysis			= analyze_entropy( entropy, strides=8, overlap=False, ignore_dc=True )
+    print( f"Analysis of dice rolls: {analysis}" )
+
+    # Some bad "random" entropy in a base-64 phrase; see if we can pick it out
+    entropy			= base64.b64decode( "The-quick-brown-fox-jumps-over-the-lazy-dog=", altchars='-_', validate=True )
+    signal			= signal_entropy( entropy, stride=6, symbols=16, overlap=False, ignore_dc=True )
+    log.info( f"Signal in bad base-64 string: {signal}" )
+    assert signal.dB == pytest.approx( +4.4, abs=1e-1 )
+    
+    analysis			= analyze_entropy( entropy )
+    print( f"Analysis of base-64 phrase: {analysis}" )

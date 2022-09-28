@@ -19,7 +19,7 @@ import colorsys
 import getpass
 import logging
 import sys
-
+import fractions
 
 log_cfg				= {
     "level":	logging.WARNING,
@@ -194,3 +194,35 @@ def hue_shift( color, shift=1/3 ):
     h				= ( h + shift ) % 1.0  # if shift is -'ve, % (modulo) correctly shifts to +'ve
     rgb				= colorsys.hsv_to_rgb( h, s, v )
     return rgb_to_hex( *rgb )
+
+
+def exponential_moving_average( current, sample, weight ):
+    """exponential_moving_average -- rolling average without any data history
+   
+   
+    Computes an exponential moving average:
+   
+        ( 1 - weight ) * current + weight * sample
+   
+    where the incoming sample has the given weight, and current samples have exponentially less
+    influence on the current value.  Ignores a current value of None.
+
+    """
+    return sample if current is None else current + weight * ( sample - current )
+
+
+def avg( seq ):
+    return sum( seq ) / len( seq )
+
+
+def is_power_of_2( n: int ) -> bool:
+    return not ( n & ( n - 1 ))
+
+
+class mixed_fraction( fractions.Fraction ):
+    """A Fraction that represents whole multiples of itself as eg. 1-1/2"""
+    def __str__( self ):
+        whole, rest		= divmod( self.numerator, self.denominator )
+        if whole and rest:
+            return f"{whole}-{fractions.Fraction( rest, self.denominator)}"
+        return super().__str__()
