@@ -277,12 +277,26 @@ def entropy_bin_dfts( entropy_bin, offset, symbols, stride, cancel_dc=True ):
     return dfts
 
 
+def int_decode( c, stride=8 ):
+    """Output the decimal (if possible) and decoded view of the integer datum 'c'"""
+    if stride == 6:
+        return f"{'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[c]:<{stride}}"
+    if stride == 5:
+        return f"{'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[c]:<{stride}}"
+    if 4 >= stride >= 1:
+        return f"{'0123456789abcdef'[c]:<{stride}}"
+    if stride <= 8 and 32 <= c < 127:
+        return f"{chr(c):<{stride}}"
+    hex			= f"{c:0{(stride+3)//4}}"
+    return f"{hex:<{stride}}"
+
+
 def signal_entropy(
     entropy: bytes,
     stride: int			= 8,		# bits per symbol
-    symbols: int		= 8,		# symbols per DFT
+    symbols: int		= None,		# symbols per DFT; default to ~128 bits and a power of 2, but < length
     overlap: bool		= True,		# sweep across n-1 bits for symbol start
-    threshold: float		= 100 / 100,    # Default: signal must stand 100% above noise floor
+    threshold: Optional[float]	= 300 / 100,    # Default: signal must stand >300% above noise floor
     middle: Optional[Callable[List[float],float]] = None,  # default to simple average; or eg. statistics.median
     ignore_dc: bool		= False,	# For eg. character data, we know there'll be a big DC component
 ) -> Optional[Tuple[float, int]]:
@@ -304,6 +318,18 @@ def signal_entropy(
     entropy_hex			= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
     entropy_bin			= ''.join( f"{int(h,16):0>4b}" for h in entropy_hex )
     length			= len( entropy_bin )
+
+    if symbols is None:
+        symbols			= 8
+        while ( symbols * 2 ) * stride <= min( 128, length-1 ):
+            symbols	       *= 2
+    if threshold is None:
+        try:
+            threshold		= signal_entropy.signal_limits[length][overlap].get( stride )
+        except Exception:
+            pass
+    assert threshold and 0 < threshold, \
+        f"A small +'ve ratio threshold of Signal energy (0,...) is required for {length}-bit entropy w/ {stride}-bit symbols eg. 300%, not {threshold=!r}"
 
     dc				= 0+0j
     strongest			= None
@@ -336,6 +362,10 @@ def signal_entropy(
         snr_dB			= into_dB( snr )
         if strongest and snr_dB <= strongest.dB:
             continue
+        if snr_dB < 0:
+            strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=[], details='' )
+            continue
+
         # Find the strongest signal frequency bin, and the compute indices of the symbols.  The
         # max frequency (last) bin indicates some pattern sensed in every second symbol (the
         # Nyquist rate, sampled at 2x the max frequency detectable).  The min frequency (first)
@@ -368,43 +398,38 @@ def signal_entropy(
             for b in range( max_beat * stride ):
                 indices.append( beat + b )
         '''
-        # Draw the signal area of interest over 'symbols' of the 'stride'-bit symbols beginning at bit 'offset'.  If the symbols are
-        # ASCII, show that otherwise displays the 2-nibble hex value.
+        # Draw the signal area of interest over 'symbols' of the 'stride'-bit symbols beginning at bit 'offset'.
         details			= '\n'
-        details		       += f"{entropy_bin}\n"
-        details		       += ''.join(
+        offclip			= 0
+        offpref			= ''
+        if offset > 8:
+            details	       += f"...x{offset:<3}>{entropy_bin[offset:]}\n"
+            offclip		= offset
+            offpref		= ' ' * 8
+        else:
+            details	       += f"{entropy_bin}\n"
+            offpref		= ' ' * offset
+        details		       += offpref + ''.join(
             ( '^' if i in indices else '-_'[( i // stride ) % 2] ) if ( offset <= i < ( offset + symbols * stride )) else ' '
-            for i in range( length )
+            for i in range( offset, length )
         ) + '\n'
 
-        # Output the decimal (if possible) and decoded view of the data
-        def bin_decode( c, stride=8 ):
-            if stride == 6:
-                return f"{'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[c]:<{stride}}"
-            if stride == 5:
-                return f"{'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[c]:<{stride}}"
-            if 4 >= stride >= 1:
-                return f"{'0123456789abcdef'[c]:<{stride}}"
-            if stride <= 8 and 32 <= c < 127:
-                return f"{chr(c):<{stride}}"
-            hex			= f"{c:0{(stride+3)//4}}"
-            return f"{hex:<{stride}}"
         if stride >= 4:
-            details	       += ' ' * offset + ''.join(
+            details	       += offpref + ''.join(
                 f"{c:<{stride}}"
                 for c in entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
             ) + ' decimal\n'
-        details	       += ' ' * offset + ''.join(
-            bin_decode( c, stride=stride )
+        details		       += offpref + ''.join(
+            int_decode( c, stride=stride )
             for c in entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
         ) + f" base-{2**(4 if stride >= 7 else stride)}" + ("/ASCII" if stride >= 7 else "") + " decoding\n"
             
         # Select the one or two highest energy harmonics, and scale the waveform (which is
-        # denominated in stride-bit chunks) to the maximum extent that will fit within the binary
-        # version of the entropy.  So, if the 8-bit signal values are being recovered, we can scale
-        # the waveform by 8x.  Also, scale the amplitude by the (removed) DC component; this
-        # counteracts the reduction in dynamic range inherent to typical ASCII values (eg. the
-        # digits consume 0-9 are only 8% of the full ASCII range).
+        # denominated in stride-bit chunks) to the extent needed to cover the binary version of the
+        # entropy (then decimate to fit exactly).  So, if the 8-bit signal values are being
+        # recovered, we can scale the waveform by 8x.  Also, scale the amplitude by the (removed) DC
+        # component; this counteracts the reduction in dynamic range inherent to typical ASCII
+        # values (eg. the digits 0-9 are only 8% of the full ASCII range).
         dfts_rec		= [0+0j] * len( dfts)
         harmonic		= []
         for max_b, max_i in sorted( ( (b, i) for i,b in enumerate( mags ) ), reverse=True ):
@@ -438,16 +463,53 @@ def signal_entropy(
             #print( f" - {i=:3} --> {o=:3} ==> {sigs[o]:7}" )
             pos	       	       += signal_draw( sigs[o], pos=True )
             neg	       	       += signal_draw( sigs[o], neg=True )
-        harmonic_dBs		= [ f"{ordinal(h)} {into_dB(mags[h]/avg(mags)):.1f}dB" for h in harmonic ]
-        details		       += f"{' ' * offset}{pos} {len(harmonic)} harmonics: {', '.join( harmonic_dBs )}\n"
-        details		       += f"{' ' * offset}{neg}  - every {', '.join( map( str,  harmonic_freq ))} symbols\n"
+        harmonic_dBs		= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/avg(mags)):.1f}dB" for h in harmonic ]
+        details		       += offpref + f"{pos} {len(harmonic)} harmonics: {', '.join( harmonic_dBs )}\n"
+        details		       += offpref + f"{neg}  - " + f"{'DC offset and ' if 0 in harmonic else '' }" + f"every {', '.join( map( str,  harmonic_freq ))} symbols\n"
 
         strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=indices, details=details )
-        #print( f"strongest signal: {strongest}" )
 
     mags_avgs			= [sum(col)/len(mags_all) for col in zip(*mags_all)]
     #print( f"avgs: {' '.join( f'{m:{stride*2}.1f}' for m in mags_avgs )}: {sum(mags_avgs):7.2f}" )
     return strongest
+signal_entropy.signal_limits = {
+    128: {
+        False: {
+            3: 3.6290539642295268,
+            4: 3.507324239128957,
+            5: 4.0,
+            6: 4.0,
+            7: 4.0,
+            8: 4.0,
+        },
+        True: {
+            3: 3.980779955578968,
+            4: 3.757892208378965,
+            5: 4.0,
+            6: 4.0,
+            7: 4.0,
+            8: 4.0,
+        }
+    },
+    256: {
+        False: {
+            3: 4.110541587940857,
+            4: 3.552135847422123,
+            5: 4.0,
+            6: 4.0,
+            7: 4.0,
+            8: 4.0,
+        },
+        True: {
+            3: 4.432511412288454,
+            4: 4.096532008409936,
+            5: 4.0,
+            6: 4.0,
+            7: 4.0,
+            8: 4.0,
+        }
+    }
+}
 
 
 def shannon_entropy(
@@ -485,7 +547,7 @@ def shannon_entropy(
         except Exception:
             pass
     assert threshold and 0 < threshold < 1, \
-            f"A small +'ve ratio threshold of Shannon entropy deficit > 0 is required for {length}-bit entropy w/ {stride}-bit symbols eg. 10%, not {threshold=!r}"
+        f"A small +'ve ratio threshold of Shannon entropy deficit (0, 1] is required for {length}-bit entropy w/ {stride}-bit symbols eg. 10%, not {threshold=!r}"
 
     # Find all the unique n-bit symbols in the entropy at the desired offset(s)
     strongest			= None
@@ -615,11 +677,28 @@ shannon_entropy.shannon_limits	= {  # noqa: E305
 def analyze_entropy(
     entropy: bytes,
     strides: Optional[Union[int,Tuple[int,int]]] = None,  # If only a specific stride/s makes sense, eg. for ASCII symbols
-    symbols: int		= 16,
     overlap: bool		= True,
     ignore_dc: bool		= False,
 ) -> Optional[str]:
-    """Analyzes the provided entropy.  If patterns are found, reports the findings."""
+    """Analyzes the provided entropy.  If patterns are found, reports the findings; the peak Signal
+    and the aggregate report: (Signal, "...").
+
+    Seek strong Signals or weak Shannon Entropy, across a number of different interpretations (bit
+    strides and overlaps) of the entropy data.  We do not know where poor entropy may hide...
+
+    Since the probability of a signal being found is:
+
+        P( A or B or ... or Z ) = P(A) + P(B) + ... + P(Z) - P(A and B and ... Z )
+      = P( A or B or ... or Z ) = P(A) + P(B) + ... + P(Z) - ( P(A) * P(B) * ... P(Z) )
+
+    since we set the {signal,shannon}_entropy threshold values at ~ <1%, we know the P(A and B...)
+    term is very small; the probability we'll find an entropy failure it basically is the sum of the
+    individual probabilities of each test failing.
+
+    So, if we try 6 of each analysis, that's 12 * 1% =~= 12%.  We want a total failure of about 1%,
+    so we must target a 0.1% failure on good entropy for each test.
+
+    """
     if strides is None:
         strides			= (3, 9)
     else:
@@ -628,11 +707,11 @@ def analyze_entropy(
         except TypeError:
             strides		= (int(strides), int(strides)+1)
 
-    # For signal analysis, we limit ourself to symbols-sized groups of stride-bit symbols
+    # For signal analysis, we use the default <= ~128-bit groups of stride-bit symbols
     signals			= sorted(
         (
             s for s in (
-    	        signal_entropy( entropy, stride=stride, symbols=symbols, overlap=overlap, ignore_dc=ignore_dc )
+    	        signal_entropy( entropy, stride=stride, overlap=overlap, ignore_dc=ignore_dc )
                 for stride in range( *strides )
             )
             if s.dB >= 0
@@ -654,17 +733,22 @@ def analyze_entropy(
 
     result			= None
     if signals or shannons:
-        result			= ''
+        report			= ''
         if signals:
-            result	       += f"Signal analysis indicates {len(signals)} non-random energy pattern in"
-            result	       += f" {', '.join( map( str, (s.stride for s in signals))) }-bit symbols:\n"
-        result		       += '\n'.join( s.details for s in signals )
+            report	       += f"Signal analysis indicates {len(signals)} non-random energy pattern in"
+            report	       += f" {', '.join( map( str, (s.stride for s in signals))) }-bit symbols:\n"
+        for s in signals:
+            report	       += f"\n - A {s.dB:.1f}dB Signal artifact at bit {s.offset:3} in {s.symbols:2} x {s.stride}-bit symbols:\n"
+            report	       += f"{s.details}\n"
         if signals and shannons:
-            result	       += '\n'
+            report	       += '\n'
         if shannons:
-            result	       += f"Shannon entropy indicates {len(shannons)} unexpectedly large numbers of some"
-            result	       += f" {', '.join( map( str, (s.stride for s in shannons))) }-bit symbols:\n"
-        result		       += '\n'.join( s.details for s in shannons )
+            report	       += f"Shannon entropy indicates {len(shannons)} unexpectedly non-random distribution of some"
+            report	       += f" {', '.join( map( str, (s.stride for s in shannons))) }-bit symbols:\n"
+        for s in shannons:
+            report	       += f"\n - A {s.dB:.1f}dB Shannon entropy deficit over {s.stride}-bit symbols:\n"
+            report	       += f"{s.details}\n"
+        result			= report
 
     return result
 

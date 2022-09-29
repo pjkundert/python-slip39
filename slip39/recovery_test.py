@@ -590,7 +590,7 @@ def test_shannon_entropy():
 
 
 def test_shannon_limits():
-    """Compute the threshold at which 99% of good random entropy are accepted, at each combination
+    """Compute the threshold at which ~99.9% of good random entropy are accepted, at each combination
     of stride.  Only runs full test only at high logging levels.
 
     """
@@ -601,17 +601,19 @@ def test_shannon_limits():
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
     cycles			= 100001
+    checks			= 10000
     if not log.isEnabledFor( logging.INFO ):
         strengths		= strengths[-1:]
         strides			= strides[-1:]
         #overlapping		= overlapping[:1]
         cycles			= 10001
+        checks			= 1000
 
     for bits in strengths:
       for overlap in overlapping:  # noqa: E111
         for stride in strides:
             threshold		= 10/100
-            setpoint		= 1/100
+            setpoint		= 0.1/100
             rejects		= deque( maxlen=16384 )
             rejected		= setpoint
             for i in range( cycles ):
@@ -620,18 +622,68 @@ def test_shannon_limits():
                 signal		= shannon_entropy( entropy, stride=stride, overlap=overlap, threshold=threshold )
                 reject		= signal.dB >= 0
                 rejects.append( reject )
-                #rejected	= sum( rejects ) / len( rejects )
-                #rejected	= exponential_moving_average( rejected, reject, 1/1000 )
                 rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
-                if reject or i % 10000 == 0:
-                    ( log.info if i % 10000 == 0 else log.debug )(
+                if reject or i % checks == 0:
+                    ( log.info if i % checks == 0 else log.debug )(
                         f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
                         + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
                         + f": {signal}"
                     )
             print( f"Shannon for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
             shannon_limits.setdefault( bits, {} ).setdefault( overlap, {} )[stride] = threshold
+
     print( f"Shannon limits per for {strengths!r}-bit entropy w/ {overlapping=!r}, {strides=!r}: {json.dumps( shannon_limits, indent=4, default=str, sort_keys=True )}" )
+
+
+def test_signal_limits():
+    """Compute the threshold at which ~99.9% of good random entropy are accepted, at each combination
+    of stride.  Only runs full test only at high logging levels.
+
+    """
+    signal_limits		= {}
+    #avg_over			= [ 2 ** n for n in range( 7, 13 ) ]
+    avg_over			= (128, 256, 512, 1024, 2048, 4096, 8192)
+    strengths			= (128, 256)
+    strides			= (3, 4, 5, 6, 7, 8)
+    overlapping			= (False, True)
+    cycles			= 100001
+    checks			= 10000
+    if not log.isEnabledFor( logging.DEBUG ):
+        strengths		= strengths[:2]
+        strides			= strides[:2]
+        #overlapping		= overlapping[:1]
+        cycles			= 10001
+        checks			= 1000
+
+    for bits in strengths:
+      for overlap in overlapping:  # noqa: E111
+        for stride in strides:
+            threshold		= 300/100
+            setpoint		= 0.1/100
+            rejects		= deque( maxlen=16384 )
+            rejected		= setpoint
+            for i in range( cycles ):
+                entropy		= os.urandom( bits // 8 )
+                threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
+                signal		= signal_entropy( entropy, stride=stride, overlap=overlap, threshold=threshold )
+                reject		= signal.dB >= 0
+                rejects.append( reject )
+                rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
+                if reject or i % checks == 0:
+                    ( log.info if i % checks == 0 else log.debug )(
+                        f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
+                        + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
+                        + f": {signal}"
+                    )
+            print( f"Shannon for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
+            signal_limits.setdefault( bits, {} ).setdefault( overlap, {} )[stride] = threshold
+
+    print( f"Signal limits per for {strengths!r}-bit entropy w/ {overlapping=!r}, {strides=!r}: {json.dumps( signal_limits, indent=4, default=str, sort_keys=True )}" )
+
+
+if __name__ == "__main__":
+    import cProfile
+    cProfile.run( 'test_signal_limits()' )
 
 
 def test_poor_entropy():
@@ -669,7 +721,7 @@ def test_poor_entropy():
     assert signal.dB == pytest.approx( +2.6, abs=1e-1 )
 
     analysis			= analyze_entropy( entropy, strides=8, overlap=False, ignore_dc=True )
-    print( f"Analysis of dice rolls: {analysis}" )
+    print( f"Analysis of bad dice rolls: {analysis}" )
 
     # Some bad "random" entropy in a base-64 phrase; see if we can pick it out
     entropy			= base64.b64decode( "The-quick-brown-fox-jumps-over-the-lazy-dog=", altchars='-_', validate=True )
@@ -679,3 +731,39 @@ def test_poor_entropy():
     
     analysis			= analyze_entropy( entropy )
     print( f"Analysis of base-64 phrase: {analysis}" )
+
+
+def test_good_entropy():
+    entropy			= SEED_XMAS
+    signal			= signal_entropy( entropy )
+    log.info( f"Signal XMAS frequency: {signal}" )
+    assert signal.dB == pytest.approx( -3.5, abs=1e-1 )
+
+    analysis			= analyze_entropy( entropy )
+    print( f"Analysis of XMAS entropy: {analysis}" )
+
+    analysis			= analyze_entropy( entropy[:7] + 2 * codecs.decode( "DeadBeef", 'hex_codec' ) + entropy[15:])
+    print( f"Analysis of XMAS entropy w/ 2x 0xDeadBeef: {analysis}" )
+
+    analysis			= analyze_entropy( entropy[:-4] + entropy[:4] )
+    print( f"Analysis of XMAS entropy w/ 4 dups: {analysis}" )
+
+
+    cycles			= 100
+    analysis_bad		= []
+    signal_bad			= []
+    shannon_bad			= []
+    for i in range( cycles ):
+        entropy			= os.urandom( 256 // 8 )
+        analysis		= analyze_entropy( entropy )
+        if analysis:
+            analysis_bad.append( analysis )
+            if "Signal" in analysis:
+                signal_bad.append( analysis )
+            if "Shannon" in analysis:
+                shannon_bad.append( analysis )
+
+    print( f"Analyzed {cycles} random entropy and found {100*len(analysis_bad)/cycles:.1f}% bad" )
+    print( f"  Signals failure found {100*len(signal_bad)/cycles:.1f}%" )
+    print( f"  Shannon failure found {100*len(shannon_bad)/cycles:.1f}%" )
+            
