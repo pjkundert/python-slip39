@@ -81,7 +81,7 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
 
     # If BIP-39 recovery designated, only a single mnemonic is allowed:
     secret			= None
-    algo			= "SLIP-39" if args.bip39 is None else "BIP-39"
+    algo			= "BIP-39" if args.bip39 else "SLIP-39"
     mnemonics			= args.mnemonic or []
     if args.bip39:
         # Recover actual BIP-39 Mnemonic.  By default, outputs the generated 512-bit wallet Seed.
