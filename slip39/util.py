@@ -16,10 +16,11 @@
 #
 
 import colorsys
+import fractions
 import getpass
 import logging
+import math
 import sys
-import fractions
 
 log_cfg				= {
     "level":	logging.WARNING,
@@ -212,7 +213,9 @@ def exponential_moving_average( current, sample, weight ):
 
 
 def avg( seq ):
-    return sum( seq ) / len( seq )
+    if seq:
+        return sum( seq ) / len( seq )
+    return math.nan
 
 
 def is_power_of_2( n: int ) -> bool:

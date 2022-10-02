@@ -2,12 +2,17 @@ import base64
 import cmath
 import codecs
 import csv
+import hashlib
+import itertools
 import json
 import logging
 import math
 import os
 import pytest
+import random
+import secrets
 import statistics
+import multiprocessing
 
 from collections	import deque
 
@@ -15,9 +20,9 @@ import shamir_mnemonic
 
 from .api		import create, account
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
-from .recovery.entropy	import fft, dft, idft, dft_on_real, entropy_bin_dfts, signal_draw, signal_recover_real
+from .recovery.entropy	import fft, ifft, dft_on_real, entropy_bin_dfts, signal_draw, signal_recover_real, scan_entropy
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
-from .util		import avg
+from .util		import avg, ordinal
 
 log				= logging.getLogger( __package__ )
 
@@ -313,19 +318,19 @@ def test_recover_bip39_vectors():
             f"row {i+1}: BTC account {address} not in {addresses!r} for entropy {entropy} ==> {master_secret}"
 
 
-def test_dft():
+def test_dft_smoke():
     print()
     print( "Real-valued samples, recovered from inverse DFT:" )
     x				= [ 2, 3, 5, 7, 11 ]
     print( "vals:  " + ' '.join( f"{f:11.2f}" for f in x ))
-    y				= dft( x )
+    y				= fft( x )
     print( "dft:   " + ' '.join( f"{f:11.2f}" for f in y ))
-    z				= idft( y )
+    z				= ifft( y )
     print( "idft:  " + ' '.join( f"{f:11.2f}" for f in z ))
     print( "recov.:" + ' '.join( f"{f.real:11.2f}" for f in z ))
 
     # Ensure a DFT on a power-of-2 length sequence is the same as the FFT
-    assert dft( x[:4] ) == pytest.approx( fft( x[:4] ))
+    assert fft( x[:4] ) == pytest.approx( fft( x[:4] ))
 
 
     # Lets determine how dft organizes its output buckets.  Lets find the bucket contain any DC
@@ -336,7 +341,7 @@ def test_dft():
     print( "Real-valued signal, 1-4 cycles in 8 samples:" )
     dc				= [1.0] * 8
     print( "DC:     " + ' '.join( f"{f:11.2f}" for f in dc ))
-    dft_dc			= dft( dc )
+    dft_dc			= fft( dc )
     print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_dc ))
     print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_dc )))
     assert dft_dc[0] == pytest.approx( 8+0j )
@@ -344,7 +349,7 @@ def test_dft():
     #1Hz_d: -0.000+0.000j   4.000-0.000j  -0.000-0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   4.000+0.000j
     oneHz			= [math.sin(+math.pi/2+math.pi*2*i/8) for i in range( 8 )]
     print( "+1Hz:   " + ' '.join( f"{f:11.2f}" for f in oneHz ))
-    dft_oneHz			= dft( oneHz )
+    dft_oneHz			= fft( oneHz )
     print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_oneHz ))
     fft_oneHz			= fft( oneHz )
     print( "  FFT:  " + ' '.join( f"{f:11.2f}" for f in fft_oneHz ))
@@ -353,14 +358,14 @@ def test_dft():
     #2Hz_d: -0.000+0.000j  -0.000-0.000j   4.000-0.000j  -0.000-0.000j   0.000-0.000j   0.000-0.000j   4.000+0.000j   0.000-0.000j
     twoHz			= [math.sin(+math.pi/2+math.pi*2*i/4) for i in range( 8 )]
     print( "+2Hz:   " + ' '.join( f"{f:11.2f}" for f in twoHz ))
-    dft_twoHz			= dft( twoHz )
+    dft_twoHz			= fft( twoHz )
     print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_twoHz ))
     print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_twoHz )))
     #4Hz:           1.000         -1.000          1.000         -1.000          1.000         -1.000          1.000         -1.000
     #4Hz_d:  0.000+0.000j   0.000-0.000j   0.000-0.000j   0.000-0.000j   8.000+0.000j  -0.000+0.000j   0.000-0.000j  -0.000-0.000j
     forHz			= [math.sin(+math.pi/2+math.pi*2*i/2) for i in range( 8 )]
     print( "+4Hz:   " + ' '.join( f"{f:11.2f}" for f in forHz ))
-    dft_forHz			= dft( forHz )
+    dft_forHz			= fft( forHz )
     print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_forHz ))
     print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_forHz )))
     # Same, but just shifted -PI/2, instead of +PI/2: reverses the highest frequency bucket.
@@ -368,7 +373,7 @@ def test_dft():
     #4Hz_d:  0.000+0.000j   0.000+0.000j  -0.000+0.000j  -0.000+0.000j  -8.000-0.000j   0.000-0.000j  -0.000+0.000j   0.000+0.000j
     forHz			= [math.sin(-math.pi/2-math.pi*2*i/2) for i in range( 8 )]
     print( "-4Hz:   " + ' '.join( f"{f:11.2f}" for f in forHz ))
-    dft_forHz			= dft( forHz )
+    dft_forHz			= fft( forHz )
     print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_forHz ))
     print( "  DFT_r:" + ' '.join( f"{f:11.2f}" for f in dft_on_real( dft_forHz )))
 
@@ -390,7 +395,7 @@ def test_dft():
             for i in range( N )
         ]
         print( f"{rot:2} cyc.:" + ' '.join( f"{f:11.2f}" for f in sig ))
-        dft_sig			= dft( sig )
+        dft_sig			= fft( sig )
         print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dft_sig ))
         print( "   ABS: " + ' '.join( f"{abs(f):11.2f}" for f in dft_sig ))
         assert dft_sig[rot_i] == pytest.approx( 8+0j )
@@ -444,10 +449,11 @@ def test_signal_draw():
     for entropy in (
             SEED_HIGH,     SEED_MID,     SEED_LOW,
             SEED_HIGH * 2, SEED_MID * 2, SEED_LOW * 2,
+            SEED_HIGH * 3, SEED_MID * 3, SEED_LOW * 3,
             SEED_HIGH * 4, SEED_MID * 4, SEED_LOW * 4,
     ):
         print()
-        print( "Signal into DFT:" )
+        print( f"Signal into DFT for {len( entropy )} bytes entropy:" )
         entropy_hex		= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
         entropy_bin		= ''.join( f"{int(h,16):0>4b}" for h in entropy_hex )
         symbols			= len( entropy )
@@ -455,12 +461,12 @@ def test_signal_draw():
         offset			= 0
         dfts			= entropy_bin_dfts( entropy_bin, offset, symbols, stride )
 
-        print( "Signal from DFT:" )
+        print( f"Signal from DFT w/  {len( dfts )} bins:" )
         sigR			= signal_recover_real( dfts, integer=True )
         print( f"{entropy_bin}" )
         print( ''.join( stride * signal_draw( s ) for s in sigR ))
 
-        print( "Signal from DFT x 2 deduced (for hex output:" )
+        print( f"Signal from DFT x 2 deduced (for hex output):" )
         sigR			= signal_recover_real( dfts, scale=2, integer=True )
         print( f"{entropy_hex}" )
         print( ''.join( signal_draw( s ) for s in sigR ))
@@ -520,9 +526,9 @@ def test_signal_entropy():
 
     SEED_RAMP			= codecs.decode( '000102030405060708090A0B0C0D0E0F', 'hex_codec' )
     signal			= signal_entropy( SEED_RAMP, 8, 8 )
-    assert signal.dB == pytest.approx( 7.74, abs=1e-1 )
+    assert signal.dB == pytest.approx( 1.73, abs=1e-1 )
     signal			= signal_entropy( SEED_RAMP, 4, 8 )
-    assert signal.dB == pytest.approx( 6.12, abs=1e-1 )
+    assert signal.dB == pytest.approx( 0.10, abs=1e-1 )
 
     signal			= signal_entropy( SEED_XMAS, 8, 4, threshold=50/100 )
     assert signal.dB == pytest.approx( 5.1, abs=1e-1 )
@@ -579,14 +585,49 @@ def test_shannon_entropy():
     shannon			= shannon_entropy( SEED_XMAS, stride=6 )
     shannon			= shannon_entropy( SEED_XMAS, stride=6, overlap=False )
     shannon			= shannon_entropy( SEED_XMAS, stride=4 )
-    assert shannon.dB == pytest.approx( -6.6, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -7.3, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS )
     assert shannon.dB == pytest.approx( -40.0, abs=1e-1 )
     # Now, add some duplicates, reducing the entropy, 'til we fail the Shannon entropy test.
     shannon			= shannon_entropy( SEED_XMAS[:-3]+SEED_XMAS[:3] )
-    assert shannon.dB == pytest.approx( -1.5, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -2.5, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS[:-4]+SEED_XMAS[:4] )
-    assert shannon.dB == pytest.approx( +0.98, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -0.02, abs=1e-1 )
+    shannon			= shannon_entropy( SEED_XMAS[:-5]+SEED_XMAS[:5] )
+    assert shannon.dB == pytest.approx( +1.9, abs=1e-1 )
+
+
+def kwargs_shannon_limits( kwargs ):
+    return compute_entropy_limits( shannon_entropy, **kwargs )
+
+
+def kwargs_signal_limits( kwargs ):
+    return compute_entropy_limits( signal_entropy, **kwargs )
+
+
+avg_over			= (512, 1024, 2048, 4096, 8192)
+def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, setpoint, cycles, checks, symbols=None ):
+    rejects		= deque( maxlen=16384 )
+    rejected		= setpoint
+    for i in range( cycles ):
+        entropy		= os.urandom( bits // 8 )
+        threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
+        if symbols is None:
+            signal	= compute_entropy( entropy, overlap=overlap, stride=stride, threshold=threshold )
+        else:
+            signal	= compute_entropy( entropy, overlap=overlap, stride=stride, symbols=symbols, threshold=threshold )
+        reject		= signal.dB >= 0
+        rejects.append( reject )
+        rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
+        if reject or i % checks == 0:
+            #log.warning(
+            ( log.info if i % checks == 0 else log.debug )(
+                f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
+                + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
+                + f": {signal}"
+            )
+    print( f"{compute_entropy.__name__} for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
+    return (bits, overlap, stride, symbols, threshold)
 
 
 def test_shannon_limits():
@@ -596,7 +637,6 @@ def test_shannon_limits():
     """
     shannon_limits		= {}
     #avg_over			= [ 2 ** n for n in range( 7, 13 ) ]
-    avg_over			= (128, 256, 512, 1024, 2048, 4096, 8192)
     strengths			= (128, 256)
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
@@ -609,30 +649,29 @@ def test_shannon_limits():
         cycles			= 10001
         checks			= 1000
 
+    threshold			= 10/100
+    setpoint			= 0.25/100
+    poolkwargs			= []
     for bits in strengths:
-      for overlap in overlapping:  # noqa: E111
-        for stride in strides:
-            threshold		= 10/100
-            setpoint		= 0.1/100
-            rejects		= deque( maxlen=16384 )
-            rejected		= setpoint
-            for i in range( cycles ):
-                entropy		= os.urandom( bits // 8 )
-                threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
-                signal		= shannon_entropy( entropy, stride=stride, overlap=overlap, threshold=threshold )
-                reject		= signal.dB >= 0
-                rejects.append( reject )
-                rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
-                if reject or i % checks == 0:
-                    ( log.info if i % checks == 0 else log.debug )(
-                        f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
-                        + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
-                        + f": {signal}"
-                    )
-            print( f"Shannon for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
-            shannon_limits.setdefault( bits, {} ).setdefault( overlap, {} )[stride] = threshold
+        for overlap in overlapping:  # noqa: E111
+            for stride in strides:
+                poolkwargs.append( dict(
+                    bits	= bits,
+                    overlap	= overlap,
+                    stride	= stride,
+                    threshold	= threshold,
+                    setpoint	= setpoint,
+                    cycles	= cycles,
+                    checks	= checks,
+                ))
 
-    print( f"Shannon limits per for {strengths!r}-bit entropy w/ {overlapping=!r}, {strides=!r}: {json.dumps( shannon_limits, indent=4, default=str, sort_keys=True )}" )
+    with multiprocessing.Pool(32) as pool:
+        for (bits, overlap, stride, _symbols, threshold) in pool.map( kwargs_shannon_limits, poolkwargs ):
+            shannon_limits.setdefault(
+                overlap, {} ).setdefault(
+                    bits, {} )[stride] = threshold
+         
+    print( f"Shannon limits: {json.dumps( shannon_limits, indent=4, default=str, sort_keys=True )}" )
 
 
 def test_signal_limits():
@@ -642,43 +681,48 @@ def test_signal_limits():
     """
     signal_limits		= {}
     #avg_over			= [ 2 ** n for n in range( 7, 13 ) ]
-    avg_over			= (128, 256, 512, 1024, 2048, 4096, 8192)
+    avg_over			= (512, 1024, 2048, 4096, 8192)
     strengths			= (128, 256)
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
+    symbolsopts			= (16, 32, 64)
     cycles			= 100001
     checks			= 10000
-    if not log.isEnabledFor( logging.DEBUG ):
+    if not log.isEnabledFor( logging.INFO ):
         strengths		= strengths[:2]
         strides			= strides[:2]
         #overlapping		= overlapping[:1]
         cycles			= 10001
         checks			= 1000
 
+    threshold			= 300/100
+    setpoint			= 0.15/100
+    poolkwargs			= []
     for bits in strengths:
-      for overlap in overlapping:  # noqa: E111
-        for stride in strides:
-            threshold		= 300/100
-            setpoint		= 0.1/100
-            rejects		= deque( maxlen=16384 )
-            rejected		= setpoint
-            for i in range( cycles ):
-                entropy		= os.urandom( bits // 8 )
-                threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
-                signal		= signal_entropy( entropy, stride=stride, overlap=overlap, threshold=threshold )
-                reject		= signal.dB >= 0
-                rejects.append( reject )
-                rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
-                if reject or i % checks == 0:
-                    ( log.info if i % checks == 0 else log.debug )(
-                        f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
-                        + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
-                        + f": {signal}"
-                    )
-            print( f"Shannon for {bits}-bit entropy w/ {overlap=:5}, {stride=:3}: {threshold=:7.5f}: {rejected*100:7.3f}% (latest avg), {avg(rejects)*100:7.3f}% rejects total" )
-            signal_limits.setdefault( bits, {} ).setdefault( overlap, {} )[stride] = threshold
+        for overlap in overlapping:  # noqa: E111
+            for stride in strides:
+                for symbols in symbolsopts:
+                    if symbols * stride > bits:
+                        continue
+                    poolkwargs.append( dict(
+                        bits		= bits,
+                        overlap		= overlap,
+                        symbols		= symbols,
+                        stride		= stride,
+                        threshold	= threshold,
+                        setpoint	= setpoint,
+                        cycles		= cycles,
+                        checks		= checks,
+                    ))
 
-    print( f"Signal limits per for {strengths!r}-bit entropy w/ {overlapping=!r}, {strides=!r}: {json.dumps( signal_limits, indent=4, default=str, sort_keys=True )}" )
+    with multiprocessing.Pool(32) as pool:
+        for (bits, overlap, stride, symbols, threshold) in pool.map( kwargs_signal_limits, poolkwargs ):
+            signal_limits.setdefault(
+                bits, {} ).setdefault(
+                    overlap, {} ).setdefault(
+                        symbols, {} )[stride] = threshold
+         
+    print( f"Signal limits: {json.dumps( signal_limits, indent=4, default=str, sort_keys=True )}" )
 
 
 if __name__ == "__main__":
@@ -741,25 +785,45 @@ def test_good_entropy():
 
     analysis			= analyze_entropy( entropy )
     print( f"Analysis of XMAS entropy: {analysis}" )
+    assert analysis == None
+    
+    analysis			= analyze_entropy( entropy[:4]
+                                                   + 2 * codecs.decode( "DeadBeef", 'hex_codec' )
+                                                   + entropy[12:])
+    print( f"Analysis of XMAS entropy w/ 0xDeadBeef: {analysis}" )
 
-    analysis			= analyze_entropy( entropy[:7] + 2 * codecs.decode( "DeadBeef", 'hex_codec' ) + entropy[15:])
-    print( f"Analysis of XMAS entropy w/ 2x 0xDeadBeef: {analysis}" )
+    entropy_fox			= base64.b64decode( "fox-jumps-a-lazy-mutt-==", altchars='-_', validate=True )
+    # Base-32: 8 symbols ==> 5 bytes
+    entropy_fox			= (
+        entropy[:3]				# 3
+        + 2 * base64.b32decode( "DEADBEEF" )	# 10
+        + entropy[-3:]				# 3
+    )         					# == 16
+    
+    signal			= signal_entropy( entropy_fox, stride=5, overlap=True )
+    print( f"Signal analysis of b32 DEADBEEF: {signal}" )
+    assert signal.dB == pytest.approx( +5.7, abs=1e-1 )
 
-    analysis			= analyze_entropy( entropy[:-4] + entropy[:4] )
-    print( f"Analysis of XMAS entropy w/ 4 dups: {analysis}" )
+    analysis			= analyze_entropy( entropy_fox )
+    print( f"Analysis of entropy b32 DEADBEEF: {analysis}" )
+    assert analysis and "D    E    A    D    B    E    E    F" in analysis
 
+    analysis			= analyze_entropy( entropy[:-5] + entropy[:5] )
+    print( f"Analysis of XMAS entropy w/ 5 dups: {analysis}" )
+    assert analysis and "Shannon entropy deficit" in analysis
 
-    cycles			= 100
+    cycles			= 1000
     analysis_bad		= []
     signal_bad			= []
     shannon_bad			= []
     for i in range( cycles ):
-        entropy			= os.urandom( 256 // 8 )
+        entropy			= secrets.token_bytes( 256 // 8 )
         analysis		= analyze_entropy( entropy )
         if analysis:
             analysis_bad.append( analysis )
             if "Signal" in analysis:
                 signal_bad.append( analysis )
+                print( f"{ordinal(i)} analysis shows Signal energy: {analysis}" )
             if "Shannon" in analysis:
                 shannon_bad.append( analysis )
 
@@ -767,3 +831,86 @@ def test_good_entropy():
     print( f"  Signals failure found {100*len(signal_bad)/cycles:.1f}%" )
     print( f"  Shannon failure found {100*len(shannon_bad)/cycles:.1f}%" )
             
+
+
+def test_rngs_entropy():
+    """Test various RNGs to observe that they exhibit similar spectral features.
+
+    """
+    def rng_secrets( n ):
+        return secrets.token_bytes( n )
+
+    def rng_os( n ):
+        return os.urandom( n )
+
+    def rng_py( n ):
+        return rng_py.R.randbytes( n )
+    rng_py.R			= random.Random(
+        os.urandom( 32 )
+    )
+
+    def rng_hash( n ):
+        """Introduce n bytes of entropy into the SHA512, and then extract stretched entropy from the low
+        half of the digest, re-hashing as necessary.  Basically a poor RNG based on SHA512.
+
+        """
+        rng_hash.H.update( rng_os( n ))
+        def hasher():
+            while True:
+                digest		= rng_hash.H.digest()
+                for i in range( 256 ):
+                    yield digest[i:i+1]
+                rng_hash.H.update( digest )
+        return b''.join( itertools.islice( hasher(), n ))
+    rng_hash.H			= hashlib.sha512()
+        
+    def rng_recycle( n ):
+        """Every random 10 or so bytes, recycle a byte."""
+        def recycler():
+            while True:
+                b		= rng_os( 2 )
+                if b[1] % 10 == 0:
+                    yield b[:1]
+                yield b[:1]
+        return b''.join( itertools.islice( recycler(), n ))
+
+    def eval_rng( rng, count, bits=256 ):
+        stat			= dict(
+            shannons_dBs= [],
+            signals_dBs	= [],
+        )
+        for i in range( count ):
+            entropy		= rng( bits // 8 )
+            signals, shannons	= scan_entropy( entropy )
+            stat['signals_dBs'].append( signals )
+            stat['shannons_dBs'].append( shannons )
+        return stat
+
+    summ			= {}
+    count			= 1000
+    for rng in ( rng_os, rng_secrets, rng_py, rng_hash, rng_recycle ):
+        stat			= eval_rng( rng, count )
+
+        summ.setdefault( rng.__name__, {} )['signals pct'] \
+            = avg( list( bool( s ) for s in stat['signals_dBs'] ))
+        summ.setdefault( rng.__name__, {} )['shannons pct'] \
+            = avg( list( bool( s ) for s in stat['shannons_dBs'] ))
+        summ.setdefault( rng.__name__, {} )['signals avg'] \
+            = avg( list( s[0].dB for s in stat['signals_dBs'] if s ))
+        summ.setdefault( rng.__name__, {} )['shannons avg'] \
+            = avg( list( s[0].dB for s in stat['shannons_dBs'] if s ))
+
+        for n in 'signals', 'shannons':
+          for i,s in enumerate(
+                sorted(
+                    (
+                        s[0] for s in stat[n + '_dBs']
+                        if s
+                    ),
+                    reverse=True )[:3]
+          ):
+            print( f"{ordinal(i)} {rng.__name__}: {s}" )
+
+
+    print( f"Summary {json.dumps( summ, indent=4)}" )
+    

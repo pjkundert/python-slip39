@@ -20,6 +20,11 @@ import codecs
 import logging
 import math
 
+try:
+    from numpy		import fft as np_fft
+except ImportError:
+    np_fft			= None
+
 from collections	import namedtuple, defaultdict
 from typing		import List, Union, Tuple, Optional, Callable, Sequence
 
@@ -30,17 +35,28 @@ log				= logging.getLogger( __package__ )
 
 def fft( x ):
     """Computes frequency bin amplitude (real) and phase (imaginary) for N/2 frequency bins
-    0,..,Nyquist, for an N-sampled signal.
+    0,..,Nyquist, for an N-sampled signal, where N is a power of 2; uses dft for other N.
 
     """
+    if np_fft:
+        return [ complex(b) for b in np_fft.fft( x ) ]
     N				= len( x )
     if N <= 1:
         return x
+    if not is_power_of_2( N ):
+        return dft( x )        
     even			= fft( x[0::2] )
     odd				= fft( x[1::2] )
     T				= [ cmath.exp( -2j * cmath.pi * k / N ) * odd[k] for k in range( N//2 ) ]
     return [even[k] + T[k] for k in range(N//2)] + \
            [even[k] - T[k] for k in range(N//2)]
+
+
+def ifft( y: List[complex] ) -> List[complex]:
+    """Compute inverse FFT for any complex bins N (ideally a power of 2, or multiple of 2."""
+    if np_fft:
+        return [ complex(s) for s in np_fft.ifft( y ) ]
+    return idft( y )
 
 
 def dft( x: List[Union[int, float, complex]] ) -> List[complex]:
@@ -66,7 +82,7 @@ def dft( x: List[Union[int, float, complex]] ) -> List[complex]:
 
 
 def idft( y: List[complex] ) -> List[complex]:
-    """Inverse DFT on complex frequency bins."""
+    """Inverse DFT on complex frequency bins.  Very slow O(N^2), so use ... carefully."""
     N				= len( y )
     result			= []
     for n in range( N ):
@@ -136,7 +152,7 @@ def signal_recover_real( dfts, scale=None, integer=False ):
         dfts[-N//2]	       /= 2
         dfts[N//2]	       += dfts[-N//2]
     #print( "dfts: " + ' '.join( f"{d:{stride*2}.1f}" for d in dfts ))
-    sigR			= idft( dfts )
+    sigR			= ifft( dfts )
     #print( "sigR: " + ' '.join( f"{s:{stride*2}.1f}" for s in sigR ))
     sigR			= [ s.real for s in sigR ]
     #print( "sigR: " + ' '.join( f"{s:{stride*2}.1f}" for s in sigR ))
@@ -166,9 +182,9 @@ def signal_draw( s, scale=None, neg=None, pos=None ):
 if __name__ == "__main__":
     x				= [ 2, 3, 5, 7, 11 ]
     print( "vals:   " + ' '.join( f"{f:11.2f}" for f in x ))
-    y				= dft( x )
+    y				= fft( x )
     print( "DFT:    " + ' '.join( f"{f:11.2f}" for f in y ))
-    z				= idft( y )
+    z				= ifft( y )
     print( "inverse:" + ' '.join( f"{f:11.2f}" for f in z ))
     print( " - real:" + ' '.join( f"{f.real:11.2f}" for f in z ))
 
@@ -185,7 +201,7 @@ if __name__ == "__main__":
             for i in range( N )
         ]
         print( f"{rot:2} cycle" + ' '.join( f"{f:11.2f}" for f in sigs ))
-        dfts                    = dft( sigs )
+        dfts                    = fft( sigs )
         print( "  DFT:  " + ' '.join( f"{f:11.2f}" for f in dfts ))
         print( "   ABS: " + ' '.join( f"{abs(f):11.2f}" for f in dfts ))
 
@@ -270,7 +286,7 @@ def entropy_bin_dfts( entropy_bin, offset, symbols, stride, cancel_dc=True ):
     ints			= entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
     sigs			= [ r - 2**(stride-1) for r in ints ] if cancel_dc else ints
     # print( "sigs: " + ' '.join( f"{s:{stride}}" for s in sigs ))
-    dfts			= fft( sigs ) if is_power_of_2( len( ints )) else dft( sigs )
+    dfts			= fft( sigs )
 
     # See if we can observe any signal/noise ratio on any frequency
     #print( "dfts: " + ' '.join( f"{d:{stride*2}.1f}" for d in dfts ))
@@ -294,7 +310,7 @@ def int_decode( c, stride=8 ):
 def signal_entropy(
     entropy: bytes,
     stride: int			= 8,		# bits per symbol
-    symbols: int		= None,		# symbols per DFT; default to ~128 bits and a power of 2, but < length
+    symbols: Optional[int]	= None,		# symbols per DFT; default to ~128 bits and a power of 2, but < length
     overlap: bool		= True,		# sweep across n-1 bits for symbol start
     threshold: Optional[float]	= 300 / 100,    # Default: signal must stand >300% above noise floor
     middle: Optional[Callable[List[float],float]] = None,  # default to simple average; or eg. statistics.median
@@ -320,154 +336,144 @@ def signal_entropy(
     length			= len( entropy_bin )
 
     if symbols is None:
-        symbols			= 8
-        while ( symbols * 2 ) * stride <= min( 128, length-1 ):
-            symbols	       *= 2
+        # Default to the largest even-numbered amount of symbols
+        symbols			= length // stride // 2 * 2
     if threshold is None:
-        try:
-            threshold		= signal_entropy.signal_limits[length][overlap].get( stride )
-        except Exception:
-            pass
-    assert threshold and 0 < threshold, \
+        threshold		= signal_entropy.signal_limits.get(
+            length, {} ).get(
+                overlap, {} ).get(
+                    symbols, {} ).get( stride )
+    assert threshold and ( 0 < threshold ), \
         f"A small +'ve ratio threshold of Signal energy (0,...) is required for {length}-bit entropy w/ {stride}-bit symbols eg. 300%, not {threshold=!r}"
 
     dc				= 0+0j
     strongest			= None
     mags_all			= []
     for symb in range(0, length - symbols * stride + 1, stride ):
-      for slip in range( stride if overlap else 1 ):  # noqa: E111
-        offset			= symb + slip
-        #print( f"=> {symb=:3} + {slip=:3} == {offset}" )
-        if length - offset < symbols * stride:
-            break
-        dfts			= entropy_bin_dfts( entropy_bin, offset, symbols, stride, cancel_dc=not ignore_dc )
-        if ignore_dc:
-            dc			= dfts[0]
-            dfts[0]		= 0+0j
-        mags			= dft_on_real( dfts )  # abs energy bins, from DC to max freq
-        mags_all.append( mags )
-        #print( f"mags: {' '.join( f'{m:{stride*2}.1f}' for m in mags )}: {sum(mags):7.2f}" )
+        for slip in range( stride if overlap else 1 ):  # noqa: E111
+            offset			= symb + slip
+            #print( f"=> {symb=:3} + {slip=:3} == {offset}" )
+            if length - offset < symbols * stride:
+                break
+            dfts			= entropy_bin_dfts( entropy_bin, offset, symbols, stride, cancel_dc=not ignore_dc )
+            if ignore_dc:
+                dc			= dfts[0]
+                dfts[0]		= 0+0j
+            mags			= dft_on_real( dfts )  # abs energy bins, from DC to max freq
+            mags_all.append( mags )
+            #print( f"mags: {' '.join( f'{m:{stride*2}.1f}' for m in mags )}: {sum(mags):7.2f}" )
+          
+            top			= max( mags )
+            if middle is None:
+                mid			= avg( mags )
+            else:
+                mid			= middle( mags )
+            target			= mid + mid * threshold
+            # Compute dB SNR vs. target.  If all mags are 0 (all sigs were 0), then top and target will
+            # all be 0.  However, this means that the signal is totally predictable (contains infinitely
+            # strong signal), so pick an small but non-passing snr (1.0 == 0.0dB), so that any other
+            # more "legitimate" non-passing signals will likely be chosen as strongest.
+            snr			= ( top / target ) if target else 1.0
+            snr_dB			= into_dB( snr )
+            if strongest and snr_dB <= strongest.dB:
+                continue
+            if snr_dB < 0:
+                strongest	= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=[], details='' )
+                continue
+          
+            # Find the strongest signal frequency bin, and the compute indices of the symbols.  The
+            # max frequency (last) bin indicates some pattern sensed in every second symbol (the
+            # Nyquist rate, sampled at 2x the max frequency detectable).  The min frequency (first)
+            # bin indicates a DC offset (symbol values not centered around zero).  For N symbols,
+            # there are N/2+1 bins, [DC], [min], ..., [max]: the intervening N/2 bins [min], ...,
+            # [max] contain evenly spaced frequencies; eg. for N==8, N/2+1==5 bins, N/2==4 min-max bins
+            # where:
+            #
+            #     For symbols ==  8 ==>  64 bits 	For symbols == 16 ==> 128 bits
+            #     ------------------------------        ------------------------------
+            #     [0](DC)  ==> 8*8== 64 bits/beat       [0](DC)  ==>16*8==128 bits/beat
+            #     [1](min) ==> 4*8== 32 bits/beat       [1](min) ==> 8*8== 64 bits/beat
+            #     [2]          3*8== 24                 [2]          7*8== 56
+            #     [3]          2*8== 16                 [3]          6*8== 48
+            #     [4](max) ==> 1*8==  8 bits/beat       [4]          5*8== 40
+            #                                           [5]          4*8== 32
+            #                                           [6]          3*8== 24
+            #                                           [7]          2*8== 16
+            #                                           [8](max) ==> 1*8==  8 bits/beat
+            #
+            max_i			= mags.index( max( mags ))
+            indices			= []
 
-        top			= max( mags )
-        if middle is None:
-            mid			= avg( mags )
-        else:
-            mid			= middle( mags )
-        target			= mid + mid * threshold
-        # Compute dB SNR vs. target.  If all mags are 0 (all sigs were 0), then top and target will
-        # all be 0.  However, this means that the signal is totally predictable (contains infinitely
-        # strong signal), so pick an small but non-passing snr (1.0 == 0.0dB), so that any other
-        # more "legitimate" non-passing signals will likely be chosen as strongest.
-        snr			= ( top / target ) if target else 1.0
-        snr_dB			= into_dB( snr )
-        if strongest and snr_dB <= strongest.dB:
-            continue
-        if snr_dB < 0:
-            strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=[], details='' )
-            continue
-
-        # Find the strongest signal frequency bin, and the compute indices of the symbols.  The
-        # max frequency (last) bin indicates some pattern sensed in every second symbol (the
-        # Nyquist rate, sampled at 2x the max frequency detectable).  The min frequency (first)
-        # bin indicates a DC offset (symbol values not centered around zero).  For N symbols,
-        # there are N/2+1 bins, [DC], [min], ..., [max]: the intervening N/2 bins [min], ...,
-        # [max] contain evenly spaced frequencies; eg. for N==8, N/2+1==5 bins, N/2==4 min-max bins
-        # where:
-        #
-        #     For symbols ==  8 ==>  64 bits 	For symbols == 16 ==> 128 bits
-        #     ------------------------------        ------------------------------
-        #     [0](DC)  ==> 8*8== 64 bits/beat       [0](DC)  ==>16*8==128 bits/beat
-        #     [1](min) ==> 4*8== 32 bits/beat       [1](min) ==> 8*8== 64 bits/beat
-        #     [2]          3*8== 24                 [2]          7*8== 56
-        #     [3]          2*8== 16                 [3]          6*8== 48
-        #     [4](max) ==> 1*8==  8 bits/beat       [4]          5*8== 40
-        #                                           [5]          4*8== 32
-        #                                           [6]          3*8== 24
-        #                                           [7]          2*8== 16
-        #                                           [8](max) ==> 1*8==  8 bits/beat
-        #
-        max_i			= mags.index( max( mags ))
-        indices			= []
-        '''
-        max_beat		= ( len( mags ) - max_i ) if max_i else symbols
-        for beat in range(
-                offset,
-                offset + symbols * stride,
-                max_beat * stride * 2
-        ):
-            for b in range( max_beat * stride ):
-                indices.append( beat + b )
-        '''
-        # Draw the signal area of interest over 'symbols' of the 'stride'-bit symbols beginning at bit 'offset'.
-        details			= '\n'
-        offclip			= 0
-        offpref			= ''
-        if offset > 8:
-            details	       += f"...x{offset:<3}>{entropy_bin[offset:]}\n"
-            offclip		= offset
-            offpref		= ' ' * 8
-        else:
-            details	       += f"{entropy_bin}\n"
-            offpref		= ' ' * offset
-        details		       += offpref + ''.join(
-            ( '^' if i in indices else '-_'[( i // stride ) % 2] ) if ( offset <= i < ( offset + symbols * stride )) else ' '
-            for i in range( offset, length )
-        ) + '\n'
-
-        if stride >= 4:
+            # Draw the signal area of interest over 'symbols' of the 'stride'-bit symbols beginning at bit 'offset'.
+            details		= '\n'
+            offclip		= 0
+            offpref		= ''
+            if offset > 8:
+                details	       += f"...x{offset:<3}>{entropy_bin[offset:]}\n"
+                offclip		= offset
+                offpref		= ' ' * 8
+            else:
+                details	       += f"{entropy_bin}\n"
+                offpref		= ' ' * offset
             details	       += offpref + ''.join(
-                f"{c:<{stride}}"
+                ( '^' if i in indices else '-_'[( i // stride ) % 2] ) if ( offset <= i < ( offset + symbols * stride )) else ' '
+                for i in range( offset, length )
+            ) + '\n'
+          
+            if stride >= 4:
+                details	       += offpref + ''.join(
+                    f"{c:<{stride}}"
+                    for c in entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
+                ) + ' decimal\n'
+            details	       += offpref + ''.join(
+                int_decode( c, stride=stride )
                 for c in entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
-            ) + ' decimal\n'
-        details		       += offpref + ''.join(
-            int_decode( c, stride=stride )
-            for c in entropy_bin_ints( entropy_bin, offset=offset, symbols=symbols, stride=stride )
-        ) + f" base-{2**(4 if stride >= 7 else stride)}" + ("/ASCII" if stride >= 7 else "") + " decoding\n"
-            
-        # Select the one or two highest energy harmonics, and scale the waveform (which is
-        # denominated in stride-bit chunks) to the extent needed to cover the binary version of the
-        # entropy (then decimate to fit exactly).  So, if the 8-bit signal values are being
-        # recovered, we can scale the waveform by 8x.  Also, scale the amplitude by the (removed) DC
-        # component; this counteracts the reduction in dynamic range inherent to typical ASCII
-        # values (eg. the digits 0-9 are only 8% of the full ASCII range).
-        dfts_rec		= [0+0j] * len( dfts)
-        harmonic		= []
-        for max_b, max_i in sorted( ( (b, i) for i,b in enumerate( mags ) ), reverse=True ):
-            if harmonic and ( len( harmonic ) >= 2 or max_b < avg( mags )):
-                break  # Don't allow 0 or more than 2 harmonics > avg.
-            # The 0'th bin is DC, 1st is the base frequency, eg. 16 symbols, then 1/2, 1/3, 1/4, ...
-            harmonic.append( max_i )
-            dfts_rec[max_i]	= dfts[max_i]
-            if 0 < max_i < len(mags)-1:
-                dfts_rec[-max_i]= dfts[-max_i]		# ... and its symmetrical bin, if not max freq.
-        harmonic_freq		= [
-            mixed_fraction( len( dfts ), h )
-            for h in harmonic
-            if h > 0
-        ]
-        if ignore_dc:  # scale the remaining bins by the magnitude of the ignored DC
-            dfts_rec		= [ b * abs( dc ) / len( dfts ) for b in dfts_rec ]
-        # Compute the resolution for the inverse DFT required to properly cover the binary entropy
-        scale_signal		= 1
-        scale_stride		= stride
-        while scale_stride > 1:
-            scale_stride       /= 2
-            scale_signal       *= 2
-        sigs			= signal_recover_real( dfts_rec, scale=scale_signal, integer=True )
+            ) + f" base-{2**(4 if stride >= 7 else stride)}" + ("/ASCII" if stride >= 7 else "") + " decoding\n"
+                
+            # Select the one or two highest energy harmonics, and scale the waveform (which is
+            # denominated in stride-bit chunks) to the extent needed to cover the binary version of the
+            # entropy (then decimate to fit exactly).  So, if the 8-bit signal values are being
+            # recovered, we can scale the waveform by 8x.  Also, scale the amplitude by the (removed) DC
+            # component; this counteracts the reduction in dynamic range inherent to typical ASCII
+            # values (eg. the digits 0-9 are only 8% of the full ASCII range).
+            dfts_rec		= [0+0j] * len( dfts)
+            harmonic		= []
+            for max_b, max_i in sorted( ( (b, i) for i,b in enumerate( mags ) ), reverse=True ):
+                if harmonic and ( len( harmonic ) >= 2 or max_b < avg( mags )):
+                    break  # Don't allow 0 or more than 2 harmonics > avg.
+                # The 0'th bin is DC, 1st is the base frequency, eg. 16 symbols, then 1/2, 1/3, 1/4, ...
+                harmonic.append( max_i )
+                dfts_rec[max_i]	= dfts[max_i]
+                if 0 < max_i < len(mags)-1:
+                    dfts_rec[-max_i]= dfts[-max_i]		# ... and its symmetrical bin, if not max freq.
+            harmonic_freq	= [
+                mixed_fraction( len( dfts ), h )
+                for h in harmonic
+                if h > 0
+            ]
+            if ignore_dc:  # scale the remaining bins by the magnitude of the ignored DC
+                dfts_rec	= [ b * abs( dc ) / len( dfts ) for b in dfts_rec ]
+            # Compute the resolution for the inverse DFT required to properly cover the binary entropy
+            scale_signal	= 1
+            scale_stride	= stride
+            while scale_stride > 1:
+                scale_stride   /= 2
+                scale_signal   *= 2
+            sigs		= signal_recover_real( dfts_rec, scale=scale_signal, integer=True )
 
-        pos			= ''
-        neg			= ''
-        o			= 0
-        for i in range( symbols * stride ):
-            o			= int( i / scale_stride )
-            #print( f" - {i=:3} --> {o=:3} ==> {sigs[o]:7}" )
-            pos	       	       += signal_draw( sigs[o], pos=True )
-            neg	       	       += signal_draw( sigs[o], neg=True )
-        harmonic_dBs		= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/avg(mags)):.1f}dB" for h in harmonic ]
-        details		       += offpref + f"{pos} {len(harmonic)} harmonics: {', '.join( harmonic_dBs )}\n"
-        details		       += offpref + f"{neg}  - " + f"{'DC offset and ' if 0 in harmonic else '' }" + f"every {', '.join( map( str,  harmonic_freq ))} symbols\n"
-
-        strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=indices, details=details )
+            pos			= ''
+            neg			= ''
+            o			= 0
+            for i in range( symbols * stride ):
+                o			= int( i / scale_stride )
+                #print( f" - {i=:3} --> {o=:3} ==> {sigs[o]:7}" )
+                pos	       += signal_draw( sigs[o], pos=True )
+                neg	       += signal_draw( sigs[o], neg=True )
+            harmonic_dBs	= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/avg(mags)):.1f}dB" for h in harmonic ]
+            details	       += offpref + f"{pos} {len(harmonic)} harmonics: {', '.join( harmonic_dBs )}\n"
+            details	       += offpref + f"{neg}  - " + f"{'DC offset and ' if 0 in harmonic else '' }" + f"every {', '.join( map( str,  harmonic_freq ))} symbols\n"
+          
+            strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, indices=indices, details=details )
 
     mags_avgs			= [sum(col)/len(mags_all) for col in zip(*mags_all)]
     #print( f"avgs: {' '.join( f'{m:{stride*2}.1f}' for m in mags_avgs )}: {sum(mags_avgs):7.2f}" )
@@ -475,38 +481,78 @@ def signal_entropy(
 signal_entropy.signal_limits = {
     128: {
         False: {
-            3: 3.6290539642295268,
-            4: 3.507324239128957,
-            5: 4.0,
-            6: 4.0,
-            7: 4.0,
-            8: 4.0,
+            16: {
+                3: 3.651650263970015,
+                4: 3.4215237109880228,
+                5: 3.2591150658628734,
+                6: 3.1477078369819034,
+                7: 2.9021926977841255,
+                8: 2.787531010608727
+            },
+            32: {
+                3: 3.7152745851064313,
+                4: 2.9176930749283394
+            }
         },
         True: {
-            3: 3.980779955578968,
-            4: 3.757892208378965,
-            5: 4.0,
-            6: 4.0,
-            7: 4.0,
-            8: 4.0,
+            16: {
+                3: 3.889548730408959,
+                4: 3.7770702637742724,
+                5: 3.653268189726222,
+                6: 3.572250813200411,
+                7: 3.444700790241825,
+                8: 2.7781775856674145
+            },
+            32: {
+                3: 4.012639630053935,
+                4: 3.0047087453451873
+            }
         }
     },
     256: {
         False: {
-            3: 4.110541587940857,
-            4: 3.552135847422123,
-            5: 4.0,
-            6: 4.0,
-            7: 4.0,
-            8: 4.0,
+            16: {
+                3: 3.9026257972956984,
+                4: 3.6828033488523153,
+                5: 3.570090080180254,
+                6: 3.488322990199611,
+                7: 3.4526107933375,
+                8: 3.397313783054593
+            },
+            32: {
+                3: 4.232464046052023,
+                4: 3.6024880189479553,
+                5: 3.4129801364919956,
+                6: 3.2180213105434454,
+                7: 3.0793441353441455,
+                8: 2.857897096090652
+            },
+            64: {
+                3: 4.409001822851476,
+                4: 3.1392186230435835
+            }
         },
         True: {
-            3: 4.432511412288454,
-            4: 4.096532008409936,
-            5: 4.0,
-            6: 4.0,
-            7: 4.0,
-            8: 4.0,
+            16: {
+                3: 4.158445351852538,
+                4: 4.052017191989963,
+                5: 4.026649796391605,
+                6: 3.9639112419283,
+                7: 3.938386715733449,
+                8: 3.8981888342655187
+            },
+            32: {
+                3: 4.501740104297891,
+                4: 3.9885955037591696,
+                5: 3.8622768282592275,
+                6: 3.7036453609187485,
+                7: 3.527510855713643,
+                8: 2.842147682844656
+            },
+            64: {
+                3: 4.792717121123959,
+                4: 3.185061515078868
+            }
         }
     }
 }
@@ -540,14 +586,6 @@ def shannon_entropy(
     entropy_hex			= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
     entropy_bin			= ''.join( f"{int(h,16):0>4b}" for h in entropy_hex )
     length			= len( entropy_bin )
-
-    if threshold is None:
-        try:
-            threshold		= shannon_entropy.shannon_limits[length][overlap].get( stride )
-        except Exception:
-            pass
-    assert threshold and 0 < threshold < 1, \
-        f"A small +'ve ratio threshold of Shannon entropy deficit (0, 1] is required for {length}-bit entropy w/ {stride}-bit symbols eg. 10%, not {threshold=!r}"
 
     # Find all the unique n-bit symbols in the entropy at the desired offset(s)
     strongest			= None
@@ -605,15 +643,23 @@ def shannon_entropy(
         #     1/100 + .1   / ( .1 / ( 1 - 1/100 )) == 1.0000 ==   0.0   dB  # exactly at threshold
         #     1/100 + 1    / ( .1 / ( 1 - 1/100 )) == 9.9100 ==  19.20  dB  # +'ve above threshold
         #
-        snr			= snr_min + predictability / ( threshold / ( 1 - snr_min ))
+        thresh			= shannon_entropy.shannon_limits.get(
+            length, {} ).get(
+                overlap, {} ).get(
+                    # symbols, {} ).get(
+                        stride ) if threshold is None else threshold
+        assert thresh and 0 < thresh < 1, \
+            f"A small +'ve ratio threshold of Shannon entropy deficit (0, 1] is required for {length}-bit entropy w/ {symbols} x {stride}-bit symbols eg. 10%, not {thresh!r}"
+
+        snr			= snr_min + predictability / ( thresh / ( 1 - snr_min ))
         snr_dB			= into_dB( snr )
         weaker			= strongest and snr_dB < strongest.dB
         ( log.debug if snr_dB < 0 else log.info )(
             f"Found {len(frequency):3} unique (of {2**stride:5} possible) in {symbols:3}"
             f"x {stride:2}-bit symbols at offset {offset:2} in {length:4}-bit entropy:"
             f" Shannon Entropy {bitspersymbol:7.3f} b/s, P({shannon:7.3f}) unpredictable; {predictability=:7.3f}"
-            f" vs. {threshold=:7.3f} == {snr=:7.3f} (w/ {snr_min=:7.3f}, {1-snr_min=:7.3f},"
-            f" {threshold/(1-snr_min)=:7.3f} {predictability/(threshold/(1-snr_min))=:7.3f}) ==> {snr_dB:7.3f}dB: {entropy_hex}"
+            f" vs. threshold={thresh:7.3f} == {snr=:7.3f} (w/ {snr_min=:7.3f}, {1-snr_min=:7.3f},"
+            f" {thresh/(1-snr_min)=:7.3f} {predictability/(thresh/(1-snr_min))=:7.3f}) ==> {snr_dB:7.3f}dB: {entropy_hex}"
         )
         if weaker:
             continue
@@ -637,41 +683,80 @@ def shannon_entropy(
 shannon_entropy.shannon_limits	= {  # noqa: E305
     128: {
         False: {
-            3: 0.11416965894858716,
-            4: 0.1843661918744069,
-            5: 0.2305068951354634,
-            6: 0.15343533489374814,
-            7: 0.10655817351318086,
-            8: 0.07432042128174121
+            3: 0.13268944273882977,
+            4: 0.20564044814983268,
+            5: 0.25196701378077224,
+            6: 0.17391410189752385,
+            7: 0.12726016182057254,
+            8: 0.09753138971750197
         },
         True: {
-            3: 0.12660653209141046,
-            4: 0.2090436424335448,
-            5: 0.2540968411252106,
-            6: 0.17982678225472987,
-            7: 0.13449181308625052,
-            8: 0.11146742124340654
+            3: 0.14697424838648038,
+            4: 0.22795303172866663,
+            5: 0.28261947043151675,
+            6: 0.20300419543128181,
+            7: 0.1549773109051139,
+            8: 0.12525605560332348
         }
     },
     256: {
         False: {
-            3: 0.0534937796925538,
-            4: 0.09089197949378507,
-            5: 0.15928683493243587,
-            6: 0.16336430125132725,
-            7: 0.10341631445530991,
-            8: 0.0673969650819575
+            3: 0.06997378467573884,
+            4: 0.104842715766999,
+            5: 0.17246408001668176,
+            6: 0.1748072186079218,
+            7: 0.11567188321698212,
+            8: 0.07942831683099706
         },
         True: {
-            3: 0.061439627214244535,
-            4: 0.10607233662045554,
-            5: 0.17434749173815242,
-            6: 0.17860970937945514,
-            7: 0.12023817917591205,
-            8: 0.08310642137719244
+            3: 0.07371580948098683,
+            4: 0.11723366009548339,
+            5: 0.18690337619188974,
+            6: 0.19047504741885843,
+            7: 0.1308859333086623,
+            8: 0.096103438781967
         }
     }
 }
+
+def scan_entropy(
+    entropy: bytes,
+    strides: Optional[Union[int,Tuple[int,int]]] = None,  # If only a specific stride/s makes sense, eg. for ASCII symbols
+    overlap: bool		= True,
+    ignore_dc: bool		= False,
+) -> Tuple[List[Signal],List[Signal]]:
+    if strides is None:
+        strides			= (3, 9)
+    else:
+        try:
+            _,_			= strides
+        except TypeError:
+            strides		= (int(strides), int(strides)+1)
+
+    # For signal analysis, we default to <= ~128-bit groups of stride-bit symbols
+    signals			= sorted(
+        (
+            s for s in (
+    	        signal_entropy( entropy, stride=stride, overlap=overlap, ignore_dc=ignore_dc )
+                for stride in range( *strides )
+            )
+            if s.dB >= 0
+        ),
+        reverse		= True
+    )
+
+    # For Shannon entropy, we always use as many stride-bit symbols as we can find
+    shannons			= sorted(
+        (
+            s for s in (
+    	        shannon_entropy( entropy, stride=stride, overlap=overlap )
+                for stride in range( *strides )
+            )
+            if s.dB >= 0
+        ),
+        reverse		= True
+    )
+    return signals, shannons
 
 
 def analyze_entropy(
@@ -695,47 +780,21 @@ def analyze_entropy(
     term is very small; the probability we'll find an entropy failure it basically is the sum of the
     individual probabilities of each test failing.
 
-    So, if we try 6 of each analysis, that's 12 * 1% =~= 12%.  We want a total failure of about 1%,
-    so we must target a 0.1% failure on good entropy for each test.
+    So, if we try 6 of each analysis, that's 12 * 1% =~= 12%.  If we want a total failure of about
+    1%, so we must target a ~0.1% failure on good entropy for each test.
+
+    However, it seems likely that if a signal appears in one bit-stride, it may appear in others, so
+    perhaps the analysis on different strides may be related.  So, it might be practical to target
+    0.25% failure on each individual test.
 
     """
-    if strides is None:
-        strides			= (3, 9)
-    else:
-        try:
-            _,_			= strides
-        except TypeError:
-            strides		= (int(strides), int(strides)+1)
-
-    # For signal analysis, we use the default <= ~128-bit groups of stride-bit symbols
-    signals			= sorted(
-        (
-            s for s in (
-    	        signal_entropy( entropy, stride=stride, overlap=overlap, ignore_dc=ignore_dc )
-                for stride in range( *strides )
-            )
-            if s.dB >= 0
-        ),
-        reverse		= True
-    )
-
-    # For Shannon entropy, we always use as many stride-bit symbols as we can find
-    shannons			= sorted(
-        (
-            s for s in (
-    	        shannon_entropy( entropy, stride=stride, overlap=overlap )
-            for stride in range( *strides )
-            )
-        if s.dB >= 0
-        ),
-        reverse		= True
-    )
+    signals, shannons		= scan_entropy( entropy, strides, overlap, ignore_dc )
 
     result			= None
     if signals or shannons:
         report			= ''
         if signals:
-            report	       += f"Signal analysis indicates {len(signals)} non-random energy pattern in"
+            report	       += f"Signal Frequency analysis indicates {len(signals)} non-random energy patterns in"
             report	       += f" {', '.join( map( str, (s.stride for s in signals))) }-bit symbols:\n"
         for s in signals:
             report	       += f"\n - A {s.dB:.1f}dB Signal artifact at bit {s.offset:3} in {s.symbols:2} x {s.stride}-bit symbols:\n"
@@ -743,10 +802,10 @@ def analyze_entropy(
         if signals and shannons:
             report	       += '\n'
         if shannons:
-            report	       += f"Shannon entropy indicates {len(shannons)} unexpectedly non-random distribution of some"
+            report	       += f"Shannon Entropy analysis indicates {len(shannons)} non-random distributions of"
             report	       += f" {', '.join( map( str, (s.stride for s in shannons))) }-bit symbols:\n"
         for s in shannons:
-            report	       += f"\n - A {s.dB:.1f}dB Shannon entropy deficit over {s.stride}-bit symbols:\n"
+            report	       += f"\n - A {s.dB:.1f}dB Shannon entropy deficit at bit {s.offset:3} in {s.symbols:2} x {s.stride}-bit symbols:\n"
             report	       += f"{s.details}\n"
         result			= report
 
