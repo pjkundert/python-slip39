@@ -199,12 +199,11 @@ def hue_shift( color, shift=1/3 ):
 
 def exponential_moving_average( current, sample, weight ):
     """exponential_moving_average -- rolling average without any data history
-   
-   
+
     Computes an exponential moving average:
-   
+
         ( 1 - weight ) * current + weight * sample
-   
+
     where the incoming sample has the given weight, and current samples have exponentially less
     influence on the current value.  Ignores a current value of None.
 
@@ -213,9 +212,17 @@ def exponential_moving_average( current, sample, weight ):
 
 
 def avg( seq ):
-    if seq:
-        return sum( seq ) / len( seq )
+    vals			= list( seq )
+    if vals:
+        return sum( vals ) / len( vals )
     return math.nan
+
+
+def rms( seq ):
+    """Computes RMS for real/complex sequence of values"""
+    if seq:
+        return math.sqrt( avg( abs( s ) ** 2 for s in seq ))
+    return 0
 
 
 def is_power_of_2( n: int ) -> bool:
@@ -227,5 +234,5 @@ class mixed_fraction( fractions.Fraction ):
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
         if whole and rest:
-            return f"{whole}-{fractions.Fraction( rest, self.denominator)}"
+            return f"{whole}+{fractions.Fraction( rest, self.denominator)}"
         return super().__str__()

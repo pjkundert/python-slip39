@@ -40,8 +40,8 @@ else
 	INSTALLER	:=
 endif
 
-# To see all pytest output, uncomment --capture=no
-PYTESTOPTS	= -vv --doctest-modules --capture=no --log-cli-level=INFO
+# To see all pytest output, uncomment --capture=no, ...
+PYTESTOPTS	= -vv --doctest-modules # --capture=no # --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
