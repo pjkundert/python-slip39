@@ -84,9 +84,9 @@ def recover(
         f"Recovered {len(secret)*8}-bit SLIP-39 Seed Entropy with {len(combo)}"
         f" ({'all' if len(combo) == len(mnemonics) else ', '.join( ordinal(i+1) for i in combo)})"
         f" of {len(mnemonics)} supplied mnemonics" + (
-            "; Seed generated using BIP-39 Mnemonic representation w/ passphrase"
+            f"; Seed decoded from SLIP-39 (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
             if using_bip39 else
-            "; Seed decoded from SLIP-39 Mnemonics w/ passphrase"
+            f"; Seed decoded from SLIP-39 Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
         )
     )
     if using_bip39:

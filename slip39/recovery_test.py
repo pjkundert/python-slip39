@@ -21,7 +21,7 @@ from .api		import create, account
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
 from .recovery.entropy	import fft, ifft, pfft, dft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
-from .util		import avg, rms, ordinal
+from .util		import avg, rms, ordinal, commas
 
 log				= logging.getLogger( __package__ )
 
@@ -320,6 +320,14 @@ def test_recover_bip39_vectors():
         assert address in addresses, \
             f"row {i+1}: BTC account {address} not in {addresses!r} for entropy {entropy} ==> {master_secret}"
 
+def test_util():
+    assert commas( range(10) ) == '0-9'
+    assert commas( [1,2,3,5,6,7] ) == '1-3, 5-7'
+    assert commas( [1,2,3,5,6,7], final_and=True ) == '1-3 and 5-7'
+    assert commas( [1,2,3,5,6,7,9] ) == '1-3, 5-7, 9'
+    assert commas( [1,2,3,5,6,7,9], final_and=True ) == '1-3, 5-7 and 9'
+    assert commas( [1,3,5], final_and=True ) == '1, 3 and 5'
+    assert commas( [1,2,5], final_and=True ) == '1, 2 and 5'
 
 def test_dft_smoke():
     """Test some basic assumptions on DFTs"""
@@ -331,6 +339,8 @@ def test_dft_smoke():
     print( "dft:   " + ' '.join( f"{f:11.2f}" for f in y ))
     z				= ifft( y )
     print( "idft:  " + ' '.join( f"{f:11.2f}" for f in z ))
+    zz				= ifft( y )
+    assert z == zz  # ensure any memoizing of DFT factors works
     print( "recov.:" + ' '.join( f"{f.real:11.2f}" for f in z ))
 
     # Ensure a DFT on a power-of-2 length sequence is the same as the pure FFT
@@ -616,7 +626,7 @@ def test_signal_lots():
     signal			= signal_entropy( SEED_LOTS, stride, threshold=300/100, harmonics_max=None )
     print( f"SEED_LOTS: {signal}" )
     assert signal.dB == pytest.approx( +14.8, rel=20/100 )
-    # assert "every 32, 10+2/3, 2 symbols" in signal.details  # order is non-deterministic
+    # assert "every 32, 10+2/3 and 2 symbols" in signal.details  # order is non-deterministic
 
     # Now add a strong signal exactly between 2 bins.  The energy of all three signals above
     # threshold should accrue to the result'st SNR dB.  The one that is split across 2 bins should
@@ -632,7 +642,7 @@ def test_signal_lots():
     signal			= signal_entropy( SEED_MIDL, stride, threshold=300/100, harmonics_max=None )
     print( f"SEED_MIDL: {signal}" )
     assert signal.dB == pytest.approx( +4.1, abs=1e-1 )
-    assert "every 6+2/5, 3+5/9, 3+1/5 symbols" in signal.details
+    assert "every 6+2/5, 3+5/9 and 3+1/5 symbols" in signal.details
 
 
 def test_shannon_entropy():
@@ -645,14 +655,22 @@ def test_shannon_entropy():
     SEED_ZERO			= codecs.decode( SEED_ZERO_HEX, 'hex_codec' )
 
     shannon			= shannon_entropy( SEED_ONES+SEED_ZERO )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, overlap=False )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, stride=4 )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_ZERO, stride=4, overlap=False )
+    print( f"{shannon}" )
 
     shannon			= shannon_entropy( SEED_ONES+SEED_XMAS )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, overlap=False )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, stride=4 )
+    print( f"{shannon}" )
     shannon			= shannon_entropy( SEED_ONES+SEED_XMAS, stride=4, overlap=False )
+    print( f"{shannon}" )
 
     shannon			= shannon_entropy( SEED_XMAS )
     shannon			= shannon_entropy( SEED_XMAS, stride=6 )
@@ -663,10 +681,13 @@ def test_shannon_entropy():
     assert shannon.dB == pytest.approx( -40.0, abs=1e-1 )
     # Now, add some duplicates, reducing the entropy, 'til we fail the Shannon entropy test.
     shannon			= shannon_entropy( SEED_XMAS[:-3]+SEED_XMAS[:3] )
+    print( f"{shannon}" )
     assert shannon.dB == pytest.approx( -2.5, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS[:-4]+SEED_XMAS[:4] )
+    print( f"{shannon}" )
     assert shannon.dB == pytest.approx( -0.02, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS[:-5]+SEED_XMAS[:5] )
+    print( f"{shannon}" )
     assert shannon.dB == pytest.approx( +1.9, abs=1e-1 )
 
 
@@ -687,9 +708,11 @@ def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, s
             entropy	= os.urandom( bits // 8 )
             threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
             if symbols is None:
-                signal	= compute_entropy( entropy, overlap=overlap, stride=stride, threshold=threshold )
+                signal	= compute_entropy( entropy, overlap=overlap, stride=stride,
+                                           threshold=threshold, show_details=False )
             else:
-                signal	= compute_entropy( entropy, overlap=overlap, stride=stride, symbols=symbols, threshold=threshold )
+                signal	= compute_entropy( entropy, overlap=overlap, stride=stride, symbols=symbols,
+                                           threshold=threshold, show_details=False )
             reject	= signal.dB >= 0
             rejects.append( reject )
             rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
@@ -713,7 +736,7 @@ def test_shannon_limits( detailed=False ):
 
     """
     shannon_limits		= {}
-    strengths			= (128, 256)
+    strengths			= (128, 256, 512)
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
     cycles			= 100001
@@ -757,7 +780,7 @@ def test_signal_limits( detailed=False ):
 
     """
     signal_limits		= {}
-    strengths			= (128, 256)
+    strengths			= (128, 256, 512)
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
     cycles			= 100001
@@ -845,7 +868,7 @@ def test_poor_entropy():
 
     analysis			= analyze_entropy( entropy )
     print( f"Analysis of base-64 phrase: {analysis}" )
-    assert "Shannon entropy deficit at bit 5 in 41 x 6-bit symbols" in analysis
+    assert "Shannon entropy reduced at offset 5 in 41x 6-bit symbols" in analysis
 
 
 def test_good_entropy():
@@ -865,7 +888,7 @@ def test_good_entropy():
 
     analysis			= analyze_entropy( entropy[:-5] + entropy[:5] )
     print( f"Analysis of XMAS entropy w/ 5 dups: {analysis}" )
-    assert analysis and "Shannon entropy deficit" in analysis
+    assert analysis and "Shannon entropy reduced" in analysis
 
     # This test takes a while without numpy installed, due to inefficient python-only dft
     cycles			= 1000

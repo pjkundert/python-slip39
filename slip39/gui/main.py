@@ -13,7 +13,7 @@ from itertools import islice
 import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
-from ..recovery		import recover, recover_bip39, produce_bip39
+from ..recovery		import recover, recover_bip39, produce_bip39, analyze_entropy
 from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
@@ -455,21 +455,11 @@ def update_seed_data( event, window, values ):
     Stores the last known state of the -SD-... radio buttons, and saves/restores the user data being
     supplied on for BIP/SLIP/FIX.  If event indicates one of our radio-buttons is re-selectedd, then
     also re-generate the random data.  If a system event occurs (eg. after a Controls change),
-    restores our last-known radio button and data.
+    restores our last-known radio button and data.  Since we cannot know if/when our main window is
+    going to disappear and be replaced, we constantly save the current state.
 
     """
-    changed			= False
-    if not event.startswith( '-' ) and update_seed_data.src and window[update_seed_data.src].visible:
-        # Some system event; restore where we left off (if known, and if the remembered control is visible).
-        data, pswd		= update_seed_data.was.get( update_seed_data.src, ('','') )
-        seed			= None
-        values[update_seed_data.src] = True
-        window[update_seed_data.src].update( True )
-        update_seed_data.src	= None
-    else:
-        data, pswd		= values['-SD-DATA-'], values['-SD-PASS-']
-        seed			= window['-SD-SEED-'].get()
-    for src in [
+    SD_CONTROLS			= [
             '-SD-128-RND-',
             '-SD-256-RND-',
             '-SD-512-RND-',
@@ -479,15 +469,34 @@ def update_seed_data( event, window, values ):
             '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
             '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
             '-SD-SLIP-',
-    ]:
-        # See what we got for -SD-DATA-, for this -SD-... radio button selection
-        if values[src] and update_seed_data.src != src:
-            # If selected radio-button for Seed Data source changed, save last source's working data
-            # and restore what was, last time we were working on this source.  If the triggering
-            # event is not one of ours (eg. __TIMEOUT__), then don't overwrite memory.
-            if update_seed_data.src and event.startswith( '-' ):
-                #log.warning( f"Switching Seed Source w/ event {event} to {src}: saving {update_seed_data.src}: {data!r:.10}..., {pswd!r}" )
-                update_seed_data.was[update_seed_data.src] = data, pswd
+    ]
+    changed			= False
+    # Some system event (eg. __TIMEOUT__ immediately after a new main window is created, or due to
+    # scheduled callback); restore where we left off if known, and if the remembered control is
+    # visible.  This allows continuation between major screen changes w/ full controls regeneration.
+    # As long as the new screen contains the same visible controls, we'll continue editing our Seed
+    # Data wherever we left off.  If the new screen has different controls, we'll get whatever is
+    # there, instead.
+    if not event.startswith( '-' ) and update_seed_data.src and window[update_seed_data.src].visible:
+        log.warning( f"Restoring Seed Source w/ event {event} from saved {update_seed_data.src}"
+                     f" data/password{' (none saved)' if update_seed_data.src not in update_seed_data.was else ''}" )
+        data, pswd		= update_seed_data.was.get( update_seed_data.src, ('','') )
+        seed			= None
+        for src in SD_CONTROLS:
+            values[src]		= False
+        values[update_seed_data.src] = True
+        window[update_seed_data.src].update( True )
+        update_seed_data.src	= None  # and force controls' visibility update
+    else:
+        data, pswd		= values['-SD-DATA-'], values['-SD-PASS-']
+        seed			= window['-SD-SEED-'].get()
+    # Now that we've recovered which Seed Data control is in play, See what we got for -SD-DATA-,
+    # and update other controls' visibility for this -SD-... radio button selection.
+    for src in SD_CONTROLS:
+        if values[src] and ( update_seed_data.src != src ):
+            # If selected radio-button for Seed Data source changed, restore what data/pswd was
+            # there, last time we were working on this source.
+            log.warning( f"Seed Data source changed from {update_seed_data.src!r} to {src!r} due to event: {event!r}" )
             changed		= True
             update_seed_data.src = src
             data, pswd		= update_seed_data.was.get( src, ('','') )
@@ -530,6 +539,7 @@ def update_seed_data( event, window, values ):
                 window['-SD-PASS-F-'].update( visible=False )
         elif event == update_seed_data.src == src:
             # Same radio-button re-selected; just force an update (eg. re-generate random)
+            log.info( f"Seed Data update forced due to event: {event!r}" )
             changed		= True
     if not seed:
         seed		= '-' * ( BITS_DEFAULT // 4 )
@@ -585,7 +595,7 @@ def update_seed_data( event, window, values ):
         seed			= random_secret( bits // 8 )
 
     # Compute any newly computed/recovered binary Seed Data bytes as hex. Must be 128-, 256- or
-    # 512-bit hex data.
+    # 512-bit hex data.  Do a final comparison against current -SD-SEED- to detect changes.
     try:
         if type(seed) is not str:
             seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
@@ -600,11 +610,30 @@ def update_seed_data( event, window, values ):
         if not bits:
             bits		= BITS_DEFAULT
         seed			= '-' * (bits // 4)
+    if window['-SD-SEED-'].get() != seed:
+        changed			= True
 
+    # Analyze the seed for Signal harmonic or Shannon entropy failures, if we're in a __TIMEOUT__
+    # (between keystrokes or after a major controls change).  Otherwise, if the seed's changed,
+    # request a __TIMEOUT__; when it, perform the entropy analysis.
+    values['-SD-SIG-']		= ''
+    if status is None and event == '__TIMEOUT__':
+        seed_bytes		= codecs.decode( seed, 'hex_codec' )
+        analysis		= analyze_entropy( seed_bytes, what=f"{len(seed_bytes)*8}-bit Seed Source", show_details=False )
+        if analysis:
+            values['-SD-SIG-']	= analysis
+            status		= analysis.split( '\n' )[0]
+    elif changed:
+        log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
+        values['__TIMEOUT__']	= .5
+ 
     # Since a window[...].update() doesn't show up to a .get() 'til the next cycle of the display,
     # we'll communicate updates to successive functions via values.
     values['-SD-SEED-'] 	= seed
     window['-SD-SEED-'].update( seed )
+
+    # Finally, remember what data/pswd we were working on, in case we get a major controls change.
+    update_seed_data.was[update_seed_data.src] = values['-SD-DATA-'], values['-SD-PASS-']
     return status
 
 update_seed_data.src		= None  # noqa: E305
@@ -902,9 +931,10 @@ def app(
     master_secret		= None		# default to produce randomly
     details			= None		# The SLIP-39 details produced from groups; make None to force SLIP-39 Mnemonic update
     cryptopaths			= None
-    timeout			= 0		# First time thru; refresh immediately
+    timeout			= 0		# First time thru; refresh immediately; functions req. refresh may adjust via values['__TIMEOUT__']
     instructions		= ''		# The last instructions .txt payload found
     instructions_kwds		= dict()        # .. and its colors
+    values			= dict()
     while event not in events_termination:
         # A Controls layout selection, eg. '-LO-2-'; closes and re-generates window layout
         if event and event.startswith( '-LO-' ):
@@ -951,12 +981,15 @@ def app(
                 no_titlebar	= no_titlebar,
                 scaling		= scaling,
             )
-            timeout		= 0 		# First time through w/ new window, refresh immediately
+            values['__TIMEOUT__'] = 0 		# First time through w/ new window, refresh immediately
 
-        # Block (except for first loop) and obtain current event and input values. Until we get a
-        # new event, retain the current status
+        # Block (except for first loop, or if someone requested a __TIMEOUT__) and obtain current
+        # event and input values. Until we get a new event, retain the current status
+        timeout			= values.get( '__TIMEOUT__', None )  # Subsequently, default; block indefinitely (functions may adjust...)
+        if timeout:
+            logging.debug( f"A __TIMEOUT__ was requested: {timeout!r}" )
         event, values		= window.read( timeout=timeout )
-        timeout			= None 		# Subsequently, default; block indefinitely
+        assert '__TIMEOUT__' not in values
         logging.debug( f"{event}, {values}" )
         if not values or event in events_termination or event in events_ignored:
             continue

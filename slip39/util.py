@@ -51,11 +51,36 @@ def log_level( adjust ):
     ]
 
 
-def ordinal(num):
+def ordinal( num ):
     ordinal_dict		= {1: "st", 2: "nd", 3: "rd"}
     q, mod			= divmod( num, 10 )
     suffix			= q % 10 != 1 and ordinal_dict.get(mod) or "th"
     return f"{num}{suffix}"
+
+
+def commas( seq, final_and=None ):
+    """Replace any numeric sequences eg. 1, 2, 3, 5, 7 w/ 1-3, 5 and 7.  Caller should
+    usually sort numeric values before calling."""
+    def int_seq( seq ):
+        for i,iv in enumerate( seq[:-1] ):
+            if type(iv) in (int,float):
+                for j,jv in enumerate( seq[i:] ):
+                    if type(jv) not in (int,float) or jv != iv + j:
+                        j      -= 1
+                        break
+                if j > 1:
+                    return (i,i+j)
+        return None
+    seq				= list( seq )
+    while rng := int_seq( seq ):
+        #print( f"int_seq: series {rng!r} ({seq[rng[0]]!r} - {seq[rng[1]]!r}) found in {seq!r}"  )
+        beg			= seq[:rng[0]]
+        nxt			= rng[1] + 1
+        end			= seq[nxt:] if nxt < len( seq ) else []
+        seq			= beg + [f"{seq[rng[0]]}-{seq[rng[1]]}"] + end
+    if final_and and len(seq) > 1:
+        seq			= seq[:-2] + [f"{seq[-2]} and {seq[-1]}"]
+    return ', '.join( map( str, seq ))
 
 
 def input_secure( prompt, secret=True, file=None ):
