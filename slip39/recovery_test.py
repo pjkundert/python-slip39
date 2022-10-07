@@ -320,6 +320,7 @@ def test_recover_bip39_vectors():
         assert address in addresses, \
             f"row {i+1}: BTC account {address} not in {addresses!r} for entropy {entropy} ==> {master_secret}"
 
+
 def test_util():
     assert commas( range(10) ) == '0-9'
     assert commas( [1,2,3,5,6,7] ) == '1-3, 5-7'
@@ -328,6 +329,7 @@ def test_util():
     assert commas( [1,2,3,5,6,7,9], final_and=True ) == '1-3, 5-7 and 9'
     assert commas( [1,3,5], final_and=True ) == '1, 3 and 5'
     assert commas( [1,2,5], final_and=True ) == '1, 2 and 5'
+
 
 def test_dft_smoke():
     """Test some basic assumptions on DFTs"""

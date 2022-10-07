@@ -460,15 +460,15 @@ def update_seed_data( event, window, values ):
 
     """
     SD_CONTROLS			= [
-            '-SD-128-RND-',
-            '-SD-256-RND-',
-            '-SD-512-RND-',
-            '-SD-128-FIX-',
-            '-SD-256-FIX-',
-            '-SD-512-FIX-',
-            '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
-            '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
-            '-SD-SLIP-',
+        '-SD-128-RND-',
+        '-SD-256-RND-',
+        '-SD-512-RND-',
+        '-SD-128-FIX-',
+        '-SD-256-FIX-',
+        '-SD-512-FIX-',
+        '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
+        '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
+        '-SD-SLIP-',
     ]
     changed			= False
     # Some system event (eg. __TIMEOUT__ immediately after a new main window is created, or due to
@@ -626,7 +626,6 @@ def update_seed_data( event, window, values ):
     elif changed:
         log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
         values['__TIMEOUT__']	= .5
- 
     # Since a window[...].update() doesn't show up to a .get() 'til the next cycle of the display,
     # we'll communicate updates to successive functions via values.
     values['-SD-SEED-'] 	= seed
@@ -989,7 +988,6 @@ def app(
         if timeout:
             logging.debug( f"A __TIMEOUT__ was requested: {timeout!r}" )
         event, values		= window.read( timeout=timeout )
-        assert '__TIMEOUT__' not in values
         logging.debug( f"{event}, {values}" )
         if not values or event in events_termination or event in events_ignored:
             continue
