@@ -1019,6 +1019,30 @@ def scan_entropy(
     return signals, shannons
 
 
+def display_entropy( signals, shannons, what=None ):
+    result			= None
+    if signals or shannons:
+        report			= ''
+        dBs			= sorted( list( s.dB for s in signals ) + list( s.dB for s in shannons) )
+        dBr			= dBs[:1] + dBs[max( 1, len(dBs)-1):]
+        report		       += f"Entropy analysis {('of ' + what) if what else ''}: {len(signals)+len(shannons)}x"
+        report		       += f" {'-'.join( f'{dB:.1f}' for dB in dBr )}dB non-random energy patterns in"
+        report		       += f" {commas( sorted( set( s.stride for s in signals )), final_and=True)}-bit symbols\n"
+        for s,summary in sorted(
+                [
+                    (s, f"{s.dB:5.1f}dB Signal harmonic feature at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")
+                    for s in signals
+                ] + [
+                    (s, f"{s.dB:5.1f}dB Shannon entropy reduced at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")
+                    for s in shannons
+                ], reverse=True ):
+            report	       += f"-{summary}{': ' if s.details else ''}\n"
+            if s.details:
+                report	       += f"{s.details}\n"
+        result			= report
+    return result
+
+
 def analyze_entropy(
     entropy: bytes,
     strides: Optional[Union[int,Tuple[int,int]]] = None,  # If only a specific stride/s makes sense, eg. for ASCII symbols
@@ -1052,27 +1076,9 @@ def analyze_entropy(
     0.25% failure on each individual test.
 
     """
-    signals, shannons		= scan_entropy(
-        entropy, strides, overlap, ignore_dc=ignore_dc, show_details=show_details,
-        signal_threshold=signal_threshold, shannon_threshold=shannon_threshold )
-    result			= None
-    if signals or shannons:
-        report			= ''
-        dBs			= sorted( list( s.dB for s in signals ) + list( s.dB for s in shannons) )
-        dBr			= dBs[:1] + dBs[max( 1, len(dBs)-1):]
-        report		       += f"Entropy analysis {('of ' + what) if what else ''}: {len(signals)+len(shannons)}x"
-        report		       += f" {'-'.join( f'{dB:.1f}' for dB in dBr )}dB non-random energy patterns in"
-        report		       += f" {commas( sorted( set( s.stride for s in signals )), final_and=True)}-bit symbols\n"
-        for s,summary in sorted(
-                [
-                    (s, f"{s.dB:5.1f}dB Signal harmonic feature at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")
-                    for s in signals
-                ] + [
-                    (s, f"{s.dB:5.1f}dB Shannon entropy reduced at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")
-                    for s in shannons
-                ], reverse=True ):
-            report	       += f"-{summary}{': ' if s.details else ''}\n"
-            if s.details:
-                report	       += f"{s.details}\n"
-        result			= report
-    return result
+    return display_entropy(
+        *scan_entropy(
+            entropy, strides, overlap, ignore_dc=ignore_dc, show_details=show_details,
+            signal_threshold=signal_threshold, shannon_threshold=shannon_threshold ),
+        what=what
+    )

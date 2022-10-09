@@ -13,8 +13,8 @@ from itertools import islice
 import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
-from ..recovery		import recover, recover_bip39, produce_bip39, analyze_entropy
-from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift
+from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
+from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift, rate_dB
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_DEFAULT,
@@ -32,6 +32,9 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
                                   "\n" \
                                   "academic acid beard romp believe impulse species holiday demand building" \
                                   " earth warn lunar olympic clothes piece campus alpha short endless"
+
+
+SD_SEED_FRAME			= 'Seed Source: Input or Create your Seed Entropy here'
 
 
 def theme_color( thing, theme=None ):
@@ -211,7 +214,7 @@ def groups_layout(
     ] + [
         [
             # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
-            sg.Frame( 'Seed Source: Input or Create your Seed Entropy here', [
+            sg.Frame( SD_SEED_FRAME, [
                 [
                     sg.Text( "Random:" if not LO_BAK else "Source:",            visible=LO_CRE, **T_hue( T_kwds, 0/20 )),
                     sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=LO_CRE,
@@ -458,6 +461,7 @@ def update_seed_data( event, window, values ):
     restores our last-known radio button and data.  Since we cannot know if/when our main window is
     going to disappear and be replaced, we constantly save the current state.
 
+    Reports the quality of the Seed Data in the frame label.
     """
     SD_CONTROLS			= [
         '-SD-128-RND-',
@@ -615,14 +619,18 @@ def update_seed_data( event, window, values ):
 
     # Analyze the seed for Signal harmonic or Shannon entropy failures, if we're in a __TIMEOUT__
     # (between keystrokes or after a major controls change).  Otherwise, if the seed's changed,
-    # request a __TIMEOUT__; when it, perform the entropy analysis.
-    values['-SD-SIG-']		= ''
+    # request a __TIMEOUT__; when it invokes, perform the entropy analysis.
+    values['-SD-SIGS-']		= ''
+
     if status is None and event == '__TIMEOUT__':
         seed_bytes		= codecs.decode( seed, 'hex_codec' )
-        analysis		= analyze_entropy( seed_bytes, what=f"{len(seed_bytes)*8}-bit Seed Source", show_details=False )
+        signals, shannons	= scan_entropy( seed_bytes, show_details=True )
+        analysis		= display_entropy( signals, shannons, what=f"{len(seed_bytes)*8}-bit Seed Source" )
         if analysis:
             values['-SD-SIG-']	= analysis
             status		= analysis.split( '\n' )[0]
+        window['-SD-SEED-F-'].update(
+            f"{SD_SEED_FRAME}; {rate_dB( max( signals ).dB, what='Harmonics')}, {rate_dB( max( signals ).dB, what='Shannon')}, " )
     elif changed:
         log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
         values['__TIMEOUT__']	= .5
@@ -1001,7 +1009,7 @@ def app(
         # specific instructional .txt we can load.  Only if the current instructions is empty will
         # we go all the way back to load the generic SLIP-39.txt.  If the event corresponds to an
         # object with text/backround_color, use it in the instructional text.
-        txt_segs		= ( event or '' ).strip('-').split( '-' )
+        txt_segs		= ( event or '' ).strip( '-' ).split( '-' )
         for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
             txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
             txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )

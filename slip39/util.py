@@ -83,6 +83,39 @@ def commas( seq, final_and=None ):
     return ', '.join( map( str, seq ))
 
 
+def round_onto( value, keys, keep_sign=True ):
+    """Find the numeric key closest to value, maintaining sign if possible."""
+    keys			= sorted( keys )
+    near, near_i		= min(
+        (abs( k - value), i)
+        for i, k in enumerate( keys )
+    )
+    print( f"round_onto: Rounding {value} onto {keys[near_i]}; {ordinal(near_i+1)} key in: {keys} ({keep_sign=})" )
+    if keep_sign and (( value < 0 ) != ( keys[near_i] < 0 )):
+        # The sign differs; if value -'ve but closest was +'ve, and there is a lower key available
+        if value < 0:
+            print( f"round_onto: sign of {value} != {keys[near_i]}: shift down in {keys[:near_i+1]}..." )
+            if near_i > 0:
+                near_i	       -= 1
+        else:
+            print( f"round_onto: sign of {value} != {keys[near_i]}: shift up in ...{keys[near_i:]}" )
+            if near_i + 1 < len( keys ):
+                near_i	       += 1
+    return keys[near_i]
+
+
+def rate_dB( dB, what=None ):
+    strength			= {
+        2: "very bad",
+        1: "bad",
+        0: "poor",
+        -1: "ok",
+        -2: "strong",
+    }
+    rating			= strength[round_onto( dB, strength.keys(), keep_sign=True )]
+    return f"{what or ''}{': ' if what else ''}{dB:.1f}dB ({rating})"
+
+
 def input_secure( prompt, secret=True, file=None ):
     """When getting secure (optionally secret) input from standard input, we don't want to use getpass, which
     attempts to read from /dev/tty.

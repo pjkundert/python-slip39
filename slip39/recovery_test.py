@@ -21,7 +21,7 @@ from .api		import create, account
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
 from .recovery.entropy	import fft, ifft, pfft, dft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
-from .util		import avg, rms, ordinal, commas
+from .util		import avg, rms, ordinal, commas, round_onto
 
 log				= logging.getLogger( __package__ )
 
@@ -329,6 +329,21 @@ def test_util():
     assert commas( [1,2,3,5,6,7,9], final_and=True ) == '1-3, 5-7 and 9'
     assert commas( [1,3,5], final_and=True ) == '1, 3 and 5'
     assert commas( [1,2,5], final_and=True ) == '1, 2 and 5'
+
+    assert round_onto( -.1, [-5, -1, 0, 1, 5], keep_sign=False ) == 0
+    assert round_onto( -.9, [-5, -1, 0, 1, 5], keep_sign=False ) == -1
+    assert round_onto( -10, [0, -1, -5, 5, 1], keep_sign=False ) == -5
+    assert round_onto( 100, [-5, -1, 0, 1, 5], keep_sign=False ) == +5
+    assert round_onto( 100, [0, -1, -5, 5, 1], keep_sign=False ) == +5
+    assert round_onto( 2.9, [-5, -1, 0, 1, 5], keep_sign=False ) == +1
+    assert round_onto( 3.1, [-5, -1, 0, 1, 5], keep_sign=False ) == +5
+    assert round_onto( .01, [-5, -1, 0, 1, 5], keep_sign=False ) == 0
+    assert round_onto( -.1, [-5, -1, 0, 1, 5], keep_sign=False ) == 0
+    assert round_onto( -.1, [-5, -1, 0, 1, 5], keep_sign=True  ) == -1
+    assert round_onto( -.1, [-5, -1,    1, 5], keep_sign=True  ) == -1
+    assert round_onto( -.1, [-5,        1, 5], keep_sign=True  ) == -5
+    assert round_onto( +.1, [-5, -1,    1, 5], keep_sign=True  ) == +1
+    assert round_onto( +.1, [-5, -1,       5], keep_sign=True  ) == +5
 
 
 def test_dft_smoke():

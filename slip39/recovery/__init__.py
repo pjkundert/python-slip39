@@ -25,7 +25,9 @@ from mnemonic		import Mnemonic
 
 from ..util		import ordinal
 
-from .entropy		import shannon_entropy, signal_entropy, analyze_entropy  # noqa F401
+from .entropy		import (  # noqa F401
+    shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
+)
 
 log				= logging.getLogger( __package__ )
 
