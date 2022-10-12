@@ -36,7 +36,7 @@ import hdwallet
 from hdwallet		import cryptocurrencies
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
-from .util		import ordinal
+from .util		import ordinal, commas
 from .recovery		import produce_bip39, recover_bip39
 
 log				= logging.getLogger( __package__ )
@@ -364,7 +364,7 @@ class Account:
         crypto			= cls.supported( crypto )
         format			= format.lower() if format else cls.address_format( crypto )
         if format not in cls.CRYPTO_FORMAT_PATH[crypto]:
-            raise ValueError( f"{format} not supported for {crypto}; specify one of {', '.join( cls.CRYPTO_FORMAT_PATH[crypto].keys() )}" )
+            raise ValueError( f"{format} not supported for {crypto}; specify one of {commas( cls.CRYPTO_FORMAT_PATH[crypto].keys() )}" )
         return cls.CRYPTO_FORMAT_PATH[crypto][format]
 
     @classmethod
@@ -380,7 +380,7 @@ class Account:
 
         format			= format.lower() if format else None
         if format not in cls.FORMATS:
-            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {', '.join( cls.FORMATS )}" )
+            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {commas( cls.FORMATS )}" )
         cls.CRYPTO_FORMAT[crypto]	= format
 
     @classmethod
@@ -395,7 +395,7 @@ class Account:
         )
         if validated:
             return validated
-        raise ValueError( f"{crypto} not presently supported; specify {', '.join( cls.CRYPTOCURRENCIES )}" )
+        raise ValueError( f"{crypto} not presently supported; specify {commas( cls.CRYPTOCURRENCIES )}" )
 
     def __str__( self ):
         """Until from_seed/from_path are invoked, may not have an address or derivation path."""
@@ -905,7 +905,7 @@ def create(
         group_reqs			= list(
             f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
             for g_nam,(g_of,g_mns) in groups.items() )
-        requires		= f"Recover w/ {group_threshold} of {len(groups)} groups {', '.join(group_reqs)}"
+        requires		= f"Recover w/ {group_threshold} of {len(groups)} groups {commas( group_reqs )}"
         for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
             log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
             for mn_n,mnem in enumerate( g_mnems ):
@@ -932,7 +932,7 @@ def mnemonics(
         master_secret		= random_secret( strength // 8 )
     if len( master_secret ) * 8 not in BITS:
         raise ValueError(
-            f"Only {', '.join( f'{b}-' for b in BITS )}bit seeds supported; {len(master_secret)*8}-bit master_secret supplied" )
+            f"Only {commas( BITS, final_and=True )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
     return generate_mnemonics(
         group_threshold	= group_threshold,
         groups		= groups,

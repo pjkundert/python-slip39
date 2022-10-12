@@ -102,8 +102,9 @@ LAYOUT_CRE			= 1
 LAYOUT_REC			= 2
 LAYOUT_PRO			= 3
 
-BITS				= (128, 256, 512)
 BITS_DEFAULT			= 128
+BITS				= (128, 256, 512)
+BITS_BIP39			= BITS + (160, 192, 224)
 
 MNEM_ROWS_COLS			= {
     20:	( 7, 3),		# 128-bit seed

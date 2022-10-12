@@ -14,10 +14,10 @@ import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
-from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift, rate_dB
+from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, timing
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
-    GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_DEFAULT,
+    GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
     LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
@@ -478,90 +478,96 @@ def update_seed_data( event, window, values ):
     # Some system event (eg. __TIMEOUT__ immediately after a new main window is created, or due to
     # scheduled callback); restore where we left off if known, and if the remembered control is
     # visible.  This allows continuation between major screen changes w/ full controls regeneration.
-    # As long as the new screen contains the same visible controls, we'll continue editing our Seed
+    # As long as the new screen contains the current visible control, we'll continue editing our Seed
     # Data wherever we left off.  If the new screen has different controls, we'll get whatever is
     # there, instead.
-    if not event.startswith( '-' ) and update_seed_data.src and window[update_seed_data.src].visible:
+    if not event.startswith( '-' ):
         log.warning( f"Restoring Seed Source w/ event {event} from saved {update_seed_data.src}"
                      f" data/password{' (none saved)' if update_seed_data.src not in update_seed_data.was else ''}" )
-        data, pswd		= update_seed_data.was.get( update_seed_data.src, ('','') )
-        seed			= None
-        for src in SD_CONTROLS:
-            values[src]		= False
-        values[update_seed_data.src] = True
-        window[update_seed_data.src].update( True )
-        update_seed_data.src	= None  # and force controls' visibility update
+        if not values[update_seed_data.src]:
+            # Something else has been selected (probably due to a major display change).
+            if window[update_seed_data.src].visible:
+                # And its still visible; switch back to where we were...
+                for src in SD_CONTROLS:
+                    values[src]	= False
+                values[update_seed_data.src] = True
+                window[update_seed_data.src].update( True )
+            else:
+                # And it isn't available; switch to newly available default...
+                update_seed_data.src, = ( src for src in SD_CONTROLS if values[src] )
+            changed		= True  # and force controls visiblity update
+        data, pswd, seed	= update_seed_data.was.get( update_seed_data.src, ('', '', None) )
+    elif not values[update_seed_data.src]:
+        # A controls selection change.
+        update_seed_data.src,	= ( src for src in SD_CONTROLS if values[src] )
+        changed			= True  # and force controls visiblity update
+        data, pswd, seed	= update_seed_data.was.get( update_seed_data.src, ('', '', None) )
     else:
-        data, pswd		= values['-SD-DATA-'], values['-SD-PASS-']
-        seed			= window['-SD-SEED-'].get()
-    # Now that we've recovered which Seed Data control is in play, See what we got for -SD-DATA-,
-    # and update other controls' visibility for this -SD-... radio button selection.
-    for src in SD_CONTROLS:
-        if values[src] and ( update_seed_data.src != src ):
-            # If selected radio-button for Seed Data source changed, restore what data/pswd was
-            # there, last time we were working on this source.
-            log.warning( f"Seed Data source changed from {update_seed_data.src!r} to {src!r} due to event: {event!r}" )
-            changed		= True
-            update_seed_data.src = src
-            data, pswd		= update_seed_data.was.get( src, ('','') )
-            seed		= None
-            window['-SD-DATA-'].update( data )
-            values['-SD-DATA-'] = data
-            window['-SD-PASS-'].update( pswd )
-            # And change visibility of Seed Data source controls
-            if 'FIX' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "Hex data: " )
-                window['-SD-DATA-F-'].update( visible=True  )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update( visible=False )
-            elif 'BIP-SEED' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=True )
-                window['-SD-PASS-F-'].update(
-                    "BIP-39 passphrase (won't be needed for Recovery)",
-                    visible=values['-SD-PASS-C-']
-                )
-            elif 'BIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update(
-                    visible=False
-                )
-            elif 'SLIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=True )
-                window['-SD-PASS-F-'].update(
-                    passphrase_trezor_incompatible,
-                    visible=values['-SD-PASS-C-']
-                )
-            elif 'RND' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( visible=False )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update( visible=False )
-        elif event == update_seed_data.src == src:
+        # A normal user-initiated window event, w/ no controls change; get updated value/window data
+        if event == update_seed_data.src:
             # Same radio-button re-selected; just force an update (eg. re-generate random)
             log.info( f"Seed Data update forced due to event: {event!r}" )
-            changed		= True
-    if not seed:
-        seed		= '-' * ( BITS_DEFAULT // 4 )
+            changed		= True  # and force controls visiblity update
+        data, pswd, seed	= values['-SD-DATA-'], values['-SD-PASS-'], window['-SD-SEED-'].get()
+
+    # Now that we've recovered which Seed Data control was previously in play (and any data/pswd),
+    # update window/value content and other controls' visibility for this -SD-...  selection.
+    window['-SD-DATA-'].update( data )
+    values['-SD-DATA-']		= data
+    window['-SD-PASS-'].update( pswd )
+    if 'FIX' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "Hex data: " )
+        window['-SD-DATA-F-'].update( visible=True  )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update( visible=False )
+    elif 'BIP-SEED' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=True )
+        window['-SD-PASS-F-'].update(
+            "BIP-39 passphrase (won't be needed for Recovery)",
+            visible=values['-SD-PASS-C-']
+        )
+    elif 'BIP' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update(
+            visible=False
+        )
+    elif 'SLIP' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=True )
+        window['-SD-PASS-F-'].update(
+            passphrase_trezor_incompatible,
+            visible=values['-SD-PASS-C-']
+        )
+    elif 'RND' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( visible=False )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update( visible=False )
 
     # We got our working -SD-DATA- into 'data' (maybe from last time 'round), compute seed.
     status			= None
     bits			= None
+    if not seed:
+        seed		= '-' * ( BITS_DEFAULT // 4 )
     if 'BIP' in update_seed_data.src:
         # When recovering from BIP-39 for use in SLIP-39, we always recover the ORIGINAL 128- or
-        # 256-bit Entropy used to create the BIP-39 Mnemonic.  This is what we want to back up --
-        # NOT the 512-bit Seed output from the processing the BIP-39 Mnemonic + passphrase; thus, we
-        # can always re-produce the BIP-39 mnemonic.  Later, (when producing wallets) we'll see if
-        # the desired target device seed will be transmitted via BIP-39 + passphrase, or SLIP-39, and
-        # produce the correct Seed for deriving predicted wallet addresses.
+        # 256-bit Entropy used to create the BIP-39 Mnemonic (other sizes of BIP-39 Entropy are not
+        # supported).  This is what we want to back up -- NOT the 512-bit Seed output from the
+        # processing the BIP-39 Mnemonic + passphrase; thus, we can always re-produce the BIP-39
+        # mnemonic.  Later, (when producing wallets) we'll see if the desired target device seed
+        # will be transmitted via BIP-39 + passphrase, or SLIP-39, and produce the correct Seed for
+        # deriving predicted wallet addresses.
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
-            # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy
-            # Only needed (later) for Account generation
+            # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy Only needed
+            # (later) for Account generation.  This *may* produce a number of bits NOT in
+            # default.BITS!  (eg. from a 160- or 192-bit BIP-39 Mnemonics). This is allowable,
+            # because if as_entropy is True, we'll be BIP-39-encrypting the Seed Data to generate a
+            # 512-bit seed.
             passphrase		= pswd.strip().encode( 'UTF-8' )
             as_entropy		= 'BIP-SEED' not in update_seed_data.src
             seed		= recover_bip39(
@@ -570,9 +576,11 @@ def update_seed_data( event, window, values ):
                 as_entropy	= as_entropy,
             )
             bits		= len( seed ) * 8
+            assert bits in BITS_allowed( values ), \
+                f"Only {commas(BITS, final_and=True)}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
         except Exception as exc:
-            log.warning( f"BIP-39 recovery failed w/{data!r}: {exc}" )
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
+            log.warning( status )
     elif 'SLIP' in update_seed_data.src:
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
@@ -589,28 +597,32 @@ def update_seed_data( event, window, values ):
         bits			= int( update_seed_data.src.split( '-' )[2] )
         try:
             # 0-fill and truncate any supplied hex data to the desired bit length
-            data		= f"{data:<0{bits // 4}.{bits // 4}}"
-            seed 		= codecs.decode( data, 'hex_codec' )
+            data_filled		= f"{data:<0{bits // 4}.{bits // 4}}"
+            seed 		= codecs.decode( data_filled, 'hex_codec' )
         except Exception as exc:
             log.warning( f"Fixed hex recovery failed w/ {data!r}: {exc}" )
             status		= f"Invalid Hex for {bits}-bit fixed seed: {exc}"
-    elif changed:  # Random.  Regenerated each time changed, or not valid
+    elif changed or not seed:  # RND.  Regenerated each time changed, or not valid
         bits			= int( update_seed_data.src.split( '-' )[2] )
         seed			= random_secret( bits // 8 )
 
     # Compute any newly computed/recovered binary Seed Data bytes as hex. Must be 128-, 256- or
     # 512-bit hex data.  Do a final comparison against current -SD-SEED- to detect changes.
-    try:
-        if type(seed) is not str:
-            seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
-        if bits is None:  # For previously defined seed_data, compute length
-            bits		= len( seed ) * 4
-        assert len( seed ) * 4 == bits, \
-            f"{len(seed)*4}-bit data recovered; expected {bits} bits: {seed}"
-        assert bits in BITS, \
-            f"Invalid {bits}-bit data size: {seed}"
-    except Exception as exc:
-        status			= f"Invalid seed data: {exc}"
+    if status:
+        status			= f"Invalid Seed Data: {status}"
+    else:
+        try:
+            if type(seed) is not str:
+                seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+            if bits is None:  # For previously defined seed_data, compute length
+                bits		= len( seed ) * 4
+            assert len( seed ) * 4 == bits, \
+                f"{len(seed)*4}-bit data recovered; expected {bits} bits: {seed}"
+            assert bits in BITS_allowed( values ), \
+                f"Invalid {bits}-bit data size: {seed}"
+        except Exception as exc:
+            status			= f"Invalid Seed Data: {exc}"
+    if status:
         if not bits:
             bits		= BITS_DEFAULT
         seed			= '-' * (bits // 4)
@@ -620,35 +632,38 @@ def update_seed_data( event, window, values ):
     # Analyze the seed for Signal harmonic or Shannon entropy failures, if we're in a __TIMEOUT__
     # (between keystrokes or after a major controls change).  Otherwise, if the seed's changed,
     # request a __TIMEOUT__; when it invokes, perform the entropy analysis.
-    values['-SD-SIGS-']		= ''
+    if status is None:
+        if event == '__TIMEOUT__':
+            seed_bytes		= codecs.decode( seed, 'hex_codec' )
+            scan_dur,(sigs,shan) = timing( scan_entropy, instrument=True )( seed_bytes, show_details=True )  # could be (None,None)
+            sigs_rate		= f"{rate_dB( max( sigs ).dB if sigs else None, what='Harmonics')}"
+            shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
+            window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; {sigs_rate}, {shan_rate}" )
+            disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(seed_bytes)*8}-bit Seed Source" )
+            update_seed_data.entropy = (sigs, shan, analysis)
+            log.debug( f"Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
+        elif changed:
+            log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
+            values['__TIMEOUT__'] = .5
+    else:
+        window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; Invalid" )
 
-    if status is None and event == '__TIMEOUT__':
-        seed_bytes		= codecs.decode( seed, 'hex_codec' )
-        signals, shannons	= scan_entropy( seed_bytes, show_details=True )
-        analysis		= display_entropy( signals, shannons, what=f"{len(seed_bytes)*8}-bit Seed Source" )
-        if analysis:
-            values['-SD-SIG-']	= analysis
-            status		= analysis.split( '\n' )[0]
-        window['-SD-SEED-F-'].update(
-            f"{SD_SEED_FRAME}; {rate_dB( max( signals ).dB, what='Harmonics')}, {rate_dB( max( signals ).dB, what='Shannon')}, " )
-    elif changed:
-        log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
-        values['__TIMEOUT__']	= .5
     # Since a window[...].update() doesn't show up to a .get() 'til the next cycle of the display,
     # we'll communicate updates to successive functions via values.
     values['-SD-SEED-'] 	= seed
     window['-SD-SEED-'].update( seed )
 
-    # Finally, remember what data/pswd we were working on, in case we get a major controls change.
-    update_seed_data.was[update_seed_data.src] = values['-SD-DATA-'], values['-SD-PASS-']
+    # Finally, remember what data/pswd/seed we're working on, in case we get a major controls change.
+    update_seed_data.was[update_seed_data.src] = data, pswd, seed
     return status
 
-update_seed_data.src		= None  # noqa: E305
+update_seed_data.src		= '-SD-BIP-'  # noqa: E305
 update_seed_data.was		= {
-    '-SD-BIP-':		(BIP39_EXAMPLE_128,""),
-    '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,""),
-    '-SD-SLIP-':	(SLIP39_EXAMPLE_128,""),
+    '-SD-BIP-':		(BIP39_EXAMPLE_128,  "", None),
+    '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,  "", None),
+    '-SD-SLIP-':	(SLIP39_EXAMPLE_128, "", None),
 }
+update_seed_data.entropy	= (None, None, None)  # signals, shannon, analysis
 
 
 def stretch_seed_entropy( entropy, n, bits, encoding=None ):
@@ -747,6 +762,14 @@ update_seed_entropy.src	= None  # noqa: E305
 update_seed_entropy.was = {}
 
 
+def using_BIP39( values ):
+    return values['-AS-BIP-CB-']
+
+
+def BITS_allowed( values ):
+    return BITS_BIP39 if using_BIP39( values ) else BITS
+
+
 def compute_master_secret( window, values, n=0 ):
     """Validate the Seed Data and Seed Entropy, and compute the n'th master secret seed.  This is a
     simple XOR of the Seed Data, and any extra Seed Entropy -- so that the user can VISUALLY OBSERVE
@@ -762,7 +785,7 @@ def compute_master_secret( window, values, n=0 ):
     """
     seed_data_hex		= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
     bits			= len( seed_data_hex ) * 4
-    assert bits in BITS, \
+    assert bits in BITS_allowed( values ), \
         f"Invalid {bits}-bit Seed size: {seed_data_hex}"
     try:
         seed_data		= codecs.decode( seed_data_hex.replace( '-', '0' ), 'hex_codec' )
@@ -1082,7 +1105,7 @@ def app(
         # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
         # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed; the same
         # Passphrase must be entered on the hardware wallet along with the Mnemonic.
-        using_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
+        using_bip39		= using_BIP39( values )  # Also triggers BIP-39 Seed generation, below
 
         # From this point forward, detect if we have seen any change in the computed Master Seed, or
         # in the SLIP-39 groups recovered; avoid unnecessary update of the SLIP-39 Mnemonics.  And,

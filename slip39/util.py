@@ -22,6 +22,42 @@ import logging
 import math
 import sys
 
+from functools		import wraps
+
+# util.timer
+#
+# Select platform appropriate timer function
+#
+if sys.platform == 'win32' and sys.version_info[0:2] < (3,8):
+    # On Windows (before Python 3.8), the best timer is time.clock
+    from time		import clock	as timer
+else:
+    # On most other platforms the best timer is time.time
+    from time		import time	as timer
+
+
+#
+# @util.timing
+#
+def timing( fun, instrument=False, level=None ):
+    """A timing decorator which optionally instruments the function return value to return
+    (duration,value), or logs the call duration (at logging.INFO by default, if not instrumenting).
+
+    """
+    @wraps( fun )
+    def wrap( *args, **kwds ):
+        beg			= timer()
+        result			= fun( *args, **kwds )
+        end			= timer()
+        dur			= end - beg
+        if level or not instrument:
+            logging.log( level or logging.INFO, f"{fun!r} took {dur:.3f}s" )
+        if instrument:
+            return (dur,result)
+        return result
+    return wrap
+
+
 log_cfg				= {
     "level":	logging.WARNING,
     "datefmt":	'%Y-%m-%d %H:%M:%S',
@@ -84,21 +120,23 @@ def commas( seq, final_and=None ):
 
 
 def round_onto( value, keys, keep_sign=True ):
-    """Find the numeric key closest to value, maintaining sign if possible."""
-    keys			= sorted( keys )
+    """Find the numeric key closest to value, maintaining sign if possible.  None and other
+    non-numeric values are supported if they are present in keys.
+
+    """
+    if value in keys:
+        return value
+    keys			= sorted( k for k in keys if type(k) in (float,int) )
     near, near_i		= min(
         (abs( k - value), i)
         for i, k in enumerate( keys )
     )
-    print( f"round_onto: Rounding {value} onto {keys[near_i]}; {ordinal(near_i+1)} key in: {keys} ({keep_sign=})" )
     if keep_sign and (( value < 0 ) != ( keys[near_i] < 0 )):
         # The sign differs; if value -'ve but closest was +'ve, and there is a lower key available
         if value < 0:
-            print( f"round_onto: sign of {value} != {keys[near_i]}: shift down in {keys[:near_i+1]}..." )
             if near_i > 0:
                 near_i	       -= 1
         else:
-            print( f"round_onto: sign of {value} != {keys[near_i]}: shift up in ...{keys[near_i:]}" )
             if near_i + 1 < len( keys ):
                 near_i	       += 1
     return keys[near_i]
@@ -111,9 +149,15 @@ def rate_dB( dB, what=None ):
         0: "poor",
         -1: "ok",
         -2: "strong",
+        None: "excellent",
     }
     rating			= strength[round_onto( dB, strength.keys(), keep_sign=True )]
-    return f"{what or ''}{': ' if what else ''}{dB:.1f}dB ({rating})"
+    result			= ''
+    if what:
+        result		       += f"{what}: "
+    result		       += f"{dB:.1f}dB" if type( dB ) in (int,float) else f"{dB}"
+    result		       += f" ({rating})"
+    return result
 
 
 def input_secure( prompt, secret=True, file=None ):

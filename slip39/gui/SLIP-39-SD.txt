@@ -1,13 +1,13 @@
 Create (or recover) Seed Data for your SLIP-39 Mnemonic.  Or, backup
 your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
 
- Controls  Source   Description                                               
-------------------------------------------------------------------------------
- Backup    BIP-39   Create SLIP-39 Mnemonics from existing BIP-39 Seed Phrase 
- Create    Random   Create SLIP-39 Mnemonics from secure randomnes            
- Recover   SLIP-39  Recover Seed from SLIP-39 Mnemonics                       
- Pro       BIP-39   Recover BIP-39 Seed resulting from Mnemonics + passphrase 
- Pro       Fixed    Hex data may be supplied for the Seed                     
+ Controls  Source       Description                                            
+-------------------------------------------------------------------------------
+ Backup    BIP-39       Create SLIP-39 Mnemonics to recover BIP-39 Seed Phrase 
+ Create    Random       Create SLIP-39 Mnemonics from secure randomnes         
+ Recover   SLIP-39      Recover Seed from SLIP-39 Mnemonics                    
+ Pro       BIP-39 Seed  Backup 512-bit BIP-39 Seed from Mnemonics + passphrase 
+ Pro       Fixed        Hex data may be supplied for the Seed                  
 
 
 1 BIP-39
@@ -18,7 +18,8 @@ your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
   Phrase as a set of SLIP-39 Mnemonic Card Groups.
 
   Later, select Recover to input your SLIP-39 Mnemonics, and recover
-  your BIP-39 Seed Phrase.
+  your BIP-39 Seed Phrase.  Use this BIP-39 Seed Phrase (plus your
+  passphrase, if any) to initialize a BIP-39 Hardware Wallet.
 
   You can then securely destroy your BIP-39 Mnemonic card(s) (or, keep a
   copy in some *extremely* secure location), and use the SLIP-39
@@ -88,7 +89,24 @@ your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
   account security...
 
 
-3.1 The Birthday Paradox
+4 BIP-39 Seed
+=============
+
+  If you wish, you can backup a /complete/ BIP-39 Seed Phrase *including
+  its passphrase*, as a raw 512-bit BIP-39 Seed!  This ensures that
+  whoever uses the SLIP-39 Mnemonics to recover the wallets does not
+  need to know the original BIP-39 Mnemonic + passphrase.
+
+  There are a couple of drawbacks with this approach, though:
+
+  - Large 59-word SLIP-39 Mnemonics are produced, to store the 512-bit
+    seed
+  - Seed cannot be used with a BIP-39 Hardware Wallet
+    - Produce "Paper Wallets" for whichever derived HD wallets you need
+      to access
+
+
+4.1 The Birthday Paradox
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
   However, due to the [Birthday Attack], the probability of two parties

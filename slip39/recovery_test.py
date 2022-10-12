@@ -344,6 +344,7 @@ def test_util():
     assert round_onto( -.1, [-5,        1, 5], keep_sign=True  ) == -5
     assert round_onto( +.1, [-5, -1,    1, 5], keep_sign=True  ) == +1
     assert round_onto( +.1, [-5, -1,       5], keep_sign=True  ) == +5
+    assert round_onto( None, [-5, -1, None, 5], keep_sign=True  ) is None
 
 
 def test_dft_smoke():
