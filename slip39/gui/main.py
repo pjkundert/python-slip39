@@ -33,8 +33,8 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
                                   "academic acid beard romp believe impulse species holiday demand building" \
                                   " earth warn lunar olympic clothes piece campus alpha short endless"
 
-
-SD_SEED_FRAME			= 'Seed Source: Input or Create your Seed Entropy here'
+SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
+SE_SEED_FRAME			= 'Seed Extra Randomness'
 
 
 def theme_color( thing, theme=None ):
@@ -259,8 +259,9 @@ def groups_layout(
             ],                                          key='-SD-SEED-F-',                      **F_kwds_big ),
         ],
     ] + [
+
         [
-            sg.Frame( 'Seed Extra Randomness (Trust but Verify ;-)', [
+            sg.Frame( SE_SEED_FRAME, [
                 [
                     sg.Radio( "None",             "SE", key='-SE-NON-',         visible=LO_REC,
                                                                                 default=True,   **B_kwds ),
@@ -641,7 +642,7 @@ def update_seed_data( event, window, values ):
             window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; {sigs_rate}, {shan_rate}" )
             disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(seed_bytes)*8}-bit Seed Source" )
             update_seed_data.entropy = (sigs, shan, analysis)
-            log.debug( f"Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
+            log.debug( f"Seed Data  Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
         elif changed:
             log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
             values['__TIMEOUT__'] = .5
@@ -703,63 +704,132 @@ def stretch_seed_entropy( entropy, n, bits, encoding=None ):
     return entropy[:octets]
 
 
-def update_seed_entropy( window, values ):
+def update_seed_entropy( event, window, values ):
     """Respond to changes in the extra Seed Entropy, and recover/generate the -SE-SEED-.  It is
     expected to be exactly the same size as the -SD-SEED- data.  Stores the last known state of the
-    -SE-... radio buttons, updating visibilties on change.
+    -SE-... radio buttons, updating visibilities on change.
 
+    We analyze the entropy of the *input* data (as UTF-8), not the resultant entropy.
     """
-    dat				 = values['-SE-DATA-']
-    for src in [
+    SE_CONTROLS			= [
         '-SE-NON-',
         '-SE-HEX-',
         '-SE-SHA-',
-    ]:
+    ]
+    data			= values['-SE-DATA-']
+    try:
+        data_bytes		= data.encode( 'UTF-8' )
+    except Exception as exc:
+        status			= f"Invalid data {data!r}: {exc}"
+
+    for src in SE_CONTROLS:
         if values[src] and update_seed_entropy.src != src:
             # If selected radio-button for Seed Entropy source changed, save last source's working
             # data and restore what was, last time we were working on this source.
-            if update_seed_entropy.src:
-                update_seed_entropy.was[update_seed_entropy.src] = dat
-            dat			= update_seed_entropy.was.get( src, '' )
+            data		= update_seed_entropy.was.get( src, '' )
             update_seed_entropy.src = src
-            window['-SE-DATA-'].update( dat )
-            values['-SE-DATA-']	= dat
+            window['-SE-DATA-'].update( data )
+            values['-SE-DATA-']	= data
             if 'HEX' in update_seed_entropy.src:
                 window['-SE-DATA-T-'].update( "Hex digits: " )
             else:
                 window['-SE-DATA-T-'].update( "Die rolls, etc.: " )
 
+    # Evaluate the nature of the extra entropy, and place interpretation to analyze in data_bytes.
+    # Binary "hex" data should be neutral harmonically and in Shannon entropy.  However, some data
+    # such as dice rolls may exhibit restricted symbol values; try to deduce this case, restricting
+    # Shannon Entropy 'N' to binary (coin-flip) or 4, 6 and 10-sided dice.
     status			= None
-    seed_data			= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
-    bits			= len( seed_data ) * 4
-    log.debug( f"Computing Extra Entropy, for {bits}-bit Seed Data: {seed_data!r}" )
+    seed			= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
+    bits			= len( seed ) * 4
+
+    strides			= 8
+    overlap			= False
+    ignore_dc			= True
+    N				= None
+    interpretation		= 'Trust but Verify ;-'
+    log.debug( f"Computing Extra Entropy, for {bits}-bit Seed Data: {seed!r}" )
     if 'NON' in update_seed_entropy.src:
         window['-SE-DATA-F-'].update( visible=False )
         extra_entropy		= b''
     elif 'HEX' in update_seed_entropy.src:
         window['-SE-DATA-F-'].update( visible=True )
         try:
-            # 0-fill and truncate any supplied hex data to the desired bit length
-            extra_entropy	= stretch_seed_entropy( dat, n=0, bits=bits, encoding='hex_codec' )
+            # 0-fill and truncate any supplied hex data to the desired bit length, SHA-512 stretch
+            extra_entropy	= stretch_seed_entropy( data, n=0, bits=bits, encoding='hex_codec' )
         except Exception as exc:
-            status		= f"Invalid Hex {dat!r} for {bits}-bit extra seed entropy: {exc}"
+            status		= f"Invalid Hex {data!r} for {bits}-bit extra seed entropy: {exc}"
+        else:
+            data_bytes		= codecs.decode( f"{data:<0{bits // 4}.{bits // 4}}", 'hex_codec' )
+            interpretation	= "Hexadecimal Data"
+            strides		= None
+            overlap		= True
+            ignore_dc		= False
     else:
         window['-SE-DATA-F-'].update( visible=True )
         try:
             # SHA-512 stretch and possibly truncate supplied Entropy (show for 1st Seed)
-            extra_entropy	= stretch_seed_entropy( dat, n=0, bits=bits, encoding='UTF-8' )
+            extra_entropy	= stretch_seed_entropy( data, n=0, bits=bits, encoding='UTF-8' )
         except Exception as exc:
-            status		= f"Invalid data {dat!r} for {bits}-bit extra seed entropy: {exc}"
+            status		= f"Invalid data {data!r} for {bits}-bit extra seed entropy: {exc}"
+        if data and all( '0' <= c <= '9' for c in data ):
+            N			= {
+                '0':  2, '1':  2,				# Coin flips
+                '2':  6, '3':  6, '4':  6, '5':  6, '6':  6,	# 6-sided (regular) dice
+                '7': 10, '8': 10, '9': 10, 		 	# 10-sided (enter 0 for the 10 side)
+            }[max( data )]
+            interpretation	= f"{N}-sided Dice" if N > 2 else "Coin-flips/Binary"
 
-    # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.
+    # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.  Ensure
+    # extra_{bytes,entropy} are bytes and ASCII (hex, or -) respectively.
     if status or not extra_entropy:
-        extra_entropy		= '-' * (bits // 4)
+        extra_entropy		= '-' * ( bits // 4 )
+        extra_bytes		= b''
     elif type( extra_entropy ) is bytes:
-        extra_entropy		= codecs.encode( extra_entropy, 'hex_codec' ).decode( 'ascii' )
+        extra_bytes		= extra_entropy
+        extra_entropy		= codecs.encode( extra_bytes, 'hex_codec' ).decode( 'ascii' )
+    else:
+        extra_bytes		= codecs.decode( extra_entropy, 'hex_codec' )
+
+    if window['-SE-SEED-'].get() != extra_entropy:
+        update_seed_entropy.entropy = None
+
+    se_seed_frame		= f"{SE_SEED_FRAME} ({interpretation})"
+    if status is None and len( data_bytes ) >= 8 and not update_seed_entropy.entropy:
+        if event == '__TIMEOUT__':
+            scan_dur,(sigs,shan) = timing( scan_entropy, instrument=True )(  # could be (None,None)
+                data_bytes,
+                strides		= strides,
+                overlap		= overlap,
+                ignore_dc	= ignore_dc,
+                N		= N,
+                signal_threshold = 300/100,
+                shannon_threshold = 10/100,
+                show_details	= True
+            )
+            sigs_rate		= f"{rate_dB( max( sigs ).dB if sigs else None, what='Harmonics')}"
+            shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
+            window['-SE-SEED-F-'].update( f"{se_seed_frame}: {sigs_rate}, {shan_rate}" )
+            disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(extra_bytes)*8}-bit Extra Seed Entropy" )
+            update_seed_entropy.entropy = (sigs, shan, analysis)
+            log.debug( f"Seed Extra Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
+        else:
+            log.info( f"Seed Extra requests __TIMEOUT__ w/ current source: {update_seed_entropy.src!r}" )
+            values['__TIMEOUT__'] = .5
+    elif status:
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}: Invalid" )
+    else:
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}" )
+
     values['-SE-SEED-']		= extra_entropy
     window['-SE-SEED-'].update( extra_entropy )
-update_seed_entropy.src	= None  # noqa: E305
+
+    update_seed_entropy.was[update_seed_entropy.src] = data
+    return status
+
+update_seed_entropy.src	= '-SE-NON-'  # noqa: E305
 update_seed_entropy.was = {}
+update_seed_entropy.entropy = None
 
 
 def using_BIP39( values ):
@@ -1089,7 +1159,7 @@ def app(
         # first SLIP-39 encoding.
         master_secret_was	= window['-SEED-'].get()
         status_sd		= update_seed_data( event, window, values )
-        status_se		= update_seed_entropy( window, values )
+        status_se		= update_seed_entropy( event, window, values )
         status_ms		= None
         try:
             master_secret	= compute_master_secret( window, values, n=0 )

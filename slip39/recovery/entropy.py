@@ -399,7 +399,7 @@ def signal_entropy(
     show_details: bool		= True,		# include signal details (incl. expensive ifft)
     middle: Optional[Callable[List[float],float]] = None,  # default to normalized RMS energy, or eg. statistics.median on bin magnitudes
     harmonics_max: int		= 2,		# maximum harmonics to represent
-) -> Optional[Tuple[float, int]]:
+) -> Optional[Signal]:
     """Checks for signals in the supplied entropy.  If n-bit 'stride' or 'base'-n symbols are found
     to exhibit significant signal pattern over the average noise, then the pattern will be reported.
 
@@ -600,6 +600,7 @@ def signal_entropy(
     #mags_avgs			= [sum(col)/len(mags_all) for col in zip(*mags_all)]
     #print( f"avgs: {' '.join( f'{m:{stride*2}.1f}' for m in mags_avgs )}: {sum(mags_avgs):7.2f}" )
     return strongest
+
 signal_entropy.signal_limits	= {  # noqa: E305
     False: {
         128: {
@@ -927,15 +928,21 @@ def shannon_entropy(
     threshold: float		= None,         # Allow up to a certain % bits-per-symbol entropy deficit
     show_details: bool		= True,		# include signal details (incl. expensive ifft)
     snr_min: float		= 1/100,        # Minimum snr .01 == -40dB (eg. if all symbols unique)
-) -> Optional[str]:
+    N: Optional[int]		= None,		# If a max. number of unique symbols is known eg. dice
+) -> Optional[Signal]:
     """Estimates the "Symbolised Shannon Entropy" for stride-bit chunks of the provided entropy; by
     default, since we don't know the bit offset of any pattern, we'll scan at each possible bit
     offset (overlap = True).
 
-    We'll return the estimated predictability of the entropy, in the range [0,1], where 0 is
+    We'll compute the estimated predictability of the entropy, in the range [0,1], where 0 is
     unpredictable (high entropy), and 1 is totally predictable (no entropy), but as a dB range,
     where -'ve dB is below the threshold and acceptable, and +'ve is above the predictability
     threshold, and is unacceptable.
+
+    Typically, for large entropy and/or small 'stride' values, the number of unique values N found
+    should tend toward 2^stride.  However, for small entropy (eg. insufficient data) or small known
+    N (eg. die rolls), we expect to see less unique values than would be implied by the stride.
+    Therefore, we reduce the N in those cases.
 
     The "strongest" (least entropy, most predictable, most indicative that the entropy is
     unacceptable) signal will be returned.
@@ -976,9 +983,11 @@ def shannon_entropy(
         # required to encode the maximum number of unique symbols possible (due to the symbol or
         # entropy size), not in the range [0,2^stride].
         shannon			= 0.0
-        N			= min( symbols, 2**stride )
-        if N > 1:
-            shannon		= bitspersymbol / math.log( N, 2 )
+        N_min			= min( N or symbols, symbols, 2**stride )
+        assert len( frequency ) <= N_min, \
+            f"Observed {len(frequency)} unique symbols; more than expected by min({N=}, {symbols=} or {2**stride=})"
+        if N_min > 1:
+            shannon		= bitspersymbol / math.log( N_min, 2 )
 
         # So now, shannon is 1.0 for a "good" perfectly unpredictable entropy (all symbols
         # different, full bits-per-symbol required to encode), and 0 for "bad" perfectly predictable
@@ -1017,7 +1026,7 @@ def shannon_entropy(
         snr_dB			= into_dB( snr )
         weaker			= strongest and snr_dB < strongest.dB
         ( log.debug if snr_dB < 0 else log.info )(
-            f"Found {len(frequency):3} unique (of {2**stride:5} possible) in {symbols:3}"
+            f"Found {len(frequency):3} unique (of {N_min:3} possible) in {symbols:3}"
             f"x {stride:2}-bit symbols at offset {offset:2} in {length:4}-bit entropy:"
             f" Shannon Entropy {bitspersymbol:7.3f} b/s, P({shannon:7.3f}) unpredictable; {predictability=:7.3f}"
             f" vs. threshold={thresh:7.3f} == {snr=:7.3f} {snr_dB:7.3f}dB: {entropy_hex}"
@@ -1071,6 +1080,7 @@ def shannon_entropy(
             details	= details,
         )
     return strongest
+
 shannon_entropy.shannon_limits	= {  # noqa: E305
     False: {
         128: {
@@ -1181,6 +1191,7 @@ def scan_entropy(
     overlap: bool		= True,
     ignore_dc: bool		= False,
     show_details: bool		= True,
+    N: Optional[int]		= None,			# shannon_entropy may specify limited unique symbols
     signal_threshold: Optional[float]	= None,
     shannon_threshold: Optional[float]	= None,
 ) -> Tuple[List[Signal],List[Signal]]:
@@ -1214,7 +1225,7 @@ def scan_entropy(
         (
             s
             for s in (
-                shannon_entropy( entropy, stride=stride, overlap=overlap,
+                shannon_entropy( entropy, stride=stride, overlap=overlap, N=N,
                                  show_details=show_details, threshold=shannon_threshold )
                 for stride in range( *strides )
             )
@@ -1254,6 +1265,7 @@ def analyze_entropy(
     ignore_dc: bool		= False,
     what: Optional[str]		= None,
     show_details: bool		= True,
+    N: Optional[int]		= None,			# shannon_entropy may specify limited unique symbols
     signal_threshold: Optional[float]	= None,
     shannon_threshold: Optional[float]	= None,
 ) -> Optional[str]:
@@ -1282,7 +1294,7 @@ def analyze_entropy(
     """
     return display_entropy(
         *scan_entropy(
-            entropy, strides, overlap, ignore_dc=ignore_dc, show_details=show_details,
+            entropy, strides, overlap, ignore_dc=ignore_dc, show_details=show_details, N=N,
             signal_threshold=signal_threshold, shannon_threshold=shannon_threshold ),
         what=what
     )
