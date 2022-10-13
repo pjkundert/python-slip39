@@ -775,7 +775,7 @@ def update_seed_entropy( event, window, values ):
         if data and all( '0' <= c <= '9' for c in data ):
             N			= {
                 '0':  2, '1':  2,				# Coin flips
-                '2':  6, '3':  6, '4':  6, '5':  6, '6':  6,	# 6-sided (regular) dice
+                '2':  6, '3':  6, '4':  6, '5':  6, '6':  6,    # 6-sided (regular) dice
                 '7': 10, '8': 10, '9': 10, 		 	# 10-sided (enter 0 for the 10 side)
             }[max( data )]
             interpretation	= f"{N}-sided Dice" if N > 2 else "Coin-flips/Binary"

@@ -5,4 +5,4 @@ hdwallet	>=2.1,	<3
 mnemonic	>=0.2,	<1
 qrcode		>=7.3
 shamir-mnemonic	>=0.2,	<1
-cx_Freeze	>=6.10		; sys_platform == "win32"
+cx_Freeze	>=6.12		; sys_platform == "win32"

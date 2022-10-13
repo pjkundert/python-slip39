@@ -735,7 +735,6 @@ def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, s
             rejects.append( reject )
             rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
             if reject or i % checks == 0:
-                #log.warning(
                 ( log.info if i % checks == 0 else log.debug )(
                     f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
                     + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
@@ -754,7 +753,7 @@ def test_shannon_limits( detailed=False ):
 
     """
     shannon_limits		= {}
-    strengths			= (128, 256, 512)
+    strengths			= (128, 256, 512) + (160, 192, 224)  # SLIP-39 + BIP-39
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
     cycles			= 100001
@@ -798,7 +797,7 @@ def test_signal_limits( detailed=False ):
 
     """
     signal_limits		= {}
-    strengths			= (128, 256, 512)
+    strengths			= (128, 256, 512) + (160, 192, 224)  # SLIP-39 + BIP-39
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
     cycles			= 100001
@@ -886,7 +885,7 @@ def test_poor_entropy():
 
     analysis			= analyze_entropy( entropy )
     print( f"Analysis of base-64 phrase: {analysis}" )
-    assert "Shannon entropy reduced at offset 5 in 41x 6-bit symbols" in analysis
+    assert analysis and "Shannon entropy reduced at offset 5 in 41x 6-bit symbols" in analysis
 
 
 def test_good_entropy():
