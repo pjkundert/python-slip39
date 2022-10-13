@@ -694,19 +694,19 @@ def test_shannon_entropy():
     shannon			= shannon_entropy( SEED_XMAS, stride=6 )
     shannon			= shannon_entropy( SEED_XMAS, stride=6, overlap=False )
     shannon			= shannon_entropy( SEED_XMAS, stride=4 )
-    assert shannon.dB == pytest.approx( -7.5, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -7.95, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS )
     assert shannon.dB == pytest.approx( -40.0, abs=1e-1 )
     # Now, add some duplicates, reducing the entropy, 'til we fail the Shannon entropy test.
     shannon			= shannon_entropy( SEED_XMAS[:-3]+SEED_XMAS[:3] )
     print( f"{shannon}" )
-    assert shannon.dB == pytest.approx( -2.5, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -3.4, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS[:-4]+SEED_XMAS[:4] )
     print( f"{shannon}" )
-    assert shannon.dB == pytest.approx( -0.02, abs=1e-1 )
+    assert shannon.dB == pytest.approx( -0.93, abs=1e-1 )
     shannon			= shannon_entropy( SEED_XMAS[:-5]+SEED_XMAS[:5] )
     print( f"{shannon}" )
-    assert shannon.dB == pytest.approx( +1.9, abs=1e-1 )
+    assert shannon.dB == pytest.approx( +0.98, abs=1e-1 )
 
 
 def kwargs_shannon_limits( kwargs ):
@@ -718,13 +718,13 @@ def kwargs_signal_limits( kwargs ):
 
 
 def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, setpoint, cycles, checks, symbols=None ):
-    avg_over		= (512, 1024, 2048, 4096, 8192)
+    avg_over		= (4096, 8192, 16384)  #(1024, 2048, 4096, 8192, 16384)
     rejects		= deque( maxlen=16384 )
     rejected		= setpoint
     try:
         for i in range( cycles ):
             entropy	= os.urandom( bits // 8 )
-            threshold      *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/2.5) )  # / (10...1000) as i increases from 0 to 100000
+            threshold  *= 1 + ( rejected - setpoint ) / ( 10**(1+math.log(i+1,10)/6) )  # / (10...1000) as i increases from 0 to 100000
             if symbols is None:
                 signal	= compute_entropy( entropy, overlap=overlap, stride=stride,
                                            threshold=threshold, show_details=False )
@@ -733,11 +733,12 @@ def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, s
                                            threshold=threshold, show_details=False )
             reject	= signal.dB >= 0
             rejects.append( reject )
-            rejected	= sum( avg(list(rejects)[-n:]) for n in avg_over ) / len( avg_over )
+            rejects_lst	= list( rejects )
+            rejected	= sum( avg(rejects_lst[-n:]) for n in avg_over ) / len( avg_over )
             if reject or i % checks == 0:
                 ( log.info if i % checks == 0 else log.debug )(
                     f" - {i:6} {threshold=:7.5f}: {100*rejected:7.3f}%; "
-                    + ', '.join( f"{100*avg(list(rejects)[-n:]):7.3f}%/{n}" for n in avg_over )
+                    + ', '.join( f"{100*avg(rejects_lst[-n:]):7.3f}%/{n}" for n in avg_over )
                     + f": {signal}"
                 )
     except Exception as exc:
@@ -756,7 +757,7 @@ def test_shannon_limits( detailed=False ):
     strengths			= (128, 256, 512) + (160, 192, 224)  # SLIP-39 + BIP-39
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
-    cycles			= 100001
+    cycles			= 150001
     checks			= 10000
     if not detailed:
         strengths		= strengths[-1:]
@@ -800,7 +801,7 @@ def test_signal_limits( detailed=False ):
     strengths			= (128, 256, 512) + (160, 192, 224)  # SLIP-39 + BIP-39
     strides			= (3, 4, 5, 6, 7, 8)
     overlapping			= (False, True)
-    cycles			= 100001
+    cycles			= 150001
     checks			= 10000
     if not detailed:
         strengths		= strengths[:1]
@@ -853,17 +854,17 @@ def test_poor_entropy():
     entropy			= SEED_MID * 4
     signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
     log.info( f"Signal mid. frequency: {signal}" )
-    assert signal.dB == pytest.approx( +15.0, abs=1e-1 )
+    assert signal.dB == pytest.approx( +14.7, abs=1e-1 )
 
     entropy			= SEED_LOW * 2
     signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
     log.info( f"Signal low  frequency: {signal}" )
-    assert signal.dB == pytest.approx( +14.9, abs=1e-1 )
+    assert signal.dB == pytest.approx( +14.7, abs=1e-1 )
 
     entropy			= SEED_SLOW
     signal			= signal_entropy( entropy, stride=8, symbols=16, overlap=False, ignore_dc=True )
     log.info( f"Signal slow  frequency: {signal}" )
-    assert signal.dB == pytest.approx( +14.8, abs=1e-1 )
+    assert signal.dB == pytest.approx( +14.6, abs=1e-1 )
 
     # Some bad "random" dice rolls.  These are ASCII data, so only 8-bit symbol strides, and ignore
     # DC offset.
@@ -882,6 +883,14 @@ def test_poor_entropy():
     log.info( f"Signal in bad base-64 string: {signal}" )
     assert signal.dB == pytest.approx( +0.4, abs=1e-1 )
     assert "every 5+1/4 symbols" in signal.details
+
+    signal			= shannon_entropy( entropy, stride=6, overlap=True, threshold=10/100 )
+    log.info( f"Shannon in bad base-64 string: {signal}" )
+    assert signal.dB == pytest.approx( +5.9, abs=1e-1 )
+
+    signals, shannons		= scan_entropy( entropy, shannon_threshold=10/100 )
+    #assert len( signals ) == 3
+    assert len( shannons ) == 3
 
     analysis			= analyze_entropy( entropy )
     print( f"Analysis of base-64 phrase: {analysis}" )
@@ -1015,5 +1024,7 @@ def test_rngs_entropy( detailed=False ):
 
 if __name__ == "__main__":
     import cProfile
-    cProfile.run( 'test_signal_limits( detailed=True ); test_shannon_limits( detailed=True )' )
-    #cProfile.run( 'test_good_entropy()' )
+    #cProfile.run( 'test_signal_limits( detailed=True ); test_shannon_limits( detailed=True )' )
+    #cProfile.run( 'test_shannon_limits( detailed=True )' )
+    #test_shannon_limits( detailed=True )
+    test_signal_limits( detailed=True )
