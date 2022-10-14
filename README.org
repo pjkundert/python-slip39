@@ -953,7 +953,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
     | strength | Or, the number of bits of Entropy to produce (Default: 128) |
     | language | Default is "english"                                        |
     #+LATEX: }
-    
+
 * Conversion from BIP-39 to SLIP-39
 
   If we already have a BIP-39 wallet, it would certainly be nice to be able to create nice, safe
@@ -1546,6 +1546,74 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
      The MMC (Microsoft Management Console) is used to store your code-signing certificates.  
      See [[https://stackoverflow.com/questions/19879812/signing-exe-with-cer-file-what-is-my-certificates-name-that-signtool-exe-is][stackoverflow.com]] for how to enable its Certificate management.
+
+* Licensing
+
+  Each installation of the SLIP-39 App requires an Ed25519 "Agent" identity, and cryptographically
+  signed license(s) to activate various python-slip39 features.  No license is required to use basic
+  features; advanced features require a license.
+
+** Create an Ed25519 "Agent" Key
+
+   The Ed25519 signing "Agent" identity is loaded at start-up, and (if necessary) is created
+   automatically on first execution.  This is similar to the =ssh-keygen -t ed25519= procedure.
+
+   Each separate installation must have a ~/.crypto-licensing/python-slip39.crypto-keypair.  This
+   contains the licensing "Agent" credentials: a passphrase-encrypted Ed25519 private key, and a
+   self-signed public key.  This shows that we actually had access to the private key and used it to
+   create a signature for the claimed public key and the supplied encrypted private key -- proving
+   that the public key is valid, and associated with the encrypted private key.
+
+** Validating an Advanced Feature License
+
+   When an advanced feature is used, all available =python-slip39.crypto-license= files are loaded.
+   They are examined, and if a license is found that is:
+
+     - Assigned to this Agent and Machine-ID
+     - Contains the required license authorizations
+
+   then the functionality is allowed to proceed.
+
+   If no license is found, instructions on how to obtain a license for this Agent on this Machine-ID
+   will be displayed.
+
+   If you've already obtained a "master" license on your primary machine's SLIP-39 installation, you
+   can use it to issue a sub-license to this installation (eg. for your air-gapped cryptocurrency
+   management machine).
+
+   Otherwise, a URL is displayed at which the required "master" license can be issued.
+
+*** Get a sub-license From Your "master" License
+
+    Typically, you'll be using python-slip39's advanced features on an air-gapped computer.  You do
+    not want to visit websites from this computer.  So, you obtain a sub-license from your primary
+    computer's python-slip39 installation, and place it on your secure air-gapped computer
+    (eg. using a USB stick).
+
+    Take note of the secondary machine's Agent ID (pubkey) and Machine ID.  On your primary
+    computer (with the "master" license), run:
+    : python3 -m slip39.sublicense <agent-pubkey> <machine-id>
+
+    Take the output, and place it in the file =~/.crypto-licensing/python-slip39.crypto-license= on
+    your air-gapped computer.
+    
+*** Obtaining an Advanced Feature "master" License
+
+    On your primary computer, open the provided URL in a browser.  The URL contains the details of
+    the advanced feature desired.
+
+    This URL's web page will request an Ed25519 "Agent" public key to issue your "master" license
+    to.  This should be your primary user account's Ed25519 "Agent" public key -- this master
+    "Agent" will be issuing sub-licenses to any of your other SLIP-39 installations.  You will be
+    redirected to a URL that is unique to the advanced feature plus your Agent ID.
+
+    An invoice will be generated with unique Bitcoin, Ethereum and perhaps other cryptocurrency
+    addresses.  Pay the required amount of cryptocurrency to one of the provided wallet addresses.
+    Within a few seconds, the cryptocurrency transfer will be confirmed.
+
+    Once the payment for the advanced feature is confirmed, the URL including your agent ID will
+    always allow you to re-download the license.  It is only usable by your Agent ID to issue
+    sub-licenses to your python-slip39 installations on your machines.
 
 * Dependencies
 

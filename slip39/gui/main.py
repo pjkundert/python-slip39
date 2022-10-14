@@ -227,8 +227,7 @@ def groups_layout(
                                                                                 visible=LO_BAK or LO_CRE,
                                                                                                 **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
-                    sg.Checkbox( 'Passphrase',
-                                                        key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
+                    sg.Checkbox( 'Passphrase',          key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
                 ],
                 [
                     sg.Text("Fixed: ",                                          visible=LO_PRO, **T_hue( T_kwds, 1/20 )),
@@ -267,6 +266,8 @@ def groups_layout(
                                                                                 default=True,   **B_kwds ),
                     sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
                     sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC, **B_kwds ),
+                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-', 	visible=True,
+				 						disabled=False, **T_hue( B_kwds, 3/20 )),
                 ],
                 [
                     sg.Frame( 'Entropy', [
@@ -311,7 +312,7 @@ def groups_layout(
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15),   **T_kwds_dense ),
+                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15), no_scrollbar=True, horizontal_scroll=True,  **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds_big ),
         ],
@@ -641,7 +642,8 @@ def update_seed_data( event, window, values ):
             shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
             window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; {sigs_rate}, {shan_rate}" )
             disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(seed_bytes)*8}-bit Seed Source" )
-            update_seed_data.entropy = (sigs, shan, analysis)
+            update_seed_data.entropy = (sigs, shan)
+            update_seed_data.analysis = analysis or '(No entropy analysis deficiencies found in Seed Data)'
             log.debug( f"Seed Data  Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
         elif changed:
             log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
@@ -664,7 +666,8 @@ update_seed_data.was		= {
     '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,  "", None),
     '-SD-SLIP-':	(SLIP39_EXAMPLE_128, "", None),
 }
-update_seed_data.entropy	= (None, None, None)  # signals, shannon, analysis
+update_seed_data.entropy	= None
+update_seed_data.analysis	= ''
 
 
 def stretch_seed_entropy( entropy, n, bits, encoding=None ):
@@ -811,15 +814,20 @@ def update_seed_entropy( event, window, values ):
             shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
             window['-SE-SEED-F-'].update( f"{se_seed_frame}: {sigs_rate}, {shan_rate}" )
             disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(extra_bytes)*8}-bit Extra Seed Entropy" )
-            update_seed_entropy.entropy = (sigs, shan, analysis)
+            update_seed_entropy.entropy = (sigs, shan)
+            update_seed_entropy.analysis = analysis or '(No entropy analysis deficiencies found in Extra Seed Entropy)'
             log.debug( f"Seed Extra Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
         else:
             log.info( f"Seed Extra requests __TIMEOUT__ w/ current source: {update_seed_entropy.src!r}" )
             values['__TIMEOUT__'] = .5
     elif status:
-        window['-SE-SEED-F-'].update( f"{se_seed_frame}: Invalid" )
+        details			= f"{se_seed_frame}: Invalid"
+        window['-SE-SEED-F-'].update( details )
+        update_seed_entropy.analysis = f"{details}: {status}"
     else:
-        window['-SE-SEED-F-'].update( f"{se_seed_frame}" )
+        details			= f"{se_seed_frame}: Insufficient for analysis"
+        window['-SE-SEED-F-'].update( details )
+        update_seed_entropy.analysis = details
 
     values['-SE-SEED-']		= extra_entropy
     window['-SE-SEED-'].update( extra_entropy )
@@ -830,6 +838,7 @@ def update_seed_entropy( event, window, values ):
 update_seed_entropy.src	= '-SE-NON-'  # noqa: E305
 update_seed_entropy.was = {}
 update_seed_entropy.entropy = None
+update_seed_entropy.analysis = ''
 
 
 def using_BIP39( values ):
@@ -1103,6 +1112,7 @@ def app(
         # we go all the way back to load the generic SLIP-39.txt.  If the event corresponds to an
         # object with text/backround_color, use it in the instructional text.
         txt_segs		= ( event or '' ).strip( '-' ).split( '-' )
+        instructions_path	= ''
         for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
             txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
             txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
@@ -1111,9 +1121,20 @@ def app(
                     txt		= txt_f.read()
                     if txt:
                         instructions = txt
+                        instructions_path = txt_path
                         break
             except FileNotFoundError:
                 pass
+        # If there are {...} entries in the loaded text, we'll assume they are formatting options.
+        # These files form part of the program, and therefore can know about the names of internal
+        # variables.
+        instructions_fmtd	= instructions
+        if '{' in instructions:
+            try:
+                instructions_fmtd = instructions.format( **globals() )
+            except KeyError as exc:
+                log.warning( f"Failed to format instructions {instructions_path}: Local variable {exc} not found." )
+
         if event.startswith( '-' ):  # One of our events (ie. not __TIMEOUT__, etc.)...
             try:
                 event_element	= window.find_element( event, silent_on_error=True )
@@ -1124,7 +1145,7 @@ def app(
             except Exception as exc:
                 log.debug( f"Couldn't update instructions text color: {exc}" )
                 pass
-        window['-INSTRUCTIONS-'].update( instructions, **instructions_kwds )
+        window['-INSTRUCTIONS-'].update( instructions_fmtd, **instructions_kwds )
 
         if event == '+' and len( groups ) < 16:
             # Add a SLIP39 Groups row (if not already at limit)

@@ -1240,8 +1240,8 @@ def display_entropy( signals, shannons, what=None ):
         dBs			= sorted( list( s.dB for s in signals ) + list( s.dB for s in shannons) )
         dBr			= dBs[:1] + dBs[max( 1, len(dBs)-1):]
         report		       += f"Entropy analysis {('of ' + what) if what else ''}: {len(signals)+len(shannons)}x"
-        report		       += f" {'-'.join( f'{dB:.1f}' for dB in dBr )}dB non-random energy patterns in"
-        report		       += f" {commas( sorted( set( s.stride for s in signals )), final_and=True)}-bit symbols\n"
+        report		       += f" {'-'.join( f'{dB:.1f}' for dB in dBr )}dB non-random patterns in"
+        report		       += f" {commas( sorted( set( s.stride for s in signals )), final_and=True)}-bit symbols\n\n"
         for s,summary in sorted(
                 [
                     (s, f"{s.dB:5.1f}dB Signal harmonic feature at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")

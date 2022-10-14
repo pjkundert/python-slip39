@@ -22,7 +22,7 @@ nil
 #+RESULTS:
 
 #+BEGIN_ABSTRACT
-Creating personal Ethereum, Bitcoin and other Cryptocurrency accounts is /urgently/ needed, but is
+Creating personal Ethereum, Bitcoin and other cryptocurrency accounts is /urgently/ needed, but is
 complex and fraught with potential for loss of funds.
 
 All Crypto wallets start with a "Seed": a large, random number used to derive all of your actual
@@ -30,7 +30,7 @@ Bitcoin, Ethereum, etc. wallets.
 
 The best practice for using these wallets is to load this "Seed" into a secure hardware device, like
 a [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] hardware wallet.  SLIP-39 Mnemonic cards contain the recovery words, which are
-typed directly into the Trezor device to recover the Seed, and all of its Cryptocurrency accounts.
+typed directly into the Trezor device to recover the Seed, and all of its cryptocurrency accounts.
 For the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]] and other hardware wallets supporting only BIP-39 Mnemonics, you can now use the
 SLIP-39 App to securely and reliably back up these BIP-39 phrases.
 
@@ -40,7 +40,7 @@ for the Seed to partners, family and friends.  Also, encrypted "Paper Wallets" c
 support software cryptocurrency wallets such as Metamask, Brave or various mobile-phone and
 computer-based wallets.
 
-Later, if you (or your heirs!) need to recover *all* of your Cryptocurrency accounts, they can
+Later, if you (or your heirs!) need to recover *all* of your cryptocurrency accounts, they can
 collect a sufficient threshold of the cards and regain access to all of the cryptocurrency accounts
 related to the Seed.
 #+END_ABSTRACT
@@ -99,7 +99,7 @@ related to the Seed.
     stored in wallet addresses that can never be accessed because the corresponding "Private Key"
     has been lost, or the passphrase forgotten.
 
-    The statistical chances of anyone successfully passing a Cryptocurrency wallet Private Key +
+    The statistical chances of anyone successfully passing a cryptocurrency wallet Private Key +
     passphrase or Seed to their heirs over a 50-year period is therefore very low.  Since memory fades
     and "safe" storage places are lost, destroyed or forgotten, this risk actually increases
     exponentially over time.
@@ -146,7 +146,7 @@ related to the Seed.
     and can transfer the funds into their own wallet.
 
     If the Paper Wallet is ever lost, you can recover the Private Key (it was derived from your
-    Seed!), and transfer the Cryptocurrency back into one of your own wallets.
+    Seed!), and transfer the cryptocurrency back into one of your own wallets.
 
 * Recommended Vendors
 
@@ -157,7 +157,7 @@ related to the Seed.
 
    The [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] hardware wallet has built-in SLIP-39 generation and recovery capability.
    Enter the words on the SLIP-39 cards directly into the screen of the Trezor to recover your
-   Cryptocurrency accounts.
+   cryptocurrency accounts.
 
    #+BEGIN_EXPORT html
    <a href="https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388&file_id=534" target="_blank"><img src="https://media.go2speed.org/brand/files/trezor/15/20210707060206-T1TT_banner_728x90_3.png" width="728" height="90" border="0" /></a><img src="http://trezor.go2cloud.org/aff_i?offer_id=15&file_id=534&aff_id=10388" width="0" height="0" style="position:absolute;visibility:hidden;" border="0" />
@@ -170,7 +170,7 @@ related to the Seed.
 
    We recommend the Trezor "Model T" for this reason.  No other hardware wallet yet supports direct,
    on-screen SLIP-39 Seed recovery.  This feature is, simply, so fundamentally important for
-   Cryptocurrency Seed security and reliability that we consider it a necessity.
+   cryptocurrency Seed security and reliability that we consider it a necessity.
 
    If you already have one of the less expensive Trezor wallets that only support BIP-39 backup, we
    also support those, using the same BIP-39 Seed Entropy backup via SLIP-39 as for the Ledger, and
@@ -181,12 +181,6 @@ related to the Seed.
    The Ledger hardware wallets are also very popular -- but they can be recovered only using BIP-39
    Mnemonics.  However, you can now use the SLIP-39 App to backup your BIP-39 Seed Entropy!
    Therefore, we now support the Ledger hardware wallets.  
-
-   If you already have a BIP-39 Mnemonic, and would like back it up using SLIP-39 for more security
-   and recovery reliability, you can use the Pro Controls to do so.  Later, when you need to recover
-   your BIP-39 Mnemonic, use the SLIP-39 App, select the Pro Controls, enter the SLIP-39 card
-   Mnemonics, and click "Using BIP-39" to reveal your original BIP-39 Mnemonic phrase.  Then,
-   proceed with Ledger wallet recovery as normal, using the BIP-39 Mnemonic.
 
    The [[https://shop.ledger.com/pages/ledger-nano-s-plus?r=2cd1cb6ae51f][Ledger Nano S Plus]] has a large screen, at a reasonable price point, and connects via USB-C.
 
@@ -201,9 +195,27 @@ related to the Seed.
    <a href="https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f"><img width=728 height=90 src="http://affiliate.ledger.com/image/728/90"></a>
    #+END_EXPORT
 
+*** Recovering your BIP-39 Seed Phrase
+
+    If you already have a BIP-39 Mnemonic, and would like back it up using SLIP-39 for more security
+    and recovery reliability, you can use the SLIP-39 App's Backup Controls to do so.  After you
+    create your Seed Data (or enter an existing BIP-39 Seed Phrase), select "Using BIP-39".  This
+    will generate a set of SLIP-39 Mnemonic Cards that *backs up your existing BIP-39 Seed Phrase*.
+
+    Later, when you need to recover your BIP-39 Mnemonic (say, to initialize a fresh replacement
+    Ledger hardware wallet), use the SLIP-39 App, select the Recover Controls, and enter sufficient
+    SLIP-39 card Mnemonics -- and click "Using BIP-39" to reveal your original BIP-39 Seed Phrase.
+    Then, proceed with Ledger wallet recovery as normal, using the BIP-39 Mnemonic.
+
+    This may not /seem/ like an impressive feat.  But, it is unexpectedly important and powerful!
+    Your existing BIP-39 Seed Phrase is *extrememely* risky; it can /easily/ be lost or stolen.  By
+    using SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe and reliable
+    SLIP-39 Mnemonic cards to friends and family, and reduce the risks of theft or loss of your
+    critical cryptocurrency accounts Seed data.
+
 ** Netcoins.app
 
-   In Canada, one of the more highly regulatory-compliant Cryptocurrency exchanges is [[https://netcoins.app/r?ac=5YO1MZ][Netcoins.app
+   In Canada, one of the more highly regulatory-compliant cryptocurrency exchanges is [[https://netcoins.app/r?ac=5YO1MZ][Netcoins.app
    (referral code: 5YO1MZ)]]; sign up with this referral link, and we both get some benefits.
 
    They have higher than typical Interac e-transfer limits, which is very nice.  However, they don't
