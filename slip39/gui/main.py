@@ -14,7 +14,7 @@ import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
-from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, timing
+from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
@@ -35,7 +35,7 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
 
 SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
 SE_SEED_FRAME			= 'Seed Extra Randomness'
-
+SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
 
 def theme_color( thing, theme=None ):
     """Get the currency configured PySimpleGUI Theme color for thing == eg. "TEXT", "BACKGROUND.
@@ -266,7 +266,7 @@ def groups_layout(
                                                                                 default=True,   **B_kwds ),
                     sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
                     sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC, **B_kwds ),
-                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-', 	visible=True,
+                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-', 	visible=LO_REC or LO_PRO,
 				 						disabled=False, **T_hue( B_kwds, 3/20 )),
                 ],
                 [
@@ -287,7 +287,7 @@ def groups_layout(
         ]
     ] + [
         [
-            sg.Frame( 'Seed Secret & SLIP-39 Recovery Groups', [
+            sg.Frame( SS_SEED_FRAME, [
                 [
                     sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
@@ -300,8 +300,13 @@ def groups_layout(
                 [
                     sg.Column( [
                         [
-                            sg.Text( "Passphrase:",     key='-PASSPHRASE-L-',   size=prefix,    **T_kwds ),
-                            sg.Input( f"{passphrase or ''}",    key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
+                            sg.Frame( "BIP-39 Passphrase", [
+                                [
+                                    sg.Text( "Passphrase (encrypt):",                           **T_kwds ),
+                                    sg.Input( f"{passphrase or ''}",
+                                                        key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
+                                ],
+                            ],                          key='-PASSPHRASE-F-',   visible=True,   **F_kwds ),
                         ],
                         [
                             sg.Text( "Recovery needs: ",                        size=prefix,    **T_kwds ),
@@ -312,7 +317,8 @@ def groups_layout(
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15), no_scrollbar=True, horizontal_scroll=True,  **T_kwds_dense ),
+                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15),
+                                  no_scrollbar=True, horizontal_scroll=LO_PRO or LO_REC,        **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds_big ),
         ],
@@ -523,6 +529,7 @@ def update_seed_data( event, window, values ):
         window['-SD-PASS-C-'].update( visible=False )
         window['-SD-PASS-F-'].update( visible=False )
     elif 'BIP-SEED' in update_seed_data.src:
+        # We're recovering the (decrypted) BIP-39 Seed, so we require the Passphrase!
         window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=True )
@@ -531,12 +538,13 @@ def update_seed_data( event, window, values ):
             visible=values['-SD-PASS-C-']
         )
     elif 'BIP' in update_seed_data.src:
+        # We're recovering the BIP-39 Seed Phrase *Entropy*, NOT the derived (decrypted) 512-bit
+        # Seed Data!  So, we don't deal in Passphrases, here.  The Passphrase (to encrypt the Seed,
+        # when "Using BIP-39") is only required to display the correct wallet addresses.
         window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=False )
-        window['-SD-PASS-F-'].update(
-            visible=False
-        )
+        window['-SD-PASS-F-'].update( visible=False )
     elif 'SLIP' in update_seed_data.src:
         window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
         window['-SD-DATA-F-'].update( visible=True )
@@ -563,18 +571,24 @@ def update_seed_data( event, window, values ):
         # mnemonic.  Later, (when producing wallets) we'll see if the desired target device seed
         # will be transmitted via BIP-39 + passphrase, or SLIP-39, and produce the correct Seed for
         # deriving predicted wallet addresses.
-        window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
             # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy Only needed
             # (later) for Account generation.  This *may* produce a number of bits NOT in
             # default.BITS!  (eg. from a 160- or 192-bit BIP-39 Mnemonics). This is allowable,
             # because if as_entropy is True, we'll be BIP-39-encrypting the Seed Data to generate a
             # 512-bit seed.
-            passphrase		= pswd.strip().encode( 'UTF-8' )
             as_entropy		= 'BIP-SEED' not in update_seed_data.src
+            if as_entropy:
+                if pswd:
+                    log.warning( f"BIP-39 Seed Passphrase (decrypt) ignored; using Seed Phrase Entropy, not decrypted Seed!" )
+                passphrase	= b""
+            else:
+                if pswd.strip() != pswd:
+                    log.warning( f"BIP-39 Seed Passphrase (decrypt) contains leading/trailing whitespace; are you certain this is correct?" ) 
+                passphrase	= pswd.encode( 'UTF-8' )
             seed		= recover_bip39(
                 mnemonic	= data.strip(),
-                passphrase	= b"" if as_entropy else passphrase,
+                passphrase	= passphrase,
                 as_entropy	= as_entropy,
             )
             bits		= len( seed ) * 8
@@ -629,6 +643,7 @@ def update_seed_data( event, window, values ):
             bits		= BITS_DEFAULT
         seed			= '-' * (bits // 4)
     if window['-SD-SEED-'].get() != seed:
+        update_seed_data.deficiencies = ()
         changed			= True
 
     # Analyze the seed for Signal harmonic or Shannon entropy failures, if we're in a __TIMEOUT__
@@ -642,7 +657,7 @@ def update_seed_data( event, window, values ):
             shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
             window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; {sigs_rate}, {shan_rate}" )
             disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(seed_bytes)*8}-bit Seed Source" )
-            update_seed_data.entropy = (sigs, shan)
+            update_seed_data.deficiencies = (sigs, shan)
             update_seed_data.analysis = analysis or '(No entropy analysis deficiencies found in Seed Data)'
             log.debug( f"Seed Data  Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
         elif changed:
@@ -666,7 +681,7 @@ update_seed_data.was		= {
     '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,  "", None),
     '-SD-SLIP-':	(SLIP39_EXAMPLE_128, "", None),
 }
-update_seed_data.entropy	= None
+update_seed_data.deficiencies	= ()
 update_seed_data.analysis	= ''
 
 
@@ -795,10 +810,10 @@ def update_seed_entropy( event, window, values ):
         extra_bytes		= codecs.decode( extra_entropy, 'hex_codec' )
 
     if window['-SE-SEED-'].get() != extra_entropy:
-        update_seed_entropy.entropy = None
+        update_seed_entropy.deficiencies = ()
 
     se_seed_frame		= f"{SE_SEED_FRAME} ({interpretation})"
-    if status is None and len( data_bytes ) >= 8 and not update_seed_entropy.entropy:
+    if status is None and len( data_bytes ) >= 8 and not update_seed_entropy.deficiencies:
         if event == '__TIMEOUT__':
             scan_dur,(sigs,shan) = timing( scan_entropy, instrument=True )(  # could be (None,None)
                 data_bytes,
@@ -814,20 +829,18 @@ def update_seed_entropy( event, window, values ):
             shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
             window['-SE-SEED-F-'].update( f"{se_seed_frame}: {sigs_rate}, {shan_rate}" )
             disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(extra_bytes)*8}-bit Extra Seed Entropy" )
-            update_seed_entropy.entropy = (sigs, shan)
+            update_seed_entropy.deficiencies = (sigs, shan)
             update_seed_entropy.analysis = analysis or '(No entropy analysis deficiencies found in Extra Seed Entropy)'
             log.debug( f"Seed Extra Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
         else:
             log.info( f"Seed Extra requests __TIMEOUT__ w/ current source: {update_seed_entropy.src!r}" )
             values['__TIMEOUT__'] = .5
     elif status:
-        details			= f"{se_seed_frame}: Invalid"
-        window['-SE-SEED-F-'].update( details )
-        update_seed_entropy.analysis = f"{details}: {status}"
-    else:
-        details			= f"{se_seed_frame}: Insufficient for analysis"
-        window['-SE-SEED-F-'].update( details )
-        update_seed_entropy.analysis = details
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}: Invalid" )
+        update_seed_entropy.analysis = f"{se_seed_frame}: {status}"
+    elif len( data_bytes ) < 8:
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}" )
+        update_seed_entropy.analysis = f"{se_seed_frame}: {'None Provided' if values['-SE-NON-'] else 'Insufficient for analysis'}"
 
     values['-SE-SEED-']		= extra_entropy
     window['-SE-SEED-'].update( extra_entropy )
@@ -837,7 +850,7 @@ def update_seed_entropy( event, window, values ):
 
 update_seed_entropy.src	= '-SE-NON-'  # noqa: E305
 update_seed_entropy.was = {}
-update_seed_entropy.entropy = None
+update_seed_entropy.deficiencies = ()
 update_seed_entropy.analysis = ''
 
 
@@ -1105,48 +1118,6 @@ def app(
         status			= None
         status_error		= True
 
-        # See if there are any instructional 'SLIP-39-<event>.txt' for the last event.  If so, load
-        # it into the '-INSTRUCTIONS-' Multiline.  We'll split each event on its component '-', and
-        # look for eg. SLIP-39-LO.txt, when we see event == '-LO-1-'.  We'll select the most
-        # specific instructional .txt we can load.  Only if the current instructions is empty will
-        # we go all the way back to load the generic SLIP-39.txt.  If the event corresponds to an
-        # object with text/backround_color, use it in the instructional text.
-        txt_segs		= ( event or '' ).strip( '-' ).split( '-' )
-        instructions_path	= ''
-        for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
-            txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
-            txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
-            try:
-                with open( txt_path, 'r', encoding='utf-8' ) as txt_f:
-                    txt		= txt_f.read()
-                    if txt:
-                        instructions = txt
-                        instructions_path = txt_path
-                        break
-            except FileNotFoundError:
-                pass
-        # If there are {...} entries in the loaded text, we'll assume they are formatting options.
-        # These files form part of the program, and therefore can know about the names of internal
-        # variables.
-        instructions_fmtd	= instructions
-        if '{' in instructions:
-            try:
-                instructions_fmtd = instructions.format( **globals() )
-            except KeyError as exc:
-                log.warning( f"Failed to format instructions {instructions_path}: Local variable {exc} not found." )
-
-        if event.startswith( '-' ):  # One of our events (ie. not __TIMEOUT__, etc.)...
-            try:
-                event_element	= window.find_element( event, silent_on_error=True )
-                instructions_kwds.update(
-                    text_color	= event_element.TextColor,
-                    background_color= event_element.BackgroundColor,
-                )
-            except Exception as exc:
-                log.debug( f"Couldn't update instructions text color: {exc}" )
-                pass
-        window['-INSTRUCTIONS-'].update( instructions_fmtd, **instructions_kwds )
-
         if event == '+' and len( groups ) < 16:
             # Add a SLIP39 Groups row (if not already at limit)
             g			= len( groups )
@@ -1191,6 +1162,88 @@ def app(
         if type(master_secret) is bytes:
             master_secret	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
 
+        # We've now calculated any supplied Seed Data or Seed Extra Randomness (and detected any
+        # Entropy Analysis deficiencies, which may be included in some instruction formats); see if
+        # there are any instructional 'SLIP-39-<event>.txt' for the last event.  If so, load it into
+        # the '-INSTRUCTIONS-' Multiline.  We'll split each event on its component '-', and look for
+        # eg. SLIP-39-LO.txt, when we see event == '-LO-1-'.  We'll select the most specific
+        # instructional .txt we can load.  Only if the current instructions is empty will we go all
+        # the way back to load the generic SLIP-39.txt.  If the event corresponds to an object with
+        # text/backround_color, use it in the instructional text.
+        txt_segs		= ( event or '' ).strip( '-' ).split( '-' )
+        instructions_path	= ''
+        for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
+            txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
+            txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
+            try:
+                with open( txt_path, 'r', encoding='utf-8' ) as txt_f:
+                    txt		= txt_f.read()
+                    if txt:
+                        instructions = txt
+                        instructions_path = txt_path
+                        break
+            except FileNotFoundError:
+                pass
+
+        # If there are {...} entries in the loaded text, we'll assume they are formatting options.
+        # These files form part of the program, and therefore can know about the names of internal
+        # variables.  If someone can exploit these .txt files, they can just as easily exploit the
+        # Python code of the program...  Let's provide access to an aggregate summary of the Entropy
+        # Analysis of the Seed Data and Seed Extra Randomness, here.  If we have some poor Seed
+        # Data, but provide good Seed Extra Randomness, or provide a BIP/SLIP-39 passphrase, then
+        # we'll let that go.  In other words, poor Seed Data with a Passphrase is considered more
+        # secure (still not recommended).  But, really bad Seed Data entropy can still overwhelm it.
+        def deficiency( *deficiencies ):
+            """Entropy analysis deficiencies may consists of eg. (,), (None,[]) or ([],[]).  Yields
+            the largest (first item) from each, if any.  Convert to a deficiency sequence.
+
+            """
+            for alist in deficiencies:
+                if alist:
+                    yield alist[0]
+        dB_defic		= []
+        sd_defic		= list( deficiency( *update_seed_data.deficiencies ))
+        if sd_defic:
+            # There is a Seed Data entropy deficit!
+            dB_defic.append( max( sd_defic ).dB )
+        if 'NON' not in update_seed_entropy.src:
+            # There is Seed Extra Randomness; is it also in entropy deficit?
+            se_defic		= list( deficiency( *update_seed_entropy.deficiencies ))
+            if dB_defic or se_defic:
+                # Some good Seed Extra Randomness dilutes poor Seed Data entropy deficit...
+                dB_defic.append( max( se_defic ).dB if se_defic else -1.0 )
+        if dB_defic and window['-PASSPHRASE-'].get():
+            # There's a deficit, but they're using an encryption Passphrase...
+            dB_defic.append( -1.0 )
+        # If None, "excellent", otherwise rating is avg of worst of Seed Data / Extra Entropy, net a
+        # reduction for passphrase and good Extra Entropy.  If entropy_dB is None (excellent), or <
+        # 0.0dB (ok), this is considered acceptable.
+        entropy_dB		= avg( dB_defic ) if dB_defic else None
+        entropy_rating		= rate_dB( entropy_dB )
+        ( log.warning if dB_defic else log.info )( f"Overall entropy deficiency: {entropy_rating}, from: {commas(dB_defic)}" )
+
+        window['-GROUPS-F-'].update( f"{SS_SEED_FRAME}: Overall entropy deficiency: {entropy_rating}" )
+        instructions_fmtd	= instructions
+        if '{' in instructions:
+            try:
+                kwds		= globals()
+                kwds.update( locals() )
+                instructions_fmtd = instructions.format( **kwds )
+            except KeyError as exc:
+                log.warning( f"Failed to format instructions {instructions_path}: Local variable {exc} not found." )
+
+        if event.startswith( '-' ):  # One of our events (ie. not __TIMEOUT__, etc.)...
+            try:
+                event_element	= window.find_element( event, silent_on_error=True )
+                instructions_kwds.update(
+                    text_color	= event_element.TextColor,
+                    background_color= event_element.BackgroundColor,
+                )
+            except Exception as exc:
+                log.debug( f"Couldn't update instructions text color: {exc}" )
+                pass
+        window['-INSTRUCTIONS-'].update( instructions_fmtd, **instructions_kwds )
+
         # See if we should display/use the BIP-39 version of the Master Secret Seed.  Also, re-labels
         # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
         # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
@@ -1231,8 +1284,8 @@ def app(
         # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
         # default for both SLIP-39 and BIP-39.
         window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
-        window['-PASSPHRASE-L-'].update(
-            'BIP-39 passphrase:' if using_bip39 else 'SLIP-39 passphrase:' )
+        window['-PASSPHRASE-F-'].update(
+            'BIP-39 Passphrase' if using_bip39 else passphrase_trezor_incompatible )
         passphrase_now		= values['-PASSPHRASE-'].strip().encode( 'UTF-8' )
         if passphrase != passphrase_now:
             passphrase		= passphrase_now
@@ -1403,6 +1456,7 @@ def app(
             # And, if Paper Wallets haven't been disabled completely, remember our password/hint
             wallet_pwd		= values['-WALLET-PASS-']  # Produces Paper Wallet(s) iff set
             wallet_pwd_hint	= values['-WALLET-HINT-']
+
         if event in ('-SAVE-', '-PRINT-'):
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any
             # output will be written.  It should usually be a removable volume, but we do not check.
@@ -1414,6 +1468,12 @@ def app(
             if event == '-PRINT-':
                 printer		= values['-PRINTER-']
                 log.info( f"Printing to {printer!r}..." )
+                # A bad Entropy Analysis results in a watermark, warning that the SLIP-39 Mnemonic Seed may
+                # be insecure.
+            if entropy_dB is None or entropy_dB < 0:
+                watermark	= None
+            else:
+                watermark	= f"Seed Entropy: {entropy_rating_dB( entropy_dB )}"
             try:
                 card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}-"] )
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
@@ -1429,6 +1489,7 @@ def app(
                     wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
                     filepath		= filepath,
                     printer		= printer,
+                    watermark		= watermark,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"

@@ -81,7 +81,7 @@ BIP-39 Mnemonic using SLIP-39.
   There are a couple of drawbacks with this approach, though:
 
   - Large 59-word SLIP-39 Mnemonics are produced, to store the 512-bit seed
-  - Seed cannot be used with a BIP-39 Hardware Wallet
+  - The Seed cannot be re-imported into a standard BIP-39 Hardware Wallet
     - Produce "Paper Wallets" for whichever derived HD wallets you need to access
 
 ** The Birthday Paradox
@@ -98,4 +98,3 @@ BIP-39 Mnemonic using SLIP-39.
    risk, choose a 256-bit random Seed where this Birthday Paradox probability falls to 1 in 10^32 --
    approximately the chance of 2 people on earth picking the same virus-sized particle in our solar
    system.
-

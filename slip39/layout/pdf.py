@@ -247,7 +247,7 @@ def produce_pdf(
             if len( accounts[0] ) > 1:
                 tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 tpl['card-qr2']	= qr[1].get_image()
-            tpl[f'card-g{g_n}']	= f"{g_name:6.6}..{mn_n+1}" if len(g_name) > 7 else f"{g_name} {mn_n+1}"
+            tpl[f'card-g{g_n}']	= f"{g_name:8.8}..{mn_n+1}" if len(g_name) > 9 else f"{g_name} {mn_n+1}"
             tpl['card-link']	= 'slip39.com'
             if watermark:
                 tpl['card-watermark'] = watermark

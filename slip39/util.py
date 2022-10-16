@@ -142,16 +142,22 @@ def round_onto( value, keys, keep_sign=True ):
     return keys[near_i]
 
 
+entropy_signal_strengths	= {
+    2: "bad",
+    1: "poor",
+    0: "weak",
+    -1: "ok",
+    -2: "strong",
+    None: "excellent",
+}
+
+
+def entropy_rating_dB( dB ):
+    return entropy_signal_strengths[round_onto( dB, entropy_signal_strengths.keys(), keep_sign=True )]
+
+
 def rate_dB( dB, what=None ):
-    strength			= {
-        2: "very bad",
-        1: "bad",
-        0: "poor",
-        -1: "ok",
-        -2: "strong",
-        None: "excellent",
-    }
-    rating			= strength[round_onto( dB, strength.keys(), keep_sign=True )]
+    rating			= entropy_rating_dB( dB )
     result			= ''
     if what:
         result		       += f"{what}: "

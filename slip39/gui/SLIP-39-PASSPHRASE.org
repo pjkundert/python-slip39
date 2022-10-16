@@ -1,4 +1,4 @@
-#+title: SLIP-39/BIP-39 Phassphrase
+#+title: SLIP-39/BIP-39 Passphrase
 #+OPTIONS: toc:nil title:nil author:nil
 
 #+BEGIN_ABSTRACT
@@ -21,11 +21,31 @@ disclosure); a Passphrase is *not* recommended.  Leave it empty!
 ** Safely Using BIP-39 Passphrases
 
    Once you Backup your BIP-39 Seed Phrase to a set of SLIP-39 Mnemonic Card Groups, you *must* also
-   arrange to secure and recover any BIP-39 Passphrase(s).  Remembre; you can have multiple
-   Passphrases, to produce several sets of Cryptocurrency accounts from the same BIP-39 Seed Phrase.
+   arrange to secure and recover any BIP-39 Passphrase(s).  Remember; you can have multiple
+   Passphrases, to produce several sets of Cryptocurrency HD wallet accounts from the same BIP-39
+   Seed Phrase.
 
    Make certain that each Passphrase is made available to each intended recipient, and also in at
    least one additional location (eg. with someone else who will be at your funeral).
+
+*** Backup Full 512-bit BIP-39 Seed *including* Passphrase!
+
+    If you've *already* produced a BIP-39 Seed Phrase and a complex Passphrase, and have already
+    funded or distributed the derived HD Wallet accounts, you can *still* back it up, securely and
+    reliably with SLIP-39 -- without requiring the Passphrase to be remembered by the recipient!
+
+    Use the Pro controls and select "BIP-39 Seed" + "Passphrase" to fully decrypt your BIP-39 Seed
+    Phrase.  Then, produce 59-word SLIP-39 recovery cards encoding the full, decrypted 512-bit Seed.
+
+    These will *not* be compatible with standard BIP-39 nor SLIP-39 Hardware Wallets!  (Don't blame
+    me -- you elected to create an insecure and unreliable BIP-39 Seed Phrase + Passphrase, instead
+    of SLIP-39 Mnemonic Cards! ;)
+
+    Your heirs or business partners will need to use a fully standards compliant SLIP-39 recovery
+    program (like this SLIP-39 App, or [[https://github.com/trezor/python-shamir-mnemonic][python-shamir-mnemonic on Github]] ) to enter the large (but
+    standards-compliant!) 59 word Mnemonics, and then generate Paper Wallets for each derived HD
+    Wallet account they want to access.  But, they *will* be able to recover your cryptocurrency
+    accounts, *without* needing to recover the original BIP-39 Seed Phrase or Passphrase!
 
 * SLIP-39 Passphrase
 

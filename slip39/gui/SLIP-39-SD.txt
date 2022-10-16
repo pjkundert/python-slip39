@@ -101,7 +101,8 @@ your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
 
   - Large 59-word SLIP-39 Mnemonics are produced, to store the 512-bit
     seed
-  - Seed cannot be used with a BIP-39 Hardware Wallet
+  - The Seed cannot be re-imported into a standard BIP-39 Hardware
+    Wallet
     - Produce "Paper Wallets" for whichever derived HD wallets you need
       to access
 

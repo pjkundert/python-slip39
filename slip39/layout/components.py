@@ -1,4 +1,4 @@
-
+# -*- mode: python ; coding: utf-8 -*-
 #
 # Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
 #
@@ -16,6 +16,7 @@
 #
 
 import logging
+import math
 
 from collections	import namedtuple
 from typing		import Tuple, Callable, Type
@@ -216,24 +217,55 @@ def layout_card(
     card_interior		= card.add_region_relative(
         Region( 'card-interior', x1=+card_margin, y1=+card_margin, x2=-card_margin, y2=-card_margin )
     )
+
+    # Rotate the card group, watermark, etc. so its angle is from the lower-left to the upper-right.
+    # 
+    #             b
+    #      +--------------+
+    #      |           .
+    #    a |       .
+    #      | β .    c
+    #      + 90-β
+    # 
+    #   tan(β) = b / a, so
+    #   β = arctan(b / a)
+    #
+    a			= card_interior.h
+    b			= card_interior.w
+    c			= math.sqrt( a * a + b * b )
+    β			= math.atan( b / a )
+    rotate		= 90 - math.degrees( β )
+
     for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
         card_interior.add_region_proportional( Text(
-            f'card-g{c_n}', x1=1/8, y1=-1/16, x2=7/8, y2=5/16,
+            f'card-g{c_n}', x1=c/b * 8/100, y1=-2/32, x2=c/b * 92/100, y2=10/32,
             foreground	= int( COLOR[c_n % len( COLOR )], 16 ),
-            rotate	= -45,
+            rotate	= -rotate,
         ))
     card_interior.add_region_proportional( Text(
-        'card-link', x1=2/8, y1=-2/32, x2=8/8, y2=4/32,
+        'card-watermark', x1=5/100, y1=14/16, x2=c/b * 95/100, y2=17/16,
         foreground	= int( COLOR[-2], 16 ),
-        rotate		= -45,
-        align		= 'C'
+        rotate		= rotate,  # eg 60
+        align		= 'L'
     ))
-    card_interior.add_region_proportional( Text(
-        'card-watermark', x1=0/8, y1=7/8, x2=6/8, y2=9/8,
-        foreground	= int( COLOR[-1], 16 ),
-        rotate		= 45,
-        align		= 'C'
-    ))
+
+    # Rotation is downward around upper-left corner; so, lower-left corner will shift 1 height
+    # leftward and upward; so start 1 height right and down.
+    link_length		= card_interior.h
+    link_height		= link_length * 6/32
+    card_interior.add_region(
+        Text(
+            'card-link',
+            x1		= card_interior.x1 + link_height,
+            y1		= card_interior.y1,
+            x2		= card_interior.x1 + link_height + link_length,
+            y2		= card_interior.y1 + link_height,
+            rotate	= -90,				# along left border of card
+            foreground	= int( COLOR[-3], 16 ), 	# Light grey
+            align	= 'R'
+        )
+    )
+
     card_top			= card_interior.add_region_proportional(
         Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
     )

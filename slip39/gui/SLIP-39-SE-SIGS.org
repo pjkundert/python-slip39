@@ -9,6 +9,7 @@ Avoid Harmonic and Shannon Entropy Deficiencies:
   - Use Extra Randomness from good sources, eg. rolling 20 or so dice
 #+END_ABSTRACT
 
+* Seed Entropy Deficit: {entropy_rating}
 #+BEGIN_EXAMPLE
 {update_seed_data.analysis}
 #+END_EXAMPLE
