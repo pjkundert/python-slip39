@@ -44,13 +44,32 @@ def theme_color( thing, theme=None ):
         theme			= sg.CURRENT_LOOK_AND_FEEL
     return sg.LOOK_AND_FEEL_TABLE[theme][thing]
 
+# Try to pick a font; Use something like this to see what's available (ya, this sucks):
+# 
+#     from tkinter import Tk, font
+#     root = Tk()
+#     font_tuple = font.families()
+#     #Creates a Empty list to hold font names
+#     FontList=[]
+#     fonts = [font.Font(family=f) for f in font.families()]
+#     monospace = [f for f in fonts if f.metrics("fixed")]
+#     for font in monospace:
+#         FontList.append(font.actual('family'))
+#     root.destroy()
+#     print( '\n'.join( FontList ))
+if sys.platform == 'darwin':
+    font_name			= 'Source Code Pro'
+elif sys.platform == 'win32':
+    font_name			= 'Consolas'
+else:  # assume linux
+    font_name			= 'DejaVu Sans Mono'
 
 font_points			= 14
-font				= ('Courier', font_points+0)
-font_dense			= ('Courier', font_points-2)
-font_small			= ('Courier', font_points-4)
-font_big			= ('Courier', font_points+2)
-font_bold			= ('Courier', font_points+2, 'bold italic')
+font				= (font_name, font_points+0)
+font_dense			= (font_name, font_points-2)
+font_small			= (font_name, font_points-4)
+font_big			= (font_name, font_points+2)
+font_bold			= (font_name, font_points+2, 'bold italic')
 
 I_kwds				= dict(
     change_submits	= True,
@@ -1018,7 +1037,7 @@ def app(
 
     group_threshold		= int( threshold ) if threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    sg.CURRENT_LOOK_AND_FEEL = sg.theme( THEME )  # Why?  This module global should have updated...
+    sg.CURRENT_LOOK_AND_FEEL	= sg.theme( THEME )  # Why?  This module global should have updated...
 
     # Try to set a sane initial CWD (for saving generated files).  If we start up in the standard
     # macOS App's "Container" directory for this App, ie.:

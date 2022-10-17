@@ -176,6 +176,11 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
+# 
+# Mac:  To build the .dmg installer, run:
+#    make clean
+#    make installer  # continue running every couple of minuts 'til the App is notarized
+#
 installer:		$(INSTALLER)
 
 dmg:			deps app-dmg-valid
