@@ -6,16 +6,18 @@ Seed recovery, such as to your Ledger Nano.  Recover your BIP-39 Seed
 Phrase from these SLIP-39 cards using the GUI (or command-line) whenever
 you need it, to restore your Crypto accounts to your hardware wallet.
 
- Controls  Description                                                          
---------------------------------------------------------------------------------
- Backup    Already using a BIP-39 Seed Phrase? Back it up using SLIP-39 Cards   
- Create    Generate SLIP-39 Cards, even if using BIP-39 on your hardware wallet 
- Recover   Use SLIP-39/BIP-39 to recover Seed, supports using BIP-39 on wallet  
- Pro       Convert existing BIP-39 Seed to SLIP-39 for "Paper Wallet" backup    
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Controls  Description                                                         
+───────────────────────────────────────────────────────────────────────────────
+ Backup    Already using a BIP-39 Seed Phrase? Back it up using SLIP-39 Cards  
+ Create    Generate SLIP-39 Cards, even if using a BIP-39 hardware wallet      
+ Recover   Use SLIP-39/BIP-39 to recover Seed, supports using BIP-39 on wallet 
+ Pro       Convert existing BIP-39 Seed to SLIP-39 for "Paper Wallet" backup   
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 1 Using BIP-39
-==============
+══════════════
 
   To support older or less expensive existing hardware wallets that
   *only* support BIP-39 recovery, *or* to backup existing BIP-39
@@ -26,7 +28,7 @@ you need it, to restore your Crypto accounts to your hardware wallet.
 
 
 1.1 Output BIP-39 Mnemonics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+───────────────────────────
 
   You will see your BIP-39 Mnemonic, which encodes the Seed Source (and
   optionally any Seed Extra Randomness) you've specified.
@@ -38,7 +40,7 @@ you need it, to restore your Crypto accounts to your hardware wallet.
 
 
 1.2 Use BIP-39 Seed Generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+──────────────────────────────
 
   Any Cryptocurrency wallet QR codes and Paper Wallets will be derived
   using standard BIP-39 Seed generation.

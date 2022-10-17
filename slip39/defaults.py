@@ -44,7 +44,7 @@ GROUPS				= [
 THEME				= 'DarkAmber'   # PySimpleGUI Theme
 FONTS				= dict(
     sans	= 'helvetica',
-    mono	= 'courier',
+    mono	= 'sourcecode',  # UTF-8 monospaced w/ "━": dejavu, inconsolata, noto, overpass, sourcecode
 )
 
 #                                  Y      X       Margin

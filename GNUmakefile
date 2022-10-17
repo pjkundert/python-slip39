@@ -104,8 +104,14 @@ build:			clean wheel
 #
 #     deps:  All of the gui/.txt files needed to built, before the sdist, wheel or app
 # 
+#	emacs $< --batch -f org-ascii-export-to-ascii --kill
 %.txt: %.org
-	emacs $< --batch -f org-ascii-export-to-ascii --kill
+	emacs --batch \
+            --eval "(require 'org)" \
+            --insert "$<" \
+	    --eval "(org-ascii-export-as-ascii nil nil nil nil '(:ascii-charset utf-8))" \
+            --eval "(write-file \"$@\")" \
+            --kill
 
 TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/*/*.org))
 

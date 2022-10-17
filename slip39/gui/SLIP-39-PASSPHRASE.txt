@@ -8,7 +8,7 @@ recommended.  Leave it empty!
 
 
 1 BIP-39 Passphrase
-===================
+═══════════════════
 
   Since anyone who sees a BIP-39 phrase can immediately attempt to
   recover the Seed, it is often considered necessary to use a
@@ -20,7 +20,7 @@ recommended.  Leave it empty!
 
 
 1.1 Safely Using BIP-39 Passphrases
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+───────────────────────────────────
 
   Once you Backup your BIP-39 Seed Phrase to a set of SLIP-39 Mnemonic
   Card Groups, you *must* also arrange to secure and recover any BIP-39
@@ -34,12 +34,12 @@ recommended.  Leave it empty!
 
 
 1.1.1 Backup Full 512-bit BIP-39 Seed *including* Passphrase!
--------------------------------------------------------------
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   If you've *already* produced a BIP-39 Seed Phrase and a complex
   Passphrase, and have already funded or distributed the derived HD
   Wallet accounts, you can *still* back it up, securely and reliably
-  with SLIP-39 -- without requiring the Passphrase to be remembered by
+  with SLIP-39 – without requiring the Passphrase to be remembered by
   the recipient!
 
   Use the Pro controls and select "BIP-39 Seed" + "Passphrase" to fully
@@ -47,9 +47,9 @@ recommended.  Leave it empty!
   recovery cards encoding the full, decrypted 512-bit Seed.
 
   These will *not* be compatible with standard BIP-39 nor SLIP-39
-  Hardware Wallets!  (Don't blame me -- you elected to create an
-  insecure and unreliable BIP-39 Seed Phrase + Passphrase, instead of
-  SLIP-39 Mnemonic Cards! ;)
+  Hardware Wallets!  (Don't blame me – you elected to create an insecure
+  and unreliable BIP-39 Seed Phrase + Passphrase, instead of SLIP-39
+  Mnemonic Cards! ;)
 
   Your heirs or business partners will need to use a fully standards
   compliant SLIP-39 recovery program (like this SLIP-39 App, or
@@ -65,7 +65,7 @@ recommended.  Leave it empty!
 
 
 2 SLIP-39 Passphrase
-====================
+════════════════════
 
   If you use SLIP-39 Mnemonic Card Groups, it is usually not necessary
   to use a Passphrase.
@@ -76,7 +76,7 @@ recommended.  Leave it empty!
 
 
 2.1 Hardware Wallet Doesn't Support Passphrase
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+──────────────────────────────────────────────
 
   The Trezor "Model T" doesn't presently support using a Passphrase on
   SLIP-39 recovery.  So, if you supply one here, you will not be able to
@@ -85,7 +85,7 @@ recommended.  Leave it empty!
 
 
 2.1.1 Use Trezor's "Hidden Wallets" Instead
--------------------------------------------
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   You can provide as many "Hidden Wallets" on your Trezor device as you
   wish, by entering a passphrase to switch between them.

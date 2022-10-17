@@ -138,10 +138,11 @@ class Region:
 class Text( Region ):
     SIZE_RATIO			= 3/4
 
-    def __init__( self, *args, font=None, text=None, size=None, size_ratio=None, align=None, multiline=None,
+    def __init__( self, *args, font=None, style=None, text=None, size=None, size_ratio=None, align=None, multiline=None,
                   foreground=None, background=None, bold=None, italic=None, underline=None,
                   **kwds ):
-        self.font		= font
+        self.font		= font		# "dejavu"
+        self.style		= style		# eg. "BI".  Or, built (in fpdf) from self.bold, self.italic
         self.text		= text
         self.multiline		= multiline
         self.size		= size
@@ -158,6 +159,8 @@ class Text( Region ):
         d			= super().element()
         d['type']		= 'T'
         d['font']		= FONTS.get( self.font ) or self.font or FONTS.get( 'sans' )
+        if self.style:
+            d['style']		= self.style
         line_height		= self.h * PT_IN  # Postscript point == 1/72 inch
         d['size']		= self.size or ( line_height * self.size_ratio )  # No need for int(round(..))
         if self.text is not None:
@@ -241,6 +244,7 @@ def layout_card(
             f'card-g{c_n}', x1=c/b * 8/100, y1=-2/32, x2=c/b * 92/100, y2=10/32,
             foreground	= int( COLOR[c_n % len( COLOR )], 16 ),
             rotate	= -rotate,
+            bold	= True,
         ))
     card_interior.add_region_proportional( Text(
         'card-watermark', x1=5/100, y1=14/16, x2=c/b * 95/100, y2=17/16,
@@ -310,6 +314,7 @@ def layout_card(
                     x2		= (c+1)/cols,
                     y2		= (r+1)/rows,
                     font	= 'mono',
+                    bold	= True,
                     size_ratio	= 9/16,
                 )
             )

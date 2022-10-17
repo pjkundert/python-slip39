@@ -1,17 +1,22 @@
-                            _______________
+                     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                      SEED RECOVERY USING SLIP-39
+                     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-                             USING SLIP-39
-                            _______________
 
+SLIP-39 Mnemonic Cards for Hardware Wallets that natively support it,
+such as your Trezor "Model T".  Recover your Cryptocurrency accounts to
+your hardware wallet directly from these SLIP-39 cards, by entering them
+on the screen of the device.
 
-SLIP-39 support for Hardware Wallets that natively support it, such as
-your Trezor "Model T".  Recover your Cryptocurrency accounts to your
-hardware wallet directly from these SLIP-39 cards, by entering them on
-the screen of the device.
-
-- Collect these "SLIP-39" Card Mnemonics, with sufficient:
-  - Different Groups to satisfy Recovery Card Groups threshold
-  - Cards in each Group to meet each groups' recovery minimums
-- Enter recovery mode on your hardware wallet
-- Restore your Cryptocurrency accounts to your hardware wallet by
+• Collect these "SLIP-39" Card Mnemonics, with sufficient:
+  • Different Groups to satisfy Recovery Card Groups threshold
+  • Cards in each Group to meet each groups' recovery minimums
+• Enter SLIP-39 recovery mode on your hardware wallet
+• Restore your Cryptocurrency accounts to your hardware wallet by
   entering the SLIP-39 Mnemonic phrases.
+
+      NOTE: There is no BIP-39 Seed Phrase for this cryptocurrency
+      Seed!  It must be recovered directly from the SLIP-39
+      Mnemonic Card phrases.  You cannot use these phrases to
+      recover the Seed to a BIP-39 compatible Hardware Wallet;
+      only to one supporting native SLIP-39.

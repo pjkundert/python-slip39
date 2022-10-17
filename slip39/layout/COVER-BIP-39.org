@@ -1,9 +1,9 @@
-#+title: Using BIP-39
+#+title: Seed Recovery Using BIP-39
 #+OPTIONS: toc:nil author:nil
 
 #+BEGIN_ABSTRACT
 SLIP-39 supports Hardware Wallets that require BIP-39 Mnemonics for Seed recovery, such as your
-Ledger Nano, etc.  Recover your BIP-39 Mnemonic phrase from these SLIP-39 cards using the App
+Ledger Nano, etc.  Recover your BIP-39 Mnemonic phrase from these cards using the SLIP-39 App
 whenever you need it, to restore your Cryptocurrency accounts to your hardware wallet.
 #+END_ABSTRACT
 
@@ -14,4 +14,9 @@ whenever you need it, to restore your Cryptocurrency accounts to your hardware w
   - In "Seed & SLIP-39 Recover Groups", click "Using BIP-39"
     - The BIP-39 Mnemonic will be recovered and displayed
   - Restore your Cryptocurrency accounts to your hardware wallet by entering the BIP-39 Mnemonic phrase.
-  - Tear off and Destroy this BIP-39 Mnemonic backup, once you are confident you can recover it at will!
+  - Cut off and *destroy* this BIP-39 Mnemonic backup, once you are confident you can recover it at will!
+
+#+BEGIN_QUOTE
+NOTE: You cannot enter these SLIP-39 Mnemonics directly on a BIP-39 Hardware Wallet to recover the
+Seed.  Use the SLIP-39 App to recover the BIP-39 Seed Phrase.
+#+END_QUOTE

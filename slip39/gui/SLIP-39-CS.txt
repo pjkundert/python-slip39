@@ -1,7 +1,8 @@
 Select the desired SLIP-39 card size.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Controls   Card Size  Width   Height 
---------------------------------------
+──────────────────────────────────────
  (default)  Business   3-1/2"  2"     
  All        Credit     3-3/8"  2-1/4" 
  All        Index      5"      3"     
@@ -9,17 +10,18 @@ Select the desired SLIP-39 card size.
  Recover    Third      8"      3-3/8" 
  Recover    Quarter    8"      2-5/8" 
  Pro        Photo      5-1/2"  3-1/5" 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
 1 Orientation
-=============
+═════════════
 
   SLIP-39 Cards will be laid out on the desired paper size in the most
   optimal orientation, to fit the most Cards on the selected paper.
 
 
 1.1 Paper Wallets
-~~~~~~~~~~~~~~~~~
+─────────────────
 
   If Cryptocurrency "Paper Wallet" are printed, the selected Paper will
   always be printed in Portrait orientation.

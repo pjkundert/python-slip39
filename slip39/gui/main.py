@@ -245,7 +245,8 @@ def groups_layout(
                 [
                     sg.Frame( 'From Mnemonic(s):', [
                         [
-                            sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,    **I_kwds_small ),
+                            sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,
+                                          no_scrollbar=True,                                    **I_kwds_small ),
                         ],
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],

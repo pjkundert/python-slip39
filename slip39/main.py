@@ -202,7 +202,7 @@ def main( argv=None ):
             wallet_pwd_hint	= wallet_pwd_hint,
             wallet_format	= wallet_format,
             cover_page		= args.cover_page,
-            watermark		= "Known Seed",
+            watermark		= args.watermark,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )

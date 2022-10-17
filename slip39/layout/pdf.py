@@ -25,13 +25,14 @@ import warnings
 
 from datetime		import datetime
 from collections.abc	import Callable
+from pathlib		import Path
 from typing		import Dict, List, Tuple, Optional, Sequence, Any
 
 import qrcode
-from fpdf		import FPDF, FlexTemplate
+import fpdf		# FPDF, FlexTemplate, FPDF_FONT_DIR
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
-from ..util		import chunker
+from ..util		import chunker, commas
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
     FONTS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
@@ -58,16 +59,88 @@ except ImportError:
 log				= logging.getLogger( __package__ )
 
 
+class FPDF_Autoload_Fonts( fpdf.FPDF ):
+    """If attempting to set an unknown font, tries to load it. """
+    def __init__( self, *args, font_dir=None, **kwds ):
+        self.font_dir		= font_dir
+        if self.font_dir is None:
+            self.font_dir	= font_dir if font_dir is not None else Path( __file__ ).resolve().parent / "font"
+        return super().__init__( *args, **kwds )
+
+
+    def set_font( self, family=None, style="", size=0 ):
+        # Deduce a set of lists of features synonyms, and expected fontkey
+        feature_suffixes	= dict(
+            B	= ( 'bold', ),
+            I	= ( 'italic', 'oblique' ),	# Typical aliases seen
+            U	= (),				# Ignored for font loading purposes
+        )
+
+        assert all( c in feature_suffixes for c in style ), \
+            f"Unrecognized font style in {style!r}"
+        features		= set( feature_suffixes[c] for c in style )
+        if not features:
+            features.add( ( 'regular', ) )
+        family			= family.lower()
+        fontkey			= family + style
+
+        try:
+            return super().set_font( family=family, style=style, size=size )
+        except fpdf.FPDFException as exc:
+            if "Undefined font" not in str( exc ):
+                raise
+            log.info( f"Loading custom font {fontkey}: {exc}" )
+
+        # Search for the *shortest* fname that matches the requested family/features.  A font with
+        # no features suffix will be assumed to have the -Regular suffix.
+        fname_best		= None
+        for fname in sorted( self.font_dir.glob( '*.ttf' ) ):
+            log.info( f"Evaluating {family=} + {features=} against:  {fname}" )
+            # Eg "DejaVuSansMono-BoldOblique.ttf" --> "dejavusansmono", "boldoblique"
+            fname_segments	= fname.stem.split( '-', 2 )		# the file name w/o path or suffix
+            fname_family	= fname_segments[0].lower()
+            fname_features 	= ''.join( fname_segments[1:] ).lower() or 'regular'
+            if family not in fname_family:
+                continue
+            # Family matches; now, verify that the features eg. Italic/Oblique, Bold, Regular are in
+            # the fname_features.
+            for feature in features:
+                if not any( synomym in fname_features for synomym in feature ):
+                    break
+            else:
+                # Every one of features specified (or one of the feature's synonyms) appeared in
+                # this fname's feature segment.  It is a candidate; is it better (shorter) than the
+                # one currently found?  Eg. Font-Bold.ttf better than Font-Oblique.ttf, if no
+                # Font.ttf or Font-Regular.ttf
+                if fname_best is None or len( fname.stem ) < len( fname_best.stem ):
+                    log.info( f"Font named {family=} + {features=} matching: {fname} and better than {fname_best}" )
+                    fname_best	= fname
+                else:
+                    log.info( f"Font named {family=} + {features=} matching: {fname}, but worse than  {fname_best}" )
+                continue
+            log.info( f"Font named {family=} + {features=} no match: {fname}" )
+        if fname_best:
+            log.warning( f"Font named {family=} + {features=} loading:  {fname_best} (as '{family}{style}')" )
+            self.add_font( family=family, style=style, fname=fname_best )
+            log.debug( f"Fonts now: {commas( self.fonts, final_and=True )}" )
+        else:
+            log.warning( f"Font name {family=} and {features=} not found for: {fontkey}" )
+            raise fpdf.FPDFException( f"TTF Font file not found for: {fontkey}" )
+
+        return super().set_font( family=family, style=style, size=size )
+
+
 def layout_pdf(
         card_dim: Coordinate,                   # mm.
         page_margin_mm: float	= .25 * MM_IN,  # 1/4" in mm.
         orientation: str	= 'portrait',
-        paper_format: Any	= PAPER         # Can be a paper name (Letter) or (x, y) dimensions in mm.
-) -> Tuple[int, str, Callable[[int],[int, Coordinate]], FPDF]:
+        paper_format: Any	= PAPER,        # Can be a paper name (Letter) or (x, y) dimensions in mm.
+        font_dir: Optional[Path] = None,
+) -> Tuple[int, str, Callable[[int],[int, Coordinate]], fpdf.FPDF]:
     """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
     cards per page, the FPDF, and a function useful for laying out templates on the pages of the
     PDF."""
-    pdf				= FPDF(
+    pdf				= FPDF_Autoload_Fonts(
         orientation	= orientation,
         format		= paper_format,
     )
@@ -99,11 +172,13 @@ def produce_pdf(
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
     cover_text: Optional[str]	= None,		# Any Cover Page text; we'll append BIP-39 if 'using_bip39'
     watermark: Optional[str]	= None,
-) -> Tuple[Tuple[str,str], FPDF, Sequence[Sequence[Account]]]:
+) -> Tuple[Tuple[str,str], fpdf.FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
     Returns the required Paper description [<format>,<orientation>], the FPDF containing the
     produced cards, and the cryptocurrency accounts from the supplied slip39.Details.
+
+    Makes available several fonts.
     """
     if paper_format is None:
         paper_format		= PAPER
@@ -136,7 +211,7 @@ def produce_pdf(
     card_elements		= list( card.elements() )
     if log.isEnabledFor( logging.DEBUG ):
         log.debug( f"Card elements: {json.dumps( card_elements, indent=4)}" )
-    tpl				= FlexTemplate( pdf, card_elements )
+    tpl				= fpdf.FlexTemplate( pdf, card_elements )
 
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
@@ -191,7 +266,7 @@ def produce_pdf(
         cover_elements		= list( cover.elements() )
         if log.isEnabledFor( logging.DEBUG ):
             log.debug( f"Cover elements: {json.dumps( cover_elements, indent=4)}" )
-        tpl_cover		= FlexTemplate( pdf, cover_elements )
+        tpl_cover		= fpdf.FlexTemplate( pdf, cover_elements )
         images			= os.path.dirname( __file__ )
         tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
         tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
@@ -211,7 +286,7 @@ def produce_pdf(
             rows		= ( len( bip39_enum ) + 4 ) // 5
             cols		= ( len( bip39_enum ) + rows - 1 ) // rows
             cover_text	       += "\n--------------8<-------------[ cut here ]------------------"
-            cover_text	       += "\n\n            Your BIP-39 Mnemonic Phrase is:\n"
+            cover_text	       += f"\n\n            Your {len(bip39_enum)}-word BIP-39 Seed Phrase is:\n"
             for r in range( rows ):
                 cover_text     += "\n    "
                 for c in range( cols ):
@@ -421,7 +496,7 @@ def write_pdfs(
             wall_elements	= list( wall.elements() )
             if log.isEnabledFor( logging.DEBUG ):
                 log.debug( f"Wallet elements: {json.dumps( wall_elements, indent=4)}" )
-            wall_tpl		= FlexTemplate( pdf, wall_elements )
+            wall_tpl		= fpdf.FlexTemplate( pdf, wall_elements )
 
             # Place each Paper Wallet adding pages as necessary (we already have the first fresh page).
             wall_n		= 0
