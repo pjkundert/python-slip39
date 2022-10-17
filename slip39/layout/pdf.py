@@ -121,7 +121,7 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
             log.info( f"Font named {family=} + {features=} no match: {fname}" )
         if fname_best:
             log.warning( f"Font named {family=} + {features=} loading:  {fname_best} (as '{family}{style}')" )
-            self.add_font( family=family, style=style, fname=fname_best )
+            self.add_font( family=family, style=style, fname=str( fname_best ))
             log.debug( f"Fonts now: {commas( self.fonts, final_and=True )}" )
         else:
             log.warning( f"Font name {family=} and {features=} not found for: {fontkey}" )
@@ -404,7 +404,7 @@ def write_pdfs(
                 group_threshold	= group_threshold,
                 groups		= groups,
                 master_secret	= master_secret,
-                passphrase	= passphrase.encode( 'utf-8' ) if passphrase else b'',
+                passphrase	= passphrase.encode( 'UTF-8' ) if passphrase else b'',
                 using_bip39	= using_bip39,  # Derive wallet Seed using BIP-39 Mnemonic + passphrase generation
                 cryptopaths	= cryptopaths,
             )
@@ -418,11 +418,11 @@ def write_pdfs(
 
     cover_text			= None
     if cover_page:
-        cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt')).read()
+        cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
         if using_bip39:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt')).read()
+            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt', ), encoding='UTF-8').read()
         else:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt')).read()
+            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt'), encoding='UTF-8').read()
 
     # Generate each desired SLIP-39 Mnemonic cards PDF.  Supports --card (the default).  Remember
     # any deduced orientation and paper_format for below.

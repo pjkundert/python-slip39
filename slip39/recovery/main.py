@@ -97,7 +97,7 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
         passphrase		= input_secure( 'Master seed passphrase: ', secret=True )
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
-    passphrase			= passphrase.encode( 'utf-8' )
+    passphrase			= passphrase.encode( 'UTF-8' )
 
     # If BIP-39 recovery designated, only a single mnemonic is allowed:
     secret			= None
