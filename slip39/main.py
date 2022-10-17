@@ -1,3 +1,20 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
 import argparse
 import codecs
 import logging
@@ -88,6 +105,9 @@ def main( argv=None ):
     ap.add_argument( '--text', action='store_true',
                      default=None,
                      help="Enable textual SLIP-39 mnemonic output to stdout" )
+    ap.add_argument( '--watermark',
+                     default=None,
+                     help="Include a watermark on the output SLIP-39 mnemonic cards" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce; if --secret Entropy is supplied, only one is allowed.")
     args			= ap.parse_args( argv )
@@ -182,6 +202,7 @@ def main( argv=None ):
             wallet_pwd_hint	= wallet_pwd_hint,
             wallet_format	= wallet_format,
             cover_page		= args.cover_page,
+            watermark		= args.watermark,
         )
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )

@@ -1,2 +1,2 @@
-eth-account		>=0.6.0, <1
-pycryptodome		>=3.10.1
+eth-account		>=0.7.0, <1
+pycryptodome		>=3.15

@@ -166,7 +166,8 @@ package_data			= {
     'slip39': [
         'layout/*.png',
         'layout/*.txt',
-        'gui/*.txt'
+        'layout/font/*.ttf',
+        'gui/*.txt',
     ],
 }
 

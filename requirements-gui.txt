@@ -1,1 +1,1 @@
-pysimplegui		>=4.56
+pysimplegui		>=4.60

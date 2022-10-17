@@ -2,17 +2,23 @@
 #
 # Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
 #
-# Copyright (c) 2021, Dominion Research & Development Corp.
+# Copyright (c) 2022, Dominion Research & Development Corp.
 #
 # Python-slip39 is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
-# version. See the LICENSE file at the top of the source tree.
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
 #
 # Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 #
 # HD Wallet Derivation Paths (Standard BIP-44 / Trezor)
@@ -38,7 +44,7 @@ GROUPS				= [
 THEME				= 'DarkAmber'   # PySimpleGUI Theme
 FONTS				= dict(
     sans	= 'helvetica',
-    mono	= 'courier',
+    mono	= 'sourcecode',  # UTF-8 monospaced w/ "━": dejavu, inconsolata, noto, overpass, sourcecode
 )
 
 #                                  Y      X       Margin
@@ -96,8 +102,9 @@ LAYOUT_CRE			= 1
 LAYOUT_REC			= 2
 LAYOUT_PRO			= 3
 
-BITS				= (128, 256, 512)
 BITS_DEFAULT			= 128
+BITS				= (128, 256, 512)
+BITS_BIP39			= BITS + (160, 192, 224)
 
 MNEM_ROWS_COLS			= {
     20:	( 7, 3),		# 128-bit seed
@@ -122,6 +129,8 @@ FILENAME_FORMAT			= "{name}-{date}+{time}-{crypto}-{address}.pdf"
 # Default Crypto accounts (and optional paths) to generate
 CRYPTO_PATHS			= ('ETH', 'BTC')
 
+__d				= "55"
+__m				= "88"
 __o				= "BB"
 __h				= "DD"
 __f				= "FF"
@@ -145,5 +154,8 @@ COLOR				= [
     f"0x{__o}{__h}{__h}",  # Light Cyan
     f"0x{__h}{__o}{__h}",  # Light Magenta
     f"0x{__h}{__h}{__o}",  # Light Yellow
+    # Greys
     f"0x{__h}{__h}{__h}",  # Light grey,
+    f"0x{__m}{__m}{__m}",  # Medium grey,
+    f"0x{__d}{__d}{__d}",  # Dark grey,
 ]

@@ -40,8 +40,8 @@ else
 	INSTALLER	:=
 endif
 
-# To see all pytest output, uncomment --capture=no
-PYTESTOPTS	= -vv --doctest-modules --capture=no --log-cli-level=INFO
+# To see all pytest output, uncomment --capture=no, ...
+PYTESTOPTS	= -vv --doctest-modules # --capture=no # --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -104,8 +104,14 @@ build:			clean wheel
 #
 #     deps:  All of the gui/.txt files needed to built, before the sdist, wheel or app
 # 
+#	emacs $< --batch -f org-ascii-export-to-ascii --kill
 %.txt: %.org
-	emacs $< --batch -f org-ascii-export-to-ascii --kill
+	emacs --batch \
+            --eval "(require 'org)" \
+            --insert "$<" \
+	    --eval "(org-ascii-export-as-ascii nil nil nil nil '(:ascii-charset utf-8))" \
+            --eval "(write-file \"$@\")" \
+            --kill
 
 TXT		= $(patsubst %.org,%.txt,$(wildcard slip39/*/*.org))
 
@@ -170,6 +176,11 @@ install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
+# 
+# Mac:  To build the .dmg installer, run:
+#    make clean
+#    make installer  # continue running every couple of minuts 'til the App is notarized
+#
 installer:		$(INSTALLER)
 
 dmg:			deps app-dmg-valid

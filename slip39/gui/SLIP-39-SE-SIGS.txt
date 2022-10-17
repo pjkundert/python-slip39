@@ -1,0 +1,17 @@
+Bad Entropy is risk to Cryptocurrency HD Wallet Seed Secrets!
+
+Avoid Harmonic and Shannon Entropy Deficiencies:
+• Use strong cryptographically secure randomness for your Seed Data
+• Use Extra Randomness from good sources, eg. rolling 20 or so dice
+
+
+1 Seed Entropy Deficit: {entropy_rating}
+════════════════════════════════════════
+
+  ┌────
+  │ {update_seed_data.analysis}
+  └────
+
+  ┌────
+  │ {update_seed_entropy.analysis}
+  └────

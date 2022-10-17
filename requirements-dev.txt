@@ -4,5 +4,6 @@ pip
 pytest
 setuptools
 wheel
-pyinstaller	>= 4.9
-cx_Freeze	>= 6.10
+pyinstaller	>= 5.5
+cx_Freeze	>= 6.12
+tabulate

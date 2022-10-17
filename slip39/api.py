@@ -1,3 +1,20 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
 import base58
 import codecs
 import hashlib
@@ -19,7 +36,7 @@ import hdwallet
 from hdwallet		import cryptocurrencies
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
-from .util		import ordinal
+from .util		import ordinal, commas
 from .recovery		import produce_bip39, recover_bip39
 
 log				= logging.getLogger( __package__ )
@@ -226,7 +243,7 @@ class XRPHDWallet( hdwallet.HDWallet ):
 
 class Account:
     """A Cryptocurrency "Account" / Wallet, based on a variety of underlying Python crypto-asset
-    support modules.  Presently, only meherett/python-hdwallet is used
+    support modules.  Presently, only meherett/python-hdwallet is used.
 
     An appropriate hdwallet-like wrapper is built, for any crypto-asset supported using another
     module.  The required hdwallet API calls are:
@@ -347,7 +364,7 @@ class Account:
         crypto			= cls.supported( crypto )
         format			= format.lower() if format else cls.address_format( crypto )
         if format not in cls.CRYPTO_FORMAT_PATH[crypto]:
-            raise ValueError( f"{format} not supported for {crypto}; specify one of {', '.join( cls.CRYPTO_FORMAT_PATH[crypto].keys() )}" )
+            raise ValueError( f"{format} not supported for {crypto}; specify one of {commas( cls.CRYPTO_FORMAT_PATH[crypto].keys() )}" )
         return cls.CRYPTO_FORMAT_PATH[crypto][format]
 
     @classmethod
@@ -363,7 +380,7 @@ class Account:
 
         format			= format.lower() if format else None
         if format not in cls.FORMATS:
-            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {', '.join( cls.FORMATS )}" )
+            raise ValueError( f"{crypto} address format {format!r} not recognized; specify one of {commas( cls.FORMATS )}" )
         cls.CRYPTO_FORMAT[crypto]	= format
 
     @classmethod
@@ -378,7 +395,7 @@ class Account:
         )
         if validated:
             return validated
-        raise ValueError( f"{crypto} not presently supported; specify {', '.join( cls.CRYPTOCURRENCIES )}" )
+        raise ValueError( f"{crypto} not presently supported; specify {commas( cls.CRYPTOCURRENCIES )}" )
 
     def __str__( self ):
         """Until from_seed/from_path are invoked, may not have an address or derivation path."""
@@ -441,11 +458,15 @@ class Account:
 
     @property
     def address( self ):
-        if self.format == "legacy":
+        """Returns the 1..., 3... or bc1... address, depending on whether format is legacy, segwit or bech32"""
+        return self.formatted_address()
+
+    def formatted_address( self, format=None ):
+        if ( format or self.format or '' ).lower() == "legacy":
             return self.legacy_address()
-        elif self.format == "segwit":
+        elif ( format or self.format or '' ).lower() == "segwit":
             return self.segwit_address()
-        elif self.format == "bech32":
+        elif ( format or self.format or '' ).lower() == "bech32":
             return self.bech32_address()
         raise ValueError( f"Unknown addresses semantic: {self.format}" )
 
@@ -496,8 +517,17 @@ class Account:
         return self.hdwallet.private_key()
 
     @property
+    def xkey( self ):
+        return self.hdwallet.xprivate_key()
+
+    @property
     def pubkey( self ):
         return self.hdwallet.public_key()
+
+    @property
+    def xpubkey( self ):
+        """Returns the xpub, ypub or zpub, depending on whether format is legacy, segwit or bech32"""
+        return self.hdwallet.xpublic_key()
 
     def from_private_key( self, private_key ):
         self.hdwallet.from_private_key( private_key )
@@ -875,7 +905,7 @@ def create(
         group_reqs			= list(
             f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
             for g_nam,(g_of,g_mns) in groups.items() )
-        requires		= f"Recover w/ {group_threshold} of {len(groups)} groups {', '.join(group_reqs)}"
+        requires		= f"Recover w/ {group_threshold} of {len(groups)} groups {commas( group_reqs )}"
         for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
             log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
             for mn_n,mnem in enumerate( g_mnems ):
@@ -902,7 +932,7 @@ def mnemonics(
         master_secret		= random_secret( strength // 8 )
     if len( master_secret ) * 8 not in BITS:
         raise ValueError(
-            f"Only {', '.join( f'{b}-' for b in BITS )}bit seeds supported; {len(master_secret)*8}-bit master_secret supplied" )
+            f"Only {commas( BITS, final_and=True )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
     return generate_mnemonics(
         group_threshold	= group_threshold,
         groups		= groups,
@@ -976,8 +1006,8 @@ def accountgroups(
     yield from zip( *[
         accounts(
             master_secret	= master_secret,
-            paths		= paths,
             crypto		= crypto,
+            paths		= paths,
             allow_unbounded	= allow_unbounded,
         )
         for crypto,paths in cryptopaths_parser( cryptopaths )

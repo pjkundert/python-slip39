@@ -1,3 +1,20 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
 import itertools
 import logging
 
@@ -7,6 +24,11 @@ from shamir_mnemonic	import combine_mnemonics
 from mnemonic		import Mnemonic
 
 from ..util		import ordinal
+
+from .entropy		import (  # noqa F401
+    shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
+)
+
 log				= logging.getLogger( __package__ )
 
 
@@ -64,9 +86,9 @@ def recover(
         f"Recovered {len(secret)*8}-bit SLIP-39 Seed Entropy with {len(combo)}"
         f" ({'all' if len(combo) == len(mnemonics) else ', '.join( ordinal(i+1) for i in combo)})"
         f" of {len(mnemonics)} supplied mnemonics" + (
-            "; Seed generated using BIP-39 Mnemonic representation w/ passphrase"
+            f"; Seed decoded from SLIP-39 (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
             if using_bip39 else
-            "; Seed decoded from SLIP-39 Mnemonics w/ passphrase"
+            f"; Seed decoded from SLIP-39 Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
         )
     )
     if using_bip39:

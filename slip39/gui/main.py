@@ -13,11 +13,11 @@ from itertools import islice
 import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
-from ..recovery		import recover, recover_bip39, produce_bip39
-from ..util		import log_level, log_cfg, ordinal, chunker, hue_shift
+from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
+from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
-    GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_DEFAULT,
+    GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
     LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
@@ -33,6 +33,9 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
                                   "academic acid beard romp believe impulse species holiday demand building" \
                                   " earth warn lunar olympic clothes piece campus alpha short endless"
 
+SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
+SE_SEED_FRAME			= 'Seed Extra Randomness'
+SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
 
 def theme_color( thing, theme=None ):
     """Get the currency configured PySimpleGUI Theme color for thing == eg. "TEXT", "BACKGROUND.
@@ -41,13 +44,32 @@ def theme_color( thing, theme=None ):
         theme			= sg.CURRENT_LOOK_AND_FEEL
     return sg.LOOK_AND_FEEL_TABLE[theme][thing]
 
+# Try to pick a font; Use something like this to see what's available (ya, this sucks):
+# 
+#     from tkinter import Tk, font
+#     root = Tk()
+#     font_tuple = font.families()
+#     #Creates a Empty list to hold font names
+#     FontList=[]
+#     fonts = [font.Font(family=f) for f in font.families()]
+#     monospace = [f for f in fonts if f.metrics("fixed")]
+#     for font in monospace:
+#         FontList.append(font.actual('family'))
+#     root.destroy()
+#     print( '\n'.join( FontList ))
+if sys.platform == 'darwin':
+    font_name			= 'Source Code Pro'
+elif sys.platform == 'win32':
+    font_name			= 'Consolas'
+else:  # assume linux
+    font_name			= 'DejaVu Sans Mono'
 
 font_points			= 14
-font				= ('Courier', font_points+0)
-font_dense			= ('Courier', font_points-2)
-font_small			= ('Courier', font_points-4)
-font_big			= ('Courier', font_points+2)
-font_bold			= ('Courier', font_points+2, 'bold italic')
+font				= (font_name, font_points+0)
+font_dense			= (font_name, font_points-2)
+font_small			= (font_name, font_points-4)
+font_big			= (font_name, font_points+2)
+font_bold			= (font_name, font_points+2, 'bold italic')
 
 I_kwds				= dict(
     change_submits	= True,
@@ -211,7 +233,7 @@ def groups_layout(
     ] + [
         [
             # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
-            sg.Frame( 'Seed Source: Input or Create your Seed Entropy here', [
+            sg.Frame( SD_SEED_FRAME, [
                 [
                     sg.Text( "Random:" if not LO_BAK else "Source:",            visible=LO_CRE, **T_hue( T_kwds, 0/20 )),
                     sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=LO_CRE,
@@ -224,8 +246,7 @@ def groups_layout(
                                                                                 visible=LO_BAK or LO_CRE,
                                                                                                 **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
-                    sg.Checkbox( 'Passphrase',
-                                                        key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
+                    sg.Checkbox( 'Passphrase',          key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
                 ],
                 [
                     sg.Text("Fixed: ",                                          visible=LO_PRO, **T_hue( T_kwds, 1/20 )),
@@ -243,7 +264,8 @@ def groups_layout(
                 [
                     sg.Frame( 'From Mnemonic(s):', [
                         [
-                            sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,    **I_kwds_small ),
+                            sg.Multiline( "",           key='-SD-DATA-',        size=mnemos,
+                                          no_scrollbar=True,                                    **I_kwds_small ),
                         ],
                     ],                                  key='-SD-DATA-F-',      visible=False,  **F_kwds ),
                 ],
@@ -256,13 +278,16 @@ def groups_layout(
             ],                                          key='-SD-SEED-F-',                      **F_kwds_big ),
         ],
     ] + [
+
         [
-            sg.Frame( 'Seed Extra Randomness (Trust but Verify ;-)', [
+            sg.Frame( SE_SEED_FRAME, [
                 [
                     sg.Radio( "None",             "SE", key='-SE-NON-',         visible=LO_REC,
                                                                                 default=True,   **B_kwds ),
                     sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
                     sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC, **B_kwds ),
+                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-', 	visible=LO_REC or LO_PRO,
+				 						disabled=False, **T_hue( B_kwds, 3/20 )),
                 ],
                 [
                     sg.Frame( 'Entropy', [
@@ -282,7 +307,7 @@ def groups_layout(
         ]
     ] + [
         [
-            sg.Frame( 'Seed Secret & SLIP-39 Recovery Groups', [
+            sg.Frame( SS_SEED_FRAME, [
                 [
                     sg.Text( "Seed Secret: ",                                   size=prefix,    **T_kwds ),
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
@@ -295,8 +320,13 @@ def groups_layout(
                 [
                     sg.Column( [
                         [
-                            sg.Text( "Passphrase:",     key='-PASSPHRASE-L-',   size=prefix,    **T_kwds ),
-                            sg.Input( f"{passphrase or ''}",    key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
+                            sg.Frame( "BIP-39 Passphrase", [
+                                [
+                                    sg.Text( "Passphrase (encrypt):",                           **T_kwds ),
+                                    sg.Input( f"{passphrase or ''}",
+                                                        key='-PASSPHRASE-',     size=inputs,    **I_kwds ),
+                                ],
+                            ],                          key='-PASSPHRASE-F-',   visible=True,   **F_kwds ),
                         ],
                         [
                             sg.Text( "Recovery needs: ",                        size=prefix,    **T_kwds ),
@@ -307,7 +337,8 @@ def groups_layout(
                         ],
                         group_body,
                     ] ),
-                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15),   **T_kwds_dense ),
+                    sg.Multiline( "",                   key='-INSTRUCTIONS-',   size=(80,15),
+                                  no_scrollbar=True, horizontal_scroll=LO_PRO or LO_REC,        **T_kwds_dense ),
                 ],
             ],                                          key='-GROUPS-F-',                       **F_kwds_big ),
         ],
@@ -455,110 +486,137 @@ def update_seed_data( event, window, values ):
     Stores the last known state of the -SD-... radio buttons, and saves/restores the user data being
     supplied on for BIP/SLIP/FIX.  If event indicates one of our radio-buttons is re-selectedd, then
     also re-generate the random data.  If a system event occurs (eg. after a Controls change),
-    restores our last-known radio button and data.
+    restores our last-known radio button and data.  Since we cannot know if/when our main window is
+    going to disappear and be replaced, we constantly save the current state.
 
+    Reports the quality of the Seed Data in the frame label.
     """
+    SD_CONTROLS			= [
+        '-SD-128-RND-',
+        '-SD-256-RND-',
+        '-SD-512-RND-',
+        '-SD-128-FIX-',
+        '-SD-256-FIX-',
+        '-SD-512-FIX-',
+        '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
+        '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
+        '-SD-SLIP-',
+    ]
     changed			= False
-    if not event.startswith( '-' ) and update_seed_data.src and window[update_seed_data.src].visible:
-        # Some system event; restore where we left off (if known, and if the remembered control is visible).
-        data, pswd		= update_seed_data.was.get( update_seed_data.src, ('','') )
-        seed			= None
-        values[update_seed_data.src] = True
-        window[update_seed_data.src].update( True )
-        update_seed_data.src	= None
+    # Some system event (eg. __TIMEOUT__ immediately after a new main window is created, or due to
+    # scheduled callback); restore where we left off if known, and if the remembered control is
+    # visible.  This allows continuation between major screen changes w/ full controls regeneration.
+    # As long as the new screen contains the current visible control, we'll continue editing our Seed
+    # Data wherever we left off.  If the new screen has different controls, we'll get whatever is
+    # there, instead.
+    if not event.startswith( '-' ):
+        log.warning( f"Restoring Seed Source w/ event {event} from saved {update_seed_data.src}"
+                     f" data/password{' (none saved)' if update_seed_data.src not in update_seed_data.was else ''}" )
+        if not values[update_seed_data.src]:
+            # Something else has been selected (probably due to a major display change).
+            if window[update_seed_data.src].visible:
+                # And its still visible; switch back to where we were...
+                for src in SD_CONTROLS:
+                    values[src]	= False
+                values[update_seed_data.src] = True
+                window[update_seed_data.src].update( True )
+            else:
+                # And it isn't available; switch to newly available default...
+                update_seed_data.src, = ( src for src in SD_CONTROLS if values[src] )
+            changed		= True  # and force controls visiblity update
+        data, pswd, seed	= update_seed_data.was.get( update_seed_data.src, ('', '', None) )
+    elif not values[update_seed_data.src]:
+        # A controls selection change.
+        update_seed_data.src,	= ( src for src in SD_CONTROLS if values[src] )
+        changed			= True  # and force controls visiblity update
+        data, pswd, seed	= update_seed_data.was.get( update_seed_data.src, ('', '', None) )
     else:
-        data, pswd		= values['-SD-DATA-'], values['-SD-PASS-']
-        seed			= window['-SD-SEED-'].get()
-    for src in [
-            '-SD-128-RND-',
-            '-SD-256-RND-',
-            '-SD-512-RND-',
-            '-SD-128-FIX-',
-            '-SD-256-FIX-',
-            '-SD-512-FIX-',
-            '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
-            '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
-            '-SD-SLIP-',
-    ]:
-        # See what we got for -SD-DATA-, for this -SD-... radio button selection
-        if values[src] and update_seed_data.src != src:
-            # If selected radio-button for Seed Data source changed, save last source's working data
-            # and restore what was, last time we were working on this source.  If the triggering
-            # event is not one of ours (eg. __TIMEOUT__), then don't overwrite memory.
-            if update_seed_data.src and event.startswith( '-' ):
-                #log.warning( f"Switching Seed Source w/ event {event} to {src}: saving {update_seed_data.src}: {data!r:.10}..., {pswd!r}" )
-                update_seed_data.was[update_seed_data.src] = data, pswd
-            changed		= True
-            update_seed_data.src = src
-            data, pswd		= update_seed_data.was.get( src, ('','') )
-            seed		= None
-            window['-SD-DATA-'].update( data )
-            values['-SD-DATA-'] = data
-            window['-SD-PASS-'].update( pswd )
-            # And change visibility of Seed Data source controls
-            if 'FIX' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "Hex data: " )
-                window['-SD-DATA-F-'].update( visible=True  )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update( visible=False )
-            elif 'BIP-SEED' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=True )
-                window['-SD-PASS-F-'].update(
-                    "BIP-39 passphrase (won't be needed for Recovery)",
-                    visible=values['-SD-PASS-C-']
-                )
-            elif 'BIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update(
-                    visible=False
-                )
-            elif 'SLIP' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
-                window['-SD-DATA-F-'].update( visible=True )
-                window['-SD-PASS-C-'].update( visible=True )
-                window['-SD-PASS-F-'].update(
-                    passphrase_trezor_incompatible,
-                    visible=values['-SD-PASS-C-']
-                )
-            elif 'RND' in update_seed_data.src:
-                window['-SD-DATA-F-'].update( visible=False )
-                window['-SD-PASS-C-'].update( visible=False )
-                window['-SD-PASS-F-'].update( visible=False )
-        elif event == update_seed_data.src == src:
+        # A normal user-initiated window event, w/ no controls change; get updated value/window data
+        if event == update_seed_data.src:
             # Same radio-button re-selected; just force an update (eg. re-generate random)
-            changed		= True
-    if not seed:
-        seed		= '-' * ( BITS_DEFAULT // 4 )
+            log.info( f"Seed Data update forced due to event: {event!r}" )
+            changed		= True  # and force controls visiblity update
+        data, pswd, seed	= values['-SD-DATA-'], values['-SD-PASS-'], window['-SD-SEED-'].get()
+
+    # Now that we've recovered which Seed Data control was previously in play (and any data/pswd),
+    # update window/value content and other controls' visibility for this -SD-...  selection.
+    window['-SD-DATA-'].update( data )
+    values['-SD-DATA-']		= data
+    window['-SD-PASS-'].update( pswd )
+    if 'FIX' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "Hex data: " )
+        window['-SD-DATA-F-'].update( visible=True  )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update( visible=False )
+    elif 'BIP-SEED' in update_seed_data.src:
+        # We're recovering the (decrypted) BIP-39 Seed, so we require the Passphrase!
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic (for 512-bit Seed Recovery): " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=True )
+        window['-SD-PASS-F-'].update(
+            "BIP-39 passphrase (won't be needed for Recovery)",
+            visible=values['-SD-PASS-C-']
+        )
+    elif 'BIP' in update_seed_data.src:
+        # We're recovering the BIP-39 Seed Phrase *Entropy*, NOT the derived (decrypted) 512-bit
+        # Seed Data!  So, we don't deal in Passphrases, here.  The Passphrase (to encrypt the Seed,
+        # when "Using BIP-39") is only required to display the correct wallet addresses.
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update( visible=False )
+    elif 'SLIP' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
+        window['-SD-DATA-F-'].update( visible=True )
+        window['-SD-PASS-C-'].update( visible=True )
+        window['-SD-PASS-F-'].update(
+            passphrase_trezor_incompatible,
+            visible=values['-SD-PASS-C-']
+        )
+    elif 'RND' in update_seed_data.src:
+        window['-SD-DATA-F-'].update( visible=False )
+        window['-SD-PASS-C-'].update( visible=False )
+        window['-SD-PASS-F-'].update( visible=False )
 
     # We got our working -SD-DATA- into 'data' (maybe from last time 'round), compute seed.
     status			= None
     bits			= None
+    if not seed:
+        seed		= '-' * ( BITS_DEFAULT // 4 )
     if 'BIP' in update_seed_data.src:
         # When recovering from BIP-39 for use in SLIP-39, we always recover the ORIGINAL 128- or
-        # 256-bit Entropy used to create the BIP-39 Mnemonic.  This is what we want to back up --
-        # NOT the 512-bit Seed output from the processing the BIP-39 Mnemonic + passphrase; thus, we
-        # can always re-produce the BIP-39 mnemonic.  Later, (when producing wallets) we'll see if
-        # the desired target device seed will be transmitted via BIP-39 + passphrase, or SLIP-39, and
-        # produce the correct Seed for deriving predicted wallet addresses.
-        window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
+        # 256-bit Entropy used to create the BIP-39 Mnemonic (other sizes of BIP-39 Entropy are not
+        # supported).  This is what we want to back up -- NOT the 512-bit Seed output from the
+        # processing the BIP-39 Mnemonic + passphrase; thus, we can always re-produce the BIP-39
+        # mnemonic.  Later, (when producing wallets) we'll see if the desired target device seed
+        # will be transmitted via BIP-39 + passphrase, or SLIP-39, and produce the correct Seed for
+        # deriving predicted wallet addresses.
         try:
-            # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy
-            # Only needed (later) for Account generation
-            passphrase		= pswd.strip().encode( 'UTF-8' )
+            # No passphrase allowed/required, to get original BIP-39 Mnemonic Entropy Only needed
+            # (later) for Account generation.  This *may* produce a number of bits NOT in
+            # default.BITS!  (eg. from a 160- or 192-bit BIP-39 Mnemonics). This is allowable,
+            # because if as_entropy is True, we'll be BIP-39-encrypting the Seed Data to generate a
+            # 512-bit seed.
             as_entropy		= 'BIP-SEED' not in update_seed_data.src
+            if as_entropy:
+                if pswd:
+                    log.warning( f"BIP-39 Seed Passphrase (decrypt) ignored; using Seed Phrase Entropy, not decrypted Seed!" )
+                passphrase	= b""
+            else:
+                if pswd.strip() != pswd:
+                    log.warning( f"BIP-39 Seed Passphrase (decrypt) contains leading/trailing whitespace; are you certain this is correct?" ) 
+                passphrase	= pswd.encode( 'UTF-8' )
             seed		= recover_bip39(
                 mnemonic	= data.strip(),
-                passphrase	= b"" if as_entropy else passphrase,
+                passphrase	= passphrase,
                 as_entropy	= as_entropy,
             )
             bits		= len( seed ) * 8
+            assert bits in BITS_allowed( values ), \
+                f"Only {commas(BITS, final_and=True)}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
         except Exception as exc:
-            log.warning( f"BIP-39 recovery failed w/{data!r}: {exc}" )
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
+            log.warning( status )
     elif 'SLIP' in update_seed_data.src:
         window['-SD-PASS-F-'].update( visible=values['-SD-PASS-C-'] )
         try:
@@ -575,44 +633,76 @@ def update_seed_data( event, window, values ):
         bits			= int( update_seed_data.src.split( '-' )[2] )
         try:
             # 0-fill and truncate any supplied hex data to the desired bit length
-            data		= f"{data:<0{bits // 4}.{bits // 4}}"
-            seed 		= codecs.decode( data, 'hex_codec' )
+            data_filled		= f"{data:<0{bits // 4}.{bits // 4}}"
+            seed 		= codecs.decode( data_filled, 'hex_codec' )
         except Exception as exc:
             log.warning( f"Fixed hex recovery failed w/ {data!r}: {exc}" )
             status		= f"Invalid Hex for {bits}-bit fixed seed: {exc}"
-    elif changed:  # Random.  Regenerated each time changed, or not valid
+    elif changed or not seed:  # RND.  Regenerated each time changed, or not valid
         bits			= int( update_seed_data.src.split( '-' )[2] )
         seed			= random_secret( bits // 8 )
 
     # Compute any newly computed/recovered binary Seed Data bytes as hex. Must be 128-, 256- or
-    # 512-bit hex data.
-    try:
-        if type(seed) is not str:
-            seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
-        if bits is None:  # For previously defined seed_data, compute length
-            bits		= len( seed ) * 4
-        assert len( seed ) * 4 == bits, \
-            f"{len(seed)*4}-bit data recovered; expected {bits} bits: {seed}"
-        assert bits in BITS, \
-            f"Invalid {bits}-bit data size: {seed}"
-    except Exception as exc:
-        status			= f"Invalid seed data: {exc}"
+    # 512-bit hex data.  Do a final comparison against current -SD-SEED- to detect changes.
+    if status:
+        status			= f"Invalid Seed Data: {status}"
+    else:
+        try:
+            if type(seed) is not str:
+                seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+            if bits is None:  # For previously defined seed_data, compute length
+                bits		= len( seed ) * 4
+            assert len( seed ) * 4 == bits, \
+                f"{len(seed)*4}-bit data recovered; expected {bits} bits: {seed}"
+            assert bits in BITS_allowed( values ), \
+                f"Invalid {bits}-bit data size: {seed}"
+        except Exception as exc:
+            status			= f"Invalid Seed Data: {exc}"
+    if status:
         if not bits:
             bits		= BITS_DEFAULT
         seed			= '-' * (bits // 4)
+    if window['-SD-SEED-'].get() != seed:
+        update_seed_data.deficiencies = ()
+        changed			= True
+
+    # Analyze the seed for Signal harmonic or Shannon entropy failures, if we're in a __TIMEOUT__
+    # (between keystrokes or after a major controls change).  Otherwise, if the seed's changed,
+    # request a __TIMEOUT__; when it invokes, perform the entropy analysis.
+    if status is None:
+        if event == '__TIMEOUT__':
+            seed_bytes		= codecs.decode( seed, 'hex_codec' )
+            scan_dur,(sigs,shan) = timing( scan_entropy, instrument=True )( seed_bytes, show_details=True )  # could be (None,None)
+            sigs_rate		= f"{rate_dB( max( sigs ).dB if sigs else None, what='Harmonics')}"
+            shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
+            window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; {sigs_rate}, {shan_rate}" )
+            disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(seed_bytes)*8}-bit Seed Source" )
+            update_seed_data.deficiencies = (sigs, shan)
+            update_seed_data.analysis = analysis or '(No entropy analysis deficiencies found in Seed Data)'
+            log.debug( f"Seed Data  Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
+        elif changed:
+            log.info( f"Seed Data requests __TIMEOUT__ w/ current source: {update_seed_data.src!r}" )
+            values['__TIMEOUT__'] = .5
+    else:
+        window['-SD-SEED-F-'].update( f"{SD_SEED_FRAME}; Invalid" )
 
     # Since a window[...].update() doesn't show up to a .get() 'til the next cycle of the display,
     # we'll communicate updates to successive functions via values.
     values['-SD-SEED-'] 	= seed
     window['-SD-SEED-'].update( seed )
+
+    # Finally, remember what data/pswd/seed we're working on, in case we get a major controls change.
+    update_seed_data.was[update_seed_data.src] = data, pswd, seed
     return status
 
-update_seed_data.src		= None  # noqa: E305
+update_seed_data.src		= '-SD-BIP-'  # noqa: E305
 update_seed_data.was		= {
-    '-SD-BIP-':		(BIP39_EXAMPLE_128,""),
-    '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,""),
-    '-SD-SLIP-':	(SLIP39_EXAMPLE_128,""),
+    '-SD-BIP-':		(BIP39_EXAMPLE_128,  "", None),
+    '-SD-BIP-SEED-':	(BIP39_EXAMPLE_128,  "", None),
+    '-SD-SLIP-':	(SLIP39_EXAMPLE_128, "", None),
 }
+update_seed_data.deficiencies	= ()
+update_seed_data.analysis	= ''
 
 
 def stretch_seed_entropy( entropy, n, bits, encoding=None ):
@@ -652,63 +742,144 @@ def stretch_seed_entropy( entropy, n, bits, encoding=None ):
     return entropy[:octets]
 
 
-def update_seed_entropy( window, values ):
+def update_seed_entropy( event, window, values ):
     """Respond to changes in the extra Seed Entropy, and recover/generate the -SE-SEED-.  It is
     expected to be exactly the same size as the -SD-SEED- data.  Stores the last known state of the
-    -SE-... radio buttons, updating visibilties on change.
+    -SE-... radio buttons, updating visibilities on change.
 
+    We analyze the entropy of the *input* data (as UTF-8), not the resultant entropy.
     """
-    dat				 = values['-SE-DATA-']
-    for src in [
+    SE_CONTROLS			= [
         '-SE-NON-',
         '-SE-HEX-',
         '-SE-SHA-',
-    ]:
+    ]
+    data			= values['-SE-DATA-']
+    try:
+        data_bytes		= data.encode( 'UTF-8' )
+    except Exception as exc:
+        status			= f"Invalid data {data!r}: {exc}"
+
+    for src in SE_CONTROLS:
         if values[src] and update_seed_entropy.src != src:
             # If selected radio-button for Seed Entropy source changed, save last source's working
             # data and restore what was, last time we were working on this source.
-            if update_seed_entropy.src:
-                update_seed_entropy.was[update_seed_entropy.src] = dat
-            dat			= update_seed_entropy.was.get( src, '' )
+            data		= update_seed_entropy.was.get( src, '' )
             update_seed_entropy.src = src
-            window['-SE-DATA-'].update( dat )
-            values['-SE-DATA-']	= dat
+            window['-SE-DATA-'].update( data )
+            values['-SE-DATA-']	= data
             if 'HEX' in update_seed_entropy.src:
                 window['-SE-DATA-T-'].update( "Hex digits: " )
             else:
                 window['-SE-DATA-T-'].update( "Die rolls, etc.: " )
 
+    # Evaluate the nature of the extra entropy, and place interpretation to analyze in data_bytes.
+    # Binary "hex" data should be neutral harmonically and in Shannon entropy.  However, some data
+    # such as dice rolls may exhibit restricted symbol values; try to deduce this case, restricting
+    # Shannon Entropy 'N' to binary (coin-flip) or 4, 6 and 10-sided dice.
     status			= None
-    seed_data			= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
-    bits			= len( seed_data ) * 4
-    log.debug( f"Computing Extra Entropy, for {bits}-bit Seed Data: {seed_data!r}" )
+    seed			= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
+    bits			= len( seed ) * 4
+
+    strides			= 8
+    overlap			= False
+    ignore_dc			= True
+    N				= None
+    interpretation		= 'Trust but Verify ;-'
+    log.debug( f"Computing Extra Entropy, for {bits}-bit Seed Data: {seed!r}" )
     if 'NON' in update_seed_entropy.src:
         window['-SE-DATA-F-'].update( visible=False )
         extra_entropy		= b''
     elif 'HEX' in update_seed_entropy.src:
         window['-SE-DATA-F-'].update( visible=True )
         try:
-            # 0-fill and truncate any supplied hex data to the desired bit length
-            extra_entropy	= stretch_seed_entropy( dat, n=0, bits=bits, encoding='hex_codec' )
+            # 0-fill and truncate any supplied hex data to the desired bit length, SHA-512 stretch
+            extra_entropy	= stretch_seed_entropy( data, n=0, bits=bits, encoding='hex_codec' )
         except Exception as exc:
-            status		= f"Invalid Hex {dat!r} for {bits}-bit extra seed entropy: {exc}"
+            status		= f"Invalid Hex {data!r} for {bits}-bit extra seed entropy: {exc}"
+        else:
+            data_bytes		= codecs.decode( f"{data:<0{bits // 4}.{bits // 4}}", 'hex_codec' )
+            interpretation	= "Hexadecimal Data"
+            strides		= None
+            overlap		= True
+            ignore_dc		= False
     else:
         window['-SE-DATA-F-'].update( visible=True )
         try:
             # SHA-512 stretch and possibly truncate supplied Entropy (show for 1st Seed)
-            extra_entropy	= stretch_seed_entropy( dat, n=0, bits=bits, encoding='UTF-8' )
+            extra_entropy	= stretch_seed_entropy( data, n=0, bits=bits, encoding='UTF-8' )
         except Exception as exc:
-            status		= f"Invalid data {dat!r} for {bits}-bit extra seed entropy: {exc}"
+            status		= f"Invalid data {data!r} for {bits}-bit extra seed entropy: {exc}"
+        if data and all( '0' <= c <= '9' for c in data ):
+            N			= {
+                '0':  2, '1':  2,				# Coin flips
+                '2':  6, '3':  6, '4':  6, '5':  6, '6':  6,    # 6-sided (regular) dice
+                '7': 10, '8': 10, '9': 10, 		 	# 10-sided (enter 0 for the 10 side)
+            }[max( data )]
+            interpretation	= f"{N}-sided Dice" if N > 2 else "Coin-flips/Binary"
 
-    # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.
+    # Compute the Seed Entropy as hex.  Will be 128-, 256- or 512-bit hex data.  Ensure
+    # extra_{bytes,entropy} are bytes and ASCII (hex, or -) respectively.
     if status or not extra_entropy:
-        extra_entropy		= '-' * (bits // 4)
+        extra_entropy		= '-' * ( bits // 4 )
+        extra_bytes		= b''
     elif type( extra_entropy ) is bytes:
-        extra_entropy		= codecs.encode( extra_entropy, 'hex_codec' ).decode( 'ascii' )
+        extra_bytes		= extra_entropy
+        extra_entropy		= codecs.encode( extra_bytes, 'hex_codec' ).decode( 'ascii' )
+    else:
+        extra_bytes		= codecs.decode( extra_entropy, 'hex_codec' )
+
+    if window['-SE-SEED-'].get() != extra_entropy:
+        update_seed_entropy.deficiencies = ()
+
+    se_seed_frame		= f"{SE_SEED_FRAME} ({interpretation})"
+    if status is None and len( data_bytes ) >= 8 and not update_seed_entropy.deficiencies:
+        if event == '__TIMEOUT__':
+            scan_dur,(sigs,shan) = timing( scan_entropy, instrument=True )(  # could be (None,None)
+                data_bytes,
+                strides		= strides,
+                overlap		= overlap,
+                ignore_dc	= ignore_dc,
+                N		= N,
+                signal_threshold = 300/100,
+                shannon_threshold = 10/100,
+                show_details	= True
+            )
+            sigs_rate		= f"{rate_dB( max( sigs ).dB if sigs else None, what='Harmonics')}"
+            shan_rate		= f"{rate_dB( max( shan ).dB if shan else None, what='Shannon Entropy')}"
+            window['-SE-SEED-F-'].update( f"{se_seed_frame}: {sigs_rate}, {shan_rate}" )
+            disp_dur,analysis	= timing( display_entropy, instrument=True )( sigs, shan, what=f"{len(extra_bytes)*8}-bit Extra Seed Entropy" )
+            update_seed_entropy.deficiencies = (sigs, shan)
+            update_seed_entropy.analysis = analysis or '(No entropy analysis deficiencies found in Extra Seed Entropy)'
+            log.debug( f"Seed Extra Entropy Analysis took {scan_dur:.3f}s + {disp_dur:.3f}s == {scan_dur+disp_dur:.3f}s: {analysis}" )
+        else:
+            log.info( f"Seed Extra requests __TIMEOUT__ w/ current source: {update_seed_entropy.src!r}" )
+            values['__TIMEOUT__'] = .5
+    elif status:
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}: Invalid" )
+        update_seed_entropy.analysis = f"{se_seed_frame}: {status}"
+    elif len( data_bytes ) < 8:
+        window['-SE-SEED-F-'].update( f"{se_seed_frame}" )
+        update_seed_entropy.analysis = f"{se_seed_frame}: {'None Provided' if values['-SE-NON-'] else 'Insufficient for analysis'}"
+
     values['-SE-SEED-']		= extra_entropy
     window['-SE-SEED-'].update( extra_entropy )
-update_seed_entropy.src	= None  # noqa: E305
+
+    update_seed_entropy.was[update_seed_entropy.src] = data
+    return status
+
+update_seed_entropy.src	= '-SE-NON-'  # noqa: E305
 update_seed_entropy.was = {}
+update_seed_entropy.deficiencies = ()
+update_seed_entropy.analysis = ''
+
+
+def using_BIP39( values ):
+    return values['-AS-BIP-CB-']
+
+
+def BITS_allowed( values ):
+    return BITS_BIP39 if using_BIP39( values ) else BITS
 
 
 def compute_master_secret( window, values, n=0 ):
@@ -726,7 +897,7 @@ def compute_master_secret( window, values, n=0 ):
     """
     seed_data_hex		= values.get( '-SD-SEED-', window['-SD-SEED-'].get() )
     bits			= len( seed_data_hex ) * 4
-    assert bits in BITS, \
+    assert bits in BITS_allowed( values ), \
         f"Invalid {bits}-bit Seed size: {seed_data_hex}"
     try:
         seed_data		= codecs.decode( seed_data_hex.replace( '-', '0' ), 'hex_codec' )
@@ -866,7 +1037,7 @@ def app(
 
     group_threshold		= int( threshold ) if threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    sg.CURRENT_LOOK_AND_FEEL = sg.theme( THEME )  # Why?  This module global should have updated...
+    sg.CURRENT_LOOK_AND_FEEL	= sg.theme( THEME )  # Why?  This module global should have updated...
 
     # Try to set a sane initial CWD (for saving generated files).  If we start up in the standard
     # macOS App's "Container" directory for this App, ie.:
@@ -902,9 +1073,10 @@ def app(
     master_secret		= None		# default to produce randomly
     details			= None		# The SLIP-39 details produced from groups; make None to force SLIP-39 Mnemonic update
     cryptopaths			= None
-    timeout			= 0		# First time thru; refresh immediately
+    timeout			= 0		# First time thru; refresh immediately; functions req. refresh may adjust via values['__TIMEOUT__']
     instructions		= ''		# The last instructions .txt payload found
     instructions_kwds		= dict()        # .. and its colors
+    values			= dict()
     while event not in events_termination:
         # A Controls layout selection, eg. '-LO-2-'; closes and re-generates window layout
         if event and event.startswith( '-LO-' ):
@@ -936,7 +1108,7 @@ def app(
                 group_threshold	= group_threshold,
                 groups		= groups,
                 cryptocurrency	= cryptocurrency,
-                passphrase	= passphrase,
+                passphrase	= passphrase.decode( 'UTF-8' ) if passphrase else None,
                 wallet_pwd	= wallet_pwd,
                 wallet_pwd_hint	= wallet_pwd_hint,
                 wallet_derive	= wallet_derive,
@@ -951,48 +1123,20 @@ def app(
                 no_titlebar	= no_titlebar,
                 scaling		= scaling,
             )
-            timeout		= 0 		# First time through w/ new window, refresh immediately
+            values['__TIMEOUT__'] = 0 		# First time through w/ new window, refresh immediately
 
-        # Block (except for first loop) and obtain current event and input values. Until we get a
-        # new event, retain the current status
+        # Block (except for first loop, or if someone requested a __TIMEOUT__) and obtain current
+        # event and input values. Until we get a new event, retain the current status
+        timeout			= values.get( '__TIMEOUT__', None )  # Subsequently, default; block indefinitely (functions may adjust...)
+        if timeout:
+            logging.debug( f"A __TIMEOUT__ was requested: {timeout!r}" )
         event, values		= window.read( timeout=timeout )
-        timeout			= None 		# Subsequently, default; block indefinitely
         logging.debug( f"{event}, {values}" )
         if not values or event in events_termination or event in events_ignored:
             continue
 
         status			= None
         status_error		= True
-
-        # See if there are any instructional 'SLIP-39-<event>.txt' for the last event.  If so, load
-        # it into the '-INSTRUCTIONS-' Multiline.  We'll split each event on its component '-', and
-        # look for eg. SLIP-39-LO.txt, when we see event == '-LO-1-'.  We'll select the most
-        # specific instructional .txt we can load.  Only if the current instructions is empty will
-        # we go all the way back to load the generic SLIP-39.txt.  If the event corresponds to an
-        # object with text/backround_color, use it in the instructional text.
-        txt_segs		= ( event or '' ).strip('-').split( '-' )
-        for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
-            txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
-            txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
-            try:
-                with open( txt_path, 'r', encoding='utf-8' ) as txt_f:
-                    txt		= txt_f.read()
-                    if txt:
-                        instructions = txt
-                        break
-            except FileNotFoundError:
-                pass
-        if event.startswith( '-' ):  # One of our events (ie. not __TIMEOUT__, etc.)...
-            try:
-                event_element	= window.find_element( event, silent_on_error=True )
-                instructions_kwds.update(
-                    text_color	= event_element.TextColor,
-                    background_color= event_element.BackgroundColor,
-                )
-            except Exception as exc:
-                log.debug( f"Couldn't update instructions text color: {exc}" )
-                pass
-        window['-INSTRUCTIONS-'].update( instructions, **instructions_kwds )
 
         if event == '+' and len( groups ) < 16:
             # Add a SLIP39 Groups row (if not already at limit)
@@ -1027,7 +1171,7 @@ def app(
         # first SLIP-39 encoding.
         master_secret_was	= window['-SEED-'].get()
         status_sd		= update_seed_data( event, window, values )
-        status_se		= update_seed_entropy( window, values )
+        status_se		= update_seed_entropy( event, window, values )
         status_ms		= None
         try:
             master_secret	= compute_master_secret( window, values, n=0 )
@@ -1038,12 +1182,94 @@ def app(
         if type(master_secret) is bytes:
             master_secret	= codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' )
 
+        # We've now calculated any supplied Seed Data or Seed Extra Randomness (and detected any
+        # Entropy Analysis deficiencies, which may be included in some instruction formats); see if
+        # there are any instructional 'SLIP-39-<event>.txt' for the last event.  If so, load it into
+        # the '-INSTRUCTIONS-' Multiline.  We'll split each event on its component '-', and look for
+        # eg. SLIP-39-LO.txt, when we see event == '-LO-1-'.  We'll select the most specific
+        # instructional .txt we can load.  Only if the current instructions is empty will we go all
+        # the way back to load the generic SLIP-39.txt.  If the event corresponds to an object with
+        # text/backround_color, use it in the instructional text.
+        txt_segs		= ( event or '' ).strip( '-' ).split( '-' )
+        instructions_path	= ''
+        for txt_i in range( len( txt_segs ), 0 if instructions else -1, -1 ):
+            txt_name		= '-'.join( [ 'SLIP', '39' ] + txt_segs[:txt_i] ) + '.txt'
+            txt_path		= os.path.join( os.path.dirname( __file__ ), txt_name )
+            try:
+                with open( txt_path, 'r', encoding='UTF-8' ) as txt_f:
+                    txt		= txt_f.read()
+                    if txt:
+                        instructions = txt
+                        instructions_path = txt_path
+                        break
+            except FileNotFoundError:
+                pass
+
+        # If there are {...} entries in the loaded text, we'll assume they are formatting options.
+        # These files form part of the program, and therefore can know about the names of internal
+        # variables.  If someone can exploit these .txt files, they can just as easily exploit the
+        # Python code of the program...  Let's provide access to an aggregate summary of the Entropy
+        # Analysis of the Seed Data and Seed Extra Randomness, here.  If we have some poor Seed
+        # Data, but provide good Seed Extra Randomness, or provide a BIP/SLIP-39 passphrase, then
+        # we'll let that go.  In other words, poor Seed Data with a Passphrase is considered more
+        # secure (still not recommended).  But, really bad Seed Data entropy can still overwhelm it.
+        def deficiency( *deficiencies ):
+            """Entropy analysis deficiencies may consists of eg. (,), (None,[]) or ([],[]).  Yields
+            the largest (first item) from each, if any.  Convert to a deficiency sequence.
+
+            """
+            for alist in deficiencies:
+                if alist:
+                    yield alist[0]
+        dB_defic		= []
+        sd_defic		= list( deficiency( *update_seed_data.deficiencies ))
+        if sd_defic:
+            # There is a Seed Data entropy deficit!
+            dB_defic.append( max( sd_defic ).dB )
+        if 'NON' not in update_seed_entropy.src:
+            # There is Seed Extra Randomness; is it also in entropy deficit?
+            se_defic		= list( deficiency( *update_seed_entropy.deficiencies ))
+            if dB_defic or se_defic:
+                # Some good Seed Extra Randomness dilutes poor Seed Data entropy deficit...
+                dB_defic.append( max( se_defic ).dB if se_defic else -1.0 )
+        if dB_defic and window['-PASSPHRASE-'].get():
+            # There's a deficit, but they're using an encryption Passphrase...
+            dB_defic.append( -1.0 )
+        # If None, "excellent", otherwise rating is avg of worst of Seed Data / Extra Entropy, net a
+        # reduction for passphrase and good Extra Entropy.  If entropy_dB is None (excellent), or <
+        # 0.0dB (ok), this is considered acceptable.
+        entropy_dB		= avg( dB_defic ) if dB_defic else None
+        entropy_rating		= rate_dB( entropy_dB )
+        ( log.warning if dB_defic else log.info )( f"Overall entropy deficiency: {entropy_rating}, from: {commas(dB_defic)}" )
+
+        window['-GROUPS-F-'].update( f"{SS_SEED_FRAME}: Overall entropy deficiency: {entropy_rating}" )
+        instructions_fmtd	= instructions
+        if '{' in instructions:
+            try:
+                kwds		= globals()
+                kwds.update( locals() )
+                instructions_fmtd = instructions.format( **kwds )
+            except KeyError as exc:
+                log.warning( f"Failed to format instructions {instructions_path}: Local variable {exc} not found." )
+
+        if event.startswith( '-' ):  # One of our events (ie. not __TIMEOUT__, etc.)...
+            try:
+                event_element	= window.find_element( event, silent_on_error=True )
+                instructions_kwds.update(
+                    text_color	= event_element.TextColor,
+                    background_color= event_element.BackgroundColor,
+                )
+            except Exception as exc:
+                log.debug( f"Couldn't update instructions text color: {exc}" )
+                pass
+        window['-INSTRUCTIONS-'].update( instructions_fmtd, **instructions_kwds )
+
         # See if we should display/use the BIP-39 version of the Master Secret Seed.  Also, re-labels
         # the -PASSPHRASE-... between SLIP-39 and BIP-39.  We only support one Passphrase, even if
         # SLIP-39 is encoding the entropy in a BIP-39 Mnemonic; If BIP-39 is selected, the
         # Passphrase is assumed to be encrypting the BIP-39 Mnemonic to generate the Seed; the same
         # Passphrase must be entered on the hardware wallet along with the Mnemonic.
-        using_bip39		= values['-AS-BIP-CB-']  # Also triggers BIP-39 Seed generation, below
+        using_bip39		= using_BIP39( values )  # Also triggers BIP-39 Seed generation, below
 
         # From this point forward, detect if we have seen any change in the computed Master Seed, or
         # in the SLIP-39 groups recovered; avoid unnecessary update of the SLIP-39 Mnemonics.  And,
@@ -1078,8 +1304,8 @@ def app(
         # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
         # default for both SLIP-39 and BIP-39.
         window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
-        window['-PASSPHRASE-L-'].update(
-            'BIP-39 passphrase:' if using_bip39 else 'SLIP-39 passphrase:' )
+        window['-PASSPHRASE-F-'].update(
+            'BIP-39 Passphrase' if using_bip39 else passphrase_trezor_incompatible )
         passphrase_now		= values['-PASSPHRASE-'].strip().encode( 'UTF-8' )
         if passphrase != passphrase_now:
             passphrase		= passphrase_now
@@ -1250,6 +1476,7 @@ def app(
             # And, if Paper Wallets haven't been disabled completely, remember our password/hint
             wallet_pwd		= values['-WALLET-PASS-']  # Produces Paper Wallet(s) iff set
             wallet_pwd_hint	= values['-WALLET-HINT-']
+
         if event in ('-SAVE-', '-PRINT-'):
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any
             # output will be written.  It should usually be a removable volume, but we do not check.
@@ -1261,6 +1488,12 @@ def app(
             if event == '-PRINT-':
                 printer		= values['-PRINTER-']
                 log.info( f"Printing to {printer!r}..." )
+                # A bad Entropy Analysis results in a watermark, warning that the SLIP-39 Mnemonic Seed may
+                # be insecure.
+            if entropy_dB is None or entropy_dB < 0:
+                watermark	= None
+            else:
+                watermark	= f"Seed Entropy: {entropy_rating_dB( entropy_dB )}"
             try:
                 card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}-"] )
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
@@ -1276,6 +1509,7 @@ def app(
                     wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
                     filepath		= filepath,
                     printer		= printer,
+                    watermark		= watermark,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
