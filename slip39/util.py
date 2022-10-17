@@ -143,6 +143,7 @@ def round_onto( value, keys, keep_sign=True ):
 
 
 entropy_signal_strengths	= {
+    3: "very bad",
     2: "bad",
     1: "poor",
     0: "weak",

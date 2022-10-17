@@ -1089,7 +1089,7 @@ def app(
                 group_threshold	= group_threshold,
                 groups		= groups,
                 cryptocurrency	= cryptocurrency,
-                passphrase	= passphrase,
+                passphrase	= passphrase.decode( 'UTF-8' ) if passphrase else None,
                 wallet_pwd	= wallet_pwd,
                 wallet_pwd_hint	= wallet_pwd_hint,
                 wallet_derive	= wallet_derive,
