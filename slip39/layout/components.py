@@ -222,14 +222,14 @@ def layout_card(
     )
 
     # Rotate the card group, watermark, etc. so its angle is from the lower-left to the upper-right.
-    # 
+    #
     #             b
     #      +--------------+
     #      |           .
     #    a |       .
     #      | β .    c
     #      + 90-β
-    # 
+    #
     #   tan(β) = b / a, so
     #   β = arctan(b / a)
     #

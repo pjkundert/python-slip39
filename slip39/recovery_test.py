@@ -718,7 +718,7 @@ def kwargs_signal_limits( kwargs ):
 
 
 def compute_entropy_limits( compute_entropy, bits, overlap, stride, threshold, setpoint, cycles, checks, symbols=None ):
-    avg_over		= (4096, 8192, 16384)  #(1024, 2048, 4096, 8192, 16384)
+    avg_over		= (4096, 8192, 16384)
     rejects		= deque( maxlen=16384 )
     rejected		= setpoint
     try:
@@ -1023,7 +1023,7 @@ def test_rngs_entropy( detailed=False ):
 
 
 if __name__ == "__main__":
-    import cProfile
+    #import cProfile
     #cProfile.run( 'test_signal_limits( detailed=True ); test_shannon_limits( detailed=True )' )
     #cProfile.run( 'test_shannon_limits( detailed=True )' )
     #test_shannon_limits( detailed=True )

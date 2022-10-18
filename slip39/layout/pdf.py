@@ -67,12 +67,11 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
             self.font_dir	= font_dir if font_dir is not None else Path( __file__ ).resolve().parent / "font"
         return super().__init__( *args, **kwds )
 
-
     def set_font( self, family=None, style="", size=0 ):
         # Deduce a set of lists of features synonyms, and expected fontkey
         feature_suffixes	= dict(
             B	= ( 'bold', ),
-            I	= ( 'italic', 'oblique' ),	# Typical aliases seen
+            I	= ( 'italic', 'oblique' ),      # Typical aliases seen
             U	= (),				# Ignored for font loading purposes
         )
 

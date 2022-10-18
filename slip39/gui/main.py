@@ -37,6 +37,7 @@ SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
 SE_SEED_FRAME			= 'Seed Extra Randomness'
 SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
 
+
 def theme_color( thing, theme=None ):
     """Get the currency configured PySimpleGUI Theme color for thing == eg. "TEXT", "BACKGROUND.
     """
@@ -44,8 +45,9 @@ def theme_color( thing, theme=None ):
         theme			= sg.CURRENT_LOOK_AND_FEEL
     return sg.LOOK_AND_FEEL_TABLE[theme][thing]
 
+
 # Try to pick a font; Use something like this to see what's available (ya, this sucks):
-# 
+#
 #     from tkinter import Tk, font
 #     root = Tk()
 #     font_tuple = font.families()
@@ -286,8 +288,8 @@ def groups_layout(
                                                                                 default=True,   **B_kwds ),
                     sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
                     sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC, **B_kwds ),
-                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-', 	visible=LO_REC or LO_PRO,
-				 						disabled=False, **T_hue( B_kwds, 3/20 )),
+                    sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-',       visible=LO_REC or LO_PRO,
+                                                                                disabled=False, **T_hue( B_kwds, 3/20 )),
                 ],
                 [
                     sg.Frame( 'Entropy', [
@@ -600,11 +602,11 @@ def update_seed_data( event, window, values ):
             as_entropy		= 'BIP-SEED' not in update_seed_data.src
             if as_entropy:
                 if pswd:
-                    log.warning( f"BIP-39 Seed Passphrase (decrypt) ignored; using Seed Phrase Entropy, not decrypted Seed!" )
+                    log.warning( "BIP-39 Seed Passphrase (decrypt) ignored; using Seed Phrase Entropy, not decrypted Seed!" )
                 passphrase	= b""
             else:
                 if pswd.strip() != pswd:
-                    log.warning( f"BIP-39 Seed Passphrase (decrypt) contains leading/trailing whitespace; are you certain this is correct?" ) 
+                    log.warning( "BIP-39 Seed Passphrase (decrypt) contains leading/trailing whitespace; are you certain this is correct?" )
                 passphrase	= pswd.encode( 'UTF-8' )
             seed		= recover_bip39(
                 mnemonic	= data.strip(),

@@ -1184,6 +1184,7 @@ shannon_entropy.shannon_limits	= {  # noqa: E305
     }
 }
 
+
 def scan_entropy(
     entropy: bytes,
     strides: Optional[Union[int,Tuple[int,int]]] = None,  # If only a specific stride/s makes sense, eg. for ASCII symbols
