@@ -87,7 +87,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
 
    For BIP-39, the number of groups is always 1, and the number of mnemonics required for that group
    is always 1.  This selection is both insecure (easy to accidentally disclose) and unreliable
-   (easy to accidentally lose), but since most hardware wallets, *only* accept BIP-39 phrases, we
+   (easy to accidentally lose), but since most hardware wallets *only* accept BIP-39 phrases, we
    also provide a way to /backup your BIP-39 phrase/ using SLIP-39!
 
    For SLIP-39, you specify a "group_threshold" of /how many/ of your groups must be successfully
@@ -251,7 +251,7 @@ recover your accounts to your Ledger (or other) hardware wallet.
     While the SLIP-39 Seed is not cryptocurrency-specific (any wallet for any cryptocurrency can be
     derived from it), each type of cryptocurrency has its own standard derivation path
     (eg. =m/44'/3'/0'/0/0= for DOGE), and its own address representation (eg. Bech32 at
-    =m/84'/0'/0'/0/0= for BTC eg. =bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s=.
+    =m/84'/0'/0'/0/0= for BTC eg. =bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s=).
 
     When you import your SLIP-39 Seed into a Trezor, you gain access to all derived HD
     cryptocurrency wallets supported directly by that hardware wallet, and *indirectly*, to any coin
@@ -519,6 +519,15 @@ recover your accounts to your Ledger (or other) hardware wallet.
    : 2022-10-05 16:36:16 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qpksxy2n5ct67du5wjytgntuw9dl99uwews2wg5
 
    #+LATEX: }
+
+*** Pipelining Backup of a BIP-39 Mnemonic Phrase
+
+    A primary use case for =python-slip39= will be to backup an existing BIP-39 Mnemonic Phrase to
+    SLIP-39 cards, so here it is:
+
+    : python3 -m slip39.recovery --bip39 --entropy \
+    :     --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+    :         | python3 -m slip39 --using-bip39 --secret -
 
 ** Generation of Addresses
 
@@ -1253,11 +1262,11 @@ recover your accounts to your Ledger (or other) hardware wallet.
    generate each HD Wallet account's private key.
 
    Furthermore, there is no point in the BIP-39 Seed Entropy to account generation where we *could*
-   introduce a known 128-bit seed and produce a known Ethereum wallet from it, other than as the
+   introduce a known 128-bit seed and produce a known Ethereum wallet from it, other than at the
    very beginning.
 
    Therefore, our BIP-39 Backup via SLIP-39 strategy must focus on backing up the original 128- to
-   256-bit Seed Entropy.
+   256-bit Seed /Entropy/, *not* the output Seed data!
 
 ** BIP-39 Backup via SLIP-39
 
@@ -1268,10 +1277,10 @@ recover your accounts to your Ledger (or other) hardware wallet.
    *without the passphrase*, but does not support recovery using hardware wallets; you must output
    "Paper Wallets" and use them to recover the Cryptocurrency funds.
 
-   The second "Best Recovery: Using BIP-39" allows us to recover the accounts to /any/ standard
-   BIP-39 hardware wallet!  However, the SLIP-39 Mnemonics are *not* compatible with standard
-   SLIP-39 wallets like the Trezor "Model T" -- you have to use the recovered BIP-39 Mnemonic phrase
-   to recover the hardware wallet.
+   The second "Best Recovery: Using Recovered BIP-39 Mnemonic Phrase" allows us to recover the
+   accounts to /any/ standard BIP-39 hardware wallet!  However, the SLIP-39 Mnemonics are *not*
+   compatible with standard SLIP-39 wallets like the Trezor "Model T" -- you have to use the
+   recovered BIP-39 Mnemonic phrase to recover the hardware wallet.
    
 *** Emergency Recovery: Using Recovered Paper Wallets
 
