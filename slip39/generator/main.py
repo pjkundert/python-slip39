@@ -9,7 +9,7 @@ from serial		import Serial
 
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
-from ..defaults		import BITS, BAUDRATE
+from ..defaults		import BITS, BAUDRATE, CRYPTO_PATHS
 from ..			import Account, cryptopaths_parser
 from ..api		import accountgroups, RANDOM_BYTES
 
@@ -87,6 +87,9 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                      help=f"Specify crypto address formats: {', '.join( Account.FORMATS )}; default: " + ', '.join(
                          f"{c}:{Account.address_format(c)}" for c in Account.CRYPTO_NAMES.values()
                      ))
+    ap.add_argument( '--xpub', default=False, action='store_true',
+                     help="Output xpub... instead of cryptocurrency wallet address (and trim non-hardened default path segments)" )
+    ap.add_argument( '--no-xpub', dest='xpub', action='store_false', help="Inhibit output of xpub (compatible w/ pre-v10.0.0)" )
     ap.add_argument( '-c', '--cryptocurrency', action='append',
                      default=[],
                      help="A crypto name and optional derivation path (default: \"ETH:{Account.path_default('ETH')}\"), optionally w/ ranges, eg: ETH:../0/-" )
@@ -135,10 +138,16 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         assert args.path.startswith( 'm/' ) or ( args.path.startswith( '..' ) and args.path.lstrip( '.' ).startswith( '/' )), \
             "A --path must start with 'm/', or '../', indicating intent to replace 1 or more trailing components of each cryptocurrency's derivation path"
 
-    # If any --format <crypto>:<format> address formats provided
+    # If any --format <crypto>:<format> address formats provided.  If not represented in
+    # --cryptocurrency, add it; specifying a format implies interest in that cryptocurrency.
+    if not args.cryptocurrency:
+        args.cryptocurrency	= list( CRYPTO_PATHS )  # the defaults, if none provided
     for cf in args.format:
         try:
-            Account.address_format( *cf.split( ':' ) )
+            crypto,format	= cf.split( ':' )
+            Account.address_format( crypto, format=format )
+            if not any( k.startswith( crypto ) for k in args.cryptocurrency ):
+                args.cryptocurrency.append( crypto )
         except Exception as exc:
             log.error( f"Invalid address format: {cf}: {exc}" )
             raise
@@ -252,7 +261,22 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
     # ...else...
     # Transmitting.
-    cryptopaths			= cryptopaths_parser( args.cryptocurrency, edit=args.path )
+
+    # What cryptocurrency addresses are requested?  If --xpub, then for those with "default" paths,
+    # trim off the non-hardened components.  In other words, if
+    #
+    #     --crypto BTC
+    #
+    # is specified, emit BTC "bc1..." bech32 addresses at m/84'/0'/0'/0/0, m/84'/0'/0'/0/1, ...
+    #
+    # However, if
+    #
+    #     --xpub --crypto BTC
+    #
+    # is specified, emit BTC "zpub..." xpubkeys at m/84'/0'/0', m/84'/0'/1', ...
+    cryptopaths			= cryptopaths_parser(
+        args.cryptocurrency, edit=args.path, hardened_defaults=args.xpub
+    )
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow
@@ -343,6 +367,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
 
         while not accountgroups_output(
             group	= group,
+            xpub	= args.xpub,
             index	= index if args.enumerated else None,
             cipher	= cipher,
             nonce	= nonce,

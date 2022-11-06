@@ -24,6 +24,7 @@ import logging
 import math
 import re
 import secrets
+import string
 import warnings
 
 from functools		import wraps
@@ -442,18 +443,58 @@ class Account:
         self.from_path( path )
         return self
 
+    def from_xpubkey( self, xpubkey: str, path: str = None ) -> "Account":
+        """Derive the Account from the supplied xpubkey and (optionally) path; uses default
+        derivation path for the Account address format, if None provided.
+
+        Since this xpubkey may have been generated at an arbitrary path, eg.
+
+            m/44'/60'/0'
+
+        any subsequent path provided, such as "m/0/0" will give us the address at
+        effective path:
+
+            m/44'/60'/0'/0/0
+
+        However, if we ask for the path from this account, it will return:
+
+            m/0/0
+
+        It is impossible to correctly recover any "hardened" accounts from an xpubkey, such as
+        "m/1'/0".  These would need access to the private key material, which is missing.
+        Therefore, the original account (or an xprivkey) would be required to access the desired
+        path:
+
+            m/44'/60'/0'/1'/0
+
+        """
+        self.hdwallet.from_xpublic_key( xpubkey )
+        self.from_path( path )
+        return self
+
+    def from_xprvkey( self, xprvkey: str, path: str = None ) -> "Account":
+        self.hdwallet.from_xpublic_key( xprvkey )
+        self.from_path( path )
+        return self
+
     def from_path( self, path: str = None ) -> "Account":
         """Change the Account to derive from the provided path.
 
         If a partial path is provided (eg "...1'/0/3"), then use it to replace the given segments in
         current (or the default) account path, leaving the remainder alone.
 
+        If the derivation path is empty (only "m/") then leave the Account at clean_derivation state
+
         """
         from_path		= self.path or Account.path_default( self.crypto, self.format )
         if path:
             from_path		= path_edit( from_path, path )
         self.hdwallet.clean_derivation()
-        self.hdwallet.from_path( from_path )
+        # Valid HD wallet derivation paths always start with "m/"
+        if not ( from_path and len( from_path ) >= 2 and from_path.startswith( "m/" ) ):
+            raise ValueError( f"Unrecognized HD wallet derivation path: {from_path!r}" )
+        if len( from_path ) > 2:
+            self.hdwallet.from_path( from_path )
         return self
 
     @property
@@ -515,10 +556,12 @@ class Account:
     @property
     def key( self ):
         return self.hdwallet.private_key()
+    prvkey		= key
 
     @property
     def xkey( self ):
         return self.hdwallet.xprivate_key()
+    xprvkey		= xkey
 
     @property
     def pubkey( self ):
@@ -697,9 +740,39 @@ def path_sequence(
                 values[k]	= next( viters[k], None )
 
 
-def cryptopaths_parser( cryptocurrency, edit=None ):
+def path_hardened( path ):
+    """Remove any non-hardened components from the end of path, eg:
+
+    >>> path_hardened( "m/84'/0'/0'/1/2" )
+    ("m/84'/0'/0'", 'm/1/2')
+    >>> path_hardened( "m/1" )
+    ('m/', 'm/1')
+    >>> path_hardened( "m/1'" )
+    ("m/1'", 'm/')
+    >>> path_hardened( "m/" )
+    ('m/', 'm/')
+    >>> path_hardened( "m/1/2/3'/4" )
+    ("m/1/2/3'", 'm/4')
+
+    Returns  the two components as a tuple of two paths
+    """
+    segs			= path.split( '/' )
+    # Always leaves the m/ on the hard path
+    for hardened in range( 1, len( segs ) + 1 ):
+        if not any( "'" in s for s in segs[hardened:] ):
+            break
+    else:
+        log.debug( f"No non-hardened path segments in {path}" )
+
+    hard			= 'm/' + '/'.join( segs[1:hardened] )
+    soft			= 'm/' + '/'.join( segs[hardened:] )
+    return hard,soft
+
+
+def cryptopaths_parser( cryptocurrency, edit=None, hardened_defaults=False ):
     """Generate a standard cryptopaths list, from the given sequnce of (<crypto>,<paths>) or
-    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS).
+    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS, optionally w/ only the hardened
+    portion of the path, eg. omitting the trailing ../0/0).
 
     Adjusts the provided derivation paths by an optional eg. "../-" path adjustment.
 
@@ -716,6 +789,8 @@ def cryptopaths_parser( cryptocurrency, edit=None ):
         crypto			= Account.supported( crypto )
         if paths is None:
             paths		= Account.path_default( crypto )
+            if hardened_defaults:
+                paths,_		= path_hardened( paths )
         if edit:
             paths		= path_edit( paths, edit )
         cryptopaths.append( (crypto,paths) )
@@ -950,15 +1025,43 @@ def account(
     """Generate an HD wallet Account from the supplied master_secret seed, at the given HD derivation
     path, for the specified cryptocurrency.
 
+    If the master_secret is bytes, it is used as-is.  If a str, then we generally expect it to be
+    hex.  However, this is where we can detect alternatives like "{x,y,z}{pub,priv}key...".  These
+    are identifiable by their prefix, which is incompatible with hex, so there is no ambiguity.
+
     """
-    acct			= Account(
-        crypto		= crypto or 'ETH',
-        format		= format,
-    ).from_seed(
-        seed		= master_secret,
-        path		= path,
-    )
-    log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {path}" )
+    if isinstance( master_secret, bytes ) or all( c in string.hexdigits for c in master_secret ):
+        acct			= Account(
+            crypto	= crypto or 'ETH',
+            format	= format,
+        )
+        acct.from_seed(
+            seed	= master_secret,
+            path	= path,
+        )
+        log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {path}" )
+    else:
+        # See if we recognize the prefix as a {x,y,z}pub... or .prv...  Get the bound function for
+        # initializing the seed.  Also, deduce the default format from the x/y/z+pub/prv.
+        default_fmt,from_method	= {
+            'xpub': ('legacy', Account.from_xpubkey),
+            'xprv': ('legacy', Account.from_xprvkey),
+            'ypub': ('segwit', Account.from_xpubkey),
+            'yprv': ('segwit', Account.from_xprvkey),
+            'zpub': ('bech32', Account.from_xpubkey),
+            'zprv': ('bech32', Account.from_xprvkey),
+        }.get( master_secret[:4], (None,None) )
+        if from_method is None:
+            raise ValueError(
+                f"Only x/y/z + pub/prv prefixes supported; {master_secret[:8]+'...'!r} prefix supplied" )
+        if format is None:
+            format		= default_fmt
+        acct			= Account(
+            crypto	= crypto or 'ETH',
+            format	= format
+        )
+        from_method( acct, master_secret, path )  # It's an unbound method, so pass the instance
+
     return acct
 
 

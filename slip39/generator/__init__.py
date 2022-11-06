@@ -196,6 +196,7 @@ def file_outputline(
 
 def accountgroups_output(
     group,
+    xpub	= False,
     index	= None,
     cipher	= None,
     nonce	= None,
@@ -241,7 +242,7 @@ def accountgroups_output(
 
     # Emit the (optionally encrypted and indexed) accountgroup record.
     payload			= json.dumps([
-        (acct.crypto, acct.path, acct.address) if isinstance( acct, Account ) else acct
+        (acct.crypto, acct.path, (acct.xpubkey if xpub else acct.address )) if isinstance( acct, Account ) else acct
         for acct in group
     ])
     if cipher:
