@@ -94,7 +94,7 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
         # no features suffix will be assumed to have the -Regular suffix.
         fname_best		= None
         for fname in sorted( self.font_dir.glob( '*.ttf' ) ):
-            log.info( f"Evaluating {family=} + {features=} against:  {fname}" )
+            log.debug( f"Evaluating {family=} + {features=} against:  {fname}" )
             # Eg "DejaVuSansMono-BoldOblique.ttf" --> "dejavusansmono", "boldoblique"
             fname_segments	= fname.stem.split( '-', 2 )		# the file name w/o path or suffix
             fname_family	= fname_segments[0].lower()
@@ -112,16 +112,15 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
                 # one currently found?  Eg. Font-Bold.ttf better than Font-Oblique.ttf, if no
                 # Font.ttf or Font-Regular.ttf
                 if fname_best is None or len( fname.stem ) < len( fname_best.stem ):
-                    log.info( f"Font named {family=} + {features=} matching: {fname} and better than {fname_best}" )
+                    log.debug( f"Font named {family=} + {features=} matching: {fname} and better than {fname_best}" )
                     fname_best	= fname
                 else:
-                    log.info( f"Font named {family=} + {features=} matching: {fname}, but worse than  {fname_best}" )
+                    log.debug( f"Font named {family=} + {features=} matching: {fname}, but worse than  {fname_best}" )
                 continue
-            log.info( f"Font named {family=} + {features=} no match: {fname}" )
+            log.debug( f"Font named {family=} + {features=} no match: {fname}" )
         if fname_best:
-            log.warning( f"Font named {family=} + {features=} loading:  {fname_best} (as '{family}{style}')" )
+            log.info( f"Font named {family=} + {features=} loading:  {fname_best} (as '{family}{style}')" )
             self.add_font( family=family, style=style, fname=str( fname_best ))
-            log.debug( f"Fonts now: {commas( self.fonts, final_and=True )}" )
         else:
             log.warning( f"Font name {family=} and {features=} not found for: {fontkey}" )
             raise fpdf.FPDFException( f"TTF Font file not found for: {fontkey}" )

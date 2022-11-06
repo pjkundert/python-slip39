@@ -17,7 +17,7 @@ from collections	import deque
 
 import shamir_mnemonic
 
-from .api		import create, account
+from .api		import create, account, path_hardened
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
 from .recovery.entropy	import fft, ifft, pfft, dft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
@@ -334,17 +334,7 @@ def test_recover_bip39_vectors():
         #       account (from its xpubkey at hardened path + the remaining path) are identical (xpub
         #       will be different, but will produce the same address
         log.info( f"Testing recovery from xpub, generating sub-addresses for {acct.path}" )
-        path			= acct.path.split('/')
-        # Always leaves the m/ on the hard path
-        for hardened in range( 1, len( path )):
-            if not any( "'" in seg for seg in path[hardened:] ):
-                break
-        else:
-            log.debug( f" - No non-hardened path segments in {acct.path}" )
-            continue
-
-        hard			= 'm/' + '/'.join( path[1:hardened] )
-        soft			= 'm/' + '/'.join( path[hardened:] )
+        hard,soft		= path_hardened( acct.path )
         log.debug( f"BIP-44 HD path hard: {hard:14}, soft: {soft:8}" )
         acct.from_path( hard )
         xpubkey			= acct.xpubkey

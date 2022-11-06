@@ -490,7 +490,7 @@ class Account:
         if path:
             from_path		= path_edit( from_path, path )
         self.hdwallet.clean_derivation()
-        # Valid DH wallet derivation paths always start with "m/"
+        # Valid HD wallet derivation paths always start with "m/"
         if not ( from_path and len( from_path ) >= 2 and from_path.startswith( "m/" ) ):
             raise ValueError( f"Unrecognized HD wallet derivation path: {from_path!r}" )
         if len( from_path ) > 2:
@@ -740,9 +740,39 @@ def path_sequence(
                 values[k]	= next( viters[k], None )
 
 
-def cryptopaths_parser( cryptocurrency, edit=None ):
+def path_hardened( path ):
+    """Remove any non-hardened components from the end of path, eg:
+
+    >>> path_hardened( "m/84'/0'/0'/1/2" )
+    ("m/84'/0'/0'", 'm/1/2')
+    >>> path_hardened( "m/1" )
+    ('m/', 'm/1')
+    >>> path_hardened( "m/1'" )
+    ("m/1'", 'm/')
+    >>> path_hardened( "m/" )
+    ('m/', 'm/')
+    >>> path_hardened( "m/1/2/3'/4" )
+    ("m/1/2/3'", 'm/4')
+
+    Returns  the two components as a tuple of two paths
+    """
+    segs			= path.split( '/' )
+    # Always leaves the m/ on the hard path
+    for hardened in range( 1, len( segs ) + 1 ):
+        if not any( "'" in s for s in segs[hardened:] ):
+            break
+    else:
+        log.debug( f"No non-hardened path segments in {path}" )
+
+    hard			= 'm/' + '/'.join( segs[1:hardened] )
+    soft			= 'm/' + '/'.join( segs[hardened:] )
+    return hard,soft
+
+
+def cryptopaths_parser( cryptocurrency, edit=None, hardened_defaults=False ):
     """Generate a standard cryptopaths list, from the given sequnce of (<crypto>,<paths>) or
-    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS).
+    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS, optionally w/ only the hardened
+    portion of the path, eg. omitting the trailing ../0/0).
 
     Adjusts the provided derivation paths by an optional eg. "../-" path adjustment.
 
@@ -759,6 +789,8 @@ def cryptopaths_parser( cryptocurrency, edit=None ):
         crypto			= Account.supported( crypto )
         if paths is None:
             paths		= Account.path_default( crypto )
+            if hardened_defaults:
+                paths,_		= path_hardened( paths )
         if edit:
             paths		= path_edit( paths, edit )
         cryptopaths.append( (crypto,paths) )

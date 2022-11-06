@@ -148,6 +148,7 @@ console_scripts			= [
     'slip39-recovery	= slip39.recovery.main:main',
     'slip39-generator	= slip39.generator.main:main',
     'slip39-gui		= slip39.gui.main:main',
+    'slip39-cli		= slip39.cli:cli',
 ]
 
 entry_points			= {
@@ -160,6 +161,7 @@ package_dir			= {
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
+    "slip39.cli":		"./slip39/cli",
 }
 
 package_data			= {
