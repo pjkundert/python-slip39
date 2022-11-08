@@ -74,8 +74,7 @@ help:
 	@echo "  print-PLATFORM		  prints the detected PLATFORM"
 
 test:
-	cd slip39 && $(PY3TEST)
-
+	$(PY3TEST)
 
 analyze:
 	flake8 -j 1 --max-line-length=200 \
@@ -657,10 +656,10 @@ clean:
 
 # Run only tests with a prefix containing the target string, eg test-blah
 test-%:
-	cd slip39 && $(PY3TEST) *$*_test.py
+	slip39/*$*_test.py
 
 unit-%:
-	cd slip39 && $(PY3TEST) -k $*
+	$(PY3TEST) -k $*
 
 
 #

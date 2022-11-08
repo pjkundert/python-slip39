@@ -1,9 +1,10 @@
 build
+cx_Freeze	>= 6.12
 flake8
 pip
-pytest
-setuptools
-wheel
 pyinstaller	>= 5.5
-cx_Freeze	>= 6.12
+pytest		>=7.2.0,<8
+pytest-cov	>=4.0.0,<5
+setuptools
 tabulate
+wheel

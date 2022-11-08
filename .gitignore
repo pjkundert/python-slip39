@@ -26,3 +26,4 @@ dist/
 .eggs
 private_keys
 images/SLIP-39.iconset
+.coverage
