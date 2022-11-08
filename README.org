@@ -36,12 +36,13 @@ Trezor supports these, and they can only be created "manually".  Writing down 5 
 words is difficult, error-prone and time consuming.
 
 The [[https://github.com/pjkundert/python-slip39.git][python-slip39]] project (and the [[https://slip39.com/app][SLIP-39 macOS/win32 App]]) exists to assist in the safe creation
-and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Ethereum HD Wallet]] seeds and derived accounts, with various SLIP-39 sharing
-parameters.  It generates the new random wallet seed, and generates the expected standard Ethereum
-account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) and Bitcoin accounts (at Bech32
-derivation path =m/84'/0'/0'/0/0= by default), with wallet address and QR code (compatible with
-Trezor derivations).  It produces the required SLIP-39 phrases, and outputs a single PDF containing
-all the required printable cards to document the seed (and the specified derived accounts).
+and documentation of [[https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87][Hierarchical Deterministic (HD) Wallet]] seeds and derived accounts, with
+various SLIP-39 sharing parameters.  It generates the new random wallet seed, and generates the
+expected standard Ethereum account(s) (at [[https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2][derivation path]] =m/44'/60'/0'/0/0= by default) and Bitcoin
+accounts (at Bech32 derivation path =m/84'/0'/0'/0/0= by default), with wallet address and QR code
+(compatible with Trezor derivations).  It produces the required SLIP-39 phrases, and outputs a
+single PDF containing all the required printable cards to document the seed (and the specified
+derived accounts).
 
 Output of BIP-38 or JSON encrypted Paper Wallets is supported, for import into standard software
 cryptocurrency wallets.
