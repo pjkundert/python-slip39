@@ -74,8 +74,7 @@ help:
 	@echo "  print-PLATFORM		  prints the detected PLATFORM"
 
 test:
-	cd slip39 && $(PY3TEST)
-
+	$(PY3TEST)
 
 analyze:
 	flake8 -j 1 --max-line-length=200 \
@@ -166,12 +165,12 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	$(PY3) -m build
 	@ls -last dist
 
-# Install from wheel, including all optional extra dependencies
+# Install from wheel, including all optional extra dependencies (except dev)
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
 
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[gui,dev,serial,wallet]
+	$(PY3) -m pip install --force-reinstall $<[gui,serial,wallet]
 
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
@@ -657,10 +656,10 @@ clean:
 
 # Run only tests with a prefix containing the target string, eg test-blah
 test-%:
-	cd slip39 && $(PY3TEST) *$*_test.py
+	slip39/*$*_test.py
 
 unit-%:
-	cd slip39 && $(PY3TEST) -k $*
+	$(PY3TEST) -k $*
 
 
 #
