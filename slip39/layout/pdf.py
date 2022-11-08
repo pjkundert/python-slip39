@@ -32,7 +32,7 @@ import qrcode
 import fpdf		# FPDF, FlexTemplate, FPDF_FONT_DIR
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
-from ..util		import chunker, commas
+from ..util		import chunker
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
     FONTS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
