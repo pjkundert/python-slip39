@@ -222,35 +222,39 @@ related to the Seed.
    support a wide range of cryptocurrencies; presently, only BTC, ETH, XRP, LTC, BCH, USDC, and a
    few other lesser-known coins.
 
+   They also have a crypto-backed credit card which works well in Canada.
+
 ** Crypto.com
 
    Use my referral link for [[https://crypto.com/app/2x4hk92dnf][Crypto.com (referral code: 2x4hk92dnf)]] to sign up for Crypto.com and we
    both get $25 USD :)
 
    The Crypto.com exchange has many more coins available, as well as a crypto-funded credit card
-   that presently works in Canada.
+   that works in Canada.
 
 ** Protecting your SLIP-39 Cards
 
    Protect your printed SLIP-39 cards from water damage by laminating them in plastic or storing
-   them in [[https://amzn.to/3KxvQ1G][foil ziplock bags]] before [[https://amzn.to/3HCX8lv][mailing them]].
+   them in [[https://amzn.to/3EgdfGb][foil ziplock bags]] before [[https://amzn.to/3G5zOjk][mailing them]].
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=ef9c22a5d125ab5b1a8d3f3cd27456fb"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=06e0f5d889c93f5427c379ddc5fa6857"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=e584b2c9a1ab8e3b9451241d50e99994"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=d36eaab43ae10799576d1bf6aa06db48"></iframe>
    #+END_EXPORT
 
    Print the SLIP-39 cards and cut them out, and then lay them out with 1/2" margins (so you can cut
-   them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3K6wp2p][self-adhesive full-page
-   laminating sheets]] - no machine required (or [[https://amzn.to/3vyyKPw][index-card size]] sheets), 
+   them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3NRr9Tr][full-page self-adhesive]] (or
+   [[https://amzn.to/3G8NQ3w][index-card size]]) laminating sheets -- no machine required.
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00007E7D2&linkId=608ce5dd44a7a227327c9000d6442c92"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=4ef3861c37b523826fcf6d3a87349890"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B06ZY31ZB3&linkId=9450e15b915a57d90c9a3172194d5269"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=2496ae94b1c07ac33bac10452ca754d1"></iframe>
    #+END_EXPORT
-   or with a [[https://amzn.to/3IyMkGt][heat-laminating machine]] in [[https://amzn.to/3C1N3NI][full-page pouches]] (or in [[https://amzn.to/35z7RA5][index-card size pouches]]).
+
+   Ideally, use a [[https://amzn.to/3UJqBkB][heat-laminating machine]] in [[https://amzn.to/3G4ZmNu][full-page pouches]] (or in [[https://amzn.to/3G4Zuws][index-card size pouches]]).  This is
+   the best option, in my opinion.
    #+BEGIN_EXPORT html
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=12211cd757266604642e6fb78d04377d"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=dcc0671406aa42d30b3e09a1cc08154f"></iframe>
-   <iframe style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=6c8f34fe77e3b87e6f8c53e3485bf594"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=0513e65d25ae54d508452fd8336bd981"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=62ebedd04e75446cc7e35f6333886825"></iframe>
+   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=9561218d8582a651832712b8badd2e09"></iframe>
    #+END_EXPORT
    
 * Privacy Policy

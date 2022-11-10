@@ -193,8 +193,8 @@ The [python-slip39] project (and the SLIP-39-app macOS/win32 App) exists to
 assist in the safe creation and documentation of Hierarchical Deterministic (HD)
 Wallet seeds and derived accounts, with various SLIP-39 sharing parameters.  It
 generates the new random wallet seed, and generates the expected standard
-Ethereum account(s) (at derivation path `m/44'/60'/0'/0/0' by default) and
-Bitcoin accounts (at Bech32 derivation path `m/84'/0'/0'/0/0' by default), with
+Ethereum account(s) (at derivation path `m/44'/60'/0'/0/0'` by default) and
+Bitcoin accounts (at Bech32 derivation path `m/84'/0'/0'/0/0'` by default), with
 wallet address and QR code (compatible with Trezor derivations).  It produces
 the required SLIP-39 phrases, and outputs a single PDF containing all the
 required printable cards to document the seed (and the specified derived

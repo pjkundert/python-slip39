@@ -166,19 +166,18 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 	@ls -last dist
 
 # Install from wheel, including all optional extra dependencies (except dev)
+install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
+	$(PY3) -m pip install --force-reinstall $<[gui,wallet,serial]
+
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
-
-install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[gui,serial,wallet]
-
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
 # 
 # Mac:  To build the .dmg installer, run:
 #    make clean
-#    make installer  # continue running every couple of minuts 'til the App is notarized
+#    make installer  # continue running every couple of minutes 'til the App is notarized
 #
 installer:		$(INSTALLER)
 

@@ -285,6 +285,8 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   presently, only BTC, ETH, XRP, LTC, BCH, USDC, and a few other
   lesser-known coins.
 
+  They also have a crypto-backed credit card which works well in Canada.
+
 
 [Netcoins.app (referral code: 5YO1MZ)]
 <https://netcoins.app/r?ac=5YO1MZ>
@@ -297,7 +299,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   sign up for Crypto.com and we both get $25 USD :)
 
   The Crypto.com exchange has many more coins available, as well as a
-  crypto-funded credit card that presently works in Canada.
+  crypto-funded credit card that works in Canada.
 
 
 [Crypto.com (referral code: 2x4hk92dnf)]
@@ -312,25 +314,25 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   them].
   Print the SLIP-39 cards and cut them out, and then lay them out with
   1/2" margins (so you can cut them out after lamination and retain 1/4"
-  borders), either with [self-adhesive full-page laminating sheets] - no
-  machine required (or [index-card size] sheets),
-  or with a [heat-laminating machine] in [full-page pouches] (or in
-  [index-card size pouches]).
+  borders), either with [full-page self-adhesive] (or [index-card size])
+  laminating sheets – no machine required.
+  Ideally, use a [heat-laminating machine] in [full-page pouches] (or in
+  [index-card size pouches]).  This is the best option, in my opinion.
 
 
-[foil ziplock bags] <https://amzn.to/3KxvQ1G>
+[foil ziplock bags] <https://amzn.to/3EgdfGb>
 
-[mailing them] <https://amzn.to/3HCX8lv>
+[mailing them] <https://amzn.to/3G5zOjk>
 
-[self-adhesive full-page laminating sheets] <https://amzn.to/3K6wp2p>
+[full-page self-adhesive] <https://amzn.to/3NRr9Tr>
 
-[index-card size] <https://amzn.to/3vyyKPw>
+[index-card size] <https://amzn.to/3G8NQ3w>
 
-[heat-laminating machine] <https://amzn.to/3IyMkGt>
+[heat-laminating machine] <https://amzn.to/3UJqBkB>
 
-[full-page pouches] <https://amzn.to/3C1N3NI>
+[full-page pouches] <https://amzn.to/3G4ZmNu>
 
-[index-card size pouches] <https://amzn.to/35z7RA5>
+[index-card size pouches] <https://amzn.to/3G4Zuws>
 
 
 3 Privacy Policy
