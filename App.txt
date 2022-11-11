@@ -55,8 +55,7 @@ Table of Contents
 3. Privacy Policy
 
 
-[Trezor "Model T"]
-<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+[Trezor "Model T"] <https://trezor.go2cloud.org/SH1Y>
 
 [Ledger Nano]
 <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
@@ -211,9 +210,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   accounts.
 
   We recommend the Trezor "Model T" for this reason.  No other hardware
-  wallet yet supports direct, on-screen SLIP-39 Seed recovery.  This
-  feature is, simply, so fundamentally important for cryptocurrency Seed
-  security and reliability that we consider it a necessity.
+  wallet yet supports direct, on-screen SLIP-39 Seed recovery.
 
   If you already have one of the less expensive Trezor wallets that only
   support BIP-39 backup, we also support those, using the same BIP-39
@@ -221,8 +218,7 @@ Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
   traditional hardware wallets.
 
 
-[Trezor "Model T"]
-<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+[Trezor "Model T"] <https://trezor.go2cloud.org/SH1Y>
 
 
 2.2 Ledger

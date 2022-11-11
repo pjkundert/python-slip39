@@ -55,11 +55,11 @@ sets of 20 words is difficult, error-prone and time consuming.
   phrases, and outputs a single PDF containing all the required printable cards to document the seed
   (and the specified derived accounts).
 
-  On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without*
-  trusting this program) and the PDF saved to a USB drive for printing (or directly printed without
+  On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without
+  trusting this program*) and the PDF saved to a USB drive for printing (or directly printed without
   the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BNB,
   CRO and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
-  backed-up seed.  Recovery of the seed to a [[https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388][Trezor "Model T"]] is simple, by entering the mnemonics
+  backed-up seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] is simple, by entering the mnemonics
   right on the device.
 
   We also support the backup of existing insecure and unreliable 12- or 24-word BIP-39 Mnemonic
@@ -72,6 +72,10 @@ sets of 20 words is difficult, error-prone and time consuming.
 
   Output of BIP-38 or JSON encrypted Paper Wallets is also supported, for import into standard
   software cryptocurrency wallets.
+
+  #+CAPTION: SLIP-39 App GUI
+  #+ATTR_LATEX: :width 6in :options angle=0
+  [[./images/slip39.png]]
 
 * Security with Availability
 
