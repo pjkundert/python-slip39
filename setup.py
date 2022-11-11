@@ -189,36 +189,6 @@ creating such accounts is difficult; presently, only the Trezor supports
 these, and they can only be created "manually".  Writing down 5 or more
 sets of 20 words is difficult, error-prone and time consuming.
 
-The [python-slip39][1] project (and the SLIP-39-app macOS/win32 App) exists to
-assist in the safe creation and documentation of Hierarchical Deterministic (HD)
-Wallet seeds and derived accounts, with various SLIP-39 sharing parameters.  It
-generates the new random wallet seed, and generates the expected standard
-Ethereum account(s) (at derivation path `m/44'/60'/0'/0/0'` by default) and
-Bitcoin accounts (at Bech32 derivation path `m/84'/0'/0'/0/0'` by default), with
-wallet address and QR code (compatible with Trezor derivations).  It produces
-the required SLIP-39 phrases, and outputs a single PDF containing all the
-required printable cards to document the seed (and the specified derived
-accounts).
-
-On an secure (ideally air-gapped) computer, new seeds can safely be
-generated and the PDF saved to a USB drive for printing (or directly
-printed without the file being saved to disk.).  Presently, `slip39' can
-output example ETH, BTC, LTC, DOGE, BNB, CRO and XRP addresses derived
-from the seed, to /illustrate/ what accounts are associated with the
-backed-up seed.  Recovery of the seed to a [trezor-model-t][2] is simple,
-by entering the mnemonics right on the device.
-
-We also support backup of existing insecure and unreliable BIP-39
-recover phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware
-wallets like the [ledger-nano][3]!  Recover from your existing BIP-39
-Mnemonic, select "Using BIP-39", and generate a set of SLIP-39 Mnemonic
-cards.  Later, use the SLIP-39 App to recover from your SLIP-39 Mnemonic
-cards, click "Using BIP-39" to get your BIP-39 Mnemonic back, and use it
-to recover your accounts to your Ledger (or other) hardware wallet.
-
-Output of BIP-38 or JSON encrypted Paper Wallets is supported, for
-import into standard software cryptocurrency wallets.
-
 # Hardware Wallet "Seed" Configuration
 
 >  Your keys, your Bitcoin.  Not your keys, not your Bitcoin.
@@ -251,7 +221,6 @@ wallet.
 
 Output of BIP-38 or JSON encrypted Paper Wallets is also supported, for import into standard
 software cryptocurrency wallets.
-## on the Command Line
 
 [1]: <https://github.com/pjkundert/python-slip39.git> "python-slip39"
 
@@ -348,6 +317,8 @@ The whole toolchain is suitable for pipelining:
     2021-12-28 10:55:17 slip39           ETH m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
     2021-12-28 10:55:18 slip39.recovery  Recovered SLIP-39 secret with 4 (1st, 2nd, 7th, 8th) of 8 supplied mnemonics
     2021-12-28 10:55:18 slip39           ETH m/44'/60'/0'/0/0    : 0x68dD9B59D5dF605f4e9612E8b427Ab31187E2C54
+
+## SLIP-39 Mnemonic Cards PDF
 
 Here's an example of PDF containing the SLIP-39 recovery mnemonic cards produced:
 
