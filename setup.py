@@ -234,6 +234,11 @@ software cryptocurrency wallets.
 
 Download the SLIP-39 App from [slip39-download][5] for Windows (.msi) or macOS (.dmg).
 
+The Graphical User Interface (GUI) also supports Linux:
+
+    $ python3 -m pip install slip39[gui]
+    $ slip39-gui
+
 ![SLIP-39 App GUI][slip39-gui]
 
 [5]: <https://github.com/pjkundert/python-slip39/releases/latest> "SLIP-39 App Download"
