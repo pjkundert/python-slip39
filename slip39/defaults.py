@@ -159,3 +159,7 @@ COLOR				= [
     f"0x{__m}{__m}{__m}",  # Medium grey,
     f"0x{__d}{__d}{__d}",  # Dark grey,
 ]
+
+HOUR				= 60 * 60
+ETHERSCAN_MEMO_MAXAGE		= HOUR * 1
+ETHERSCAN_MEMO_MAXSIZE		= None

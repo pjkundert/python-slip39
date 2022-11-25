@@ -24,6 +24,8 @@ import sys
 
 from functools		import wraps
 
+log				= logging.getLogger( "util" )
+
 # util.timer
 #
 # Select platform appropriate timer function
@@ -85,6 +87,77 @@ def log_level( adjust ):
             min( log_levelmap.keys() )
         )
     ]
+
+
+def memoize( maxsize=None, maxage=None, log_at=None ):
+    """A very simple memoization wrapper based on (immutable) args only, for simplicity.  Any
+    keyword arguments must be immaterial to the successful outcome, eg. timeout, selection of
+    providers, etc..
+
+    Only successful (non-Exception) outcomes are cached!
+
+    Keeps track of the age (in seconds) and usage (count) of each entry, updating them on each call.
+    When an entry exceeds maxage, it is purged.  If the memo dict exceeds maxsize entries, 10% are
+    purged.
+
+    Optionally logs when we memoize something, at level log_at.
+    """
+    def decorator( func ):
+        @wraps( func )
+        def wrapper( *args, **kwds ):
+            now			= timer()
+            # A 0 hits count is our sentinel indicating args not memo-ized
+            last,hits		= wrapper._stat.get( args, (now,0) )
+            if not hits or ( maxage and ( now - last > maxage )):
+                entry = wrapper._memo[args] = func( *args, **kwds )
+                if log_at and log.isEnabledFor( log_at ):
+                    if hits:
+                        log.log( log_at, "{} Refreshed {!r} == {!r}".format( wrapper.__name__, args, entry ))
+                    else:
+                        log.log( log_at, "{} Memoizing {!r} == {!r}".format( wrapper.__name__, args, entry ))
+            else:
+                entry		= wrapper._memo[args]
+                #log.detail( "{} Remembers {!r} == {!r}".format( wrapper.__name__, args, entry ))
+            hits	       += 1
+            wrapper._stat[args] = (now,hits)
+
+            if maxsize and len( wrapper._memo ) > maxsize:
+                # Prune size, by ranking each entry by hits/age.  Something w/:
+                #
+                #   2 hits 10 seconds old > 1 hits 6 seconds old > 3 hits 20 seconds old
+                #
+                # Sort w/ the highest rated keys first, so we can just eject all those after 9/10ths of
+                # maxsize.
+                rating		= sorted(
+                    (
+                        (hits / ( now - last + 1 ), key)		# Avoids hits/0
+                        for key,(last,hits) in wrapper._stat.items()
+                    ),
+                    reverse	= True,
+                )
+                for rtg,key in rating[maxsize * 9 // 10:]:
+                    # log.detail( "{} Ejecting  {!r} == {!r} w/ rating {:7.2f}, stats: {}".format(
+                    #     wrapper.__name__, key, wrapper._memo[key], rtg, wrapper._stat[key] ))
+                    del wrapper._stat[key]
+                    del wrapper._memo[key]
+            return entry
+
+        wrapper._memo	= dict()		# { args: entry, ... }
+        wrapper._stat	= dict()		# { args: (<timestamp>, <count>), ... }
+
+        def stats( predicate=None, now=None ):
+            if now is None:
+                now		= timer()
+            cnt,age,avg		= 0,0,0
+            for key,(last,hits) in wrapper._stat.items():
+                if not predicate or predicate( *key ):
+                    cnt	       += 1
+                    age	       += now-last
+                    avg	       += hits
+            return cnt,age/(cnt or 1),avg/(cnt or 1)
+        wrapper.stats		= stats
+        return wrapper
+    return decorator
 
 
 def ordinal( num ):

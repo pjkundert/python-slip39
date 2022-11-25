@@ -2,13 +2,23 @@
 import json
 import os
 import pytest
+import random
 
+from string		import Template
+
+import requests
 import rlp
 import solcx
+
+from web3		import Web3
+from web3.contract	import normalize_address_no_ens
 
 from .multisend		import (
     make_trustless_multisend, build_recursive_multisend, simulate_multisends,
 )
+
+from .ethereum		import ETH_USD, GWEI_GAS, GWEI_ETH
+
 
 # Compiled with Solidity v0.3.5-2016-07-21-6610add with optimization enabled.
 # 
@@ -256,16 +266,12 @@ def test_solc_multitransferether():
         }
     }
 
-        
-def test_solc_multipayout():
 
-    solc_version		= "0.8.17"
-
-    multipayout_src		= """
+multipayout_template		= Template( """
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-// import "github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.5/contracts/security/ReentrancyGuard.sol";
+//import "github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.5/contracts/security/ReentrancyGuard.sol";
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
  *
@@ -372,31 +378,86 @@ contract MultiPayout is ReentrancyGuard {
      * the payout fail and revert.  Any payee who wishes to be paid should ensure that their address
      * will accept an incoming transfer of ETH.
      */
-     function payout() private nonReentrant {
-        uint256 gone		= move_pctx100_to( 0,     690, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b ))); //  6.90% to Dominion
-        gone			= move_pctx100_to( gone, 4000, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B ))); // 40.00% to Perry
-        gone			= move_pctx100_to( gone,    0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 ))); // (rest) to Amarissa
-    }
+    ${PAYOUT}
+}
+""" )
 
-    // Move 'pct' of the current .balance to 'dest', returning the new total 'done'
-    // For example, if we are:
-    // _done    == 469000000000000000 to begin with
-    // .balance == 531000000000000000 remains, and we are told to move
-    // _pct_x100== 10.50% == 1050
-    // NOTE: changing _pct.. from uint256 to uint16 reduces contract size by ~20 bytes; unknown gas cost savings
-    function move_pctx100_to( uint256 _gone, uint256 _pct_x100, address payable _to ) private returns ( uint256 ) {
-        uint256 value           = address(this).balance;
-        if ( _pct_x100 > 0 ) {
-            value               = ( value + _gone ) * _pct_x100 / 100;
-        }
-        // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
-        (bool sent, ) = _to.call{ value: value }( "" );
-        emit Payout( value, _to, sent );
-        return _gone + ( sent ? value : 0 );
+
+def multipayout_generate( addr_pct, scale=100 ):
+    """Produce payout function w/ fixed percentages to predefined addresses.  Precision """
+    payout		= "function payout() private nonReentrant {\n"
+    pct_tot		= 0
+    for i,(addr,pct) in enumerate( sorted( addr_pct.items(), key=lambda a_p: a_p[1] )):
+        if pct < 1/scale:
+            continue
+        payout	       += f"    {'gone' if i else 'uint256 gone':<16}"
+        payout	       += f"= move_pctx{scale}_to( {'gone,' if i else '0,':<5}"
+        pct_tot	       += pct
+        if ( scale - 1/scale ) <= pct_tot <= ( scale + 1/scale ):
+            pct		= 0
+        payout	       += f" {int(pct * scale):>{2+len(str(scale))}},"
+        payout	       += f" payable( address( {normalize_address_no_ens( addr )} )));\n"
+    payout	       += "}\n"
+    assert ( scale - 1/scale ) <= pct_tot <= ( scale + 1/scale ), \
+        f"Total payout percentages didn't sum to 100%, {pct_tot:9.4f}%"
+
+    payout	       += Template( """
+function move_pctx${SCALE}_to( uint256 _gone, uint256 _pct_x${SCALE}, address payable _to ) private returns ( uint256 ) {
+    uint256 value           = address(this).balance;
+    if ( _pct_x${SCALE} > 0 ) {
+        value               = ( value + _gone ) * _pct_x${SCALE} / ${SCALE};
     }
+    // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
+    (bool sent, ) = _to.call{ value: value }( "" );
+    emit Payout( value, _to, sent );
+    return _gone + ( sent ? value : 0 );
+}
+""" ).substitute( SCALE=str( scale ))
+    return payout
+
+
+def multipayout_solidity( *args, **kwds ):
+    payout		= multipayout_generate( *args, **kwds )
+    return multipayout_template.substitute( PAYOUT=payout )
+
+
+multipayout_defaults	=  {
+    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b':  6.90,
+    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 40.00,
+    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': 53.10,
+}
+
+def test_multipayout_generate():
+    payout		= multipayout_generate( multipayout_defaults )
+    print( payout )
+    assert payout == """\
+function payout() private nonReentrant {
+    uint256 gone    = move_pctx100_to( 0,      690, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )));
+    gone            = move_pctx100_to( gone,  4000, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )));
+    gone            = move_pctx100_to( gone,     0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )));
+}
+
+function move_pctx100_to( uint256 _gone, uint256 _pct_x100, address payable _to ) private returns ( uint256 ) {
+    uint256 value           = address(this).balance;
+    if ( _pct_x100 > 0 ) {
+        value               = ( value + _gone ) * _pct_x100 / 100;
+    }
+    // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
+    (bool sent, ) = _to.call{ value: value }( "" );
+    emit Payout( value, _to, sent );
+    return _gone + ( sent ? value : 0 );
 }
 """
-    multipayout_abi			= [
+
+
+def test_solc_multipayout_eth_tester():
+    """Use eth_tester directly to create a contract.  Doesn't allow interacting with the Goerli
+    test-chain; only local test instance.
+
+    """
+    solc_version		= "0.8.17"
+
+    multipayout_abi		= [
         {
             "inputs": [],
             "stateMutability": "payable",
@@ -426,28 +487,20 @@ contract MultiPayout is ReentrancyGuard {
             "type": "fallback"
         }
     ]
-    multipayout_contract		= bytes.fromhex(
+    multipayout_bytecode	= bytes.fromhex(
         "60806040526000470361001557610014610017565b5b005b60026000540361005c576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161005390610237565b60405180910390fd5b6002600081905550600061008860006102b2737f7458ef9a583b95dfd90c048d4b2d2f09f6da5b6100da565b90506100ab81610fa07394da50738e09e2f9ea0d4c15cf8dadfb4cfc672b6100da565b90506100cd81600073a29618aba937d2b3eeaf8abc0bc6877ace0a19556100da565b9050506001600081905550565b600080479050600084111561010f5760648486836100f89190610290565b61010291906102c4565b61010c9190610335565b90505b60008373ffffffffffffffffffffffffffffffffffffffff168260405161013590610397565b60006040518083038185875af1925050503d8060008114610172576040519150601f19603f3d011682016040523d82523d6000602084013e610177565b606091505b505090507f869016d06438b769e3d28ac8765c6daa53244a8a0b5390ce314f08a43b7bab0d8285836040516101ae93929190610455565b60405180910390a1806101c25760006101c4565b815b866101cf9190610290565b925050509392505050565b600082825260208201905092915050565b7f5265656e7472616e637947756172643a207265656e7472616e742063616c6c00600082015250565b6000610221601f836101da565b915061022c826101eb565b602082019050919050565b6000602082019050818103600083015261025081610214565b9050919050565b6000819050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b600061029b82610257565b91506102a683610257565b92508282019050808211156102be576102bd610261565b5b92915050565b60006102cf82610257565b91506102da83610257565b92508282026102e881610257565b915082820484148315176102ff576102fe610261565b5b5092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b600061034082610257565b915061034b83610257565b92508261035b5761035a610306565b5b828204905092915050565b600081905092915050565b50565b6000610381600083610366565b915061038c82610371565b600082019050919050565b60006103a282610374565b9150819050919050565b6103b581610257565b82525050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b60006104006103fb6103f6846103bb565b6103db565b6103bb565b9050919050565b6000610412826103e5565b9050919050565b600061042482610407565b9050919050565b61043481610419565b82525050565b60008115159050919050565b61044f8161043a565b82525050565b600060608201905061046a60008301866103ac565b610477602083018561042b565b6104846040830184610446565b94935050505056fea264697066735822122078fcfb53107492bdc7a721308a5f2bc4998d51094dd6e9e32ed36eb089988b7564736f6c63430008110033"
     )
 
     solcx.install_solc( version=solc_version )
-    multipayout_compile = solcx.compile_source(
-        multipayout_src,
+    multipayout_compile		= solcx.compile_source(
+        multipayout_solidity( multipayout_defaults ),
         output_values=["abi", "bin-runtime"],
         solc_version=solc_version,
     )
     print( json.dumps( multipayout_compile, indent=4 ))
     print( "Contract size == {} bytes".format( len( multipayout_compile['<stdin>:MultiPayout']['bin-runtime'] )))
-    assert multipayout_compile == {
-        '<stdin>:MultiPayout': {
-            'abi': 		multipayout_abi,
-            'bin-runtime':	multipayout_contract.hex(),
-        },
-        '<stdin>:ReentrancyGuard': {
-            "abi": [],
-            "bin-runtime": ""
-        }
-    }
+    assert multipayout_compile['<stdin>:MultiPayout']['abi'] == multipayout_abi
+
 
 
     # We have a contract compiled.  Lets instantiate it, in a test EVM
@@ -492,7 +545,7 @@ contract MultiPayout is ReentrancyGuard {
 
     multipayout_construct	=        {
         "from":				test_accounts[0],
-        "data":				multipayout_contract.hex(),
+        "data":				multipayout_compile['<stdin>:MultiPayout']['bin-runtime'],
         "value":			0,
         "gas":				300000,
         "max_fee_per_gas":		1000000000,
@@ -508,3 +561,100 @@ contract MultiPayout is ReentrancyGuard {
 
     mc				= t.get_transaction_by_hash( mc_hash ) 
     print( "Construct MultiPayout transaction: {}".format( json.dumps( mc, indent=4 )))
+
+
+def test_solc_multipayout_web3_tester():
+    """Use web3 tester
+
+    """
+    solc_version		= "0.8.17"
+    solcx.install_solc( version=solc_version )
+
+    # Fire up Web3, and get the list of accounts we can operate on
+    w3				= Web3( Web3.EthereumTesterProvider() )
+
+    print( "Web3 Tester Accounts:" )
+    for a in w3.eth.accounts:
+        print( " {} == {}".format( a, w3.eth.get_balance( a )))
+
+    w3.eth.default_account	= w3.eth.accounts[0]
+
+    # Generate a contract, targeting some of these accounts; avoid the first, as we'll be drawing on
+    # that one.
+    payout_pcts			= {
+        addr: random.random() * 100
+        for addr in w3.eth.accounts[1:]
+    }
+    unitize			= 100 / sum( payout_pcts.values() )
+    payout_pcts			= {
+        addr: pct * unitize
+        for addr,pct in payout_pcts.items()
+    }
+
+    payout_sol			= multipayout_solidity( payout_pcts )
+    print( payout_sol )
+    compiled_sol		= solcx.compile_source(
+        payout_sol,
+        output_values	= ['abi', 'bin'],
+        solc_version	= solc_version,
+    )
+    bytecode			= compiled_sol['<stdin>:MultiPayout']['bin']
+    abi				= compiled_sol['<stdin>:MultiPayout']['abi']
+
+
+    MultiPayout			= w3.eth.contract( abi=abi, bytecode=bytecode )
+
+    mc_cons_hash		= MultiPayout.constructor().transact()
+    print( "Web3 Tester Construct MultiPayout hash: {}".format( mc_cons_hash ))
+    mc_cons			= w3.eth.get_transaction( mc_cons_hash ) 
+    print( "Web3 Tester Construct MultiPayout transaction: {}".format( json.dumps( mc_cons, indent=4, default=str )))
+
+    mc_cons_receipt		= w3.eth.wait_for_transaction_receipt( mc_cons_hash )
+    print( "Web3 Tester Construct MultiPayout receipt: {}".format( json.dumps( mc_cons_receipt, indent=4, default=str )))
+
+    print( "Web3 Tester Construct MultiPayout Gas Used: {} == {}gwei == USD${:7.2f}".format(
+        mc_cons_receipt.gasUsed,
+        mc_cons_receipt.gasUsed * GWEI_GAS,
+        mc_cons_receipt.gasUsed * GWEI_GAS * ETH_USD / GWEI_ETH,
+    ))
+
+    print( "Web3 Tester Accounts; post-contract creation:" )
+    for a in w3.eth.accounts:
+        print( " {} == {}".format( a, w3.eth.get_balance( a )))
+
+    # We can work with the contract, but it doesn't have a direct external API -- just a fallback
+    # for receiving ETH.
+    multipayout			= w3.eth.contract(
+        address	= mc_cons_receipt.contractAddress,
+        abi	= abi,
+    )
+
+    # whatever			= w3.eth.account.create( 'Whatever' )
+    # print( "Web3 Tester Whatever account created: {}".format( whatever._address ))
+
+    # So, just send some ETH from the first account
+    
+    mc_send_hash		= w3.eth.send_transaction({
+        'to':		mc_cons_receipt.contractAddress,
+        'from':		w3.eth.accounts[0],
+        'nonce':	w3.eth.get_transaction_count( w3.eth.accounts[0] ),
+        'gas_price':	w3.eth.gas_price,
+        'gas':		100000,
+        'value':	w3.to_wei( .1, 'ether' ),
+    })
+
+    mc_send			= w3.eth.get_transaction( mc_send_hash )
+    print( "Web3 Tester Send ETH MultiPayout transaction: {}".format( json.dumps( mc_send, indent=4, default=str )))
+
+    mc_send_receipt		= w3.eth.wait_for_transaction_receipt( mc_send_hash )
+    print( "Web3 Tester Send ETH MultiPayout receipt: {}".format( json.dumps( mc_send_receipt, indent=4, default=str )))
+
+    print( "Web3 Tester Send ETH MultiPayout Gas Used: {} == {}gwei == USD${:7.2f}".format(
+        mc_send_receipt.gasUsed,
+        mc_send_receipt.gasUsed * GWEI_GAS,
+        mc_send_receipt.gasUsed * GWEI_GAS * ETH_USD / GWEI_ETH,
+    ))
+    
+    print( "Web3 Tester Accounts; post-send ETH:" )
+    for a in w3.eth.accounts:
+        print( " {} == {}".format( a, w3.eth.get_balance( a )))
