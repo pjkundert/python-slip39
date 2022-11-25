@@ -638,7 +638,7 @@ def write_pdfs(
                 if filepath is True:
                     filepath	= ''
                 pdf_path		= os.path.join( filepath, pdf_name ) if filepath else pdf_name
-                log.warning( f"Writing SLIP39-encoded wallet for {name!r} to: {pdf_path}" )
+                log.warning( f"Writing SLIP39{' backup for BIP-39' if using_bip39 else ''}-encoded wallet for {name!r} to: {pdf_path}" )
                 pdf.output( pdf_path )
             if printer is not None:  # if True, uses "default" printer
                 printer		= None if printer is True else printer

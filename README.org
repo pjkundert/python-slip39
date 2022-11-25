@@ -161,19 +161,21 @@ sets of 20 words is difficult, error-prone and time consuming.
    [[./images/slip39-cards.png]]
 
    Run the following to obtain a PDF file containing business cards with the default SLIP-39 groups
-   for a new account Seed named "Personal"; insert a USB drive to collect the output, and run:
+   for a new account Seed named "Personal" (usable with any hardware wallet with SLIP-39 support,
+   such as the Trezor "Model T") ; insert a USB drive to collect the output, and run:
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
    $ python3 -m pip install slip39        # Install slip39 in Python3
    $ cd /Volumes/USBDRIVE/                # Change current directory to USB
    $ python3 -m slip39 Personal           # Or just run "slip39 Personal"
-   2021-12-25 11:10:38 slip39           ETH m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-   2021-12-25 11:10:38 slip39           Wrote SLIP-39-encoded wallet for 'Personal' to:\
-     Personal-2021-12-22+15.45.36-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+   2022-11-22 05:35:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x0F04cab1855CE275bd098c918075373EB3944Ba3
+   2022-11-22 05:35:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qszvts5vyxy265er6ngk3ew4utx5sll2ck2m7m2
+   2022-11-22 05:35:22 slip39.layout    Writing SLIP39-encoded wallet for 'Personal' to:\
+     Personal-2022-11-22+05.35.22-ETH-0x0F04cab1855CE275bd098c918075373EB3944Ba3.pdf
    #+END_EXAMPLE
    #+LATEX: }
-  
+
    The resultant PDF will be output into the designated file.
   
    This PDF file contains business card sized SLIP-39 Mnemonic cards, and will print on a single
@@ -185,7 +187,27 @@ sets of 20 words is difficult, error-prone and time consuming.
    instead), add a =-v= (to see it logged in a tabular format), or =--text= to have it printed to
    stdout in full lines (ie. for pipelining to other programs).
 
-*** Paper Wallets
+*** BIP-39 Mnemonic Phrase Backup using SLIP-39
+
+    To obtain the Seed in BIP-39 format, with its original "entropy" backed up using SLIP-39
+    (supporting any BIP-39 hardware wallet, and recoverable from the Mnemonic cards using SLIP-39),
+    use the =--using-bip39= option:
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_EXAMPLE
+    $ slip39 --using-bip39 Personal-BIP-39
+    2022-11-22 05:47:13 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x927232296120343A89DeAb15F108a420087a2Ef3
+    2022-11-22 05:47:13 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qgs6xg5kvrrxp4579y22a4tf0d8me4dslwxjr9x
+    2022-11-22 05:47:15 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'Personal-BIP-39' to:\
+      Personal-BIP-39-2022-11-22+05.47.15-ETH-0x927232296120343A89DeAb15F108a420087a2Ef3.pdf
+    #+END_EXAMPLE
+    #+LATEX: }
+
+    This is the best approach, if you want a new Seed and need to support a BIP-39-only Hardware
+    Wallet. (If you already have a BIP-39 Mnemonic Phrase, see [[Pipelining Backup of a BIP-39
+    Mnemonic Phrase]])
+
+*** Paper Wallets for Software Wallet Support
 
     The Trezor hardware wallet natively supports the input of SLIP-39 Mnemonics.  However, most
     software wallets do not (yet) support SLIP-39.  So, how do we load the Crypto wallets produced

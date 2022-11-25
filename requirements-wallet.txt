@@ -1,2 +1,7 @@
-eth-account		>=0.7.0, <1
+eth-account		>=0.7.0,	<0.8
+eth-tester		>=0.8.0b1,	<0.9
+#solc-select		>=1.0.2,	<1.1
+#py-solc		>=3.2.0,	<3.3
+py-solc-x		>=1.1.1,	<1.2
+web3			>=6.0.0b8,	<6.1
 pycryptodome		>=3.15
