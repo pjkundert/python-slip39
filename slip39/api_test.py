@@ -21,7 +21,7 @@ from .recovery		import recover
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
 
 
-def test_account():
+def test_account_smoke():
     acct			= account( SEED_XMAS )
     assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
     assert acct.path == "m/44'/60'/0'/0/0"
@@ -30,6 +30,16 @@ def test_account():
     acct			= account( SEED_XMAS, path="m/44'/60'/0'/0/1" )
     assert acct.address == '0x3b774e485fC818F0f377FBA657dfbF92B46f8504'
     assert acct.path == "m/44'/60'/0'/0/1"
+    assert acct.pubkey == '03cbcf791b37011feab1c5d797cd76a3fa0f12ee5582adbe5aa4d8172a7bbaba5b'
+    assert acct.key == acct.prvkey == 'bf299fe7a7d948fdb98474557bbee73395e01f3a6a73638d45d345f9adb451fb'
+    assert acct.xpubkey == 'xpub6FVwqKQUrDre2ZPtAvcqR7GYW4662JTM7R1FGuwGAH3b1TjntLCbMa3HY7C1BR4ifXEtwfX63a69FEAcCSCgrgQZNd3WYgvKhAghRNucEc6'
+    assert acct.xprvkey == 'xprvA2WbRosb1rJLp5KR4u5q3yKox2FbcqjVkC5eUXXebwWc8fQeLntLomiogp7vVMZcGfB4vaKeWRJ6eQmHSPRk6W7AJRNx2TT3Ai825JwH9kG'
+    # And ensure we can round-trip the xprvkey (the x{pub/prv}keys encode other info, so won't be the same)
+    acct			= account( acct.xprvkey, path="m/" )
+    assert acct.path is None
+    assert acct.address == '0x3b774e485fC818F0f377FBA657dfbF92B46f8504'
+    assert acct.pubkey == '03cbcf791b37011feab1c5d797cd76a3fa0f12ee5582adbe5aa4d8172a7bbaba5b'
+    assert acct.key == acct.prvkey == 'bf299fe7a7d948fdb98474557bbee73395e01f3a6a73638d45d345f9adb451fb'
 
     acct			= account( SEED_XMAS, crypto='Bitcoin' )
     assert acct.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
@@ -50,6 +60,9 @@ def test_account():
     assert acct.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
     assert acct.path == "m/84'/0'/0'/0/0"
     assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
+    assert acct.prvkey == acct.key == '80d5082773a4d2a07ee667a772ca13a120a5fc9d61bcf5a32f9e7ccf731bc0e6'
+    assert acct.xpubkey == 'zpub6uMZYEpdewNa98z7Hge3R4GzeayoXCmtPUzFV7DVa4cc36k2Xh7oEDvs6baStXLxT8VtXkBZ56yfuk4D5JvM43nbB7EpdkmJC75ScEZm2QK'
+    assert acct.xprvkey == 'zprvAgND8jHjpZpGveueBf733vLG6Z9K7k432G4egiot1j5dAJQsz9oYgRcPFJVUdpLe3tHnabyRmmuGY871GdTv8tkotCwyn6Ec5bZbb8RjtHF'
 
     acct			= account( SEED_XMAS, crypto='Litecoin' )
     assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
@@ -90,6 +103,7 @@ def test_account():
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
     assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
+    assert acct.prvkey == '6501276b9d7f646742feb12fd066e107af8c1e26e4ad7c2694279d44c43bdfb2'
 
 
 @pytest.mark.skipif( not scrypt or not eth_account,

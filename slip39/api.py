@@ -473,7 +473,7 @@ class Account:
         return self
 
     def from_xprvkey( self, xprvkey: str, path: str = None ) -> "Account":
-        self.hdwallet.from_xpublic_key( xprvkey )
+        self.hdwallet.from_xprivate_key( xprvkey )
         self.from_path( path )
         return self
 
@@ -1081,7 +1081,7 @@ def accounts(
 
 
 def accountgroups(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default: ETH, BTC
     allow_unbounded: bool	= True,
 ) -> Sequence[Sequence[Account]]:
@@ -1118,7 +1118,7 @@ def accountgroups(
 
 
 def address(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     crypto: str			= None,
     path: str			= None,
     format: str			= None,
@@ -1133,7 +1133,7 @@ def address(
 
 
 def addresses(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     crypto: str	 		= None,  # default 'ETH'
     paths: str			= None,  # default: The crypto's path_default; supports ranges
     format: str			= None,
@@ -1149,7 +1149,7 @@ def addresses(
 
 
 def addressgroups(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default ETH, BTC
     allow_unbounded: bool	= True,
 ) -> Sequence[str]:
