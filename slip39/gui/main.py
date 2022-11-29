@@ -615,7 +615,7 @@ def update_seed_data( event, window, values ):
             )
             bits		= len( seed ) * 8
             assert bits in BITS_allowed( values ), \
-                f"Only {commas(BITS, final_and=True)}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
+                f"Only {commas(BITS, final='and')}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
         except Exception as exc:
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
             log.warning( status )

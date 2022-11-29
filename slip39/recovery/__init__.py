@@ -15,15 +15,17 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+from __future__		import annotations
+
 import itertools
 import logging
 
 from typing		import List, Optional
 
-from shamir_mnemonic	import combine_mnemonics
-from mnemonic		import Mnemonic
+from shamir_mnemonic	import combine_mnemonics        # Requires passphrase as bytes
+from mnemonic		import Mnemonic			# Requires passphrase as str
 
-from ..util		import ordinal
+from ..util		import ordinal, commas
 
 from .entropy		import (  # noqa F401
     shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
@@ -32,18 +34,42 @@ from .entropy		import (  # noqa F401
 log				= logging.getLogger( __package__ )
 
 
+class Mnemonicv21( Mnemonic ):
+    """When trezor/python-mmnemonic is updated, we can retire this."""
+    @classmethod
+    def detect_language(cls, code: str) -> str:
+        """Scan the Mnemonic until the language becomes unambiguous, including as abbreviation prefixes."""
+        code = cls.normalize_string(code)
+        possible = set(cls(lang) for lang in cls.list_languages())
+        for word in code.split():
+            # possible languages have candidate(s) starting with the word/prefix
+            possible = set(p for p in possible if any(c.startswith( word ) for c in p.wordlist))
+            if not possible:
+                raise ConfigurationError(f"Language unrecognized for {word!r}")
+            if len( possible ) < 2:
+                break
+        if len(possible) == 1:
+            return possible.pop().language
+        raise ConfigurationError(
+            f"Language ambiguous between {', '.join( p.language for p in possible)}"
+        )
+
+
 def recover(
     mnemonics: List[str],
-    passphrase: bytes		= b"",
-    using_bip39: bool		= False,
+    passphrase: Optional[Union[str,bytes]]= None,
+    using_bip39: bool		= False,	# If a BIP-39 "backup",
+    language: Optional[str]	= None,		# ... provide language if not default 'english'
 ) -> bytes:
     """Recover a master secret Seed Entropy from the supplied SLIP-39 mnemonics.  We cannot know what
     subset of these mnemonics is required and/or valid, so we need to iterate over all subset
-    combinations on failure.
+    combinations on failure; this allows us to recover from 1 (or more) incorrectly recovered
+    SLIP-39 Mnemonics, using any others available.
 
     We'll try to find one of the smallest subsets that satisfies the SLIP-39 recovery.  The
     resultant secret Entropy is returned as the Seed, with (not widely used) SLIP-39 decryption with
-    the given passphrase.
+    the given passphrase.  We handle either str/bytes passphrase, and will en/decode as UTF-8 as
+    necessary.
 
     WARNING: SLIP-39 passphrase encryption is not Trezor "Model T" compatible, and is not widely
     used; if you want to hide a wallet, use the Trezor "Hidden wallet" feature instead, where the
@@ -57,12 +83,18 @@ def recover(
     Cards, you are free to destroy your original insecure and unreliable BIP-39 Mnemonic backup(s).
 
     """
+    if passphrase is None:
+        passphrase		= ""
     secret			= None
     try:
+        # python-shamir-mnemonic requires passphrase as bytes (not str)
+        passphrase_slip39	= b"" if using_bip39 else (
+            passphrase if isinstance( passphrase, bytes ) else passphrase.encode( 'UTF-8' )
+        )
         combo			= range( len( mnemonics ))
         secret			= combine_mnemonics(
             mnemonics,
-            passphrase	= b"" if using_bip39 else passphrase
+            passphrase	= passphrase_slip39,
         )
     except Exception as exc:
         # Try a subset of the supplied mnemonics, to silently reject any invalid mnemonic phrases supplied
@@ -72,7 +104,7 @@ def recover(
                 try:
                     secret	= combine_mnemonics(
                         trial,
-                        passphrase	= b"" if using_bip39 else passphrase
+                        passphrase	= passphrase_slip39,
                     )
                     break
                 except Exception:
@@ -92,53 +124,76 @@ def recover(
         )
     )
     if using_bip39:
+        # python-mnemonic's Mnemonic requires passphrase as str (not bytes).
+        passphrase_bip39	= passphrase if isinstance( passphrase, str ) else passphrase.decode( 'UTF-8' )
+        # This SLIP-39 was a "backup" of a BIP-39 Mnemonic, in a 'language' (default: "english").
         secret			= recover_bip39(
-            mnemonic	= produce_bip39( entropy=secret ),
-            passphrase	= passphrase,
+            mnemonic	= produce_bip39( entropy=secret, language=language ),
+            passphrase	= passphrase_bip39,
+            language	= language,
         )
     return secret
 
 
 def recover_bip39(
     mnemonic: str,
-    passphrase: bytes		= b"",
+    passphrase: Optional[Union[str,bytes]]= None,
     as_entropy			= False,  # Recover original 128- or 256-bit Entropy (not 512-bit Seed)
+    language: Optional[str]	= None,   # If desired, provide language (eg. if only prefixes are provided)
 ) -> bytes:
     """Recover a secret 512-bit BIP-39 generated seed (or just the original 128- or 256-bit entropy)
-    from a single BIP-39 mnemonic phrase, detecting the language.
+    from a single BIP-39 Mnemonic Phrase, detecting the language.  Optionally provide a UTF-8 string or
+    encoded passphrase.
+
+    Normalizes and validates the BIP-39 Mnemonic Phrase (which is often recovered as user input):
+    - Removes excess whitespace and down-cases
+    - Detects language if not provided
+    - Expands unambiguous mnemonic prefixes (eg. 'ae' --> 'aerobic', 'acti' --> 'action')
+    - Checks that the BIP-39 Phrase check bits are valid
 
     """
     assert not ( bool( passphrase ) and bool( as_entropy )), \
         "When recovering original BIP-39 entropy, no passphrase may be specified"
-    # Polish up the supplied mnemonic, by eliminating extra spaces; Mnemonic is fragile...
-    mnemonic			= ' '.join( w.lower() for w in mnemonic.split( ' ' ) if w )
-    # Unfortunately, Mnemonic.detect_language was unreliable; only checked the first word
-    # and english/french has ambiguous words. TODO: check if python-mnemonic has been fixed.
-    last			= ValueError( "Empty mnemonic" )
-    for word in mnemonic.split( ' ' ):
-        try:
-            language		= Mnemonic.detect_language( word )
-            m			= Mnemonic( language )
-            assert m.check( mnemonic ), \
-                f"Invalid {language} mnemonic: {mnemonic!r}"
-            if as_entropy:
-                secret		= m.to_entropy( mnemonic )
-            else:
-                secret		= Mnemonic.to_seed( mnemonic, passphrase )
-            log.info( f"Recovered {len(secret)*8}-bit BIP-39 secret from {language} mnemonic" )
-            return bytes( secret )  # bytearray --> bytes
-        except Exception as exc:
-            last		= exc
-    raise last
+    if passphrase is None:
+        passphrase		= ""
+    # Polish up the supplied mnemonic, by eliminating extra spaces, leading/trailing newline(s); Mnemonic is fragile...
+    mnemonic_stripped		= ' '.join( w.lower() for w in mnemonic.strip().split( ' ' ) if w )
+    if mnemonic_stripped != mnemonic:
+        log.info( "BIP-39 Mnemonic Phrase stripped of unnecessary whitespace" )
+    # Unfortunately, Mnemonic.detect_language was unreliable; only checked the first word and
+    # english/french has ambiguous words (fixed in python-mnemonic versions >=0.20).  Mnemonic must
+    # be able to unambiguously detect language with the first few un-expanded mnemonics.
+    if not language:
+        language		= Mnemonicv21.detect_language( mnemonic_stripped )
+        log.info( f"BIP-39 Language detected: {language}" )
+    m				= Mnemonic( language )
+    mnemonic_expanded		= m.expand( mnemonic_stripped )
+    if mnemonic_expanded != mnemonic_stripped:
+        log.info( "BIP-39 Mnemonic Phrase prefixes expanded" )
+    if not m.check( mnemonic_expanded ):
+        unrecognized		= [ w for w in mnemonic_expanded.split() if w not in m.wordlist ]
+        raise ValueError( f"BIP-39 Mnemonic check fails; {len( unrecognized )} unrecognized {m.language} words {commas( unrecognized )}" )
+    if as_entropy:
+        # If we want to "backup" a BIP-39 Mnemonic Phrase, we want the original entropy, NOT the derived seed!
+        secret			= m.to_entropy( mnemonic_expanded )
+        log.info( f"Recovered {len(secret)*8}-bit BIP-39 entropy from {language} mnemonic (no passphrase supported)" )
+    else:
+        # python-mnemonic's Mnemonic requires passphrase as str (not bytes)
+        passphrase_bip39	= passphrase if isinstance( passphrase, str ) else passphrase.decode( 'UTF-8' )
+        # Only a fully validated BIP-39 Mhemonic Phrase must ever be used here!  No checking is done
+        # by Mnemonic.to_seed of either the Mnemonic Phrase or passphrase (except UTF-8 encoding).
+        secret			= Mnemonic.to_seed( mnemonic_expanded, passphrase = passphrase_bip39 )
+        log.info( f"Recovered {len(secret)*8}-bit BIP-39 secret from {language} mnemonic{' (and passphrase)' if passphrase_bip39 else ''}" )
+    return bytes( secret )  # bytearray --> bytes
 
 
 def produce_bip39(
     entropy: Optional[bytes],
     strength: Optional[int]	= None,
-    language: str		= "english",
+    language: Optional[str]	= None,
 ) -> str:
     """Produce a BIP-38 Mnemonic from the provided entropy (or generated, default 128 bits)."""
-    mnemo			= Mnemonic( language )
+    m				= Mnemonic( language or "english" )
     if entropy:
-        return mnemo.to_mnemonic( entropy )
-    return mnemo.generate( strength or 128 )
+        return m.to_mnemonic( entropy )
+    return m.generate( strength or 128 )

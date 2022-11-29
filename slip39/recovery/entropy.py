@@ -14,6 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from __future__		import annotations
 
 import cmath
 import codecs
@@ -587,14 +588,14 @@ def signal_entropy(
                 pos	       += signal_draw( sigs[o], pos=True )
                 neg	       += signal_draw( sigs[o], neg=True )
             harmonic_dBs	= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/target):.1f}dB" for h in harmonic ]
-            details	       += f"{offpref}{pos} {len(harmonic)} harmonics: {commas( harmonic_dBs, final_and=True )}\n"
+            details	       += f"{offpref}{pos} {len(harmonic)} harmonics: {commas( harmonic_dBs, final='and' )}\n"
             details	       += f"{offpref}{neg}  - "
             if 0 in harmonic:
                 details	       += "DC offset"
             if 0 in harmonic and harmonic_freq:
                 details	       += " and "
             if harmonic_freq:
-                details	       += f"every {commas( harmonic_freq, final_and=True )} symbols"
+                details	       += f"every {commas( harmonic_freq, final='and' )} symbols"
             details	       += "\n"
             strongest		= Signal( dB=snr_dB, stride=stride, symbols=symbols, offset=offset, details=details )
     #mags_avgs			= [sum(col)/len(mags_all) for col in zip(*mags_all)]
@@ -1242,7 +1243,7 @@ def display_entropy( signals, shannons, what=None ):
         dBr			= dBs[:1] + dBs[max( 1, len(dBs)-1):]
         report		       += f"Entropy analysis {('of ' + what) if what else ''}: {len(signals)+len(shannons)}x"
         report		       += f" {'-'.join( f'{dB:.1f}' for dB in dBr )}dB non-random patterns in"
-        report		       += f" {commas( sorted( set( s.stride for s in signals )), final_and=True)}-bit symbols\n\n"
+        report		       += f" {commas( sorted( set( s.stride for s in signals )), final='and' )}-bit symbols\n\n"
         for s,summary in sorted(
                 [
                     (s, f"{s.dB:5.1f}dB Signal harmonic feature at offset {s.offset} in {s.symbols}x {s.stride}-bit symbols")

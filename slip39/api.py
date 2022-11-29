@@ -14,6 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from __future__		import annotations
 
 import base58
 import codecs
@@ -38,7 +39,7 @@ from hdwallet		import cryptocurrencies
 
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
 from .util		import ordinal, commas
-from .recovery		import produce_bip39, recover_bip39
+from .recovery		import produce_bip39, recover_bip39, recover as recover_slip39
 
 log				= logging.getLogger( __package__ )
 
@@ -101,7 +102,6 @@ def path_edit(
 
 
 class CronosMainnet( cryptocurrencies.Cryptocurrency ):
-
     NAME = "Cronos"
     SYMBOL = "CRO"
     NETWORK = "mainnet"
@@ -141,7 +141,6 @@ class CronosMainnet( cryptocurrencies.Cryptocurrency ):
 
 
 class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
-
     NAME = "Binance"
     SYMBOL = "BNB"
     NETWORK = "mainnet"
@@ -224,7 +223,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
     WIF_SECRET_KEY = 0x80
 
 
-class XRPHDWallet( hdwallet.HDWallet ):
+class XRPHDWallet( hdwallet.BIP44HDWallet ):
     """The XRP address format uses the standard p2pkh_address formulation, from
     https://xrpl.org/accounts.html#creating-accounts:
 
@@ -250,7 +249,7 @@ class Account:
     module.  The required hdwallet API calls are:
 
       .from_seed	-- start deriving from the provided seed
-      .from_mnemonic	-- start deriving from the provided seed via BIP-39 mnemonic
+      .from_mnemonic	-- start deriving from the provided seed via BIP-39/SLIP-39 mnemonic
       .clean_derivation	-- forget any prior derivation path
       .from_path	-- derive a wallet from the specified derivation path
       .p2pkh_address	-- produce a Legacy format address
@@ -423,40 +422,79 @@ class Account:
             raise ValueError( f"{crypto} does not support address format {self.format}" )
         self.hdwallet		= hdwallet_cls( symbol=crypto, cryptocurrency=cryptocurrency )
 
-    def from_seed( self, seed: str, path: str = None ) -> "Account":
-        """Derive the Account from the supplied seed and (optionally) path; uses the default derivation path
-        for the Account address format, if None provided.
+    def clean_derivation( self ) -> Account:
+        """The underlying ...HDWallet.clean_derivation is somewhat broken; it overwrites the
+        HDWallet._path_class incorrectly, forgetting all about the coin's specific
+        hdwallet.Derivation.  So, remember it.
+
+        """
+        _path_class		= self.hdwallet._path_class
+        try:
+            self.hdwallet.clean_derivation()
+            return self
+        finally:
+            self.hdwallet._path_class = _path_class
+
+    def from_seed( self, seed: str, path: Optional[str] = None ) -> Account:
+        """Derive the Account from the supplied seed and (optionally) path; uses the default derivation
+        path for the Account address format, if None provided.  As with all of the functions that
+        completely replace the derivation Seed, we clear any existing known derivation path; it is
+        unrelated to this newly supplied seed.
 
         """
         if type( seed ) is bytes:
             seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+        self.clean_derivation()
         self.hdwallet.from_seed( seed )
         self.from_path( path )
         return self
 
-    def from_mnemonic( self, mnemonic: str, path: str = None ) -> "Account":
-        """Derive the Account from the supplied BIP-39 mnemonic and (optionally) path; uses the
-        default derivation path for the Account address format, if None provided.
+    def from_mnemonic( self, mnemonic: str, path: Optional[str] = None, passphrase: Optional[Union[bytes,str]] = None, using_bip39: bool = False ) -> Account:
+        """Derive the Account seed from the supplied BIP-39/SLIP-39 Mnemonic(s) and (optionally) path.
+        Since Mnemonics are intended to encode "root" HD Wallet seeds, uses the default derivation
+        path for the Account address format, if None provided.
+
+        SLIP-39 Mnemonics are recognized by the fact that they are multiple lines (has newlines).
+
+        If 'using_bip39', then any supplied SLIP-39 Mnemonics entropy will first be converted back
+        into a BIP-39 Mnemonic (to maintain compatibility w/ BIP-39 wallets) to obtain the Seed.
+        Otherwise, SLIP-39 Mnemonics will use native SLIP-39 Seed decoding.
 
         """
-        self.hdwallet.from_mnemonic( mnemonic )
+        mnemonics_lines		= [
+            s.strip()
+            for s in mnemonic.split( '\n' )
+            if s.strip()
+        ]
+        if len( mnemonics_lines ) < 1:
+            raise ValueError( f"At least one BIP-39 2 SLIP-39 Mnemonics required" )
+        if len( mnemonics_lines ) > 1:
+            # Must be SLIP-39 Mnemonic Phrases
+            seed		= recover_slip39( mnemonics_lines, passphrase=passphrase, using_bip39=using_bip39 )
+            return self.from_seed( seed=seed, path=path )
+        # Must be a single BIP-39 Mnemonic Phrase (as a UTF-8 string)
+        if isinstance( passphrase, bytes ):
+            passphrase		= passphrase.decode( 'UTF-8' )
+        self.clean_derivation()
+        self.hdwallet.from_mnemonic( *mnemonics_lines, passphrase=passphrase )  # python-hdwallet requires str/None
         self.from_path( path )
         return self
 
-    def from_xpubkey( self, xpubkey: str, path: str = None ) -> "Account":
-        """Derive the Account from the supplied xpubkey and (optionally) path; uses default
-        derivation path for the Account address format, if None provided.
+    def from_xpubkey( self, xpubkey: str, path: Optional[str] = None ) -> Account:
+        """Derive the Account from the supplied xpubkey and (optionally) path; uses no derivation path
+        by default derivation path for the Account address format, if None provided.
 
-        Since this xpubkey may have been generated at an arbitrary path, eg.
+        Since this xpubkey may have been generated at some arbitrary path, eg.
 
             m/44'/60'/0'
 
-        any subsequent path provided, such as "m/0/0" will give us the address at
-        effective path:
+        any subsequent path provided here, such as "m/0/0" will be "added" to the original
+        derivation path, to give us the address at effective path eg.:
 
             m/44'/60'/0'/0/0
 
-        However, if we ask for the path from this account, it will return:
+        However, if we ask for the self.path from this account, it will return only the portion
+        provided here:
 
             m/0/0
 
@@ -468,17 +506,32 @@ class Account:
             m/44'/60'/0'/1'/0
 
         """
+        self.clean_derivation()
         self.hdwallet.from_xpublic_key( xpubkey )
-        self.from_path( path )
+        self.from_path( path or "m/" )
         return self
 
-    def from_xprvkey( self, xprvkey: str, path: str = None ) -> "Account":
-        self.hdwallet.from_xpublic_key( xprvkey )
-        self.from_path( path )
+    def from_xprvkey( self, xprvkey: str, path: Optional[str] = None ) -> Account:
+        self.clean_derivation()
+        self.hdwallet.from_xprivate_key( xprvkey )
+        self.from_path( path or "m/" )
         return self
 
-    def from_path( self, path: str = None ) -> "Account":
-        """Change the Account to derive from the provided path.
+    def from_public_key( self, public_key: str, path: Optional[str] = None ) -> Account:
+        self.clean_derivation()
+        self.hdwallet.from_public_key( public_key )
+        self.from_path( path or "m/" )
+        return self
+
+    def from_private_key( self, private_key: str, path: Optional[str] = None ) -> Account:
+        self.clean_derivation()
+        self.hdwallet.from_private_key( private_key )
+        self.from_path( path or "m/" )
+        return self
+
+    def from_path( self, path: Optional[str] = None ) -> Account:
+        """Change the Account to derive from the provided path (or from the default path, if currently
+        empty, ie. 'm/').
 
         If a partial path is provided (eg "...1'/0/3"), then use it to replace the given segments in
         current (or the default) account path, leaving the remainder alone.
@@ -486,10 +539,17 @@ class Account:
         If the derivation path is empty (only "m/") then leave the Account at clean_derivation state
 
         """
-        from_path		= self.path or Account.path_default( self.crypto, self.format )
+        from_path		= self.path
+        if not from_path or len( from_path ) <= 2:
+            if from_path != "m/":
+                raise ValueError( f"Empty but invalid path detected: {from_path}" )
+            log.debug( f"Default path for {self}, was {from_path!r}" )
+            from_path		=  Account.path_default( self.crypto, self.format )
         if path:
-            from_path		= path_edit( from_path, path )
-        self.hdwallet.clean_derivation()
+            into_path		= path_edit( from_path, path )
+            log.debug( f"Editing path for {self}, from {from_path!r} w/ {path!r}, into {into_path!r}" )
+            from_path		= into_path
+        self.clean_derivation()
         # Valid HD wallet derivation paths always start with "m/"
         if not ( from_path and len( from_path ) >= 2 and from_path.startswith( "m/" ) ):
             raise ValueError( f"Unrecognized HD wallet derivation path: {from_path!r}" )
@@ -550,8 +610,8 @@ class Account:
         return self.hdwallet._cryptocurrency.SYMBOL
 
     @property
-    def path( self ):
-        return self.hdwallet.path()
+    def path( self ) -> str:
+        return self.hdwallet.path() or 'm/'
 
     @property
     def key( self ):
@@ -569,16 +629,25 @@ class Account:
 
     @property
     def xpubkey( self ):
-        """Returns the xpub, ypub or zpub, depending on whether format is legacy, segwit or bech32"""
-        return self.hdwallet.xpublic_key()
+        """Returns the xpub, ypub or zpub, depending on whether format is legacy, segwit or bech32.  The HD
+        wallet account represented by this xpub... key is that of the current derivation path,
+        eg. "m/44'/60'/0'/0/0" for the default ETH wallet.  Thus, when restoring using
+        eg. from_xpubkey, the default path used should be empty, ie. "m/".
 
-    def from_private_key( self, private_key ):
-        self.hdwallet.from_private_key( private_key )
-        return self
+        """
+        return self.hdwallet.xpublic_key()
 
     def encrypted( self, passphrase ):
         """Output the appropriately encrypted private key for this cryptocurrency.  Ethereum uses
-        encrypted JSON wallet standard, Bitcoin et.al. use BIP-38 encrypted private keys."""
+        encrypted JSON wallet standard, Bitcoin et.al. use BIP-38 encrypted private keys.
+
+        A BIP-39 encrypted wallet encodes the private key at a certain derivation path, which is not
+        remembered in the BIP-39 encoding!  Therefore, when you recover a BIP-39 encrypted wallet,
+        you must tell the Account what derivation path you want to derive.  The default for None is
+        NO derivation path (ie. "m/") -- the exact same wallet at whatever the derivation path was
+        when .encrypted was invoked, is what will be recovered.
+
+        """
         if self.crypto in self.ETHJS_ENCRYPT:
             if not eth_account:
                 raise NotImplementedError( "The eth-account module is required to support Ethereum JSON wallet encryption; pip install slip39[wallet]" )
@@ -586,13 +655,13 @@ class Account:
             return json.dumps( wallet_dict, separators=(',',':') )
         return self.bip38( passphrase )
 
-    def from_encrypted( self, encrypted_privkey, passphrase, strict=True ):
+    def from_encrypted( self, encrypted_privkey, passphrase, strict=True, path: Optional[str] = None ):
         """Import the appropriately decrypted private key for this cryptocurrency."""
         if self.crypto in self.ETHJS_ENCRYPT:
             if not eth_account:
                 raise NotImplementedError( "The eth-account module is required to support Ethereum JSON wallet decryption; pip install slip39[wallet]" )
             private_hex		= bytes( eth_account.Account.decrypt( encrypted_privkey, passphrase )).hex()
-            self.from_private_key( private_hex )
+            self.from_private_key( private_hex, path=path )
             return self
         return self.from_bip38( encrypted_privkey, passphrase=passphrase, strict=strict )
 
@@ -607,7 +676,7 @@ class Account:
         ahash			= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
-        key			= scrypt( passphrase, salt=ahash, key_len=64, N=16384, r=8, p=8 )
+        key			= scrypt( passphrase or b"", salt=ahash, key_len=64, N=16384, r=8, p=8 )
         derivedhalf1		= key[0:32]
         derivedhalf2		= key[32:64]
         aes			= AES.new( derivedhalf2, AES.MODE_ECB )
@@ -618,7 +687,7 @@ class Account:
         # Encode the encrypted private key to base58, adding the 4-byte base58 check suffix
         return base58.b58encode_check( encrypted_privkey ).decode( 'UTF-8' )
 
-    def from_bip38( self, encrypted_privkey, passphrase, strict=True ):
+    def from_bip38( self, encrypted_privkey, passphrase, path: Optional[str] = None, strict: bool = True ):
         """Bip-38 decrypt and import the private key."""
         if not scrypt or not AES:
             raise NotImplementedError( "The scrypt module is required to support BIP-38 decryption; pip install slip39[wallet]" )
@@ -635,7 +704,7 @@ class Account:
             f"Unrecognized BIP-38 flagbyte: {flag!r}"
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
-        key			= scrypt( passphrase, salt=ahash, key_len=64, N=16384, r=8, p=8 )
+        key			= scrypt( passphrase or b"", salt=ahash, key_len=64, N=16384, r=8, p=8 )
         derivedhalf1		= key[0:32]
         derivedhalf2		= key[32:64]
         aes			= AES.new( derivedhalf2, AES.MODE_ECB )
@@ -646,11 +715,11 @@ class Account:
         # OK, we have the Private Key; we can recover the account, then verify the
         # remainder of the checks
         private_hex		= codecs.encode( priv, 'hex_codec' ).decode( 'ascii' )
-        self.from_private_key( private_hex )
+        self.from_private_key( private_hex, path=path )
         addr			= self.legacy_address().encode( 'UTF-8' )  # Eg. b"184xW5g..."
         ahash_confirm		= hashlib.sha256( hashlib.sha256( addr ).digest() ).digest()[0:4]
         if ahash_confirm != ahash:
-            warning		= f"BIP-38 address hash verification failed ({ahash_confirm.hex()} != {ahash.hex()}); password may be incorrect."
+            warning		= f"BIP-38 address hash verification failed ({ahash_confirm.hex()} != {ahash.hex()}); passphrase may be incorrect."
             if strict:
                 raise AssertionError( warning )
             else:
@@ -895,8 +964,8 @@ def create(
     name: str,
     group_threshold: int,
     groups: Dict[str,Tuple[int, int]],
-    master_secret: bytes	= None,	        # Default: generate 128-bit Seed Entropy
-    passphrase: bytes		= b"",
+    master_secret: Optional[bytes] = None,      # Default: generate 128-bit Seed Entropy
+    passphrase: Optional[Union[bytes,str]] = None,
     using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # default: ETH, BTC at default paths
@@ -934,25 +1003,19 @@ def create(
             passphrase	= passphrase,
         )
         log.info(
-            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy using BIP-39 Mnemonic" + (
-                f": {bip39_mnem:.10}... (w/ BIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
-                if log.isEnabledFor( logging.DEBUG ) else ""
-            )
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy using BIP-39 Mnemonic{' w/ Passphrase' if passphrase else ''}"
         )
         accts			= list( accountgroups(
             master_secret	= bip39_seed,
             cryptopaths		= cryptopaths,
             allow_unbounded	= False,
         ))
-        passphrase		= b""
+        passphrase		= None  # Consumed by BIP-39; not used for SLIP-39 Mnemonics "backup"!
     else:
         # For SLIP-39, accounts are generated directly from supplied Entropy, and passphrase
         # encrypts the SLIP-39 Mnemonics, below.
         log.info(
-            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy directly" + (
-                f": {codecs.encode( master_secret, 'hex_codec' ).decode( 'ascii' ):.10}... (w/ SLIP-39 Passphrase: {passphrase!r:.2}..."  # WARNING: Reveals partial Secret!
-                if log.isEnabledFor( logging.DEBUG ) else ""
-            )
+            f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy directly{' w/ SLIP-39 Passphrase' if passphrase else ''}"
         )
         accts			= list( accountgroups(
             master_secret	= master_secret,
@@ -963,7 +1026,7 @@ def create(
     # Generate the SLIP-39 Mnemonics representing the supplied master_secret Seed Entropy.  This
     # always recovers the Seed Entropy; if not using_bip39, this is also the wallet derivation Seed;
     # if using_bip39, the wallet derivation Seed was produced from the BIP-39 Seed generation
-    # process (and the SLIP-39 password is always b"", here).
+    # process (which consumes any passphrase, and the SLIP-39 passphrase is always None, here).
     mnems			= mnemonics(
         group_threshold	= group_threshold,
         groups		= g_dims,
@@ -993,13 +1056,20 @@ def create(
 def mnemonics(
     group_threshold: int,
     groups: Sequence[Tuple[int, int]],
-    master_secret: Union[str,bytes] = None,
-    passphrase: bytes		= b"",
+    master_secret: Optional[Union[str,bytes]] = None,
+    passphrase: Optional[Union[bytes,str]] = None,
     iteration_exponent: int	= 1,
-    strength: int		= 128,
+    strength: int		= BITS_DEFAULT,
 ) -> List[List[str]]:
     """Generate SLIP39 mnemonics for the supplied group_threshold of the given groups.  Will generate a
      random master_secret, if necessary.
+
+    If you have BIP-39/SLIP-39 Mnemonic(s), use recovery.recover or .recover_bip39 first.  To
+    "backup" a BIP-39 Mnemonic Phrase, you probably want to use .recover_bip39( ..., as_entropy=True
+    ) to get the original 128- or 256-bit Entropy, and then produce SLIP-39 Mnemonics from that.
+
+    Later, supply these SLIP-39 Mnemonics to any of the .account... functions with using_bip39=True,
+    to derive the original BIP-39 wallets.
 
     """
     if master_secret is None:
@@ -1007,20 +1077,25 @@ def mnemonics(
         master_secret		= random_secret( strength // 8 )
     if len( master_secret ) * 8 not in BITS:
         raise ValueError(
-            f"Only {commas( BITS, final_and=True )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
+            f"Only {commas( BITS, final='and' )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
+    if isinstance( passphrase, str ):
+        passphrase		= passphrase.encode( 'UTF-8' )
     return generate_mnemonics(
         group_threshold	= group_threshold,
         groups		= groups,
         master_secret	= master_secret,
-        passphrase	= passphrase,
-        iteration_exponent = iteration_exponent )
+        passphrase	= passphrase or b"",  # python-shamir-mnemonic requires bytes
+        iteration_exponent = iteration_exponent,
+    )
 
 
 def account(
     master_secret: Union[str,bytes],
-    crypto: str			= None,  # default 'ETH'
-    path: str			= None,  # default to the crypto's path_default
-    format: str			= None,  # eg. 'bech32', or use the default address format for the crypto
+    crypto: Optional[str]	= None,  # default 'ETH'
+    path: Optional[str]		= None,  # default to the crypto's path_default
+    format: Optional[str]	= None,  # eg. 'bech32', or use the default address format for the crypto
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ):
     """Generate an HD wallet Account from the supplied master_secret seed, at the given HD derivation
     path, for the specified cryptocurrency.
@@ -1030,6 +1105,8 @@ def account(
     are identifiable by their prefix, which is incompatible with hex, so there is no ambiguity.
 
     """
+    if isinstance( master_secret, str ):
+        master_secret		= master_secret.strip()
     if isinstance( master_secret, bytes ) or all( c in string.hexdigits for c in master_secret ):
         acct			= Account(
             crypto	= crypto or 'ETH',
@@ -1039,7 +1116,15 @@ def account(
             seed	= master_secret,
             path	= path,
         )
-        log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {path}" )
+        log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {acct.path}" )
+    elif ' ' in master_secret:
+        # Some kind of Mnemonic; this is the only valid use of whitespace within a master_secret.
+        acct			= Account(
+            crypto	= crypto or 'ETH',
+            format	= format,
+        )
+        acct.from_mnemonic( master_secret, path=path, passphrase=passphrase, using_bip39=using_bip39 )
+        log.debug( f"Created {acct} from Mnemonic(s), at derivation path {acct.path}" )
     else:
         # See if we recognize the prefix as a {x,y,z}pub... or .prv...  Get the bound function for
         # initializing the seed.  Also, deduce the default format from the x/y/z+pub/prv.
@@ -1071,19 +1156,30 @@ def accounts(
     paths: str			= None,  # default to the crypto's path_default; allow ranges
     format: str			= None,
     allow_unbounded		= True,
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ):
     """Create accounts for crypto, at the provided paths (allowing ranges), with the optionsal address format. """
     for path in [None] if paths is None else path_sequence( *path_parser(
         paths		= paths,
         allow_unbounded	= allow_unbounded,
     )):
-        yield account( master_secret, crypto=crypto, path=path, format=format )
+        yield account(
+            master_secret,
+            crypto	= crypto,
+            path	= path,
+            format	= format,
+            passphrase	= passphrase,
+            using_bip39	= using_bip39,
+        )
 
 
 def accountgroups(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default: ETH, BTC
     allow_unbounded: bool	= True,
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ) -> Sequence[Sequence[Account]]:
     """Generate the desired cryptocurrency account(s) at each crypto's given path(s).  This is useful
     for generating sequences of groups of wallets for multiple cryptocurrencies, eg. for receiving
@@ -1112,16 +1208,20 @@ def accountgroups(
             crypto		= crypto,
             paths		= paths,
             allow_unbounded	= allow_unbounded,
+            passphrase		= passphrase,
+            using_bip39		= using_bip39,
         )
         for crypto,paths in cryptopaths_parser( cryptopaths )
     ])
 
 
 def address(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     crypto: str			= None,
     path: str			= None,
     format: str			= None,
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ):
     """Return the specified cryptocurrency HD account address at path."""
     return account(
@@ -1129,39 +1229,55 @@ def address(
         path		= path,
         crypto		= crypto,
         format		= format,
+        passphrase	= passphrase,
+        using_bip39	= using_bip39,
     ).address
 
 
 def addresses(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     crypto: str	 		= None,  # default 'ETH'
     paths: str			= None,  # default: The crypto's path_default; supports ranges
     format: str			= None,
     allow_unbounded: bool	= True,
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ):
     """Generate a sequence of cryptocurrency account (path, address, ...)  for all designated
     cryptocurrencies.  Usually a single (<path>, <address>) tuple is desired (different
     cryptocurrencies typically have their own unique path derivations.
 
     """
-    for acct in accounts( master_secret, crypto, paths, format, allow_unbounded=allow_unbounded ):
+    for acct in accounts(
+            master_secret,
+            crypto	= crypto,
+            paths	= paths,
+            format	= format,
+            allow_unbounded = allow_unbounded,
+            passphrase	= passphrase,
+            using_bip39	= using_bip39,
+    ):
         yield (acct.crypto, acct.path, acct.address)
 
 
 def addressgroups(
-    master_secret: bytes,
+    master_secret: Union[str,bytes],
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default ETH, BTC
     allow_unbounded: bool	= True,
+    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    using_bip39: bool		= False,
 ) -> Sequence[str]:
     """Yields account (<crypto>, <path>, <address>) records for the desired cryptocurrencies at paths.
 
     """
     yield from zip( *[
         addresses(
-            master_secret	= master_secret,
-            paths		= paths,
-            crypto		= crypto,
-            allow_unbounded	= allow_unbounded,
+            master_secret,
+            paths	= paths,
+            crypto	= crypto,
+            allow_unbounded = allow_unbounded,
+            passphrase	= passphrase,
+            using_bip39	= using_bip39,
         )
         for crypto,paths in cryptopaths_parser( cryptopaths )
     ])

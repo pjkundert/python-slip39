@@ -21,7 +21,7 @@ from .recovery		import recover
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
 
 
-def test_account():
+def test_account_smoke():
     acct			= account( SEED_XMAS )
     assert acct.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
     assert acct.path == "m/44'/60'/0'/0/0"
@@ -30,6 +30,16 @@ def test_account():
     acct			= account( SEED_XMAS, path="m/44'/60'/0'/0/1" )
     assert acct.address == '0x3b774e485fC818F0f377FBA657dfbF92B46f8504'
     assert acct.path == "m/44'/60'/0'/0/1"
+    assert acct.pubkey == '03cbcf791b37011feab1c5d797cd76a3fa0f12ee5582adbe5aa4d8172a7bbaba5b'
+    assert acct.key == acct.prvkey == 'bf299fe7a7d948fdb98474557bbee73395e01f3a6a73638d45d345f9adb451fb'
+    assert acct.xpubkey == 'xpub6FVwqKQUrDre2ZPtAvcqR7GYW4662JTM7R1FGuwGAH3b1TjntLCbMa3HY7C1BR4ifXEtwfX63a69FEAcCSCgrgQZNd3WYgvKhAghRNucEc6'
+    assert acct.xprvkey == 'xprvA2WbRosb1rJLp5KR4u5q3yKox2FbcqjVkC5eUXXebwWc8fQeLntLomiogp7vVMZcGfB4vaKeWRJ6eQmHSPRk6W7AJRNx2TT3Ai825JwH9kG'
+    # And ensure we can round-trip the xprvkey (the x{pub/prv}keys encode other info, so won't be the same)
+    acct			= account( acct.xprvkey, path="m/" )
+    assert acct.path == 'm/'
+    assert acct.address == '0x3b774e485fC818F0f377FBA657dfbF92B46f8504'
+    assert acct.pubkey == '03cbcf791b37011feab1c5d797cd76a3fa0f12ee5582adbe5aa4d8172a7bbaba5b'
+    assert acct.key == acct.prvkey == 'bf299fe7a7d948fdb98474557bbee73395e01f3a6a73638d45d345f9adb451fb'
 
     acct			= account( SEED_XMAS, crypto='Bitcoin' )
     assert acct.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
@@ -50,6 +60,9 @@ def test_account():
     assert acct.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
     assert acct.path == "m/84'/0'/0'/0/0"
     assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
+    assert acct.prvkey == acct.key == '80d5082773a4d2a07ee667a772ca13a120a5fc9d61bcf5a32f9e7ccf731bc0e6'
+    assert acct.xpubkey == 'zpub6uMZYEpdewNa98z7Hge3R4GzeayoXCmtPUzFV7DVa4cc36k2Xh7oEDvs6baStXLxT8VtXkBZ56yfuk4D5JvM43nbB7EpdkmJC75ScEZm2QK'
+    assert acct.xprvkey == 'zprvAgND8jHjpZpGveueBf733vLG6Z9K7k432G4egiot1j5dAJQsz9oYgRcPFJVUdpLe3tHnabyRmmuGY871GdTv8tkotCwyn6Ec5bZbb8RjtHF'
 
     acct			= account( SEED_XMAS, crypto='Litecoin' )
     assert acct.address == 'ltc1qfjepkelqd3jx4e73s7p79lls6kqvvmak5pxy97'
@@ -86,10 +99,66 @@ def test_account():
 
     # Test values from a Trezor "Model T" w/ root seed 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' loaded.
     # The Trezor Suite UI produced the following account derivation path and public address for:
-    acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    acct			= account( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong', crypto='Ripple' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
     assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
+    assert acct.prvkey == '6501276b9d7f646742feb12fd066e107af8c1e26e4ad7c2694279d44c43bdfb2'
+
+
+def test_account_from_mnemonic():
+    """Test all the ways the entropy 0xffff...ffff can be encoded and HD Wallets derived."""
+    # Raw 0xffff...ffff entropy as Seed.  Not BIP-39 decoded (hashed) via mnemonic to produce Seed.  This is
+    # how SLIP-39 encodes and decodes entropy.  The rot HD Wallet Seed directly uses the entropy,
+    # un-molested.
+    acct_ones			= account( SEED_ONES, crypto='Bitcoin' )
+    assert acct_ones.path == "m/84'/0'/0'/0/0"  # Default, BTC
+    assert acct_ones.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+
+    details_ones_native_slip39	= create(
+        "SLIP39 Wallet: Ones native SLIP-39",
+        1,
+        dict( fren = (3,5) ),
+        SEED_ONES
+    )
+    # And the account addresses documented in the create's details are the SLIP-39 encodings (Seed
+    # uses raw entropy)
+    assert len(details_ones_native_slip39.accounts) == 1
+    [(eth,btc)] = details_ones_native_slip39.accounts  # The default accounts created are ETH, BTC
+    assert btc.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+    # But, we recover the raw entropy (as always from SLIP-39), except if using_bip39 is specified
+    assert recover( details_ones_native_slip39.groups['fren'][1][:3] ) == SEED_ONES
+    assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC' ).address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+    assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC', using_bip39=True ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+
+    # Now 0xffff...ffff entropy as BIP-39 Seed.  
+    acct_ones_bip39		= account( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong', crypto='BTC' )
+    assert acct_ones_bip39.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+
+    details_ones_using_bip39	= create(
+        "SLIP39 Wallet: Ones using BIP-39",
+        1,
+        dict( fren = (3,5) ),
+        SEED_ONES,
+        using_bip39 = True,
+    )
+    # And the account addresses documented are those from the BIP-39 derived Seed
+    assert len(details_ones_using_bip39.accounts) == 1
+    [(eth,btc)] = details_ones_using_bip39.accounts  # The default accounts created are ETH, BTC
+    assert btc.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+    # But, we recover the raw entropy (as always from SLIP-39), except if using_bip39 is specified
+    assert recover( details_ones_using_bip39.groups['fren'][1][:3] ) == SEED_ONES
+    assert account( '\n'.join( details_ones_using_bip39.groups['fren'][1][:3] ), crypto='BTC' ).address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+    assert account( '\n'.join( details_ones_using_bip39.groups['fren'][1][:3] ), crypto='BTC', using_bip39=True ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+
+    # Now for Ripple (XRP) accounts; first with native SLIP-39 Seed encoding
+    acct			= account( SEED_ONES, crypto='Ripple' )
+    assert acct.path == "m/44'/144'/0'/0/0"  # Default, XRP
+    assert acct.address == 'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'
+    # Then with BIP-39 Seed encoding from same 0xffff...ffff entropy
+    acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    assert acct.path == "m/44'/144'/0'/0/0"  # Default
+    assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
 
 
 @pytest.mark.skipif( not scrypt or not eth_account,
@@ -167,9 +236,8 @@ def test_account_encrypt():
         'something'
     ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
-    # Ripple BIP-38 encrypted wallets.  Should round-trip via BIP-38
-    acct_xrp = Account( crypto='XRP' )
-    acct_xrp.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    # Ripple BIP-38 encrypted wallets.  Should round-trip via BIP-38 encryption
+    acct_xrp		= Account( crypto='XRP' ).from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' ) 
     assert acct_xrp.path == "m/44'/144'/0'/0/0"  # Default
     assert acct_xrp.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/
     assert acct_xrp.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
@@ -185,14 +253,14 @@ def test_account_encrypt():
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create():
     """Standard SLIP-39 Mnemonic and account creation"""
-    details			= create(
+    details_xmas		= create(
         "SLIP39 Wallet: Test",
         1,
         dict( fren = (3,5) ),
         SEED_XMAS
     )
 
-    assert details.groups == {
+    assert details_xmas.groups == {
         "fren": ( 3, [
             "academic acid academic acne academic academic academic academic academic academic academic academic academic academic academic academic academic carpet making building",
             "academic acid academic agree depart dance galaxy acrobat mayor disaster quick justice ordinary agency plunge should pupal emphasis security obtain",
@@ -202,12 +270,35 @@ def test_create():
         ] ),
     }
 
-    assert len(details.accounts) == 1
-    [(eth,btc)] = details.accounts  # The default accounts created are ETH, BTC
+    assert len(details_xmas.accounts) == 1
+    [(eth,btc)] = details_xmas.accounts  # The default accounts created are ETH, BTC
     assert eth.address == '0x336cBeAB83aCCdb2541e43D514B62DC6C53675f4'
     assert btc.address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
 
-    assert recover( details.groups['fren'][1][:3] ) == SEED_XMAS
+    assert recover( details_xmas.groups['fren'][1][:3] ) == SEED_XMAS
+
+    # We can recover a slip39.Account directly from Mnemonics, too (default is native SLIP-39)
+    assert account( '\n'.join( details_xmas.groups['fren'][1][:3] ), crypto='BTC' ).address == 'bc1qz6kp20ukkyx8c5t4nwac6g8hsdc5tdkxhektrt'
+
+    # We know the native SLIP-39 and BIP-39 HD Wallet accounts for the 0xffff...ffff seed
+    details_ones_native_slip39	= create(
+        "SLIP39 Wallet: Native SLIP-39",
+        1,
+        dict( fren = (3,5) ),
+        SEED_ONES
+    )
+    # We can recover a slip39.Account directly from Mnemonics, too (default is native SLIP-39)
+    assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC' ).address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
+
+    details_ones_using_bip39	= create(
+        "SLIP39 Wallet: Backup BIP-39",
+        1,
+        dict( fren = (3,5) ),
+        SEED_ONES,
+        using_bip39 = True,
+    )
+    # ... but recovery of "backup" of a BIP-39 via SLIP-39 is also directly supported:
+    assert account( '\n'.join( details_ones_using_bip39.groups['fren'][1][:3] ), crypto='BTC', using_bip39=True ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )

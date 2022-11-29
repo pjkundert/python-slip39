@@ -53,6 +53,7 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
 
 
 def gasoracle( chain=None, **kwds ):
+    """Return (possibly cached) Gas Oracle values from etherscan.io."""
     return etherscan(
         chain or 'Ethereum',
         (
@@ -64,6 +65,7 @@ def gasoracle( chain=None, **kwds ):
 
 
 def ethprice( chain=None, **kwds ):
+    """Return (possibly cached) Ethereum price from etherscan.io."""
     return etherscan(
         chain or 'Ethereum',
         (
@@ -77,17 +79,29 @@ def ethprice( chain=None, **kwds ):
 # 
 # Retreive (or supply) some defaults for Ethereum pricing and some useful constants
 # 
-if gasprices := gasoracle():
+#     If GWEI_GAS_BLOCK or ETH_USE_TIMESTAMP are None, this indicates that
+# the value was estimated.
+# 
+try:
+    gasprices			= gasoracle()
+    GWEI_GAS_BLOCK		= int( gasprices['LastBlock'] )
     GWEI_GAS			= float( gasprices['SafeGasPrice'] )
     GWEI_BASEFEE		= float( gasprices['suggestBaseFee'] )
-else:
+except Exception as exc:
+    log.warning( f"Couldn't obtain current Gas Prices: {exc}; defaulting..." )
+    GWEI_GAS_BLOCK		= None
     GWEI_GAS			= 12.0
     GWEI_BASEFEE		= 10.0
 
-if ethprices := ethprice():
+try:
+    ethprices			= ethprice()
+    ETH_USD_TIMESTAMP		= int( ethprices['ethusd_timestamp'] )
     ETH_USD			= float( ethprices['ethusd'] )
-else:
+except Exception as exc:
+    log.warning( f"Couldn't obtain current Ethereum Price: {exc}; defaulting..." )
+    ETH_USD_TIMESTAMP		= None
     ETH_USD			= 1000.00  # order of magnitude ~2022/10/25
+
 
 WEI_GWEI			= 10 ** 9
 GWEI_ETH			= 10 ** 9

@@ -14,6 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from __future__		import annotations
 
 import colorsys
 import fractions
@@ -167,7 +168,7 @@ def ordinal( num ):
     return f"{num}{suffix}"
 
 
-def commas( seq, final_and=None ):
+def commas( seq, final=None ):  # supply alternative final connector, eg. 'and', 'or'
     """Replace any numeric sequences eg. 1, 2, 3, 5, 7 w/ 1-3, 5 and 7.  Caller should
     usually sort numeric values before calling."""
     def int_seq( seq ):
@@ -187,8 +188,8 @@ def commas( seq, final_and=None ):
         nxt			= rng[1] + 1
         end			= seq[nxt:] if nxt < len( seq ) else []
         seq			= beg + [f"{seq[rng[0]]}-{seq[rng[1]]}"] + end
-    if final_and and len(seq) > 1:
-        seq			= seq[:-2] + [f"{seq[-2]} and {seq[-1]}"]
+    if final and len(seq) > 1:
+        seq			= seq[:-2] + [f"{seq[-2]} {final} {seq[-1]}"]
     return ', '.join( map( str, seq ))
 
 

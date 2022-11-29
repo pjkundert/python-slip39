@@ -1,9 +1,9 @@
 
 import json
 import os
-import pytest
 import random
 
+import pytest
 from string		import Template
 
 import requests
@@ -12,6 +12,10 @@ import solcx
 
 from web3		import Web3
 from web3.contract	import normalize_address_no_ens
+
+from ..api		import (
+    account, accounts,
+)
 
 from .multisend		import (
     make_trustless_multisend, build_recursive_multisend, simulate_multisends,
@@ -563,27 +567,66 @@ def test_solc_multipayout_eth_tester():
     print( "Construct MultiPayout transaction: {}".format( json.dumps( mc, indent=4 )))
 
 
-def test_solc_multipayout_web3_tester():
+georli_root_xprvkey			= account( 'ff'*32, crypto="ETH", path="m/44'/1'/0'" ).xprvkey
+
+@pytest.mark.parametrize( "provider, src, src_prvkey, destination", [
+    (
+        Web3.EthereumTesterProvider(),
+        '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf', None,
+        (
+            '0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF',
+            '0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69',
+            '0x1efF47bc3a10a45D4B230B5d10E37751FE6AA718',
+            '0xe1AB8145F7E55DC933d51a18c793F901A3A0b276',
+            '0xE57bFE9F44b819898F47BF37E5AF72a0783e1141',
+            '0xd41c057fd1c78805AAC12B0A94a405c0461A6FBb',
+            '0xF1F6619B38A98d6De0800F1DefC0a6399eB6d30C',
+            '0xF7Edc8FA1eCc32967F827C9043FcAe6ba73afA5c',
+            '0x4CCeBa2d7D2B4fdcE4304d3e09a1fea9fbEb1528',
+        )
+    ),
+    (
+        Web3.WebsocketProvider( f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
+        account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).address, account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).prvkey,
+        tuple(
+            a.address
+            for a in accounts( georli_root_xprvkey, crypto="ETH", paths="m/0/1-3" )
+        )
+    ),
+    (
+        Web3.HTTPProvider( f"https://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
+        account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).address, account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).prvkey,
+        tuple(
+            a.address
+            for a in accounts( georli_root_xprvkey, crypto="ETH", paths="m/0/1-3" )
+        )
+    ),
+])
+def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
     """Use web3 tester
 
     """
+    print( f"Web3( {provider!r} ): Source ETH account: {src} (private key: {src_prvkey}; destination: {', '.join( destination )}" )
+
     solc_version		= "0.8.17"
     solcx.install_solc( version=solc_version )
 
     # Fire up Web3, and get the list of accounts we can operate on
-    w3				= Web3( Web3.EthereumTesterProvider() )
+    w3				= Web3( provider )
 
-    print( "Web3 Tester Accounts:" )
-    for a in w3.eth.accounts:
-        print( " {} == {}".format( a, w3.eth.get_balance( a )))
+    latest			= w3.eth.get_block('latest')
+    print( f"Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
 
-    w3.eth.default_account	= w3.eth.accounts[0]
+    print( "Web3 Tester Accounts, start of test:" )
+    for a in ( src, ) + tuple( destination ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
-    # Generate a contract, targeting some of these accounts; avoid the first, as we'll be drawing on
-    # that one.
+    w3.eth.default_account	= src
+
+    # Generate a contract targeting these destination accounts, with random percentages.
     payout_pcts			= {
         addr: random.random() * 100
-        for addr in w3.eth.accounts[1:]
+        for addr in destination
     }
     unitize			= 100 / sum( payout_pcts.values() )
     payout_pcts			= {
@@ -601,10 +644,22 @@ def test_solc_multipayout_web3_tester():
     bytecode			= compiled_sol['<stdin>:MultiPayout']['bin']
     abi				= compiled_sol['<stdin>:MultiPayout']['abi']
 
-
     MultiPayout			= w3.eth.contract( abi=abi, bytecode=bytecode )
 
-    mc_cons_hash		= MultiPayout.constructor().transact()
+    if src_prvkey:
+        # This is a standard contract instantiation, signed by a known account (for which we have a
+        # private key) containing ETH to pay for the Gas required.  A simple example (a bit dated)
+        # is at https://github.com/petervw-qa/Web3_PyStorage_Application/blob/main/deploy.py
+        mc_cons_tx		= MultiPayout.constructor().build_transaction()
+        print( "Web3 Tester Construct MultiPayout base transaction: {}".format( mc_cons_tx ))
+        mc_cons_tx.update({ 'nonce': w3.eth.get_transaction_count( src ) })
+        mc_cons_tx.update({ 'gas': 500000 })  # TODO: estimate?  Used 378774 in EtherTesterProvider...
+        print( "Web3 Tester Construct MultiPayout base transaction w/nonce: {}".format( mc_cons_tx ))
+        mc_cons_tx_signed	= w3.eth.account.sign_transaction( mc_cons_tx, private_key = src_prvkey )
+        print( "Web3 Tester Construct MultiPayout sig. transaction: {}".format( mc_cons_tx_signed ))
+        mc_cons_hash		= w3.eth.send_raw_transaction( mc_cons_tx_signed.rawTransaction )
+    else:
+        mc_cons_hash		= MultiPayout.constructor().transact()
     print( "Web3 Tester Construct MultiPayout hash: {}".format( mc_cons_hash ))
     mc_cons			= w3.eth.get_transaction( mc_cons_hash ) 
     print( "Web3 Tester Construct MultiPayout transaction: {}".format( json.dumps( mc_cons, indent=4, default=str )))
@@ -619,8 +674,8 @@ def test_solc_multipayout_web3_tester():
     ))
 
     print( "Web3 Tester Accounts; post-contract creation:" )
-    for a in w3.eth.accounts:
-        print( " {} == {}".format( a, w3.eth.get_balance( a )))
+    for a in ( src, ) + tuple( destination ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
     # We can work with the contract, but it doesn't have a direct external API -- just a fallback
     # for receiving ETH.
@@ -632,16 +687,27 @@ def test_solc_multipayout_web3_tester():
     # whatever			= w3.eth.account.create( 'Whatever' )
     # print( "Web3 Tester Whatever account created: {}".format( whatever._address ))
 
-    # So, just send some ETH from the first account
-    
-    mc_send_hash		= w3.eth.send_transaction({
-        'to':		mc_cons_receipt.contractAddress,
-        'from':		w3.eth.accounts[0],
-        'nonce':	w3.eth.get_transaction_count( w3.eth.accounts[0] ),
-        'gas_price':	w3.eth.gas_price,
-        'gas':		100000,
-        'value':	w3.to_wei( .1, 'ether' ),
-    })
+    # So, just send some ETH from the default account
+    if src_prvkey:
+        mc_send_tx		= {
+            'to':	mc_cons_receipt.contractAddress,
+            'from':	src,
+            'nonce':	w3.eth.get_transaction_count( src ),
+            'gas_price':w3.eth.gas_price,
+            'gas':	100000,
+            'value':	w3.to_wei( .1, 'ether' )
+        }
+        mc_send_tx_signed	= w3.eth.account.sign_transaction( mc_send_tx, private_key = src_prvkey )
+        mc_send_hash		= w3.eth.send_raw_transaction( mc_send_tx_signed.rawTransaction )
+    else:
+        mc_send_hash		= w3.eth.send_transaction({
+            'to':	mc_cons_receipt.contractAddress,
+            'from':	src,
+            'nonce':	w3.eth.get_transaction_count( src ),
+            'gas_price':w3.eth.gas_price,
+            'gas':	100000,
+            'value':	w3.to_wei( .1, 'ether' ),
+        })
 
     mc_send			= w3.eth.get_transaction( mc_send_hash )
     print( "Web3 Tester Send ETH MultiPayout transaction: {}".format( json.dumps( mc_send, indent=4, default=str )))
@@ -656,5 +722,6 @@ def test_solc_multipayout_web3_tester():
     ))
     
     print( "Web3 Tester Accounts; post-send ETH:" )
-    for a in w3.eth.accounts:
-        print( " {} == {}".format( a, w3.eth.get_balance( a )))
+    for a in ( src, ) + tuple( destination ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
+

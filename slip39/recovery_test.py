@@ -362,11 +362,11 @@ def test_recover_bip39_vectors():
 def test_util():
     assert commas( range(10) ) == '0-9'
     assert commas( [1,2,3,5,6,7] ) == '1-3, 5-7'
-    assert commas( [1,2,3,5,6,7], final_and=True ) == '1-3 and 5-7'
+    assert commas( [1,2,3,5,6,7], final='and' ) == '1-3 and 5-7'
     assert commas( [1,2,3,5,6,7,9] ) == '1-3, 5-7, 9'
-    assert commas( [1,2,3,5,6,7,9], final_and=True ) == '1-3, 5-7 and 9'
-    assert commas( [1,3,5], final_and=True ) == '1, 3 and 5'
-    assert commas( [1,2,5], final_and=True ) == '1, 2 and 5'
+    assert commas( [1,2,3,5,6,7,9], final='and' ) == '1-3, 5-7 and 9'
+    assert commas( [1,3,5], final='and' ) == '1, 3 and 5'
+    assert commas( [1,2,5], final='or' ) == '1, 2 or 5'
 
     assert round_onto( -.1, [-5, -1, 0, 1, 5], keep_sign=False ) == 0
     assert round_onto( -.9, [-5, -1, 0, 1, 5], keep_sign=False ) == -1
