@@ -271,7 +271,7 @@ def test_solc_multitransferether():
     }
 
 
-multipayout_template		= Template( """
+multipayout_template		= Template( r"""
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
@@ -341,10 +341,10 @@ contract MultiPayout is ReentrancyGuard {
     // Notification of Payout success/failure; significant cost in contract size; 2452 vs. ~1600 bytes
     event Payout( uint256 amount, address to, bool sent );
 
+    /*
+     * Nothing to do in a constructor, as there is no static data
+     */
     constructor() payable {
-        if ( address(this).balance > 0 ) {
-            payout();
-        }
     }
 
     /*
@@ -352,70 +352,86 @@ contract MultiPayout is ReentrancyGuard {
      *
      *     Which function is called, fallback() or receive()?
      *
-     *            send Ether
-     *                |
+     *             send Ether
+     *                 |
      *          msg.data is empty?
-     *               / \
-     *             yes  no
-     *             /     \
+     *                / \
+     *             yes   no
+     *             /       \
      * receive() exists?  fallback()
      *          /   \
-     *         yes   no
-     *         /      \
-     *     receive()   fallback()
+     *       yes     no
+     *       /         \
+     *    receive()   fallback()
      *
      * NOTE: we *can* receive ETH without processing it here, via selfdestruct(); any
      * later call (even with a 0 value) will trigger payout.
+     * 
+     * We want incoming ETH payments to be low cost (so trigger no functionality in the receive)
+     * Any other function (carrying a value of ETH or not) will trigger the fallback, which will
+     * payout the ETH in the contract.
+     *
+     * Anyone may invoke fallback payout function (indirectly, by sending ETH to the contract), which
+     * transfers the balance as designated by the fixed percentage factors.  The transaction's
+     * Gas/fees are paid by the caller, including the case of the initial contract creation -- no
+     * Gas/fees ever come from the ETH balance of the contract.  Only if NO ETH can successfully be
+     * sent to *any* address will the payout fail and revert.  Any payee who wishes to be paid should
+     * ensure that their address will accept an incoming transfer of ETH.
      */
-    // receive() external payable { payout(); }
+    receive() external payable {
+    }
+
+${PAYOUT}
+
     fallback() external payable {
-        if ( address(this).balance == 0 ) {
-            payout();
+        if ( address(this).balance > 0 ) {
+            payout_internal();
         }
     }
 
-    /*
-     * Anyone may invoke payout (indirectly, by sending ETH to the contract), which transfers the balance
-     * as designated by the fixed percentage factors.  The transaction's Gas/fees are paid by the
-     * caller, including the case of the initial contract creation -- no Gas/fees ever come from the
-     * ETH balance of the contract.  Only if NO ETH can successfully be sent to *any* address will
-     * the payout fail and revert.  Any payee who wishes to be paid should ensure that their address
-     * will accept an incoming transfer of ETH.
-     */
-    ${PAYOUT}
+    function payout() external payable {
+        if ( address(this).balance > 0 ) {
+            payout_internal();
+        }
+    }
 }
 """ )
 
 
 def multipayout_generate( addr_pct, scale=100 ):
-    """Produce payout function w/ fixed percentages to predefined addresses.  Precision """
-    payout		= "function payout() private nonReentrant {\n"
+    """Produce fallback payout function w/ fixed percentages to predefined addresses.
+
+    TODO: use the 256-bit bytes32 to carry the packed payload of the 160-bit payee Ether account
+    address, plus the 96-bit fixed point percentage.
+
+    """
+    payout		= "    function payout_internal() private nonReentrant {\n"
     pct_tot		= 0
     for i,(addr,pct) in enumerate( sorted( addr_pct.items(), key=lambda a_p: a_p[1] )):
         if pct < 1/scale:
             continue
-        payout	       += f"    {'gone' if i else 'uint256 gone':<16}"
+        payout	       += f"        {'gone' if i else 'uint256 gone':<16}"
         payout	       += f"= move_pctx{scale}_to( {'gone,' if i else '0,':<5}"
         pct_tot	       += pct
         if ( scale - 1/scale ) <= pct_tot <= ( scale + 1/scale ):
             pct		= 0
         payout	       += f" {int(pct * scale):>{2+len(str(scale))}},"
         payout	       += f" payable( address( {normalize_address_no_ens( addr )} )));\n"
-    payout	       += "}\n"
+    payout	       += "    }\n"
     assert ( scale - 1/scale ) <= pct_tot <= ( scale + 1/scale ), \
         f"Total payout percentages didn't sum to 100%, {pct_tot:9.4f}%"
 
     payout	       += Template( """
-function move_pctx${SCALE}_to( uint256 _gone, uint256 _pct_x${SCALE}, address payable _to ) private returns ( uint256 ) {
-    uint256 value           = address(this).balance;
-    if ( _pct_x${SCALE} > 0 ) {
-        value               = ( value + _gone ) * _pct_x${SCALE} / ${SCALE};
+    function move_pctx${SCALE}_to( uint256 _gone, uint256 _pct_x${SCALE}, address payable _to ) private returns ( uint256 ) {
+        uint256 value   = address(this).balance;
+        if ( _pct_x${SCALE} > 0 ) {
+            value       = ( value + _gone ) * _pct_x${SCALE} / ${SCALE};
+        }
+        // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
+        (bool sent, )   = _to.call{ value: value }( "" );
+        emit Payout( value, _to, sent );
+        return _gone + ( sent ? value : 0 );
     }
-    // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
-    (bool sent, ) = _to.call{ value: value }( "" );
-    emit Payout( value, _to, sent );
-    return _gone + ( sent ? value : 0 );
-}
 """ ).substitute( SCALE=str( scale ))
     return payout
 
@@ -435,22 +451,22 @@ def test_multipayout_generate():
     payout		= multipayout_generate( multipayout_defaults )
     print( payout )
     assert payout == """\
-function payout() private nonReentrant {
-    uint256 gone    = move_pctx100_to( 0,      690, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )));
-    gone            = move_pctx100_to( gone,  4000, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )));
-    gone            = move_pctx100_to( gone,     0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )));
-}
-
-function move_pctx100_to( uint256 _gone, uint256 _pct_x100, address payable _to ) private returns ( uint256 ) {
-    uint256 value           = address(this).balance;
-    if ( _pct_x100 > 0 ) {
-        value               = ( value + _gone ) * _pct_x100 / 100;
+    function payout_internal() private nonReentrant {
+        uint256 gone    = move_pctx100_to( 0,      690, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )));
+        gone            = move_pctx100_to( gone,  4000, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )));
+        gone            = move_pctx100_to( gone,     0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )));
     }
-    // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
-    (bool sent, ) = _to.call{ value: value }( "" );
-    emit Payout( value, _to, sent );
-    return _gone + ( sent ? value : 0 );
-}
+
+    function move_pctx100_to( uint256 _gone, uint256 _pct_x100, address payable _to ) private returns ( uint256 ) {
+        uint256 value   = address(this).balance;
+        if ( _pct_x100 > 0 ) {
+            value       = ( value + _gone ) * _pct_x100 / 100;
+        }
+        // Any value not sent to a recipient stays in the balance and is split between subsequent recipients
+        (bool sent, )   = _to.call{ value: value }( "" );
+        emit Payout( value, _to, sent );
+        return _gone + ( sent ? value : 0 );
+    }
 """
 
 
@@ -567,7 +583,30 @@ def test_solc_multipayout_eth_tester():
     print( "Construct MultiPayout transaction: {}".format( json.dumps( mc, indent=4 )))
 
 
-georli_root_xprvkey			= account( 'ff'*32, crypto="ETH", path="m/44'/1'/0'" ).xprvkey
+#
+# Lets deduce the accounts to use in the Goerli Ethereum testnet.  Look for environment variables:
+#
+#   GOERLI_XPRVKEY	- Use this xprv... key to generate m/../0/0 (source) and m/../0/1-3 (destination) addresses
+#   GOERLI_SEED		- Use this Seed (eg. BIP-39 Mnemonic Phrase, hex seed, ...) to generate the xprvkey
+#
+# If neither of those are found, use the 128-bit ffff...ffff Seed entropy.  Once you provision an
+# xprvkey and derive the .../0/0 address, send some Goerli Ethereum testnet ETH to it.
+#
+# With no configuration, we'll end up using the 128-bit ffff...ffff Seed w/ no BIP-39 encoding as
+# our root HD Wallet seed.
+#
+goerli_xprvkey			= os.getenv( 'GOERLI_XPRVKEY' )
+if not goerli_xprvkey:
+    goerli_root			= account( os.getenv( 'GOERLI_SEED', 'ff'*16 ), crypto="ETH", path="m/44'/1'/0'" )
+    goerli_xprvkey		= goerli_root.xprvkey
+
+goerli_src			= account( goerli_xprvkey, crypto='ETH', path="m/0/0" )  # the Account; .address/.key
+goerli_destination		= tuple(  # Just addresses
+    a.address
+    for a in accounts( goerli_xprvkey, crypto="ETH", paths="m/0/1-3" )
+)
+
+print( f"Goerli Ethereum Testnet src ETH address: {goerli_src.address}" )
 
 @pytest.mark.parametrize( "provider, src, src_prvkey, destination", [
     (
@@ -587,20 +626,12 @@ georli_root_xprvkey			= account( 'ff'*32, crypto="ETH", path="m/44'/1'/0'" ).xpr
     ),
     (
         Web3.WebsocketProvider( f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
-        account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).address, account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).prvkey,
-        tuple(
-            a.address
-            for a in accounts( georli_root_xprvkey, crypto="ETH", paths="m/0/1-3" )
-        )
+        goerli_src.address, goerli_src.prvkey, goerli_destination,
     ),
-    (
-        Web3.HTTPProvider( f"https://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
-        account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).address, account( georli_root_xprvkey, crypto='ETH', path="m/0/0" ).prvkey,
-        tuple(
-            a.address
-            for a in accounts( georli_root_xprvkey, crypto="ETH", paths="m/0/1-3" )
-        )
-    ),
+    # (
+    #     Web3.HTTPProvider( f"https://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
+    #     goerli_src.address, goerli_src.prvkey, goerli_destination,
+    # ),
 ])
 def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
     """Use web3 tester
@@ -660,7 +691,7 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
         mc_cons_hash		= w3.eth.send_raw_transaction( mc_cons_tx_signed.rawTransaction )
     else:
         mc_cons_hash		= MultiPayout.constructor().transact()
-    print( "Web3 Tester Construct MultiPayout hash: {}".format( mc_cons_hash ))
+    print( "Web3 Tester Construct MultiPayout hash: {}".format( mc_cons_hash.hex() ))
     mc_cons			= w3.eth.get_transaction( mc_cons_hash ) 
     print( "Web3 Tester Construct MultiPayout transaction: {}".format( json.dumps( mc_cons, indent=4, default=str )))
 
@@ -684,18 +715,17 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
         abi	= abi,
     )
 
-    # whatever			= w3.eth.account.create( 'Whatever' )
-    # print( "Web3 Tester Whatever account created: {}".format( whatever._address ))
-
-    # So, just send some ETH from the default account
+    
+    # So, just send some ETH from the default account.  This will *not* trigger the payout function,
+    # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
     if src_prvkey:
         mc_send_tx		= {
             'to':	mc_cons_receipt.contractAddress,
             'from':	src,
             'nonce':	w3.eth.get_transaction_count( src ),
-            'gas_price':w3.eth.gas_price,
-            'gas':	100000,
-            'value':	w3.to_wei( .1, 'ether' )
+            'gasPrice'	:w3.eth.gas_price,
+            'gas':	250000,
+            'value':	w3.to_wei( .01, 'ether' )
         }
         mc_send_tx_signed	= w3.eth.account.sign_transaction( mc_send_tx, private_key = src_prvkey )
         mc_send_hash		= w3.eth.send_raw_transaction( mc_send_tx_signed.rawTransaction )
@@ -704,9 +734,9 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
             'to':	mc_cons_receipt.contractAddress,
             'from':	src,
             'nonce':	w3.eth.get_transaction_count( src ),
-            'gas_price':w3.eth.gas_price,
-            'gas':	100000,
-            'value':	w3.to_wei( .1, 'ether' ),
+            'gasPrice':	w3.eth.gas_price,
+            'gas':	250000,
+            'value':	w3.to_wei( .01, 'ether' ),
         })
 
     mc_send			= w3.eth.get_transaction( mc_send_hash )
@@ -725,3 +755,29 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
     for a in ( src, ) + tuple( destination ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
+    # Finally, invoke the fallback payout function.  Calling any function that is not implemented
+    # (ie. with a payload) invokes the fallback.  We ignore the payload, and requires more gas.
+    print( f"Multipayout contract functions: {dir( multipayout.functions )!r}" )
+    if src_prvkey:
+        mc_payo			= multipayout.functions.payout().build_transaction({
+            'nonce':	w3.eth.get_transaction_count( src ),
+            'gas':	250000,
+        })
+        mc_payo_sig		= w3.eth.account.sign_transaction( mc_payo, private_key = src_prvkey )
+        mc_payo_hash		= w3.eth.send_raw_transaction( mc_payo_sig.rawTransaction )
+    else:
+        mc_payo_hash		= multipayout.functions.pay().transact({
+            'nonce':	w3.eth.get_transaction_count( src ),
+            'gas':	250000,
+        })
+    print( "Web3 Tester Construct MultiPayout payout hash: {}".format( mc_payo_hash.hex() ))
+
+    mc_payo_receipt		= w3.eth.wait_for_transaction_receipt( mc_payo_hash )
+    print( "Web3 Tester MultiPayout payout: {}".format( json.dumps( mc_payo_receipt, indent=4, default=str )))
+
+    print( "Web3 Tester MultiPayout payout Gas Used: {} == {}gwei == USD${:7.2f}".format(
+        mc_payo_receipt.gasUsed,
+        mc_payo_receipt.gasUsed * GWEI_GAS,
+        mc_payo_receipt.gasUsed * GWEI_GAS * ETH_USD / GWEI_ETH,
+    ))
+    
