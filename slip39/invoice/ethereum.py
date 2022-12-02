@@ -2,8 +2,10 @@ import os
 import json
 import logging
 
+from datetime		import datetime
+
 import requests
-from ..util		import memoize
+from ..util		import memoize, retry
 from ..defaults		import ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE
 
 # Get some basic Ethereum blockchain data used by tests
@@ -16,7 +18,7 @@ etherscan_urls			= dict(
 )
 
 
-@memoize( maxage=ETHERSCAN_MEMO_MAXAGE, maxsize=ETHERSCAN_MEMO_MAXSIZE )
+@memoize( maxage=ETHERSCAN_MEMO_MAXAGE, maxsize=ETHERSCAN_MEMO_MAXSIZE, log_at=logging.INFO )
 def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=True ):
     """Queries etherscan.io, IFF you have an apikey.  Must specify name of Ethereum blockchain to use.
     The params must be a hashable sequence (tuple of tuples) usable to construct a dict, since
@@ -52,8 +54,12 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
     return result
 
 
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict ) 
 def gasoracle( chain=None, **kwds ):
-    """Return (possibly cached) Gas Oracle values from etherscan.io."""
+    """Return (possibly cached) Gas Oracle values from etherscan.io, or empty dict, allowing retries w/
+    up to 3^5 seconds (4 min.) exponential backoff.
+
+    """
     return etherscan(
         chain or 'Ethereum',
         (
@@ -63,9 +69,9 @@ def gasoracle( chain=None, **kwds ):
         **kwds,
     )
 
-
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict ) 
 def ethprice( chain=None, **kwds ):
-    """Return (possibly cached) Ethereum price from etherscan.io."""
+    """Return (possibly cached) Ethereum price from etherscan.io, or Exception"""
     return etherscan(
         chain or 'Ethereum',
         (
@@ -76,36 +82,73 @@ def ethprice( chain=None, **kwds ):
     )
 
 
-# 
-# Retreive (or supply) some defaults for Ethereum pricing and some useful constants
-# 
-#     If GWEI_GAS_BLOCK or ETH_USE_TIMESTAMP are None, this indicates that
-# the value was estimated.
-# 
-try:
-    gasprices			= gasoracle()
-    GWEI_GAS_BLOCK		= int( gasprices['LastBlock'] )
-    GWEI_GAS			= float( gasprices['SafeGasPrice'] )
-    GWEI_BASEFEE		= float( gasprices['suggestBaseFee'] )
-except Exception as exc:
-    log.warning( f"Couldn't obtain current Gas Prices: {exc}; defaulting..." )
-    GWEI_GAS_BLOCK		= None
-    GWEI_GAS			= 12.0
-    GWEI_BASEFEE		= 10.0
+class Etherscan:
+    """Retreive (or supply) some defaults for Ethereum pricing and some useful constants, IF you supply
+    an etherscan.io API token in the ETHERSCAN_API_TOKEN environment variable.
 
-try:
-    ethprices			= ethprice()
-    ETH_USD_TIMESTAMP		= int( ethprices['ethusd_timestamp'] )
-    ETH_USD			= float( ethprices['ethusd'] )
-except Exception as exc:
-    log.warning( f"Couldn't obtain current Ethereum Price: {exc}; defaulting..." )
-    ETH_USD_TIMESTAMP		= None
-    ETH_USD			= 1000.00  # order of magnitude ~2022/10/25
+    If Etherscan.UPDATED or .STATUS are falsey, this indicates that the value(s) are estimated;
+    otherwise, they will return the approximate *nix timestamp of the provided Gas and Ethereum
+    pricing, eg:
 
+        >>> log.warning( f"Ethereum price: USD${Etherscan.ETH_USD:7.2f} ({Etherscan.STATUS or 'estimated'})" )
 
-WEI_GWEI			= 10 ** 9
-GWEI_ETH			= 10 ** 9
-WEI_ETH				= 10 ** 18
+    """
 
-WEI_GAS				= int( WEI_GWEI * GWEI_GAS )
-WEI_BASEFEE			= int( WEI_GWEI * GWEI_BASEFEE )
+    CHAIN			= "Ethereum"		# Or "Goerli"
+
+    GWEI_WEI			= 10 ** 9		# GWEI, in WEIs
+    ETH_GWEI			= 10 ** 9		# ETH, in GWEIs
+    ETH_WEI			= 10 ** 18		# ETH, in WEIs
+
+    @classmethod
+    @property
+    def LASTBLOCK( cls ):
+        """Ethereum Gas Fee estimate comes from this block"""
+        return int( gasoracle( chain=cls.CHAIN ).get( 'LastBlock', 0 ))
+
+    @classmethod
+    @property
+    def GAS_GWEI( cls ):
+        """Ethereum Gas Fee, in GWEI"""
+        return float( gasoracle( chain=cls.CHAIN ).get( 'SafeGasPrice', 12.0 ))
+
+    @classmethod
+    @property
+    def GAS_WEI( cls ):
+        """Ethereum Gas Fee, in WEI"""
+        return cls.GAS_GWEI * GWEI_WEI
+
+    @classmethod
+    @property
+    def BASEFEE_GWEI( cls ):
+        """Ethereum BaseFee, in GWEI"""
+        return float( gasoracle( chain=cls.CHAIN ).get( 'suggestBaseFee', 10.0 ))
+
+    @classmethod
+    @property
+    def BASEFEE_WEI( cls ):
+        """Ethereum BaseFee, in WEI"""
+        return cls.BASEFEE_GWEI * GWEI_WEI
+
+    @classmethod
+    @property
+    def TIMESTAMP( cls ):
+        return int( ethprice( chain=cls.CHAIN ).get( 'ethusd_timestamp', 0 ))
+
+    @classmethod
+    @property
+    def ETH_USD( cls ):
+        """ETH, in USD$"""
+        return float( ethprice( chain=cls.CHAIN ).get( 'ethusd', 1000.00 ))
+
+    @classmethod
+    @property
+    def UPDATED( cls ):
+        return cls.LASTBLOCK and cls.TIMESTAMP
+
+    @classmethod
+    @property
+    def STATUS( cls ):
+        updated			= cls.UPDATED
+        if updated:
+            return datetime.utcfromtimestamp( updated ).ctime() + " UTC"

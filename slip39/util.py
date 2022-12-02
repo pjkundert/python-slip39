@@ -156,8 +156,76 @@ def memoize( maxsize=None, maxage=None, log_at=None ):
                     age	       += now-last
                     avg	       += hits
             return cnt,age/(cnt or 1),avg/(cnt or 1)
+
         wrapper.stats		= stats
+
         return wrapper
+
+    return decorator
+
+
+def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=logging.WARNING ):
+    """Retries a function or method until it returns a truthy value.  If default_cls is None, will
+    recycle (keep returning) any prior non-falsey value 'til successful again.  Otherwise, will
+    return a default_cls instance (or just its falsey value, eg. False) on failure.
+
+    The 'delay' sets the initial delay in seconds, and 'backoff' (defaults to 1.5x; a 50% increase
+    in delay each retry) sets the factor by which the delay should lengthen after each
+    failure/falsey value.  The 'backoff' multiple must be greater than 1, or else it isn't really a
+    backoff.  The 'tries' must be at least 0 to have any exponential effect, and delay greater than
+    0; once 'tries' expires, the backoff will remain constant.
+
+    Once truthy, the values reset 'til the next failure.
+
+    """
+    if delay <= 0:
+        raise ValueError("delay must be greater than 0")
+    if backoff <= 1:
+        raise ValueError("backoff must be greater than 1")
+    if tries < 0:
+        raise ValueError("tries must be 0 or greater")
+
+    def decorator( func ):
+        @wraps( func )
+        def wrapper( *args, **kwds ):
+            now			= timer()
+            if wrapper.lst is None:
+                wrapper.lst	= now
+            #log.debug( f"{wrapper.__name__}: After {ordinal( wrapper.cnt )} {'success' if wrapper.ok else 'failure'} and {now - wrapper.lst:7.3f}s vs. {delay * backoff ** min( wrapper.cnt, tries ):7.3f}s" )
+            if wrapper.ok or now >= wrapper.lst + delay * backoff ** min( wrapper.cnt, tries ):
+                # Was truthy last time, or it is time to to call again.
+                try:
+                    wrapper.lst	= now
+                    rv		= func( *args, **kwds )
+                except Exception as exc:
+                    if exc_at:
+                        log.log( exc_at,  f"{wrapper.__name__}: Exception after {wrapper.cnt} {'successes' if wrapper.ok else 'failures'}: {exc}" )
+                    rv		= None
+                else:
+                    if rv:
+                        wrapper.rv	= rv
+                        return rv
+                finally:
+                    ok		= bool( rv )
+                    if ok != wrapper.ok:
+                        # Count resets on rising/falling edge (success <-> failure change)
+                        if log_at and log.isEnabledFor( log_at ):
+                            log.log( log_at, f"{wrapper.__name__}: Became {'Truthy' if rv else 'Falsey'} after {wrapper.cnt} {'successes' if wrapper.ok else 'failures'}" )
+                        wrapper.cnt	= 0		# .cnt resets only on rising/falling edge
+                        wrapper.ok	= ok
+                    wrapper.cnt += 1			# And *always* counts successes/failures (even on return, just above!)
+                # Falls thru on attempt and failure (Falsey)
+            wrapper.ok		= False
+            if default_cls is None and wrapper.rv:
+                return wrapper.rv
+            return default_cls() if default_cls else default_cls
+
+        wrapper.ok		= True		# Start off assuming success (hence no initial delay)
+        wrapper.cnt		= 0
+        wrapper.lst		= None		# time of last function invocation
+
+        return wrapper
+
     return decorator
 
 
@@ -419,3 +487,12 @@ class mixed_fraction( fractions.Fraction ):
         if whole and rest:
             return f"{whole}+{fractions.Fraction( rest, self.denominator)}"
         return super().__str__()
+
+
+def remainder_after( fractions ):
+    """Computes the sequence of what fraction must remain, after the preceding fractions have been
+    removed."""
+    f_total			= 0
+    for f in fractions:
+        yield 1.0 - f / ( 1 - f_total )
+        f_total		       += f
