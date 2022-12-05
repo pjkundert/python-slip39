@@ -23,8 +23,8 @@ import logging
 from typing		import List, Optional, Union
 
 from shamir_mnemonic	import combine_mnemonics        # Requires passphrase as bytes
-from mnemonic		import Mnemonic, ConfigurationError  # Requires passphrase as str
-
+from mnemonic		import Mnemonic			# Requires passphrase as str
+from mnemonic.mnemonic	import ConfigurationError
 from ..util		import ordinal, commas
 
 from .entropy		import (  # noqa F401

@@ -981,10 +981,23 @@ ${RECIPIENTS}
     }
 
     function transfer_except_ERC20( address erc20, address payable to, uint16 reserve_x10k ) private {
-        uint256 tok_value 	= value_but_x10k( IERC20( erc20 ).balanceOf( address( this )), reserve_x10k );
-        if ( tok_value > 0 ) {
-            bool tok_sent = IERC20( erc20 ).transfer( to, tok_value );
-            emit PayoutERC20( tok_value, to, tok_sent, erc20 );
+        uint256 tok_balance;
+        try IERC20( erc20 ).balanceOf( address( this )) returns ( uint256 v ) {
+            tok_balance		= v;
+        } catch {
+            return;
+        }
+        if ( tok_balance > 0 ) {
+            uint256 tok_value	= value_but_x10k( tok_balance, reserve_x10k );
+            if ( tok_value > 0 ) {
+                bool tok_sent;
+                try IERC20( erc20 ).transfer( to, tok_value ) returns ( bool s )  {
+                    tok_sent	= s;
+                } catch {
+                    return;
+                }
+                emit PayoutERC20( tok_value, to, tok_sent, erc20 );
+            }
         }
     }
 
@@ -1065,7 +1078,9 @@ def multipayout_ERC20_solidity( addr_frac, tokens ):
 
 HOT			= "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
 USDT			= "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+USDT_GOERLI		= "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e"
 USDC			= "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+USDC_GOERLI		= "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998"
 
 
 def test_multipayout_ERC20_solidity():
@@ -1109,7 +1124,10 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
         addr: frac / unitize
         for addr,frac in addr_frac.items()
     }
-    tokens			= [ HOT, USDC, USDT ]
+    # Must be actual ERC-20 contracts; if these fail to have a .balanceOf or .transfer API, this
+    # contract will fail.  So, if an ERC-20 token contract is self-destructed, the
+    # MultiTransferERC20 will begin to fail.
+    tokens			= [ USDT_GOERLI, USDC_GOERLI ]
     payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac, tokens=tokens )
     print( payout_sol )
     compiled_sol		= solcx.compile_source(
@@ -1124,7 +1142,7 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
 
     mc_cons_config		= {
         'nonce':	w3.eth.get_transaction_count( src ),
-        'gas':	500000,
+        'gas':		1000000,
     }
     if src_prvkey:
         # This is a standard contract instantiation, signed by a known account (for which we have a
@@ -1163,11 +1181,11 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
     # So, just send some ETH from the default account.  This will *not* trigger the payout function,
     # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
     mc_send_tx			= {
-        'to':	mc_cons_receipt.contractAddress,
-        'from':	src,
+        'to':		mc_cons_receipt.contractAddress,
+        'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gasPrice':	w3.eth.gas_price,
-        'gas':	250000,
+        'gas':		250000,
         'value':	w3.to_wei( .01, 'ether' )
     }
     if src_prvkey:
