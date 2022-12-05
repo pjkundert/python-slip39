@@ -26,6 +26,12 @@ from .multisend		import (
 from .ethereum		import Etherscan as ETH  # Eg. ETH.GWEI_GAS, .ETH_USD
 
 
+solcx_options			= dict(
+    optimize		= True,
+    optimize_runs	= 1000,
+)
+
+
 # Compiled with Solidity v0.3.5-2016-07-21-6610add with optimization enabled.
 
 # The old MultiSend contract used by https://github.com/Arachnid/extrabalance was displayed with
@@ -220,7 +226,8 @@ def test_solc_smoke():
     contract_0_5_15 = solcx.compile_source(
         "contract Foo { function bar() public { return; } }",
         output_values=["abi", "bin-runtime"],
-        solc_version="0.5.16"
+        solc_version="0.5.16",
+        **solcx_options
     )
     assert contract_0_5_15 == {
         '<stdin>:Foo': {
@@ -246,7 +253,8 @@ def test_solc_multisend():
     contract_multisend_simple = solcx.compile_source(
         multisend_0_5_16_src,
         output_values=["abi", "bin-runtime"],
-        solc_version="0.5.16"
+        solc_version="0.5.16",
+        **solcx_options
     )
     print( json.dumps( contract_multisend_simple, indent=4 ))
     assert contract_multisend_simple == {
@@ -546,6 +554,7 @@ def test_solc_multipayout_eth_tester():
         multipayout_solidity( multipayout_defaults ),
         output_values=["abi", "bin-runtime"],
         solc_version=solc_version,
+        **solcx_options
     )
     print( json.dumps( multipayout_compile, indent=4 ))
     print( "Contract size == {} bytes".format( len( multipayout_compile['<stdin>:MultiPayout']['bin-runtime'] )))
@@ -710,6 +719,7 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
         payout_sol,
         output_values	= ['abi', 'bin'],
         solc_version	= solc_version,
+        **solcx_options
     )
     bytecode			= compiled_sol['<stdin>:MultiPayout']['bin']
     abi				= compiled_sol['<stdin>:MultiPayout']['abi']
@@ -736,10 +746,13 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
 
     mc_cons_receipt		= w3.eth.wait_for_transaction_receipt( mc_cons_hash )
     print( "Web3 Tester Construct MultiPayout receipt: {}".format( json.dumps( mc_cons_receipt, indent=4, default=str )))
-    print( "Web3 Tester Construct MultiPayout Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+    print( "Web3 Tester Construct MultiPayout Contract: {} bytes, at Address: {}".format(
+        len( bytecode ), mc_cons_receipt.contractAddress ))
+    print( "Web3 Tester Construct MultiPayout Gas Used: {} == {}gwei == USD${:7.2f} ({}): ${:7.6f}/byte".format(
         mc_cons_receipt.gasUsed,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI / len( bytecode ),
     ))
 
     print( "Web3 Tester Accounts; post-contract creation:" )
@@ -926,7 +939,7 @@ contract MultiPayoutERC20 is ReentrancyGuard {
 
     // Notification of Payout success/failure; significant cost in contract size; 2452 vs. ~1600 bytes
     event PayoutETH( uint256 value, address to, bool sent );
-    event PayoutERC20( uint256 value, address to, bool sent, address token );
+    event PayoutERC20( uint256 value, address to, bool sent, IERC20 token );
 
     //
     // Ideally we'd like to declare a constant array of struct ToReserve, but solidity doesn't support
@@ -980,9 +993,9 @@ contract MultiPayoutERC20 is ReentrancyGuard {
 ${RECIPIENTS}
     }
 
-    function transfer_except_ERC20( address erc20, address payable to, uint16 reserve_x10k ) private {
+    function transfer_except_ERC20( IERC20 erc20, address payable to, uint16 reserve_x10k ) private {
         uint256 tok_balance;
-        try IERC20( erc20 ).balanceOf( address( this )) returns ( uint256 v ) {
+        try erc20.balanceOf( address( this )) returns ( uint256 v ) {
             tok_balance		= v;
         } catch {
             return;
@@ -991,7 +1004,7 @@ ${RECIPIENTS}
             uint256 tok_value	= value_but_x10k( tok_balance, reserve_x10k );
             if ( tok_value > 0 ) {
                 bool tok_sent;
-                try IERC20( erc20 ).transfer( to, tok_value ) returns ( bool s )  {
+                try erc20.transfer( to, tok_value ) returns ( bool s )  {
                     tok_sent	= s;
                 } catch {
                     return;
@@ -1068,7 +1081,7 @@ transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 ))
 
 def multipayout_ERC20_solidity( addr_frac, tokens ):
     recipients			= multipayout_ERC20_recipients( addr_frac )
-    erc20s			= '\n'.join( f"transfer_except_ERC20( address( {addr} ), to, reserve_x10k );" for addr in tokens )
+    erc20s			= '\n'.join( f"transfer_except_ERC20( IERC20( {addr} ), to, reserve_x10k );" for addr in tokens )
     prefix			= ' ' * 8
     return multipayout_ERC20_template.substitute(
         RECIPIENTS	= indent( recipients, prefix ),
@@ -1134,6 +1147,7 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
         payout_sol,
         output_values	= ['abi', 'bin'],
         solc_version	= solc_version,
+        **solcx_options
     )
     bytecode			= compiled_sol['<stdin>:MultiPayoutERC20']['bin']
     abi				= compiled_sol['<stdin>:MultiPayoutERC20']['abi']
@@ -1149,9 +1163,9 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
         # private key) containing ETH to pay for the Gas required.  A simple example (a bit dated)
         # is at https://github.com/petervw-qa/Web3_PyStorage_Application/blob/main/deploy.py
         mc_cons_tx		= MultiPayoutERC20.constructor( False ).build_transaction( mc_cons_config )
-        print( "Web3 Tester Construct MultiPayout base transaction: {}".format( mc_cons_tx ))
+        print( "Web3 Tester Construct MultiPayoutERC20 base transaction: {}".format( mc_cons_tx ))
         mc_cons_tx_signed	= w3.eth.account.sign_transaction( mc_cons_tx, private_key = src_prvkey )
-        print( "Web3 Tester Construct MultiPayout sig. transaction: {}".format( mc_cons_tx_signed ))
+        print( "Web3 Tester Construct MultiPayoutERC20 sig. transaction: {}".format( mc_cons_tx_signed ))
         mc_cons_hash		= w3.eth.send_raw_transaction( mc_cons_tx_signed.rawTransaction )
     else:
         mc_cons_hash		= MultiPayoutERC20.constructor( False ).transact( mc_cons_config )
@@ -1161,10 +1175,13 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
 
     mc_cons_receipt		= w3.eth.wait_for_transaction_receipt( mc_cons_hash )
     print( "Web3 Tester Construct MultiPayoutERC20 receipt: {}".format( json.dumps( mc_cons_receipt, indent=4, default=str )))
-    print( "Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+    print( "Web3 Tester Construct MultiPayoutERC20 Contract: {} bytes, at Address: {}".format(
+        len( bytecode ), mc_cons_receipt.contractAddress ))
+    print( "Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({}): ${:7.6f}/byte".format(
         mc_cons_receipt.gasUsed,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI / len( bytecode ),
     ))
 
     print( "Web3 Tester Accounts; MultiPayoutERC20 post-contract creation:" )
