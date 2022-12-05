@@ -435,15 +435,20 @@ class Account:
         finally:
             self.hdwallet._path_class = _path_class
 
-    def from_seed( self, seed: str, path: Optional[str] = None ) -> Account:
+    def from_seed( self, seed: Union[str,bytes], path: Optional[str] = None ) -> Account:
         """Derive the Account from the supplied seed and (optionally) path; uses the default derivation
         path for the Account address format, if None provided.  As with all of the functions that
         completely replace the derivation Seed, we clear any existing known derivation path; it is
-        unrelated to this newly supplied seed.
+        unrelated to this newly supplied seed.  Handles bytes or hex seeds, optionally with "0x...".
 
         """
         if type( seed ) is bytes:
             seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+        if seed[:2].lower() == "0x":
+            seed		= seed[2:]
+        assert all( c in string.hexdigit for c in seed ), \
+            "Only bytes and hex string HD Wallet Seeds are supported"
+
         self.clean_derivation()
         self.hdwallet.from_seed( seed )
         self.from_path( path )
@@ -467,7 +472,7 @@ class Account:
             if s.strip()
         ]
         if len( mnemonics_lines ) < 1:
-            raise ValueError( f"At least one BIP-39 2 SLIP-39 Mnemonics required" )
+            raise ValueError( "At least one BIP-39 2 SLIP-39 Mnemonics required" )
         if len( mnemonics_lines ) > 1:
             # Must be SLIP-39 Mnemonic Phrases
             seed		= recover_slip39( mnemonics_lines, passphrase=passphrase, using_bip39=using_bip39 )
@@ -544,7 +549,7 @@ class Account:
             if from_path != "m/":
                 raise ValueError( f"Empty but invalid path detected: {from_path}" )
             log.debug( f"Default path for {self}, was {from_path!r}" )
-            from_path		=  Account.path_default( self.crypto, self.format )
+            from_path		= Account.path_default( self.crypto, self.format )
         if path:
             into_path		= path_edit( from_path, path )
             log.debug( f"Editing path for {self}, from {from_path!r} w/ {path!r}, into {into_path!r}" )
@@ -1107,7 +1112,10 @@ def account(
     """
     if isinstance( master_secret, str ):
         master_secret		= master_secret.strip()
-    if isinstance( master_secret, bytes ) or all( c in string.hexdigits for c in master_secret ):
+    if isinstance( master_secret, bytes ) or master_secret[:2].lower == "0x" or all(
+            c in string.hexdigits for c in master_secret
+    ):
+        # Probably a binary/hex Seed.
         acct			= Account(
             crypto	= crypto or 'ETH',
             format	= format,

@@ -20,10 +20,10 @@ from __future__		import annotations
 import itertools
 import logging
 
-from typing		import List, Optional
+from typing		import List, Optional, Union
 
 from shamir_mnemonic	import combine_mnemonics        # Requires passphrase as bytes
-from mnemonic		import Mnemonic			# Requires passphrase as str
+from mnemonic		import Mnemonic, ConfigurationError  # Requires passphrase as str
 
 from ..util		import ordinal, commas
 
@@ -57,8 +57,8 @@ class Mnemonicv21( Mnemonic ):
 
 def recover(
     mnemonics: List[str],
-    passphrase: Optional[Union[str,bytes]]= None,
-    using_bip39: bool		= False,	# If a BIP-39 "backup",
+    passphrase: Optional[Union[str,bytes]] = None,
+    using_bip39: bool		= False,        # If a BIP-39 "backup",
     language: Optional[str]	= None,		# ... provide language if not default 'english'
 ) -> bytes:
     """Recover a master secret Seed Entropy from the supplied SLIP-39 mnemonics.  We cannot know what
@@ -137,7 +137,7 @@ def recover(
 
 def recover_bip39(
     mnemonic: str,
-    passphrase: Optional[Union[str,bytes]]= None,
+    passphrase: Optional[Union[str,bytes]] = None,
     as_entropy			= False,  # Recover original 128- or 256-bit Entropy (not 512-bit Seed)
     language: Optional[str]	= None,   # If desired, provide language (eg. if only prefixes are provided)
 ) -> bytes:

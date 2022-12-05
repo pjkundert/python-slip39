@@ -48,13 +48,13 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
                 url, params,
                 json.dumps( response.json(), indent=4 ) if log.isEnabledFor( logging.DEBUG ) else response.text
             ))
-            result		= response.json()['result']  # A successful response must have a result 
+            result		= response.json()['result']  # A successful response must have a result
         else:
             log.warning( "Failed to query {} for {}: {}".format( chain, params, response.text ))
     return result
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict ) 
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
 def gasoracle( chain=None, **kwds ):
     """Return (possibly cached) Gas Oracle values from etherscan.io, or empty dict, allowing retries w/
     up to 3^5 seconds (4 min.) exponential backoff.
@@ -69,7 +69,8 @@ def gasoracle( chain=None, **kwds ):
         **kwds,
     )
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict ) 
+
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
 def ethprice( chain=None, **kwds ):
     """Return (possibly cached) Ethereum price from etherscan.io, or Exception"""
     return etherscan(
@@ -116,7 +117,7 @@ class Etherscan:
     @property
     def GAS_WEI( cls ):
         """Ethereum Gas Fee, in WEI"""
-        return cls.GAS_GWEI * GWEI_WEI
+        return cls.GAS_GWEI * cls.GWEI_WEI
 
     @classmethod
     @property
@@ -128,7 +129,7 @@ class Etherscan:
     @property
     def BASEFEE_WEI( cls ):
         """Ethereum BaseFee, in WEI"""
-        return cls.BASEFEE_GWEI * GWEI_WEI
+        return cls.BASEFEE_GWEI * cls.GWEI_WEI
 
     @classmethod
     @property

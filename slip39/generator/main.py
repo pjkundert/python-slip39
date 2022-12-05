@@ -1,5 +1,4 @@
 import argparse
-import codecs
 import logging
 import time
 
@@ -9,7 +8,7 @@ from serial		import Serial
 
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
-from ..defaults		import BITS, BAUDRATE, CRYPTO_PATHS
+from ..defaults		import BAUDRATE, CRYPTO_PATHS
 from ..			import Account, cryptopaths_parser
 from ..api		import accountgroups, RANDOM_BYTES
 
@@ -152,20 +151,14 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             log.error( f"Invalid address format: {cf}: {exc}" )
             raise
 
-    # Master secret seed supplied as hex
-    secret			= None
+    # Master secret seed supplied as hex, x{pub,prv}..., BIP-39/SLIP-39 Mnemonic(s)
+    master_secret		= None
     if not args.receive:
-        secret			= args.secret or '-'
-        if secret == '-':
-            secret		= input_secure( 'Master secret hex: ', secret=True )
+        master_secret		= args.secret or '-'
+        if master_secret == '-':
+            master_secret	= input_secure( 'Master secret hex/xpub/mnemonic: ', secret=True )
         else:
             log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
-        if secret.lower().startswith('0x'):
-            secret		= secret[2:]
-        secret			= codecs.decode( secret, 'hex_codec' )
-        secret_bits		= len( secret ) * 8
-        if secret_bits not in BITS:
-            raise ValueError( f"A {secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
 
     # Create cipher if necessary.  The nonce must only be used for one message; we'll increment it
     # below by the index of each record we send.  It must only be transmitted once; a fresh nonce
@@ -357,7 +350,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     nonce			= RANDOM_BYTES( 12 )
 
     for index,group in enumerate( accountgroups(
-        master_secret	= secret,
+        master_secret	= master_secret,
         cryptopaths	= cryptopaths,
     )):
         if file is None and file_opener:

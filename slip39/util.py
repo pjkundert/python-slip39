@@ -191,7 +191,6 @@ def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=lo
             now			= timer()
             if wrapper.lst is None:
                 wrapper.lst	= now
-            #log.debug( f"{wrapper.__name__}: After {ordinal( wrapper.cnt )} {'success' if wrapper.ok else 'failure'} and {now - wrapper.lst:7.3f}s vs. {delay * backoff ** min( wrapper.cnt, tries ):7.3f}s" )
             if wrapper.ok or now >= wrapper.lst + delay * backoff ** min( wrapper.cnt, tries ):
                 # Was truthy last time, or it is time to to call again.
                 try:

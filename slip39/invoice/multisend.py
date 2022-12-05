@@ -63,7 +63,7 @@ from web3		import Web3
 #
 #    Instead of using a generic smart contract, we will generate one directly taking no arguments,
 # and compile it for each unique set of fee payees/amounts (with a unique UUID), generating a unique
-# destination address.  The 
+# destination address.
 #
 # ERC20 Tokens
 # ============
@@ -72,7 +72,7 @@ from web3		import Web3
 # tokens: https://ethereum.stackexchange.com/questions/55067/token-forward-contract/55427#55427
 # Similarly, there is no guaranteed method by which incoming ETH can be detected either -- because
 # they may be delivered by another contract's 'selfdestruct' call.
-# 
+#
 #     If you see SSL: CERTIFICATE_VERIFY_FAILED on mac, use the 'brew install python3' version
 # of Python, or run the /Applications/Python\ 3.10/Install\ Certificates.command
 #

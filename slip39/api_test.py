@@ -131,7 +131,7 @@ def test_account_from_mnemonic():
     assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC' ).address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
     assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC', using_bip39=True ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
-    # Now 0xffff...ffff entropy as BIP-39 Seed.  
+    # Now 0xffff...ffff entropy as BIP-39 Seed.
     acct_ones_bip39		= account( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong', crypto='BTC' )
     assert acct_ones_bip39.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
@@ -237,7 +237,7 @@ def test_account_encrypt():
     ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
     # Ripple BIP-38 encrypted wallets.  Should round-trip via BIP-38 encryption
-    acct_xrp		= Account( crypto='XRP' ).from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' ) 
+    acct_xrp		= Account( crypto='XRP' ).from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
     assert acct_xrp.path == "m/44'/144'/0'/0/0"  # Default
     assert acct_xrp.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/
     assert acct_xrp.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'

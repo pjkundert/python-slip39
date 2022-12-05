@@ -20,8 +20,10 @@ import json
 import logging
 import string
 
-from ..			import addresses as slip39_addresses, random_secret
-from ..util		import log_cfg, log_level, input_secure
+from ..			import addresses as slip39_addresses
+from ..util		import commas, log_cfg, log_level, input_secure
+from ..defaults		import BITS
+
 
 """
 Provide basic CLI access to the slip39 API.

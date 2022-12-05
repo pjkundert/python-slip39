@@ -10,6 +10,7 @@ from .util		import remainder_after, retry, timer, ordinal
 
 log				= logging.getLogger( 'util_test' )
 
+
 def test_remainder_after():
     assert list( remainder_after( [ .25, .25, .25, .25 ] )) == pytest.approx( [.75, 2/3, 1/2, 0] )
     # Now, the last segment requires double the remainder; so it extends -1x past the end...
@@ -19,6 +20,7 @@ def test_remainder_after():
 def exception_every( N=2, extra=0 ):
     if hasattr( extra, '__iter__' ):
         extra		= iter( extra )
+
     def decorator( func ):
         @wraps( func )
         def wrapper( *args, **kwds ):
@@ -46,6 +48,7 @@ def test_retry():
 
     """
     backoff			= 1.5
+
     @retry( 5, delay = .1, backoff = backoff, log_at = logging.DEBUG, exc_at=logging.INFO )
     @exception_every( 2, extra=range( 10 ))
     def truthy():
@@ -75,6 +78,5 @@ def test_retry():
     for k in counts.keys():
         if k-1 in counts:
             log.info( f" {k} vs {k-1}: {counts[k]/counts[k-1]:7.3f}x" )
-            assert( counts[k] > counts[k-1] * backoff * 90/100 ), \
-                "Expected exponential backoff w/ increasing failures"
-        
+            # Expected exponential backoff w/ increasing failures
+            assert counts[k] > counts[k-1] * backoff * 90/100

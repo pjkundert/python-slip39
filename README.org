@@ -743,13 +743,13 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output
-    ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' ) 2>&1
     #+END_SRC
 
     #+RESULTS:
-    : 2022-11-06 06:15:34 slip39.generator Decrypting accountgroups with nonce: 82717b4478eba297d7410809
+    : 2022-12-02 08:31:17 slip39.generator Decrypting accountgroups with nonce: b041e61fe7366694922035d6
     :     0: [["ETH", "m/44'/60'/0'", "xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"], ["BTC", "m/84'/0'/0'", "zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]]
     :     1: [["ETH", "m/44'/60'/1'", "xpub6C2y6te3rtGgCPb4Gi89Qin7Da2dvnnHSuR9rLQV6bWQKiyfKyjtVzr2n9mKmTEHzr4rzK78LmdSXLSzvpZqVs4ussUU8NyXpt9nWWbKG3C"], ["BTC", "m/84'/0'/1'", "zpub6rD5AGSXPTDMUaSe3aGDqWk4uMTwcrFwytkKuDGmi3ofUkJ4dQxXHZwiXWbHHrELJAor8xGs61F8sbKS2JdQkLZRnu5PGktmr6F32nEBUBb"]]
     :     2: [["ETH", "m/44'/60'/2'", "xpub6C2y6te3rtGgENnaK62SyPawqKvbde17wc2ndMGFWi2yAkk3piwEY9QK8egtE9ye9uoqiqs5WV3MTNCCP2qjUNDb8cmSg4ZsVnwQnkziXVh"], ["BTC", "m/84'/0'/2'", "zpub6rD5AGSXPTDMYx2sQPuZgceniniRXDK5tELiREjxfSGJENNxuQD3u2yfpRqnNE1JeH14Pa7MVGrofDJtyXw252ws9HgRcd82X2M4KzkUfpZ"]]
@@ -761,7 +761,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output
-    ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' \
         | while IFS=':' read num json; do \
@@ -792,7 +792,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output
-    ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' \
         | while IFS=':' read num json; do \
@@ -806,7 +806,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+RESULTS:
     #+begin_example
-    2022-11-06 06:16:02 slip39.generator Decrypting accountgroups with nonce: 5d4ba8f8a6849c526524ad9c
+    2022-12-02 08:31:35 slip39.generator Decrypting accountgroups with nonce: c48a60c2fa35f48a527230c6
     --- 0
     ETH   m/0/0                0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
     ETH   m/0/1                0xd1a7451beB6FE0326b4B78e3909310880B781d66
@@ -839,9 +839,9 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output
-    secret=$( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' );
+    secret='zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
     for crypto in BTC ETH; do
-        python3 -m slip39.cli -v --no-json addresses --secret $secret --crypto $crypto --paths "../-2"
+        python3 -m slip39.cli -v --no-json addresses --secret "$secret" --crypto $crypto --paths "../-2"
     done
     #+END_SRC
 
@@ -1718,6 +1718,104 @@ sets of 20 words is difficult, error-prone and time consuming.
      need it, we recommend that you destroy your original BIP-39 recovery phrase backup(s).  They
      are dangerous and unreliable, and only serve to make your Cryptocurrency accounts *less*
      secure!
+
+* Single-use Accounts, Smart Contracts and Invoicing
+
+  A valuable use of Cryptocurrency accounts is to send or receive payments for goods, services or
+  remittances/donations.  The global monetary system makes this very difficult (or even impossible),
+  especially if any of the governments are hostile to you or any of the other individuals involved
+  in the transaction.  Worse yet, your business or family can be arbitrarily ejected from using the
+  financial system, by an of the many intermediary parties involved in any traditional financial
+  transaction.
+
+** Using Plain HD Wallet Account
+
+   If your needs are simple, you can [[X Public Keys][securely generate an =xpub...= key]] using a unique HD Wallet
+   derivation path for each separate enterprise you wish to receive funds for.  If this is done in a
+   secure (ie. air-gapped) environment, then this =xpub...= key can safely be used to generate a
+   sequence of HD Wallet addresses for each "client" you wish to charge.
+
+   The client deposits cryptocurrency, and you (later) transfer or aggregate it as you wish -- using
+   your normal, secure (ie. Hardware Wallet) transfer process.
+
+   This is simplest for the client, as they can buy Cryptocurrency on any exchange, and simply
+   "withdraw" the correct amount of Cryptocurrency to the given account.
+
+*** Withdrawal Fees and Smart Contracts
+
+   Since most exchanges do not allow withdrawal to an account that requires excessive fees; for
+   example, to an Ethereum Smart Contract address, which may trigger functionality requiring excess
+   "Gas" beyond what a normal transfer would require.
+
+   This limits the amount of automation that can be attached to a "client" cryptocurrency payment.
+   Usually, no Smart Contract invocation can be supported for the client's payment.  If you build a
+   system that requires the client to have their own wallets, and to understand eg. Ethereum "Gas"
+   pricing, you will prevent most clients from paying you.
+
+
+** Single Use Accounts
+
+   The solution to this problem is to use plain accounts that *nobody* has access to -- including
+   your, or any payee!
+
+   One artifact of how Ethereum (and similar) Cryptocurrency systems create and validate
+   transactions, is that the "source" address may be deduced from the transaction and its
+   accompanying signature.  Normally, one already "has" a source address (and its private key)
+   containing funds, and then creates a transaction moving some of those funds (or executing a Smart
+   Contract call) to some destination, and finally signs it using their private key.  However, one
+   *can* create the exact same transaction performing the same actions -- and then *provide a random
+   signature*, and deduce what Ethereum Account it *must* have originated from.  This will be a
+   pseudo-random (unpredictable) source Address, assuming that some bit(s) in the transaction and/or
+   signature differ.
+
+   This "signed" transaction from this random Ethereum account may do anything -- so long as (when
+   it's finally executed) there is sufficient Ethereum available to pay the "Gas" fees, and to
+   supply whatever value (in ETH, ERC-20 tokens, etc.) is required by the transaction.
+
+   This is *not possible* using Bitcoin, due to its lack of general-purpose smart contracts, and the
+   fact that one cannot "sign" transactions in advance to generate the "source" Account address: the
+   transaction must contain specific information about the source UTXO (Unspent TransaXion Outputs)
+   being spent, which is of course unavailable in advance.
+
+*** Distributing Funds Deterministically
+
+    One (or more) Smart Contracts move the funds from this account, into the payees' accounts/Contracts.
+   
+    If multiple independent parties must be paid out of the proceeds from each client, receiving
+    payments to a plain Account (for which you hold the private key) may not be acceptable to all
+    parties involved.  A product owner providing a licensee the capability to sub-licensing their
+    product may, for example, charge a much better fee, if the licensee can prove that payments will
+    *automatically* flow back to the licensor, every time the licensee sells their product which
+    contains the sub-license.
+
+    There are ways to ensure that each client payment *must* be distributed to each payee, as agreed,
+    using cryptocurrencies which implement Smart Contracts.
+
+    A Smart Contract can be created which guarantees that Cryptocurrency funds from a source address
+    are distributed in a fixed proportion to several destination addresses.
+
+    A Contract is created that is unique to each set of payee accounts and (fractional) distribution
+    of assets, containing a function something like this (in Solidity):
+    : function payout_internal() private nonReentrant {
+    :     move_but_x10000_to(  9310, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b ))); //   6.900%
+    :     move_but_x10000_to(  5703, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B ))); //  40.000%
+    :     move_but_x10000_to(     0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 ))); //  53.100%
+    : }
+    (you can see the remaining Smart Contract code in the [[https://github.com/python-slip39][slip-39 source]].)
+
+    This function can be executed in various ways.
+
+*** Disbursement Directly from Random Account
+
+    The most expensive and least flexible method constructs, executes and selfdestructs this
+    =payout_internal= Smart Contract function.
+    : constructor() payable {
+    :     payout_internal();
+    :     selfdestruc
+    : }
+
+    
+
 
 * Building & Installing
 
