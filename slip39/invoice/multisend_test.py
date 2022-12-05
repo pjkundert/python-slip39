@@ -26,9 +26,11 @@ from .multisend		import (
 from .ethereum		import Etherscan as ETH  # Eg. ETH.GWEI_GAS, .ETH_USD
 
 
+# Optimize, and search for imports relative to this directory
 solcx_options			= dict(
     optimize		= True,
-    optimize_runs	= 1000,
+    optimize_runs	= 100000,
+    base_path		= os.path.dirname( __file__ ),
 )
 
 
@@ -285,65 +287,7 @@ multipayout_template		= Template( r"""
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-//import "github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.5/contracts/security/ReentrancyGuard.sol";
-/**
- * @dev Contract module that helps prevent reentrant calls to a function.
- *
- * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
- * available, which can be applied to functions to make sure there are no nested
- * (reentrant) calls to them.
- *
- * Note that because there is a single `nonReentrant` guard, functions marked as
- * `nonReentrant` may not call one another. This can be worked around by making
- * those functions `private`, and then adding `external` `nonReentrant` entry
- * points to them.
- *
- * TIP: If you would like to learn more about reentrancy and alternative ways
- * to protect against it, check out our blog post
- * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
- */
-abstract contract ReentrancyGuard {
-    // Booleans are more expensive than uint256 or any type that takes up a full
-    // word because each write operation emits an extra SLOAD to first read the
-    // slot's contents, replace the bits taken up by the boolean, and then write
-    // back. This is the compiler's defense against contract upgrades and
-    // pointer aliasing, and it cannot be disabled.
-
-    // The values being non-zero value makes deployment a bit more expensive,
-    // but in exchange the refund on every call to nonReentrant will be lower in
-    // amount. Since refunds are capped to a percentage of the total
-    // transaction's gas, it is best to keep them low in cases like this one, to
-    // increase the likelihood of the full refund coming into effect.
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
-
-    uint256 private _status;
-
-    constructor() {
-        _status = _NOT_ENTERED;
-    }
-
-    /**
-     * @dev Prevents a contract from calling itself, directly or indirectly.
-     * Calling a `nonReentrant` function from another `nonReentrant`
-     * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and making it call a
-     * `private` function that does the actual work.
-     */
-    modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-
-        // Any calls to nonReentrant after this point will fail
-        _status = _ENTERED;
-
-        _;
-
-        // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _status = _NOT_ENTERED;
-    }
-}
+import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 
 contract MultiPayout is ReentrancyGuard {
     // Payout predefined percentages of whatever ETH is in the account to a predefined set of payees.
@@ -881,61 +825,13 @@ multipayout_ERC20_template	= Template( r"""
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-abstract contract ReentrancyGuard {
-    // Booleans are more expensive than uint256 or any type that takes up a full
-    // word because each write operation emits an extra SLOAD to first read the
-    // slot's contents, replace the bits taken up by the boolean, and then write
-    // back. This is the compiler's defense against contract upgrades and
-    // pointer aliasing, and it cannot be disabled.
+import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts/contracts/utils/Context.sol";
+import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-    // The values being non-zero value makes deployment a bit more expensive,
-    // but in exchange the refund on every call to nonReentrant will be lower in
-    // amount. Since refunds are capped to a percentage of the total
-    // transaction's gas, it is best to keep them low in cases like this one, to
-    // increase the likelihood of the full refund coming into effect.
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
 
-    uint256 private _status;
-
-    constructor() {
-        _status = _NOT_ENTERED;
-    }
-
-    /**
-     * @dev Prevents a contract from calling itself, directly or indirectly.
-     * Calling a `nonReentrant` function from another `nonReentrant`
-     * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and making it call a
-     * `private` function that does the actual work.
-     */
-    modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-
-        // Any calls to nonReentrant after this point will fail
-        _status = _ENTERED;
-
-        _;
-
-        // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _status = _NOT_ENTERED;
-    }
-}
-
-interface IERC20 {
-    function totalSupply() external view returns (uint);
-    function balanceOf(address account) external view returns (uint);
-    function transfer(address recipient, uint amount) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint);
-    function approve(address spender, uint amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    event Transfer(address indexed from, address indexed to, uint value);
-    event Approval(address indexed owner, address indexed spender, uint value);
-}
-
-contract MultiPayoutERC20 is ReentrancyGuard {
+contract MultiPayoutERC20 is ReentrancyGuard, Context, Ownable {
 
     // Notification of Payout success/failure; significant cost in contract size; 2452 vs. ~1600 bytes
     event PayoutETH( uint256 value, address to, bool sent );
@@ -961,7 +857,8 @@ contract MultiPayoutERC20 is ReentrancyGuard {
     //
     constructor( bool oneshot ) payable {
         if ( oneshot ) {
-            payout_internal( oneshot );
+            IERC20[] memory erc20s;
+            payout_internal( erc20s, oneshot );
         }
     }
 
@@ -969,15 +866,28 @@ contract MultiPayoutERC20 is ReentrancyGuard {
 
     fallback() external payable { }
 
-    // TODO: support other ERC20 tokens?  Could their balanceOf or transfer functions call us and
-    // interfere?  Not if nonRentrant used on all external interfaces...
-
-    function payout() external payable {
-        payout_internal( false );
+    // 
+    // Anyone may invoke the payout API, resulting in all ETH and recognized ERC-20 tokens being
+    // distributed as determined at contract creation.  Only the original contract creator may
+    // invoke the final selfdestruct payout.  This should, of course, only be done after
+    // it has been decided that the product/service using this payment mechanism is
+    // no longer active, and will not be receiving any more incoming payments.
+    //
+    function payout() external payable nonReentrant {
+        IERC20[] memory erc20s;
+        payout_internal( erc20s, false );
     }
 
-    function value_but_x10k( uint256 _value, uint16 _leave_x10k ) private view returns ( uint256 ) {
-        uint256 less    = (
+    function payout( IERC20[] memory erc20s ) external payable nonReentrant {
+        payout_internal( erc20s, false);
+    }
+
+    function payout( IERC20[] memory erc20s, bool destruct ) external payable nonReentrant {
+        payout_internal( erc20s, destruct );
+    }
+
+    function value_reserve_x10k( uint256 _value, uint16 _leave_x10k ) private view returns ( uint256 ) {
+        uint256 reserve		= (
             _leave_x10k > 0
             ? (
                 _value > type(uint256).max / 10000
@@ -986,11 +896,7 @@ contract MultiPayoutERC20 is ReentrancyGuard {
               )
             : 0
         );
-        return _value - less;
-    }
-
-    function payout_internal( bool destruct ) private nonReentrant {
-${RECIPIENTS}
+        return _value - reserve;
     }
 
     function transfer_except_ERC20( IERC20 erc20, address payable to, uint16 reserve_x10k ) private {
@@ -1001,7 +907,7 @@ ${RECIPIENTS}
             return;
         }
         if ( tok_balance > 0 ) {
-            uint256 tok_value	= value_but_x10k( tok_balance, reserve_x10k );
+            uint256 tok_value	= value_reserve_x10k( tok_balance, reserve_x10k );
             if ( tok_value > 0 ) {
                 bool tok_sent;
                 try erc20.transfer( to, tok_value ) returns ( bool s )  {
@@ -1014,15 +920,27 @@ ${RECIPIENTS}
         }
     }
 
-    function transfer_except( address payable to, uint16 reserve_x10k, bool destruct ) private {
+    function transfer_except( IERC20[] memory erc20s, address payable to, uint16 reserve_x10k, bool destruct ) private {
+        // The predefined set of ERC-20 tokens to check for and distribute
 ${TOKENS}
+        // Any caller-defind ERC-20 tokens to check for and distribute
+        for ( uint256 tok = 0; tok < erc20s.length; tok++ ) {
+            transfer_except_ERC20( erc20s[tok], to, reserve_x10k );
+        }
+        // Any ETH tokens to distribute; either by selfdestruct
         if ( destruct && reserve_x10k == 0 ) {
+            require( _msgSender() == owner(),
+                    "MultiPayoutERC20: Only the owner (original creator) can selfdestruct the contract" );
             emit PayoutETH( address( this ).balance, to, true );
             selfdestruct( to );  // Will also transfer any refund due to Contract destruction
         }
-        uint256 eth_value	= value_but_x10k( address( this ).balance, reserve_x10k );
+        uint256 eth_value	= value_reserve_x10k( address( this ).balance, reserve_x10k );
         (bool eth_sent, )   	= to.call{ value: eth_value }( "" );
         emit PayoutETH( eth_value, to, eth_sent );
+    }
+
+    function payout_internal( IERC20[] memory erc20s, bool destruct ) private {
+${RECIPIENTS}
     }
 }
 """ )
@@ -1062,7 +980,7 @@ def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
     )):
         frac_total	       += frac
         rem_scale		= int( rem * scale )
-        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), destruct );  // {frac*100:6.2f}%\n"
+        payout		       += f"transfer_except( erc20s, payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), destruct );  // {frac*100:6.2f}%\n"
     assert i > 0 and 1 - 1/scale < frac_total < 1 + 1/scale and rem_scale == 0, \
         f"Total payout percentages didn't sum to 100%: {frac_total*100:9.4f}%; remainder: {rem:7.4f} x {scale}: {rem_scale}"
     return payout
@@ -1073,9 +991,9 @@ def test_multipayout_ERC20_recipients():
     print()
     print( payout )
     assert payout == """\
-transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16(  9310 ), destruct );  //   6.90%
-transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(  5703 ), destruct );  //  40.00%
-transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ), destruct );  //  53.10%
+transfer_except( erc20s, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16(  9310 ), destruct );  //   6.90%
+transfer_except( erc20s, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(  5703 ), destruct );  //  40.00%
+transfer_except( erc20s, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ), destruct );  //  53.10%
 """
 
 
