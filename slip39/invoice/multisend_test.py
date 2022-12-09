@@ -13,12 +13,15 @@ import solcx
 
 from web3		import Web3, logs as web3_logs
 from web3.contract	import normalize_address_no_ens
+from web3.middleware	import construct_sign_and_send_raw_middleware
+from eth_account	import Account
 
-from ..util		import remainder_after
+from ..util		import remainder_after, into_bytes
 from ..api		import (
     account, accounts,
 )
 
+from .			import precomputed_contract_address
 from .multisend		import (
     make_trustless_multisend, build_recursive_multisend, simulate_multisends,
 )
@@ -352,58 +355,7 @@ ${PAYOUT}
 """ )
 
 
-def multipayout_generate( addr_frac, scale=10000 ):
-    """Produce payout function w/ fixed fractional amounts to predefined addresses.  Convert
-    any percentage values to fractions in the range (0,1) totalling to exactly 1.0 to within a
-    multiple of scale, or will raise Exception.
 
-    TODO: use the 256-bit bytes32 to carry the packed payload of the 160-bit payee Ether account
-    address, plus the 96-bit fixed point percentage:
-
-        https://github.com/Alonski/MultiSendEthereum/blob/master/contracts/MultiSend.sol
-
-    """
-    payout		= "    function payout_internal() private nonReentrant {\n"
-    addr_frac_sorted	= sorted( addr_frac.items(), key=lambda a_p: a_p[1] )
-    i, frac_total	= 0, 0
-    for i,((addr,frac),rem) in enumerate( zip(
-            addr_frac_sorted,
-            remainder_after( f for _,f in addr_frac_sorted )
-    )):
-        frac_total     += frac
-        rem_scale	= int( rem * scale )
-        payout	       += f"        move_but_x{scale}_to( {rem_scale:>{len(str(scale))}},"
-        payout	       += f" payable( address( {normalize_address_no_ens( addr )} ))); // {frac*100:7.3f}%\n"
-    payout	       += "    }\n"
-    print( payout )
-    assert i > 0 and rem_scale == 0, \
-        f"Total payout percentages didn't sum to 100%: {frac_total*100:9.4f}%; remainder x {scale}: {rem_scale}"
-    # We do not want to allow overflow (which automatically reverts); clamp to max instead.  Any
-    # value not able to be sent to a recipient stays in the balance and is split between any
-    # remaining recipients
-    payout	       += Template( """
-    function move_but_x${SCALE}_to( uint256 _leave_x${SCALE}, address payable _to ) private {
-        uint256 value   = address( this ).balance;
-        uint256 less    = (
-            _leave_x${SCALE} > 0
-            ? (
-                value > ~uint256(0) / ${SCALE}
-                ? ~uint256(0) / ${SCALE}
-                : value * _leave_x${SCALE} / ${SCALE}
-              )
-            : 0
-        );
-        value          -= less;
-        (bool sent, )   = _to.call{ value: value }( "" );
-        emit Payout( value, _to, sent );
-    }
-""" ).substitute( SCALE=str( scale ))
-    return payout
-
-
-def multipayout_solidity( *args, **kwds ):
-    payout		= multipayout_generate( *args, **kwds )
-    return multipayout_template.substitute( PAYOUT=payout )
 
 
 multipayout_defaults	= {
@@ -413,155 +365,6 @@ multipayout_defaults	= {
 }
 
 
-def test_multipayout_generate():
-    payout		= multipayout_generate( multipayout_defaults )
-    print( payout )
-    assert payout == """\
-    function payout_internal() private nonReentrant {
-        move_but_x10000_to(  9310, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b ))); //   6.900%
-        move_but_x10000_to(  5703, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B ))); //  40.000%
-        move_but_x10000_to(     0, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 ))); //  53.100%
-    }
-
-    function move_but_x10000_to( uint256 _leave_x10000, address payable _to ) private {
-        uint256 value   = address( this ).balance;
-        uint256 less    = (
-            _leave_x10000 > 0
-            ? (
-                value > ~uint256(0) / 10000
-                ? ~uint256(0) / 10000
-                : value * _leave_x10000 / 10000
-              )
-            : 0
-        );
-        value          -= less;
-        (bool sent, )   = _to.call{ value: value }( "" );
-        emit Payout( value, _to, sent );
-    }
-"""
-
-
-def test_solc_multipayout_eth_tester():
-    """Use eth_tester directly to create a contract.  Doesn't allow interacting with the Goerli
-    test-chain; only local test instance.
-
-    """
-    solc_version		= "0.8.17"
-
-    multipayout_abi		= [
-        {
-            "inputs": [],
-            "stateMutability": "payable",
-            "type": "constructor"
-        },
-        {
-            'anonymous': False,
-            'inputs': [
-                {'indexed': False,
-                 'internalType': 'uint256',
-                 'name': 'value',
-                 'type': 'uint256'},
-                {'indexed': False,
-                 'internalType': 'address',
-                 'name': 'to',
-                 'type': 'address'},
-                {'indexed': False,
-                 'internalType': 'bool',
-                 'name': 'sent',
-                 'type': 'bool'}
-            ],
-            'name': 'Payout',
-            'type': 'event'
-        },
-        {
-            "stateMutability": "payable",
-            "type": "fallback"
-        },
-        {
-            'inputs': [],
-            'name': 'payout',
-            'outputs': [],
-            'stateMutability': 'payable',
-            'type': 'function'
-        },
-        {
-            'stateMutability': 'payable',
-            'type': 'receive'
-        },
-    ]
-    multipayout_bytecode	= bytes.fromhex(  # noqa: F841
-        "60806040526000470361001557610014610017565b5b005b60026000540361005c576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161005390610237565b60405180910390fd5b6002600081905550600061008860006102b2737f7458ef9a583b95dfd90c048d4b2d2f09f6da5b6100da565b90506100ab81610fa07394da50738e09e2f9ea0d4c15cf8dadfb4cfc672b6100da565b90506100cd81600073a29618aba937d2b3eeaf8abc0bc6877ace0a19556100da565b9050506001600081905550565b600080479050600084111561010f5760648486836100f89190610290565b61010291906102c4565b61010c9190610335565b90505b60008373ffffffffffffffffffffffffffffffffffffffff168260405161013590610397565b60006040518083038185875af1925050503d8060008114610172576040519150601f19603f3d011682016040523d82523d6000602084013e610177565b606091505b505090507f869016d06438b769e3d28ac8765c6daa53244a8a0b5390ce314f08a43b7bab0d8285836040516101ae93929190610455565b60405180910390a1806101c25760006101c4565b815b866101cf9190610290565b925050509392505050565b600082825260208201905092915050565b7f5265656e7472616e637947756172643a207265656e7472616e742063616c6c00600082015250565b6000610221601f836101da565b915061022c826101eb565b602082019050919050565b6000602082019050818103600083015261025081610214565b9050919050565b6000819050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b600061029b82610257565b91506102a683610257565b92508282019050808211156102be576102bd610261565b5b92915050565b60006102cf82610257565b91506102da83610257565b92508282026102e881610257565b915082820484148315176102ff576102fe610261565b5b5092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b600061034082610257565b915061034b83610257565b92508261035b5761035a610306565b5b828204905092915050565b600081905092915050565b50565b6000610381600083610366565b915061038c82610371565b600082019050919050565b60006103a282610374565b9150819050919050565b6103b581610257565b82525050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b60006104006103fb6103f6846103bb565b6103db565b6103bb565b9050919050565b6000610412826103e5565b9050919050565b600061042482610407565b9050919050565b61043481610419565b82525050565b60008115159050919050565b61044f8161043a565b82525050565b600060608201905061046a60008301866103ac565b610477602083018561042b565b6104846040830184610446565b94935050505056fea264697066735822122078fcfb53107492bdc7a721308a5f2bc4998d51094dd6e9e32ed36eb089988b7564736f6c63430008110033"  # noqa: E501
-    )
-
-    solcx.install_solc( version=solc_version )
-    multipayout_compile		= solcx.compile_source(
-        multipayout_solidity( multipayout_defaults ),
-        output_values=["abi", "bin-runtime"],
-        solc_version=solc_version,
-        **solcx_options
-    )
-    print( json.dumps( multipayout_compile, indent=4 ))
-    print( "Contract size == {} bytes".format( len( multipayout_compile['<stdin>:MultiPayout']['bin-runtime'] )))
-    assert multipayout_compile['<stdin>:MultiPayout']['abi'] == multipayout_abi
-
-    # We have a contract compiled.  Lets instantiate it, in a test EVM
-    from eth_tester	import EthereumTester
-    t				= EthereumTester()
-    test_accounts		= t.get_accounts()
-    print( "Test EVM Accounts: {}".format( json.dumps( test_accounts, indent=4 )))
-
-    for a in test_accounts:
-        print( " {} == {}".format( a, t.get_balance( a )))
-
-    tx_hash			= t.send_transaction({
-        'from': '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf',
-        'to': '0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF',
-        'gas': 30000,
-        'value': 1,
-        'max_fee_per_gas': 1000000000,
-        'max_priority_fee_per_gas': 1000000000,
-        'chain_id': 131277322940537,
-        'access_list': (
-            {
-                'address': '0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae',
-                'storage_keys': (
-                    '0x0000000000000000000000000000000000000000000000000000000000000003',
-                    '0x0000000000000000000000000000000000000000000000000000000000000007',
-                )
-            },
-            {
-                'address': '0xbb9bc244d798123fde783fcc1c72d3bb8c189413',
-                'storage_keys': ()
-            },
-        )
-    })
-    print( "Send ETH transaction hash: {}".format( tx_hash ))
-
-    tx				= t.get_transaction_by_hash( tx_hash )
-    print( "Send ETH transaction: {}".format( json.dumps( tx, indent=4 )))
-
-    # Now construct a Signed Transaction that executes construction of this Smart Contract
-    from eth_tester.validation import DefaultValidator
-    validator			= DefaultValidator()
-
-    multipayout_construct	= {
-        "from":				test_accounts[0],
-        "data":				multipayout_compile['<stdin>:MultiPayout']['bin-runtime'],
-        "value":			0,
-        "gas":				300000,
-        "max_fee_per_gas":		1000000000,
-        "max_priority_fee_per_gas":	1000000000,
-        # "r":				1,
-        # "s":				1,
-        # "v":				1,
-    }
-    validator.validate_inbound_transaction( multipayout_construct, txn_internal_type="send" )
-
-    mc_hash			= t.send_transaction( multipayout_construct )
-    print( "Construct MultiPayout hash: {}".format( mc_hash ))
-
-    mc				= t.get_transaction_by_hash( mc_hash )
-    print( "Construct MultiPayout transaction: {}".format( json.dumps( mc, indent=4 )))
 
 
 #
@@ -601,6 +404,7 @@ if goerli_xprvkey:
 
 solc_multipayout_web3_tests	= [
     (
+        "Tester",
         Web3.EthereumTesterProvider(),
         '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf', None,
         (
@@ -619,170 +423,10 @@ solc_multipayout_web3_tests	= [
 if goerli_xprvkey:
     solc_multipayout_web3_tests += [(
         # Web3.HTTPProvider( f"https://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
+        "Goerli",
         Web3.WebsocketProvider( f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
         goerli_src.address, goerli_src.prvkey, goerli_destination,
     )]
-
-
-@pytest.mark.parametrize( "provider, src, src_prvkey, destination", solc_multipayout_web3_tests )
-def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
-    """Use web3 tester
-
-    """
-    print( f"Web3( {provider!r} ): Source ETH account: {src} (private key: {src_prvkey}; destination: {', '.join( destination )}" )
-
-    solc_version		= "0.8.17"
-    solcx.install_solc( version=solc_version )
-
-    # Fire up Web3, and get the list of accounts we can operate on
-    w3				= Web3( provider )
-
-    latest			= w3.eth.get_block('latest')
-    print( f"Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
-
-    print( "Web3 Tester Accounts, start of test:" )
-    for a in ( src, ) + tuple( destination ):
-        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
-
-    w3.eth.default_account	= src
-
-    # Generate a contract targeting these destination accounts, with random percentages.
-    payout_frac			= {
-        addr: random.random()
-        for addr in destination
-    }
-    unitize			= sum( payout_frac.values() )
-    payout_frac			= {
-        addr: frac / unitize
-        for addr,frac in payout_frac.items()
-    }
-
-    payout_sol			= multipayout_solidity( payout_frac )
-    print( payout_sol )
-    compiled_sol		= solcx.compile_source(
-        payout_sol,
-        output_values	= ['abi', 'bin'],
-        solc_version	= solc_version,
-        **solcx_options
-    )
-    bytecode			= compiled_sol['<stdin>:MultiPayout']['bin']
-    abi				= compiled_sol['<stdin>:MultiPayout']['abi']
-
-    MultiPayout			= w3.eth.contract( abi=abi, bytecode=bytecode )
-
-    if src_prvkey:
-        # This is a standard contract instantiation, signed by a known account (for which we have a
-        # private key) containing ETH to pay for the Gas required.  A simple example (a bit dated)
-        # is at https://github.com/petervw-qa/Web3_PyStorage_Application/blob/main/deploy.py
-        mc_cons_tx		= MultiPayout.constructor().build_transaction()
-        print( "Web3 Tester Construct MultiPayout base transaction: {}".format( mc_cons_tx ))
-        mc_cons_tx.update({ 'nonce': w3.eth.get_transaction_count( src ) })
-        mc_cons_tx.update({ 'gas': 500000 })  # TODO: estimate?  Used 378774 in EtherTesterProvider...
-        print( "Web3 Tester Construct MultiPayout base transaction w/nonce: {}".format( mc_cons_tx ))
-        mc_cons_tx_signed	= w3.eth.account.sign_transaction( mc_cons_tx, private_key = src_prvkey )
-        print( "Web3 Tester Construct MultiPayout sig. transaction: {}".format( mc_cons_tx_signed ))
-        mc_cons_hash		= w3.eth.send_raw_transaction( mc_cons_tx_signed.rawTransaction )
-    else:
-        mc_cons_hash		= MultiPayout.constructor().transact()
-    print( "Web3 Tester Construct MultiPayout hash: {}".format( mc_cons_hash.hex() ))
-    mc_cons			= w3.eth.get_transaction( mc_cons_hash )
-    print( "Web3 Tester Construct MultiPayout transaction: {}".format( json.dumps( mc_cons, indent=4, default=str )))
-
-    mc_cons_receipt		= w3.eth.wait_for_transaction_receipt( mc_cons_hash )
-    print( "Web3 Tester Construct MultiPayout receipt: {}".format( json.dumps( mc_cons_receipt, indent=4, default=str )))
-    print( "Web3 Tester Construct MultiPayout Contract: {} bytes, at Address: {}".format(
-        len( bytecode ), mc_cons_receipt.contractAddress ))
-    print( "Web3 Tester Construct MultiPayout Gas Used: {} == {}gwei == USD${:7.2f} ({}): ${:7.6f}/byte".format(
-        mc_cons_receipt.gasUsed,
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI / len( bytecode ),
-    ))
-
-    print( "Web3 Tester Accounts; post-contract creation:" )
-    for a in ( src, ) + tuple( destination ):
-        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
-
-    # We can work with the contract, but it doesn't have a direct external API -- just a fallback
-    # for receiving ETH.
-    multipayout			= w3.eth.contract(
-        address	= mc_cons_receipt.contractAddress,
-        abi	= abi,
-    )
-
-    # So, just send some ETH from the default account.  This will *not* trigger the payout function,
-    # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
-    if src_prvkey:
-        mc_send_tx		= {
-            'to':	mc_cons_receipt.contractAddress,
-            'from':	src,
-            'nonce':	w3.eth.get_transaction_count( src ),
-            'gasPrice':	w3.eth.gas_price,
-            'gas':	250000,
-            'value':	w3.to_wei( .01, 'ether' )
-        }
-        mc_send_tx_signed	= w3.eth.account.sign_transaction( mc_send_tx, private_key = src_prvkey )
-        mc_send_hash		= w3.eth.send_raw_transaction( mc_send_tx_signed.rawTransaction )
-    else:
-        mc_send_hash		= w3.eth.send_transaction({
-            'to':	mc_cons_receipt.contractAddress,
-            'from':	src,
-            'nonce':	w3.eth.get_transaction_count( src ),
-            'gasPrice':	w3.eth.gas_price,
-            'gas':	250000,
-            'value':	w3.to_wei( .01, 'ether' ),
-        })
-    print( "Web3 Tester Send ETH to MultiPayout hash: {}".format( mc_send_hash.hex() ))
-    mc_send			= w3.eth.get_transaction( mc_send_hash )
-    print( "Web3 Tester Send ETH to MultiPayout transaction: {}".format( json.dumps( mc_send, indent=4, default=str )))
-
-    mc_send_receipt		= w3.eth.wait_for_transaction_receipt( mc_send_hash )
-    print( "Web3 Tester Send ETH to MultiPayout receipt: {}".format( json.dumps( mc_send_receipt, indent=4, default=str )))
-    print( "Web3 Tester Send ETH to MultiPayout Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
-        mc_send_receipt.gasUsed,
-        mc_send_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_send_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
-    ))
-
-    print( "Web3 Tester Accounts; post-send ETH:" )
-    for a in ( src, ) + tuple( destination ):
-        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
-
-    # Finally, invoke the payout function (also available via fallback).  Calling any function that
-    # is not implemented (ie. with a payload) invokes the fallback.
-    print( f"Multipayout contract functions: {dir( multipayout.functions )!r}" )
-    if src_prvkey:
-        mc_payo			= multipayout.functions.payout().build_transaction({
-            'nonce':	w3.eth.get_transaction_count( src ),
-            'gas':	250000,
-        })
-        mc_payo_sig		= w3.eth.account.sign_transaction( mc_payo, private_key = src_prvkey )
-        mc_payo_hash		= w3.eth.send_raw_transaction( mc_payo_sig.rawTransaction )
-    else:
-        mc_payo_hash		= multipayout.functions.payout().transact({
-            'nonce':	w3.eth.get_transaction_count( src ),
-            'gas':	250000,
-        })
-    print( "Web3 Tester payout MultiPayout hash: {}".format( mc_payo_hash.hex() ))
-
-    mc_payo_receipt		= w3.eth.wait_for_transaction_receipt( mc_payo_hash )
-    print( "Web3 Tester payout MultiPayout: {}".format( json.dumps( mc_payo_receipt, indent=4, default=str )))
-
-    print( "Web3 Tester payout MultiPayout Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
-        mc_payo_receipt.gasUsed,
-        mc_payo_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_payo_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
-    ))
-    print( "Web3 Tester payout MultiPayout Payout events: {}".format(
-        json.dumps(
-            multipayout.events['Payout']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
-            indent=4, default=str,
-        )
-    ))
-
-    print( "Web3 Tester Accounts; post-payout ETH:" )
-    for a in ( src, ) + tuple( destination ):
-        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
 
 #
@@ -823,67 +467,110 @@ def test_solc_multipayout_web3_tester( provider, src, src_prvkey, destination ):
 #
 multipayout_ERC20_template	= Template( r"""
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.0;
 
 import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
-import "openzeppelin-contracts/contracts/utils/Context.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
+import "contracts/MultiPayoutERC20Base.sol";
+import "contracts/MultiPayoutERC20Forwarder.sol";
 
-contract MultiPayoutERC20 is ReentrancyGuard, Context, Ownable {
+contract MultiPayoutERC20 is MultiPayoutERC20Base {
 
-    // Notification of Payout success/failure; significant cost in contract size; 2452 vs. ~1600 bytes
     event PayoutETH( uint256 value, address to, bool sent );
     event PayoutERC20( uint256 value, address to, bool sent, IERC20 token );
 
     //
-    // Ideally we'd like to declare a constant array of struct ToReserve, but solidity doesn't support
-    // - arrays of struct (must initialize in constructor)
-    // - constants of anything other than simple string and value-types
+    // constructor (establishes unique contract creation bytcode by demanding owner supply their address)
     //
-    //   struct ToReserve {
-    //       address payable		to;
-    //       uint16			reserve_x10k;
-    //   }
-
+    // Since ERC-20s are dynamic, we'll make them an array.  Since the payees / fractions are static,
+    // we'll pass them textually as part of the contract code.  This is unlike the
+    // openzeppelin-contracts/contracts/finance/PaymentSplitter.sol, which allows dynamic modification
+    // of payees, their shares and the ERC-20 tokens supported -- and only supports "Pull" payment from
+    // payees.
     //
-    // If the contract address is known (the hash of this contract, the nonce and the source address
-    // calling the CREATE2 opcode), then this Smart Contract's address is deterministic, and it can be
-    // used as a "Vault" to receive ETH/ERC-20 tokens prior to contract instantiation.  If so, then
-    // specifying 'oneshot' constructs, executes and selfdestructs the contract, harvesting any
-    // ERC-20/ETH token found in the contract address, and selfdestructing any remaining ETH
-    // to the final (largest) recipient address.
+    // We do "Push" payments (accessibly by anyone), so the payee can obtain their fees whenever they like,
+    // protected by nonRentrant to ensure a hostile ERC-20 cannot re-trigger payout to inflate their share.
     //
-    constructor( bool oneshot ) payable {
-        if ( oneshot ) {
-            IERC20[] memory erc20s;
-            payout_internal( erc20s, oneshot );
+    // Caller's address is required so that identical contracts (same payouts, ERC-20 tokens) are unique,
+    // if multiple addresses instantiate them w/ the same nonce.
+    //
+    constructor(
+       address			_self,
+       IERC20[] memory		_erc20s
+    )
+       payable
+    {
+        require( _self == owner() );
+        for ( uint256 t = 0; t < _erc20s.length; t++ ) {
+            erc20s_add( _erc20s[t] );
         }
     }
 
+    /*
+     * Processing incoming payments:
+     *
+     *     Which function is called, fallback() or receive()?
+     *
+     *             send Ether
+     *                 |
+     *          msg.data is empty?
+     *                / \
+     *             yes   no
+     *             /       \
+     * receive() exists?  fallback()
+     *          /   \
+     *       yes     no
+     *       /         \
+     *    receive()   fallback()
+     *
+     * NOTE: we *can* receive ETH without processing it here, via selfdestruct(); any
+     * later call (even with a 0 value) will trigger payout.
+     */
     receive() external payable { }
 
     fallback() external payable { }
 
-    // 
-    // Anyone may invoke the payout API, resulting in all ETH and recognized ERC-20 tokens being
-    // distributed as determined at contract creation.  Only the original contract creator may
-    // invoke the final selfdestruct payout.  This should, of course, only be done after
-    // it has been decided that the product/service using this payment mechanism is
-    // no longer active, and will not be receiving any more incoming payments.
     //
-    function payout() external payable nonReentrant {
-        IERC20[] memory erc20s;
-        payout_internal( erc20s, false );
+    // Anyone can instantiate a forwarder; it can only forward the address' ETH/ERC-20 tokens
+    // to this very contract.  So: fill your boots.  So long as the ERC-20 tokens supported
+    // by this Contract are only settable by the Owner, it should be safe.
+    //
+    function forwarder(
+         uint256		_salt
+    )
+        external
+        returns ( address )
+    {
+        return address( new MultiPayoutERC20Forwarder{ salt: bytes32( _salt ) }( payable( address( this ))));
     }
 
-    function payout( IERC20[] memory erc20s ) external payable nonReentrant {
-        payout_internal( erc20s, false);
+    function forwarder_address(
+        uint256			_salt
+    )
+        external
+        view
+        returns ( address )
+    {
+        bytes memory bytecode	= type(MultiPayoutERC20Forwarder).creationCode;
+        bytes memory creation	= abi.encodePacked( bytecode, abi.encode( address( this )));
+        bytes32 creation_hash	= keccak256(
+            abi.encodePacked( bytes1( 0xff ), address( this ), bytes32( _salt ), keccak256( creation ))
+        );
+        return address( uint160( uint256( creation_hash )));
     }
 
-    function payout( IERC20[] memory erc20s, bool destruct ) external payable nonReentrant {
-        payout_internal( erc20s, destruct );
+    // 
+    // Anyone may invoke the payout API, resulting in all ETH and predefined ERC-20 tokens being
+    // distributed as determined at contract creation.
+    //
+    function payout()
+        external
+        payable
+        nonReentrant
+    {
+        payout_internal();
     }
 
     function value_reserve_x10k( uint256 _value, uint16 _leave_x10k ) private view returns ( uint256 ) {
@@ -910,7 +597,7 @@ contract MultiPayoutERC20 is ReentrancyGuard, Context, Ownable {
             uint256 tok_value	= value_reserve_x10k( tok_balance, reserve_x10k );
             if ( tok_value > 0 ) {
                 bool tok_sent;
-                try erc20.transfer( to, tok_value ) returns ( bool s )  {
+                try erc20.transfer( to, tok_value ) returns ( bool s ) {
                     tok_sent	= s;
                 } catch {
                     return;
@@ -920,26 +607,19 @@ contract MultiPayoutERC20 is ReentrancyGuard, Context, Ownable {
         }
     }
 
-    function transfer_except( IERC20[] memory erc20s, address payable to, uint16 reserve_x10k, bool destruct ) private {
-        // The predefined set of ERC-20 tokens to check for and distribute
-${TOKENS}
-        // Any caller-defind ERC-20 tokens to check for and distribute
-        for ( uint256 tok = 0; tok < erc20s.length; tok++ ) {
-            transfer_except_ERC20( erc20s[tok], to, reserve_x10k );
-        }
-        // Any ETH tokens to distribute; either by selfdestruct
-        if ( destruct && reserve_x10k == 0 ) {
-            require( _msgSender() == owner(),
-                    "MultiPayoutERC20: Only the owner (original creator) can selfdestruct the contract" );
-            emit PayoutETH( address( this ).balance, to, true );
-            selfdestruct( to );  // Will also transfer any refund due to Contract destruction
+    function transfer_except( address payable to, uint16 reserve_x10k ) private {
+        for ( uint256 t = 0; t < erc20s.length; t++ ) {
+            transfer_except_ERC20( erc20s[t], to, reserve_x10k );
         }
         uint256 eth_value	= value_reserve_x10k( address( this ).balance, reserve_x10k );
         (bool eth_sent, )   	= to.call{ value: eth_value }( "" );
         emit PayoutETH( eth_value, to, eth_sent );
     }
 
-    function payout_internal( IERC20[] memory erc20s, bool destruct ) private {
+    //
+    // payout_internal Executes the ERC-20 / ETH transfers to the predefined accounts / fractions
+    //
+    function payout_internal() private {
 ${RECIPIENTS}
     }
 }
@@ -980,7 +660,7 @@ def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
     )):
         frac_total	       += frac
         rem_scale		= int( rem * scale )
-        payout		       += f"transfer_except( erc20s, payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), destruct );  // {frac*100:6.2f}%\n"
+        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ));  // {frac*100:6.2f}%\n"
     assert i > 0 and 1 - 1/scale < frac_total < 1 + 1/scale and rem_scale == 0, \
         f"Total payout percentages didn't sum to 100%: {frac_total*100:9.4f}%; remainder: {rem:7.4f} x {scale}: {rem_scale}"
     return payout
@@ -991,19 +671,17 @@ def test_multipayout_ERC20_recipients():
     print()
     print( payout )
     assert payout == """\
-transfer_except( erc20s, payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16(  9310 ), destruct );  //   6.90%
-transfer_except( erc20s, payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(  5703 ), destruct );  //  40.00%
-transfer_except( erc20s, payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ), destruct );  //  53.10%
+transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16(  9310 ));  //   6.90%
+transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(  5703 ));  //  40.00%
+transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ));  //  53.10%
 """
 
 
-def multipayout_ERC20_solidity( addr_frac, tokens ):
+def multipayout_ERC20_solidity( addr_frac ):
     recipients			= multipayout_ERC20_recipients( addr_frac )
-    erc20s			= '\n'.join( f"transfer_except_ERC20( IERC20( {addr} ), to, reserve_x10k );" for addr in tokens )
     prefix			= ' ' * 8
     return multipayout_ERC20_template.substitute(
         RECIPIENTS	= indent( recipients, prefix ),
-        TOKENS		= indent( erc20s, prefix ),
     )
 
 
@@ -1017,18 +695,71 @@ USDC_GOERLI		= "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998"
 def test_multipayout_ERC20_solidity():
     solidity			= multipayout_ERC20_solidity(
         addr_frac	= multipayout_defaults,
-        tokens		= [ HOT, USDT, USDC ],
     )
     print()
     print( solidity )
 
 
-@pytest.mark.parametrize( "provider, src, src_prvkey, destination", solc_multipayout_web3_tests )
-def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destination ):
+
+@pytest.mark.parametrize('address, salt, contract, expected_address', [
+    (
+        '0x0000000000000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+        '0x00',
+        '0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38',
+    ),
+    (
+        '0xdeadbeef00000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+        '0x00',
+        '0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3',
+    ),
+    (
+        '0xdeadbeef00000000000000000000000000000000',
+        '0x000000000000000000000000feed000000000000000000000000000000000000',
+        '0x00',
+        '0xD04116cDd17beBE565EB2422F2497E06cC1C9833',
+    ),
+    (
+        '0x0000000000000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+        '0xdeadbeef',
+        '0x70f2b2914A2a4b783FaEFb75f459A580616Fcb5e',
+    ),
+    (
+        '0x00000000000000000000000000000000deadbeef',
+        '0x00000000000000000000000000000000000000000000000000000000cafebabe',
+        '0xdeadbeef',
+        '0x60f3f640a8508fC6a86d45DF051962668E1e8AC7',
+    ),
+    (
+        '0x00000000000000000000000000000000deadbeef',
+        '0x00000000000000000000000000000000000000000000000000000000cafebabe',
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+        '0x1d8bfDC5D46DC4f61D6b6115972536eBE6A8854C',
+    ),
+    (
+        '0x0000000000000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+        '0x',
+        '0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0',
+    ),
+])
+def test_create2(address, salt, contract, expected_address):
+    """Test the CREATE2 opcode Python implementation.
+
+    EIP-104 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
+
+    """
+    assert precopmuted_contract_address( address, salt, contract ) == expected_address
+
+
+@pytest.mark.parametrize( "testnet, provider, src, src_prvkey, destination", solc_multipayout_web3_tests )
+def test_solc_multipayout_ERC20_web3_tester( testnet, provider, src, src_prvkey, destination ):
     """Use web3 tester
 
     """
-    print( f"Web3( {provider!r} ): Source ETH account: {src} (private key: {src_prvkey}; destination: {', '.join( destination )}" )
+    print( f"{testnet:10}: Web3( {provider!r} ): Source ETH account: {src} (private key: {src_prvkey}; destination: {', '.join( destination )}" )
 
     solc_version		= "0.8.17"
     solcx.install_solc( version=solc_version )
@@ -1037,13 +768,23 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
     w3				= Web3( provider )
 
     latest			= w3.eth.get_block('latest')
-    print( f"Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
+    print( f"{testnet:10}: Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
 
-    print( "Web3 Tester Accounts, start of test:" )
+    print( f"{testnet:10}: Web3 Tester Accounts, start of test:" )
     for a in ( src, ) + tuple( destination ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
+    # If we are providing an account with a private key to sign transactions with, we have to
+    # provide a middleware shim to provision it for transaction signing.  From:
+    # https://web3py.readthedocs.io/en/latest/web3.eth.account.html
     w3.eth.default_account	= src
+    if src_prvkey:
+        account			= Account.from_key( '0x' + src_prvkey )
+        w3.middleware_onion.add(
+            construct_sign_and_send_raw_middleware( account ))
+        assert account.address == src, \
+            f"private key 0x{src_prvkey} isn't related to address {src}"
+        src_prvkey		= None
 
     # Generate a contract targeting these destination accounts, with random percentages.
     addr_frac			= {
@@ -1057,9 +798,9 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
     }
     # Must be actual ERC-20 contracts; if these fail to have a .balanceOf or .transfer API, this
     # contract will fail.  So, if an ERC-20 token contract is self-destructed, the
-    # MultiTransferERC20 will begin to fail.
+    # MultiTransferERC20 would begin to fail, unless we caught and ignored ERC-20 API exceptions.
     tokens			= [ USDT_GOERLI, USDC_GOERLI ]
-    payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac, tokens=tokens )
+    payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac )
     print( payout_sol )
     compiled_sol		= solcx.compile_source(
         payout_sol,
@@ -1067,119 +808,189 @@ def test_solc_multipayout_ERC20_web3_tester( provider, src, src_prvkey, destinat
         solc_version	= solc_version,
         **solcx_options
     )
+    print( f"{testnet:10}: {json.dumps( compiled_sol, indent=4, default=str )}" )
+
     bytecode			= compiled_sol['<stdin>:MultiPayoutERC20']['bin']
     abi				= compiled_sol['<stdin>:MultiPayoutERC20']['abi']
 
     MultiPayoutERC20		= w3.eth.contract( abi=abi, bytecode=bytecode )
 
-    mc_cons_config		= {
+    mc_cons_hash		= MultiPayoutERC20.constructor( src, tokens ).transact({
+        'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
-        'gas':		1000000,
-    }
-    if src_prvkey:
-        # This is a standard contract instantiation, signed by a known account (for which we have a
-        # private key) containing ETH to pay for the Gas required.  A simple example (a bit dated)
-        # is at https://github.com/petervw-qa/Web3_PyStorage_Application/blob/main/deploy.py
-        mc_cons_tx		= MultiPayoutERC20.constructor( False ).build_transaction( mc_cons_config )
-        print( "Web3 Tester Construct MultiPayoutERC20 base transaction: {}".format( mc_cons_tx ))
-        mc_cons_tx_signed	= w3.eth.account.sign_transaction( mc_cons_tx, private_key = src_prvkey )
-        print( "Web3 Tester Construct MultiPayoutERC20 sig. transaction: {}".format( mc_cons_tx_signed ))
-        mc_cons_hash		= w3.eth.send_raw_transaction( mc_cons_tx_signed.rawTransaction )
-    else:
-        mc_cons_hash		= MultiPayoutERC20.constructor( False ).transact( mc_cons_config )
-    print( "Web3 Tester Construct MultiPayoutERC20 hash: {}".format( mc_cons_hash.hex() ))
+        'gas':		2000000,
+    })
+    print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 hash: {mc_cons_hash.hex()}" )
     mc_cons			= w3.eth.get_transaction( mc_cons_hash )
-    print( "Web3 Tester Construct MultiPayoutERC20 transaction: {}".format( json.dumps( mc_cons, indent=4, default=str )))
+    print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 transaction: {json.dumps( mc_cons, indent=4, default=str )}" )
 
     mc_cons_receipt		= w3.eth.wait_for_transaction_receipt( mc_cons_hash )
-    print( "Web3 Tester Construct MultiPayoutERC20 receipt: {}".format( json.dumps( mc_cons_receipt, indent=4, default=str )))
-    print( "Web3 Tester Construct MultiPayoutERC20 Contract: {} bytes, at Address: {}".format(
-        len( bytecode ), mc_cons_receipt.contractAddress ))
-    print( "Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({}): ${:7.6f}/byte".format(
+    multipayout_ERC20_address	= mc_cons_receipt.contractAddress
+
+    print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 receipt: {json.dumps( mc_cons_receipt, indent=4, default=str )}" )
+    print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 Contract: {len( bytecode)} bytes, at Address: {multipayout_ERC20_address}" )
+    print( "{:10}: Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({}): ${:7.6f}/byte".format(
+        testnet,
         mc_cons_receipt.gasUsed,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI,
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
         mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI / len( bytecode ),
     ))
 
-    print( "Web3 Tester Accounts; MultiPayoutERC20 post-contract creation:" )
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-contract creation:" )
     for a in ( src, ) + tuple( destination ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
-    # We can work with the contract, but it doesn't have a direct external API -- just a fallback
-    # for receiving ETH.
     multipayout_ERC20		= w3.eth.contract(
         address	= mc_cons_receipt.contractAddress,
         abi	= abi,
     )
 
-    # So, just send some ETH from the default account.  This will *not* trigger the payout function,
-    # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
-    mc_send_tx			= {
+    # Now that we have our MultiPayoutERC20 contract addresss, we can predict the Contract addresses
+    # of our unique MultiPayoutERC20Forwarder contracts.  This is the contract that forwards ERC-20s
+    # / ETH to a fixed destination address -- in this case, the MultiPayoutERC20 contract, and
+    # nowhere else.  We can generate a deterministic sequence of new ForwarderERC20 contracts using
+    # the CREATE2 opcode, and we can predict what each of their addresses will be because we can
+    # know (we can compute) the creation bytecode that will be used, the sequence of salts that we
+    # will use, and (now) we have the source Contract address that will be creating each one.  Lets
+    # confirm.
+    #
+    # 1) Lets get the same ForwarderERC20 code our MultiPayoutERC20 contract is using, and prepare
+    #    to generate calls to it:
+    fwd_bytecode		= compiled_sol['contracts/MultiPayoutERC20Forwarder.sol:MultiPayoutERC20Forwarder']['bin']
+    fwd_abi			= compiled_sol['contracts/MultiPayoutERC20Forwarder.sol:MultiPayoutERC20Forwarder']['abi']
+    MultiPayoutERC20Forwarder	= w3.eth.contract( abi=fwd_abi, bytecode=fwd_bytecode )
+
+    # 2) Get the contract creation bytecode, including constructor arguments:
+    #    (see: https://github.com/safe-global/safe-eth-py/blob/master/gnosis/safe/safe_create2_tx.py)
+    fwd_creation_code		= MultiPayoutERC20Forwarder.constructor( multipayout_ERC20_address ).data_in_transaction;
+
+    # 3) Compute the 0th MultiPayoutERC20Forwarder Contract address, targeting this MultiPayoutERC20 Contract.
+    salt_0			= w3.codec.encode( [ 'uint256' ], [ 0 ] )
+    mc_fwd0_addr_precomputed	= precomputed_contract_address(
+        address		= multipayout_ERC20_address,
+        salt		= salt_0,
+        creation	= fwd_creation_code,
+    )
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_addr_precomputed} (precomputed)" )
+
+    mc_fwd0_aclc_hash		= MultiPayoutERC20.functions.forwarder_address( 0 ).transact({
         'to':		mc_cons_receipt.contractAddress,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gasPrice':	w3.eth.gas_price,
         'gas':		250000,
+        'value':	0,
+    })
+    mc_fwd0_aclc_tx		= w3.eth.get_transaction( mc_fwd0_aclc_hash )
+    mc_fwd0_aclc_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash )
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address Receipt: {json.dumps( mc_fwd0_aclc_receipt, indent=4, default=str )} (calculated)" )
+    mc_fwd0_aclc_result		= multipayout_ERC20.functions.forwarder_address( 0 ).call({
+        'to':		mc_cons_receipt.contractAddress,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gasPrice':	w3.eth.gas_price,
+        'gas':		250000,
+        'value':	0,
+    })
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_aclc_result} (calculated)" )
+
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 pre-instantiate Forwarder#0:" )
+    for a in ( src, ) + tuple( destination ) + ( mc_fwd0_addr_precomputed, ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
+
+    # Lets actually deploy the 0th MultiPayoutERC20Forwarder and confirm that it is created at the
+    # expected address.
+    mc_fwd0_addr		= multipayout_ERC20.functions.forwarder( 0 ).call({
+        'to':		mc_cons_receipt.contractAddress,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gasPrice':	w3.eth.gas_price,
+        'gas':		500000,
+    })
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_addr} (instantiated)" )
+
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 pre-instantiate Forwarder#0:" )
+    for a in ( src, ) + tuple( destination ) + ( mc_fwd0_addr_precomputed, ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
+
+    assert mc_fwd0_addr == mc_fwd0_aclc_result == mc_fwd0_addr_precomputed
+
+    # TODO: send some ETH and ERC-20s to the Forwarder address and re-deploy the contract
+
+
+    # So, just send some ETH from the default account.  This will *not* trigger the payout function,
+    # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
+    mc_send_hash		= w3.eth.send_transaction({
+        'to':		mc_fwd0_addr,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gasPrice':	w3.eth.gas_price,
+        'gas':		250000,
         'value':	w3.to_wei( .01, 'ether' )
-    }
-    if src_prvkey:
-        mc_send_tx_signed	= w3.eth.account.sign_transaction( mc_send_tx, private_key = src_prvkey )
-        mc_send_hash		= w3.eth.send_raw_transaction( mc_send_tx_signed.rawTransaction )
-    else:
-        mc_send_hash		= w3.eth.send_transaction( mc_send_tx )
-    print( "Web3 Tester Send ETH to MultiPayoutERC20 hash: {}".format( mc_send_hash.hex() ))
+    })
+    print( f"{testnet:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 hash: {mc_send_hash.hex()}" )
     mc_send			= w3.eth.get_transaction( mc_send_hash )
-    print( "Web3 Tester Send ETH to MultiPayoutERC20 transaction: {}".format( json.dumps( mc_send, indent=4, default=str )))
+    print( f"{testnet:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 transaction: {json.dumps( mc_send, indent=4, default=str )}" )
 
     mc_send_receipt		= w3.eth.wait_for_transaction_receipt( mc_send_hash )
-    print( "Web3 Tester Send ETH to MultiPayoutERC20 receipt: {}".format( json.dumps( mc_send_receipt, indent=4, default=str )))
-    print( "Web3 Tester Send ETH to MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+    print( f"{testnet:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 receipt: {json.dumps( mc_send_receipt, indent=4, default=str ) }" )
+    print( "{:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+        testnet,
         mc_send_receipt.gasUsed,
         mc_send_receipt.gasUsed * ETH.GAS_GWEI,
         mc_send_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
 
-    print( "Web3 Tester Accounts; MultiPayoutERC20 post-send ETH:" )
-    for a in ( src, ) + tuple( destination ):
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-send ETH to Forwarder#0:" )
+    for a in ( src, ) + tuple( destination ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
 
-    # Finally, invoke the payout function (also available via fallback).  Calling any function that
-    # is not implemented (ie. with a payload) invokes the fallback.
-    print( f"MultiPayoutERC20 contract functions: {dir( multipayout_ERC20.functions )!r}" )
-    mc_payo_config		= {
+    # Instantiate the ...Forwarder#0 again; should re-create at the exact same address
+    mc_fwd0_addr_again		= multipayout_ERC20.functions.forwarder( 0 ).call({
+        'to':		mc_cons_receipt.contractAddress,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gasPrice':	w3.eth.gas_price,
+        'gas':		500000,
+    })
+    assert mc_fwd0_addr_again == mc_fwd0_addr
+
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-instantiate Forwarder#0 again:" )
+    for a in ( src, ) + tuple( destination ) + ( mc_fwd0_addr, ):
+        print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )
+
+    # Finally, invoke the payout function.
+    mc_payo_hash		= multipayout_ERC20.functions.payout().transact({
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		500000,
-    }
-    if src_prvkey:
-        mc_payo			= multipayout_ERC20.functions.payout().build_transaction( mc_payo_config )
-        mc_payo_sig		= w3.eth.account.sign_transaction( mc_payo, private_key = src_prvkey )
-        mc_payo_hash		= w3.eth.send_raw_transaction( mc_payo_sig.rawTransaction )
-    else:
-        mc_payo_hash		= multipayout_ERC20.functions.payout().transact( mc_payo_config )
-    print( "Web3 Tester payout MultiPayoutERC20 hash: {}".format( mc_payo_hash.hex() ))
+    })
+    print( f"{testnet:10}: Web3 Tester payout MultiPayoutERC20 hash: {mc_payo_hash.hex()}" )
 
     mc_payo_receipt		= w3.eth.wait_for_transaction_receipt( mc_payo_hash )
-    print( "Web3 Tester payout MultiPayoutERC20: {}".format( json.dumps( mc_payo_receipt, indent=4, default=str )))
+    print( f"{testnet:10}: Web3 Tester payout MultiPayoutERC20: {json.dumps( mc_payo_receipt, indent=4, default=str )}" )
 
-    print( "Web3 Tester payout MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+    print( "{:10}: Web3 Tester payout MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:7.2f} ({})".format(
+        testnet,
         mc_payo_receipt.gasUsed,
         mc_payo_receipt.gasUsed * ETH.GAS_GWEI,
         mc_payo_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
-    print( "Web3 Tester payout MultiPayoutERC20 PayoutETH events: {}".format(
+    print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutETH events: {}".format(
+        testnet,
         json.dumps(
             multipayout_ERC20.events['PayoutETH']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))
-    print( "Web3 Tester payout MultiPayoutERC20 PayoutERC20 events: {}".format(
+    print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutERC20 events: {}".format(
+        testnet,
         json.dumps(
             multipayout_ERC20.events['PayoutERC20']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))
 
-    print( "Web3 Tester Accounts; MultiPayoutERC20 post-payout ETH:" )
-    for a in ( src, ) + tuple( destination ):
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-payout ETH:" )
+    for a in ( src, ) + tuple( destination ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ''}" )

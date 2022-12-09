@@ -260,6 +260,15 @@ def commas( seq, final=None ):  # supply alternative final connector, eg. 'and',
     return ', '.join( map( str, seq ))
 
 
+def into_bytes( data: Union[bytes,str] ) -> bytes:
+    """Convert hex data w/ optional '0x' prefix into bytes"""
+    if isinstance( data, bytes ):
+        return data
+    if data[:2].lower() == '0x':
+        data		= data[2:]
+    return bytes.fromhex( data )
+
+
 def round_onto( value, keys, keep_sign=True ):
     """Find the numeric key closest to value, maintaining sign if possible.  None and other
     non-numeric values are supported if they are present in keys.
