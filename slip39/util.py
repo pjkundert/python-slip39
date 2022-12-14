@@ -143,10 +143,8 @@ def memoize( maxsize=None, maxage=None, log_at=None ):
                     del wrapper._memo[key]
             return entry
 
-        wrapper._memo	= dict()		# { args: entry, ... }
-        wrapper._stat	= dict()		# { args: (<timestamp>, <count>), ... }
-
         def stats( predicate=None, now=None ):
+            """Return the number of memoized data, their average age, and average hits per memoized entry."""
             if now is None:
                 now		= timer()
             cnt,age,avg		= 0,0,0
@@ -158,6 +156,15 @@ def memoize( maxsize=None, maxage=None, log_at=None ):
             return cnt,age/(cnt or 1),avg/(cnt or 1)
 
         wrapper.stats		= stats
+
+        def reset():
+            """Flush all memoized data."""
+            wrapper._memo	= dict()		# { args: entry, ... }
+            wrapper._stat	= dict()		# { args: (<timestamp>, <count>), ... }
+
+        wrapper.reset		= reset
+
+        wrapper.reset()
 
         return wrapper
 
@@ -219,9 +226,15 @@ def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=lo
                 return wrapper.rv
             return default_cls() if default_cls else default_cls
 
-        wrapper.ok		= True		# Start off assuming success (hence no initial delay)
-        wrapper.cnt		= 0
-        wrapper.lst		= None		# time of last function invocation
+        def reset():
+            """Force an immediate attempt to run the underlying function, clearing any try count."""
+            wrapper.ok		= True		# Start off assuming success (hence no initial delay)
+            wrapper.cnt		= 0
+            wrapper.lst		= None		# time of last function invocation
+            
+        wrapper.reset		= reset
+
+        wrapper.reset()
 
         return wrapper
 
@@ -489,7 +502,7 @@ def is_power_of_2( n: int ) -> bool:
 
 
 class mixed_fraction( fractions.Fraction ):
-    """A Fraction that represents whole multiples of itself as eg. 1-1/2"""
+    """A Fraction that represents whole multiples of itself as eg. 1+1/2 instead of 3/2"""
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
         if whole and rest:
@@ -497,10 +510,20 @@ class mixed_fraction( fractions.Fraction ):
         return super().__str__()
 
 
-def remainder_after( fractions ):
+def remainder_after( fractions, scale=1, total=1 ):
     """Computes the sequence of what fraction must remain, after the preceding fractions have been
-    removed."""
+    removed.
+
+    If the desired total to compare each fraction and the sum to isn't 1, supply it.  Also, an
+    optional scaling factor for each fraction can be supplied (if the incoming stream of fractions
+    don't sum to desired total).
+
+    """
     f_total			= 0
     for f in fractions:
-        yield 1.0 - f / ( 1 - f_total )
-        f_total		       += f
+        f		       *= scale				# (0,total]
+        f_starting		= total - f_total		# (0,total]
+        f_removed		= f / f_starting		# (0,1]
+        f_remaining		= total - total * f_removed	# (0,total]
+        yield f_remaining
+        f_total		       += f				# (0,total)

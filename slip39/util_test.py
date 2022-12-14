@@ -3,6 +3,7 @@ import logging
 import pytest
 import time
 
+from fractions		import Fraction as F
 from functools		import wraps
 from collections	import defaultdict
 
@@ -15,6 +16,29 @@ def test_remainder_after():
     assert list( remainder_after( [ .25, .25, .25, .25 ] )) == pytest.approx( [.75, 2/3, 1/2, 0] )
     # Now, the last segment requires double the remainder; so it extends -1x past the end...
     assert list( remainder_after( [ .25, .25, .25, .50 ] )) == pytest.approx( [.75, 2/3, 1/2, -1] )
+
+    # Now, try some more complex Fractions, with differing desired total (eg. parts in 10,000), and
+    # scale (multiplication factor required of each fraction to sum to desired total).
+
+    parts			= [
+        F( 1,  4 ),  #  3/12
+        F( 1,  3 ),  #  4/12
+        F( 1,  6 ),  #  2/12
+        F( 1, 12 ),  #  1/12
+        F( 1,  6 ),  #  2/12
+    ]                   # 12/12
+    assert sum( parts ) == 1
+    assert list( remainder_after( parts )) == [ F( 3 , 4 ), F( 5, 9 ), F( 3, 5 ), F( 2, 3 ), 0 ]
+
+    percs			= [
+        f * 100 for f in parts
+    ]
+    assert sum( percs ) == 100
+    assert list( remainder_after( percs, total=100 )) == [ F( 75, 1 ), F( 500, 9 ), F( 60, 1 ), F( 200, 3 ), 0 ]
+
+    # Now, go straight from the ratio (0,1] to the parts in 10,000
+    assert list( remainder_after( parts, scale=10000, total=10000 )) == [ F( 7500, 1 ), F( 50000, 9 ), F( 6000, 1 ), F( 20000, 3 ), 0 ]
+    assert list( map( int, remainder_after( parts, scale=10000, total=10000 ))) == [ 7500, 5555, 6000, 6666, 0 ]
 
 
 def exception_every( N=2, extra=0 ):

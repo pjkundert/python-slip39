@@ -446,7 +446,7 @@ class Account:
             seed		= codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
         if seed[:2].lower() == "0x":
             seed		= seed[2:]
-        assert all( c in string.hexdigit for c in seed ), \
+        assert all( c in string.hexdigits for c in seed ), \
             "Only bytes and hex string HD Wallet Seeds are supported"
 
         self.clean_derivation()
