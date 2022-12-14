@@ -18,20 +18,20 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     IERC20[] public		erc20s;
 
     function erc20s_len()
-        public
-        view
+	public
+	view
 	returns ( uint256 )
     { 
-        return erc20s.length;
+	return erc20s.length;
     }
 
     function erc20s_add(
-        IERC20			_token
+	IERC20			_token
     ) 
-        public
-        onlyOwner
+	public
+	onlyOwner
     {
-        for ( uint256 i = 0; i < erc20s.length; ++i ) {
+	for ( uint256 i = 0; i < erc20s.length; ++i ) {
 	    if ( erc20s[i] == _token ) {
 	       return;
 	    }
@@ -40,21 +40,54 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     }
 
     function erc20s_del(
-        IERC20			_token
+	IERC20			_token
     ) 
-        public
-        onlyOwner
-        returns ( bool )
+	public
+	onlyOwner
+	returns ( bool )
     {
-        for ( uint256 i = 0; i < erc20s.length; i++ ) {
+	for ( uint256 i = 0; i < erc20s.length; i++ ) {
 	    if ( erc20s[i]  == _token ) {
-                unchecked {
-                    erc20s[i]	= erc20s[erc20s.length - 1];
-                }
-                erc20s.pop();
-                return true;
+		unchecked {
+		    erc20s[i]		= erc20s[erc20s.length - 1];
+		}
+		erc20s.pop();
+		return true;
 	    }
-        }
-        return false;
+	}
+	return false;
+    }
+
+    //
+    // Anyone can call this function, to forward all of their ERC-20 tokens into this contract
+    //
+    // Used by MultiPayoutERC20Forwarder to collect its ERC-20 tokens.
+    // 
+    // Not recommended for general public use, but you can call it if you want! ;)
+    //
+    // REENTRANCY ATTACK
+    // 
+    // It is not necessary to protect this from reentrancy, if only reputable ERC-20 tokens
+    // are included.  A disreputable ERC-20 token's transfer function could re-enter this
+    // call, resulting in the same token transfers being re-attempted, and subsequent transfers
+    // delayed.	 But, only its own failure to implement check-effects-interactions can be exploited.
+    //
+    function erc20s_collector()
+	external
+    {
+	for ( uint256 i = 0; i < erc20s.length; ++i ) {
+	    try erc20s[i].balanceOf( msg.sender ) returns ( uint256 balance ) {
+		if ( balance > 0 ) {
+		    // Forward the caller's balance to the recipient (this contract!)
+		    try erc20s[i].transfer( payable( address( this )), balance ) returns ( bool ) {
+			// ignore failing ERC-20 transfer
+		    } catch {
+			// ignore exception on ERC-20 transfer
+		    }
+		}
+	    } catch {
+		// ignore exception on ERC-20 balanceOf
+	    }
+	}
     }
 }

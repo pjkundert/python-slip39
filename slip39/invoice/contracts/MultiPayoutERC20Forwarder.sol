@@ -62,32 +62,11 @@ pragma solidity ^0.8.0;
 //  creation_code		= ContractName.constructor( arg1, arg2 ).data_in_transaction;
 //  
 // 
-import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import "contracts/MultiPayoutERC20Base.sol";
 
-
 contract MultiPayoutERC20Forwarder {
-  constructor( address payable _multipayout ) payable {
-      // Forward the ERC-20s supported by our associated MultiPayoutERC20 contract
-      for (uint256 t = 0; t < MultiPayoutERC20Base( _multipayout ).erc20s_len(); t++) {
-          uint256 tok_balance;
-          // Get the balance of the contract for the current token
-          try MultiPayoutERC20Base( _multipayout )
-	      .erc20s( t )
-	      .balanceOf( address( this )) returns ( uint256 value ) {
-              tok_balance = value;
-          } catch {
-              continue;
-          }
-          if ( tok_balance > 0 ) {
-              // Forward the balance to the recipient
-              try MultiPayoutERC20Base( _multipayout ).erc20s( t ).transfer( _multipayout, tok_balance ) returns ( bool ) {
-                  // ignore failing ERC-20 transfer
-              } catch {
-                  continue;  // ignore exception on ERC-20 transfer
-              }
-          }
-      }
-      selfdestruct( _multipayout );
+    constructor( address payable _multipayout ) payable {
+        MultiPayoutERC20Base( _multipayout ).erc20s_collector();
+        selfdestruct( _multipayout );
    }
 }
