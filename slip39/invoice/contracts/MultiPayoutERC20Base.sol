@@ -3,7 +3,9 @@ pragma solidity ^0.8.0;
 
 import "../openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import "../openzeppelin-contracts/contracts/access/Ownable.sol";
-import "../openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {
+    IERC20Metadata as IERC20  // w/ decimals()
+} from "../openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // 
 // Implements all the ERC-20 handling for MultiPayoutERC20
@@ -13,8 +15,27 @@ import "../openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // 
 abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     // 
-    // erc20s (and ..._len(), _add( IERC20 ), _del( IERC20 )
+    // __SELF -- specific at construction, and used to support ...Forwarder collection
     // 
+    // NOTE: immutable variables are assigned once at construction, and the construction code is
+    // modified to contain the value in-place, so "access" to these immutable values in code
+    // does NOT actually interrogate the contract's data!  Thus, in "delegatecall"-ed code,
+    // we can safely use these values.
+    // 
+    address private immutable	__SELF	= address( this );
+
+    modifier isDelegated() {
+        require( address( this ) != __SELF );
+	_;
+    }
+    modifier notDelegated() {
+        require( address( this ) == __SELF );
+	_;
+    }
+
+    // 
+    // erc20s (and ..._len(), _add( IERC20 ), _del( IERC20 )
+    //
     IERC20[] public		erc20s;
 
     function erc20s_len()
@@ -59,7 +80,7 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     }
 
     //
-    // Anyone can call this function, to forward all of their ERC-20 tokens into this contract
+    // Anyone can delegatecall this function, to forward all of their ERC-20 tokens into this contract
     //
     // Used by MultiPayoutERC20Forwarder to collect its ERC-20 tokens.
     // 
@@ -74,12 +95,14 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     //
     function erc20s_collector()
 	external
+	isDelegated  // Only delegatecall allowed!  We'll be transferring from the caller's address( this )
     {
-	for ( uint256 i = 0; i < erc20s.length; ++i ) {
-	    try erc20s[i].balanceOf( msg.sender ) returns ( uint256 balance ) {
+	for ( uint256 i = MultiPayoutERC20Base( __SELF ).erc20s_len(); i > 0; --i ) {
+	    IERC20		token	= MultiPayoutERC20Base( __SELF ).erc20s( i-1 );
+	    try token.balanceOf( address( this )) returns ( uint256 balance ) {
 		if ( balance > 0 ) {
 		    // Forward the caller's balance to the recipient (this contract!)
-		    try erc20s[i].transfer( payable( address( this )), balance ) returns ( bool ) {
+		    try token.transfer( __SELF, balance ) returns ( bool ) {
 			// ignore failing ERC-20 transfer
 		    } catch {
 			// ignore exception on ERC-20 transfer

@@ -66,7 +66,7 @@ import "contracts/MultiPayoutERC20Base.sol";
 
 contract MultiPayoutERC20Forwarder {
     constructor( address payable _multipayout ) payable {
-        MultiPayoutERC20Base( _multipayout ).erc20s_collector();
+        _multipayout.delegatecall( abi.encodeWithSignature( "erc20s_collector()" ));
         selfdestruct( _multipayout );
    }
 }

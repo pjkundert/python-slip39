@@ -25,4 +25,5 @@ def test_ethereum_prices():
 
     gas_pricing			= ETH.maxPriorityFeePerGas( spend=1.50, gas=21000 )
     log.warning( f"{ETH.chain}: Gas Pricing EIP-1559 for max $1.50 per 21,000 Gas transaction: {json.dumps( gas_pricing )}" )
-    assert gas_pricing['maxFeePerGas'] * gas / ETH.ETH_WEI * ETH.ETH_USD == pytest.approx( spend )
+    if ETH.UPDATED:  # Ignore, if we don't have communications w/ the Ethereum chain data source
+        assert gas_pricing['maxFeePerGas'] * gas / ETH.ETH_WEI * ETH.ETH_USD == pytest.approx( spend )

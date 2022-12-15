@@ -32,10 +32,14 @@ from .ethereum		import Etherscan
 ETH				= Etherscan( "Ethereum" )
 
 
-# Optimize, and search for imports relative to this directory
+#
+# Optimize, and search for imports relative to this directory.
+#
+# Don't over-optimize, or construction code gets very big (and expensive to deploy)
+#
 solcx_options			= dict(
     optimize		= True,
-    optimize_runs	= 100000,
+    optimize_runs	= 100,
     base_path		= os.path.dirname( __file__ ),
 )
 
@@ -508,12 +512,14 @@ multipayout_ERC20_template	= Template( r"""
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {
+    IERC20,
+    MultiPayoutERC20Base
+} from "contracts/MultiPayoutERC20Base.sol";
 
-import "contracts/MultiPayoutERC20Base.sol";
-import "contracts/MultiPayoutERC20Forwarder.sol";
+import {
+    MultiPayoutERC20Forwarder
+} from "contracts/MultiPayoutERC20Forwarder.sol";
 
 contract MultiPayoutERC20 is MultiPayoutERC20Base {
 
@@ -584,7 +590,7 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
     // ERC-20 tokens, which have large denominators.  For example, ETH is denominated in
     // 10^18 WEI.  So, when transferring .001 ETH, the _value in this calculation will be
     // 10^15, or 1,000,000,000,000,000.  Therefore, we will always divide by the _scale *before*
-    // multiplying by the _reserve_scaled -- the opposite of what we would want to do to 
+    // multiplying by the _reserve_scaled -- the opposite of what we would want to do to
     // maintain precision.
     //
     // This allows us to avoid overflow (assuming _reserve_scaled <= _scale).
@@ -599,17 +605,23 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
         pure  // no state changed or read
         returns ( uint256 )
     {
-        if ( _reserve_scaled == 0 || _scale == 0 ) {
-            return _value;
-        }
         unchecked {
-            return _value / _scale * _reserve_scaled;
+            if ( _reserve_scaled == 0 || _scale == 0 ) {
+                return _value;
+            }
+            if ( _value > type(uint256).max / _scale ) {
+                return _value / _scale * _reserve_scaled;
+            }
+            // Only if _reserve_scale > _scale could this overflow, resulting in a loss of precision,
+            // and a *lower* value being transferred to this agent.  This would require an erroneous
+            // contract to be generated.
+            return _value * _reserve_scaled / _scale;
         }
     }
 
     //
     // transfer_except_ERC20 -- transfer this ERC-20 token (if any) into 'to', reserving a proportion.
-    // 
+    //
     // ERC-20 .transfer call uses its msg.sender as from (ie. this contract address)
     //
     function transfer_except_ERC20(
@@ -649,7 +661,7 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
     // It is possible to use a large amount of gas, if many MultiPayoutERC20 contracts are
     // chained together, and many ERC-20 tokens are involved.  If the global gas limit is
     // exceeded, remove some supported ERC-20 tokens (temporarily) and try again.
-    // 
+    //
     function transfer_except(
         address payable		_to,
         uint16			_reserve_scaled,
@@ -686,7 +698,7 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
 ${RECIPIENTS}
     }
 
-    // 
+    //
     // Anyone may invoke the payout API, resulting in all ETH and predefined ERC-20 tokens being
     // distributed as determined at contract creation.
     //
@@ -714,16 +726,16 @@ ${RECIPIENTS}
      *       yes     no
      *       /         \
      *    receive()   fallback()
-     * 
+     *
      * NOTE: we *can* receive ETH without processing it here, via selfdestruct(); any later call
      * (even with a 0 value) will trigger payout.  Since the .forward( N ) contract uses
      * selfdestruct to collect ETH, no payout will be run on a standard incoming client payment.
-     * 
+     *
      * This contract is designed to allow any downstream payout recipient to execute the
      * payout function, as simply as possible.  Thus, we have no receive function, and
      * specify a fallback function that executes the payout().  Thus, any incoming ETH
      * transfer to the contract (except via selfdestruct) will attempt to run payout.
-     * 
+     *
      * So, any wallet which can specify a high gas limit for a transfer transaction may be used.
      * Just transfer 0 ETH to the contract, and set a high gas limit (to allow for all the
      * payout proportion calculations and any ERC-20 transfers to each payout recipient).
@@ -769,7 +781,7 @@ def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
     """
     addr_frac_sorted		= sorted( addr_frac.items(), key=lambda a_p: a_p[1] )
     addresses,fractions		= zip( *addr_frac_sorted )
-    
+
     i, frac_summed		= 0, 0
     payout			= ""
     for i,(addr,frac,rem) in enumerate( zip(
@@ -779,6 +791,8 @@ def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
     )):
         frac_summed	       += frac
         rem_scale		= int( rem )
+        assert rem_scale <= scale, \
+            f"Encountered a fraction: {rem_scale} numerator greater than scale: {scale} denominator"
         payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), uint16( {scale} ));  // {frac*100:6.2f}%\n"
     assert i > 0 and rem_scale == 0, \
         f"Total payout percentages didn't accumulate to zero remainder: {rem:7.4f} =~= {rem_scale}, for {commas( fractions, final='and' )}"
@@ -810,6 +824,10 @@ USDT_GOERLI		= "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e"
 USDC			= "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 USDC_GOERLI		= "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998"
 
+# Some test ERC-20 tokens that will mint
+WEEN_GOERLI		= "0xaFF4481D10270F50f203E0763e2597776068CBc5"  # 18 decimals
+YEEN_GOERLI		= "0xc6fDe3FD2Cc2b173aEC24cc3f267cb3Cd78a26B7"  # 8 decimals
+ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order of multiplcation will affect precision
 
 def test_multipayout_ERC20_solidity():
     solidity			= multipayout_ERC20_solidity(
@@ -871,7 +889,81 @@ def test_create2(address, salt, contract, expected_address):
     """
     assert precopmuted_contract_address( address, salt, contract ) == expected_address
 
-
+#
+# Test the ...Forwarder -> MultiPayoutERC20 -> Recipient flow
+#
+# Here are the Goerli testnet results from the first successful test:
+#
+# The funds came from the 0x667A source account, and .01ETH, 820.00 WEENUS and 757 ZEENUS and were
+# transferred into the fwd (Forwarder contract account):
+#
+#    Goerli    : Web3 Tester Accounts; MultiPayoutERC20 post-send ETH/*EENUS ERC-20 to Forwarder#0:
+#    - 0x667AcC3Fc27A8EbcDA66E7E01ceCA179d407ce00 == 564697006956028403 src
+#      o WEENUS ERC-20 == 7,380.00
+#      o ZEENUS ERC-20 == 6,813.00
+#    - 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 == 100051549200000000
+#    - 0xE5714055437154E812d451aF86239087E0829fA8 == 49479221300000000
+#    - 0xEeC2b464c2f50706E3364f5893c659edC9E4153A == 140469229500000000
+#    - 0xf57892E0022dA90c614E2074219726796e213703 == 0 payout
+#    - 0xcB5dc1F473A32f18dD4B834d8979fe914e249890 == 10000000000000000 fwd
+#      o WEENUS ERC-20 == 820.00
+#      o ZEENUS ERC-20 == 757.00
+#
+# Then, the Forwarder contract was triggered, moving all ETH and (known) ERC-20s
+# into the payout (MultiPayoutERC20) contract:
+#
+#    Goerli    : Web3 Tester Forward#0 forwarder Gas Used: 144884 == 2607912.0gwei == USD$     3.31 (Thu Dec 15 21:44:05 2022 UTC)
+#    Goerli    : Web3 Tester Accounts; MultiPayoutERC20 post-instantiate Forwarder#0 again:
+#    - 0x667AcC3Fc27A8EbcDA66E7E01ceCA179d407ce00 == 564696072285148775 src
+#      o WEENUS ERC-20 == 7,380.00
+#      o ZEENUS ERC-20 == 6,813.00
+#    - 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 == 100051549200000000
+#    - 0xE5714055437154E812d451aF86239087E0829fA8 == 49479221300000000
+#    - 0xEeC2b464c2f50706E3364f5893c659edC9E4153A == 140469229500000000
+#    - 0xf57892E0022dA90c614E2074219726796e213703 == 10000000000000000 payout
+#      o WEENUS ERC-20 == 820.00
+#      o ZEENUS ERC-20 == 757.00
+#    - 0xcB5dc1F473A32f18dD4B834d8979fe914e249890 == 0 fwd
+#
+# This version used 144884 Gas; about $4.02, w/ ETH at USD$1,261.66 and Gas Base: 21 + Priority: 1
+# (20 gwei/gas).  Fortunately, you can wait for a lower-cost time to harvest your payments; on
+# weekends gas costs are low, so at 10 Gwei/Gas, the cost would be $2.00.  This transaction
+# transported 2 ERC-20 tokens + some (test) Eth; a transaction with no ERC-20s and only ETH would be
+# significantly cheaper.
+#
+# Finally, the payout was triggered, flushing all ETH and ERC-20s by predefined proportion into the
+# 3 recipient accounts:
+#
+#    Goerli    : Web3 Tester payout MultiPayoutERC20 Gas Used: 270265 == 4864770.0gwei == USD$     6.17 (Thu Dec 15 21:44:05 2022 UTC)
+#    Goerli    : Web3 Tester Accounts; MultiPayoutERC20 post-payout ETH:
+#    - 0x667AcC3Fc27A8EbcDA66E7E01ceCA179d407ce00 == 564694320515254900 src
+#      o WEENUS ERC-20 == 7,380.00
+#      o ZEENUS ERC-20 == 6,813.00
+#    - 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 == 109406549200000000
+#      o WEENUS ERC-20 == 767.11
+#      o ZEENUS ERC-20 == 708.00
+#    - 0xE5714055437154E812d451aF86239087E0829fA8 == 49813782800000000
+#      o WEENUS ERC-20 == 27.43
+#      o ZEENUS ERC-20 == 25.00
+#    - 0xEeC2b464c2f50706E3364f5893c659edC9E4153A == 140779668000000000
+#      o WEENUS ERC-20 == 25.46
+#      o ZEENUS ERC-20 == 24.00
+#    - 0xf57892E0022dA90c614E2074219726796e213703 == 0 payout
+#    - 0xcB5dc1F473A32f18dD4B834d8979fe914e249890 == 0 fwd
+#    PASSED
+#
+# Anyone can trigger the MultiPayoutERC20.forwarder( N ) to collect a payment, and anyone can then
+# trigger the MultiPayoutERC20's payout function to distribute the funds -- so, every recipient can
+# choose to collect the funds and receive their proportion, even if the company or individual
+# running the payment system fails or is otherwise incapacitated.  And, *nobody* in any organization
+# can alter the collection, payout or distribution proportion of the funds: everyone gets paid,
+# exactly as originally specified.
+#
+# All of these addresses will persist in the Goerli network, so you should be able to find
+# these transactions to this day:
+#
+#     https://goerli.etherscan.io/address/0xcB5dc1F473A32f18dD4B834d8979fe914e249890
+#
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
 def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_prvkey, destination ):
     """Use web3 tester
@@ -888,9 +980,9 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
 
     # Compute the gas fees we need to use for this test.  We'll use the real Ethereum chain pricing.
     # These gas pricing calculations are very complex:
-    # 
+    #
     #     https://docs.alchemy.com/docs/how-to-build-a-gas-fee-estimator-using-eip-1559)
-    # 
+    #
     # It is best to use a gas price estimator (Oracle) that predicts what the next block's likely
     # gas pricing is going to be.  The base fee is mandatory (set by the Ethereum network).  The
     # priority fee "tip" is the only thing we can adjust.
@@ -898,7 +990,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # If the fees are just too high, and the user has the option to wait (for example, when
     # executing the MultiPayoutERC20's payout function, or executing the .forward( N ) contract to
     # collect a client's payment), we need to provide that information.
-    # 
+    #
     # So, we need to:
     #   - estimate the gas cost to run each contract.
     #     - This will be determined by the mix of ERC-20 tokens being transferred, and the exact
@@ -906,13 +998,13 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     #     - It could change, if any ERC_20 uses forwarding, and changes their underlying contract
     #     - So, we'll have to test w/ all tokens resident, to get the likely maximum gas fee to
     #       run the contract, and provide a margin
-    # 
+    #
 
 
     # How do we specify a chain_id?
     # if chain_id is not None:
     #     w3.eth.chain_id		= chain_id
-    
+
     latest			= w3.eth.get_block('latest')
     print( f"{testnet:10}: Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
 
@@ -940,7 +1032,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
 
     # Let's say we're willing to pay up to $1.50 for a standard Ethereum transfer costing 21,000 gas
     max_usd_per_gas		= 1.50 / 21000
-    
 
     print( f"{testnet:10}: Web3 Tester Accounts, start of test:" )
     for a in ( src, ) + tuple( destination ):
@@ -963,11 +1054,11 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         addr: random.random()
         for addr in destination
     }
-    
+
     # Must be actual ERC-20 contracts; if these fail to have a .balanceOf or .transfer API, this
     # contract will fail.  So, if an ERC-20 token contract is self-destructed, the
     # MultiTransferERC20 would begin to fail, unless we caught and ignored ERC-20 API exceptions.
-    tokens			= [ USDT_GOERLI, USDC_GOERLI ]
+    tokens			= [ USDT_GOERLI, USDC_GOERLI, WEEN_GOERLI, ZEEN_GOERLI ]
     payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac )
     print( payout_sol )
     compiled_sol		= solcx.compile_source(
@@ -1015,6 +1106,17 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     multipayout_ERC20		= w3.eth.contract(
         address	= mc_cons_addr,
         abi	= abi,
+    )
+    # Look up the contract interface we've imported as IERC20Metadata, and use its ABI for accessing *EENUS ERC-20 tokens
+    # We're aliasing it to IERC20 in the contract code, but its ABI is under its original name.
+    IERC20_key,			= ( k for k in compiled_sol.keys() if k.endswith( ":IERC20Metadata" ))
+    WEEN_IERC20			= w3.eth.contract(
+        address	= WEEN_GOERLI,
+        abi	= compiled_sol[IERC20_key]['abi'],
+    )
+    ZEEN_IERC20			= w3.eth.contract(
+        address	= ZEEN_GOERLI,
+        abi	= compiled_sol[IERC20_key]['abi'],
     )
 
     # Now that we have our MultiPayoutERC20 contract addresss, we can predict the Contract addresses
@@ -1084,7 +1186,20 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # This is where Web3Tester goes off the rails; doesn't appear to actually execute EVM contract code?
     if testnet == "Web3Tester":
         return
-        
+
+    # Get the decimals for each ERC-20 token, so we can correctly represent the tokens held
+    gas				= 25000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    WEEN_DEN			= 10 ** WEEN_IERC20.functions.decimals().call({
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+    ZEEN_DEN			= 10 ** ZEEN_IERC20.functions.decimals().call({
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+
     # Lets actually deploy the 0th MultiPayoutERC20Forwarder and confirm that it is created at the
     # expected address.
     gas				= 500000
@@ -1104,12 +1219,73 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
 
     assert mc_fwd0_addr == mc_fwd0_aclc_result == mc_fwd0_addr_precomputed
 
-    # TODO: send some ETH and ERC-20s to the Forwarder address and re-deploy the contract
+    # Send a 0-value transaction to *EENUS and get 1,000 tokens back.  These are ERC-20 minting transactions, so will require more gas.
+    gas				= 100000
+    spend			= gas * max_usd_per_gas
+    gas_pric			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    mc_ween_hash		= w3.eth.send_transaction({
+        'to':		WEEN_GOERLI,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+        'value':	0,
+    } | gas_price )
+    mc_ween_receipt		= w3.eth.wait_for_transaction_receipt( mc_ween_hash )
+    print( f"{testnet:10}: Web3 Tester Send ETH to WEENUS receipt: {json.dumps( mc_ween_receipt, indent=4, default=str ) }" )
+    print( "{:10}: Web3 Tester Send ETH to WEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet,
+        mc_ween_receipt.gasUsed,
+        mc_ween_receipt.gasUsed * ETH.GAS_GWEI,
+        mc_ween_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
 
+    mc_zeen_hash		= w3.eth.send_transaction({
+        'to':		ZEEN_GOERLI,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+        'value':	0,
+    } | gas_price )
+    mc_zeen_receipt		= w3.eth.wait_for_transaction_receipt( mc_zeen_hash )
+    print( f"{testnet:10}: Web3 Tester Send ETH to ZEENUS receipt: {json.dumps( mc_zeen_receipt, indent=4, default=str ) }" )
+    print( "{:10}: Web3 Tester Send ETH to WEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet,
+        mc_zeen_receipt.gasUsed,
+        mc_zeen_receipt.gasUsed * ETH.GAS_GWEI,
+        mc_zeen_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
 
-    # So, just send some ETH from the default account.  This will *not* trigger the payout function,
-    # and should be low-cost (a regular ETH transfer), like ~21,000 gas.
-    gas				= 250000
+    gas				= 25000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    src_pre_ween_bal		= w3.eth.get_balance( src )
+    mc_ween_balance		= WEEN_IERC20.functions.balanceOf( src ).call({
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+    src_pre_zeen_bal		= w3.eth.get_balance( src )
+    print( "{:10}: Web3 Tester WEENUS.balanceOf({}) == {!r} Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet, src, mc_ween_balance,
+        ( src_pre_ween_bal - src_pre_zeen_bal ),
+        ( src_pre_ween_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI,
+        ( src_pre_ween_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
+
+    mc_zeen_balance		= ZEEN_IERC20.functions.balanceOf( src ).call({
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+    src_aft_zeen_bal		= w3.eth.get_balance( src )
+    print( "{:10}: Web3 Tester ZEENUS.balanceOf({}) == {!r} Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet, src, mc_zeen_balance,
+        ( src_aft_zeen_bal - src_pre_zeen_bal ),
+        ( src_aft_zeen_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI,
+        ( src_aft_zeen_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
+
+    # So, just send some ETH to the forwarder address from the default account.  This will *not*
+    # trigger any function, and should be low-cost (a regular ETH transfer), like ~21,000 gas.
+    gas				= 25000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
     mc_send_hash		= w3.eth.send_transaction({
@@ -1132,9 +1308,58 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         mc_send_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
 
-    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-send ETH to Forwarder#0:" )
+    # Also send some (10% of *EENUS) ERC-20 tokens to the forwarder address.  ZEENUS is a 0-decimal
+    # token, so the amounts will not round the same as WEENUS (an 18-decimal token). TODO: since we
+    # divide by the denominator first (losing precision), we could check if the value is below
+    # max/scale and change the order...
+    gas				= 150000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    mc_fwd0_ween_hash		= WEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_ween_balance // 10 ).transact({
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+    mc_fwd0_ween_tx		= w3.eth.get_transaction( mc_fwd0_ween_hash )
+    mc_fwd0_ween_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_ween_hash )
+    print( "{:10}: Web3 Tester Forward#0 WEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet,
+        mc_fwd0_ween_receipt.gasUsed,
+        mc_fwd0_ween_receipt.gasUsed * ETH.GAS_GWEI,
+        mc_fwd0_ween_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
+
+    mc_fwd0_zeen_hash		= ZEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_zeen_balance // 10 ).transact({
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+    } | gas_price )
+    mc_fwd0_zeen_tx		= w3.eth.get_transaction( mc_fwd0_zeen_hash )
+    mc_fwd0_zeen_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_zeen_hash )
+    print( "{:10}: Web3 Tester Forward#0 ZEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet,
+        mc_fwd0_zeen_receipt.gasUsed,
+        mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI,
+        mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
+
+
+    gas				= 25000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-send ETH/*EENUS ERC-20 to Forwarder#0:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ('fwd' if a == mc_fwd0_addr else ('payout' if a == mc_cons_addr else ''))}" )
+        if ( wbal := WEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+        if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
 
     # Instantiate the ...Forwarder#0 again; should re-create at the exact same address.
     gas				= 500000
@@ -1157,9 +1382,23 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # How do we harvest the result from the tx/receipt?
     #assert mc_fwd0_addr_again == mc_fwd0_addr
 
+    gas				= 25000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-instantiate Forwarder#0 again:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ('fwd' if a == mc_fwd0_addr else ('payout' if a == mc_cons_addr else ''))}" )
+        if ( wbal := WEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+        if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
+
 
     # Finally, invoke the payout function.
     gas				= 500000
@@ -1195,9 +1434,22 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         )
     ))
 
+    gas				= 25000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-payout ETH:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ('fwd' if a == mc_fwd0_addr else ('payout' if a == mc_cons_addr else ''))}" )
+        if ( wbal := WEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+        if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
+                'nonce':	w3.eth.get_transaction_count( src ),
+                'gas':		gas,
+        } | gas_price )):
+            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
 
     # Finally, the Forwarder and Contract addresses should be empty!
     assert w3.eth.get_balance( mc_fwd0_addr ) == 0
