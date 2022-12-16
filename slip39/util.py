@@ -17,12 +17,12 @@
 from __future__		import annotations
 
 import colorsys
-import fractions
 import getpass
 import logging
 import math
 import sys
 
+from fractions		import Fraction
 from functools		import wraps
 
 log				= logging.getLogger( "util" )
@@ -501,7 +501,7 @@ def is_power_of_2( n: int ) -> bool:
     return not ( n & ( n - 1 ))
 
 
-class mixed_fraction( fractions.Fraction ):
+class mixed_fraction( Fraction ):
     """A Fraction that represents whole multiples of itself as eg. 1+1/2 instead of 3/2"""
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
@@ -510,9 +510,9 @@ class mixed_fraction( fractions.Fraction ):
         return super().__str__()
 
 
-def remainder_after( fractions, scale=1, total=1 ):
-    """Computes the sequence of what fraction must remain, after the preceding fractions have been
-    removed.
+def remainder_after( proportions, scale=None, total=1 ):
+    """Computes the sequence of what fraction must remain, after the preceding proportions have been
+    removed.  Avoids scaling unless supplied and not falsey or 1.
 
     If the desired total to compare each fraction and the sum to isn't 1, supply it.  Also, an
     optional scaling factor for each fraction can be supplied (if the incoming stream of fractions
@@ -520,8 +520,9 @@ def remainder_after( fractions, scale=1, total=1 ):
 
     """
     f_total			= 0
-    for f in fractions:
-        f		       *= scale				# (0,total]
+    for f in proportions:
+        if scale and scale != 1:
+            f		       *= scale				# (0,total]
         f_starting		= total - f_total		# (0,total]
         f_removed		= f / f_starting		# (0,1]
         f_remaining		= total - total * f_removed	# (0,total]

@@ -4,7 +4,7 @@ import os
 import random
 
 from textwrap		import indent
-
+from fractions		import Fraction
 import pytest
 from string		import Template
 
@@ -21,15 +21,12 @@ from ..api		import (
     account, accounts,
 )
 
-from .			import precomputed_contract_address
+from .			import contract_address
 from .multisend		import (
     make_trustless_multisend, build_recursive_multisend, simulate_multisends,
 )
 
 from .ethereum		import Etherscan
-
-# For testing we'll use the Ethereum chain's gas pricing.
-ETH				= Etherscan( "Ethereum" )
 
 
 #
@@ -360,17 +357,6 @@ ${PAYOUT}
     }
 }
 """ )
-
-
-
-
-
-multipayout_defaults	= {
-    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b':  6.90 / 100,
-    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 40.00 / 100,
-    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': 53.10 / 100,
-}
-
 
 
 
@@ -752,54 +738,73 @@ ${RECIPIENTS}
 
 
 def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
-    """Produce recipients array elements w/ fixed fractional amounts to predefined addresses.  Convert in the
-    range (0,1) totalling to exactly 1.0 to within a multiple of scale, or will raise Exception.
+    """Produce recipients array elements w/ fixed fractional/proportional amounts to predefined
+    addresses.  Convert in the range (0,1) totalling to exactly 1.0 to within a multiple of scale,
+    or will raise Exception.
 
-    Packs address + fixed-point fraction (x10k) into a uint176 sufficient to hold:
-
-       bytes bits  description
-       ----- ----  -----------
-         20   160  Address of recipient
-          2    16  Fraction to reserve (x10,000)
-        ---   ---
-         22   176
-
-    similar to:
-
-        https://github.com/Alonski/MultiSendEthereum/blob/master/contracts/MultiSend.sol
-
-    except using uints instead of bytes, so Solidity >= 0.8 'constant' data is used (avoiding
-    expensive SSTORE)
-
-    Also supports a predefined number of ERC-20 tokens, which are also distributed
-    according to the specified fractions.
+    The incoming { addr: fraction,... } dict values will be normalized, so any numeric/fractional
+    values may be used (eg. numeric "shares").
 
     So long as the final remainder is within +/- 1/scale of 0, its int will be zero, and
     this function will succeed.  Otherwise, it will terminate with a non-zero remainder,
     and will raise an Exception.
 
+    The Gas cost of shifts is 3 (FASTESTSTEP), divisions is 5 (FASTSTEP), so striving to use a scale
+    multiplier that is a power of 2 and known at compile-time would be best: eg. a fixed-point
+    denominator that is some factor of the bit-size of the numerator (ie. 8, for a 16-bit numerator)
+
     """
     addr_frac_sorted		= sorted( addr_frac.items(), key=lambda a_p: a_p[1] )
     addresses,fractions		= zip( *addr_frac_sorted )
 
-    i, frac_summed		= 0, 0
     payout			= ""
+    frac_total			= sum( fractions )
+    i				= 0
     for i,(addr,frac,rem) in enumerate( zip(
             addresses,
             fractions,
-            remainder_after( fractions, scale=scale/sum( fractions ), total=scale )
+            remainder_after( fractions, scale=scale / frac_total, total=scale )
     )):
-        frac_summed	       += frac
         rem_scale		= int( rem )
         assert rem_scale <= scale, \
             f"Encountered a fraction: {rem_scale} numerator greater than scale: {scale} denominator"
-        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), uint16( {scale} ));  // {frac*100:6.2f}%\n"
+        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), uint16( {scale} ));  // {float(frac) * 100 / frac_total:6.2f}%\n"
     assert i > 0 and rem_scale == 0, \
         f"Total payout percentages didn't accumulate to zero remainder: {rem:7.4f} =~= {rem_scale}, for {commas( fractions, final='and' )}"
     return payout
 
 
-def test_multipayout_ERC20_recipients():
+multipayout_defaults_proportion	= {
+    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b':  6.90 / 100,
+    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 40.00 / 100,
+    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': 53.10 / 100,
+}
+
+multipayout_defaults_percent	= {
+    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b':  6.90,
+    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 40.00,
+    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': 53.10,
+}
+
+multipayout_defaults_shares	= {
+    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b':  690,
+    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 4000,
+    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': 5310,
+}
+
+multipayout_defaults_Fraction	= {
+    '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b': Fraction(  690, 10000 ),
+    '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': Fraction( 4000, 10000 ),
+    '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': Fraction( 5310, 10000 ),
+}
+
+@pytest.mark.parametrize( "multipayout_defaults", [
+    ( multipayout_defaults_proportion ),
+    ( multipayout_defaults_percent ),
+    ( multipayout_defaults_shares ),
+    ( multipayout_defaults_Fraction ),
+])
+def test_multipayout_ERC20_recipients( multipayout_defaults ):
     payout			= multipayout_ERC20_recipients( multipayout_defaults )
     print()
     print( payout )
@@ -809,7 +814,6 @@ transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B ))
 transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ), uint16( 10000 ));  //  53.10%
 """
 
-
 def multipayout_ERC20_solidity( addr_frac ):
     recipients			= multipayout_ERC20_recipients( addr_frac )
     prefix			= ' ' * 8
@@ -817,19 +821,13 @@ def multipayout_ERC20_solidity( addr_frac ):
         RECIPIENTS	= indent( recipients, prefix ),
     )
 
-
-HOT			= "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
-USDT			= "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-USDT_GOERLI		= "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e"
-USDC			= "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-USDC_GOERLI		= "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998"
-
-# Some test ERC-20 tokens that will mint
-WEEN_GOERLI		= "0xaFF4481D10270F50f203E0763e2597776068CBc5"  # 18 decimals
-YEEN_GOERLI		= "0xc6fDe3FD2Cc2b173aEC24cc3f267cb3Cd78a26B7"  # 8 decimals
-ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order of multiplcation will affect precision
-
-def test_multipayout_ERC20_solidity():
+@pytest.mark.parametrize( "multipayout_defaults", [
+    ( multipayout_defaults_proportion ),
+    ( multipayout_defaults_percent ),
+    ( multipayout_defaults_shares ),
+    ( multipayout_defaults_Fraction ),
+])
+def test_multipayout_ERC20_solidity( multipayout_defaults ):
     solidity			= multipayout_ERC20_solidity(
         addr_frac	= multipayout_defaults,
     )
@@ -887,15 +885,52 @@ def test_create2(address, salt, contract, expected_address):
     EIP-104 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
 
     """
-    assert precopmuted_contract_address( address, salt, contract ) == expected_address
+    assert contract_address( address, salt=salt, contract=contract ) == expected_address
+
+@pytest.mark.parametrize('address, nonce, expected_address', [
+    (
+        '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0',
+        0,
+        '0xcd234a471b72ba2f1ccf0a70fcaba648a5eecd8d',
+    ),
+    (
+        '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0',
+        1,
+        '0x343c43a37d37dff08ae8c4a11544c718abb4fcf8',
+    ),
+])
+def test_create2(address, nonce, expected_address):
+    """Test the CREATE opcode (or transaction-based) contract creation address calculation.
+
+    """
+    assert contract_address( address, nonce=nonce ) == expected_address
+
+
+HOT			= "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
+USDT			= "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+USDT_GOERLI		= "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e"
+USDC			= "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+USDC_GOERLI		= "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998"
+
+# Some test ERC-20 tokens that will mint
+#     https://ethereum.stackexchange.com/questions/38743/where-can-i-find-erc20-token-faucets-for-testing
+WEEN_GOERLI		= "0xaFF4481D10270F50f203E0763e2597776068CBc5"  # 18 decimals
+YEEN_GOERLI		= "0xc6fDe3FD2Cc2b173aEC24cc3f267cb3Cd78a26B7"  # 8 decimals
+ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order of multiplication will affect precision
+
 
 #
 # Test the ...Forwarder -> MultiPayoutERC20 -> Recipient flow
 #
 # Here are the Goerli testnet results from the first successful test:
+#    
+# The funds came from the 0x667A... source account, and were:
 #
-# The funds came from the 0x667A source account, and .01ETH, 820.00 WEENUS and 757 ZEENUS and were
-# transferred into the fwd (Forwarder contract account):
+#       .01 ETH
+#    820.00 WEENUS
+#    757    ZEENUS
+# 
+# and were transferred into the fwd (Forwarder contract account):
 #
 #    Goerli    : Web3 Tester Accounts; MultiPayoutERC20 post-send ETH/*EENUS ERC-20 to Forwarder#0:
 #    - 0x667AcC3Fc27A8EbcDA66E7E01ceCA179d407ce00 == 564697006956028403 src
@@ -953,11 +988,11 @@ def test_create2(address, salt, contract, expected_address):
 #    PASSED
 #
 # Anyone can trigger the MultiPayoutERC20.forwarder( N ) to collect a payment, and anyone can then
-# trigger the MultiPayoutERC20's payout function to distribute the funds -- so, every recipient can
-# choose to collect the funds and receive their proportion, even if the company or individual
-# running the payment system fails or is otherwise incapacitated.  And, *nobody* in any organization
-# can alter the collection, payout or distribution proportion of the funds: everyone gets paid,
-# exactly as originally specified.
+# trigger the MultiPayoutERC20's payout function to distribute the funds -- so, every potential
+# recipient can choose to collect the funds and receive their proportion, even if the company or
+# individual running the payment system fails or is otherwise incapacitated.  And, *nobody* in any
+# organization can alter the collection, payout or distribution proportion of the funds: everyone
+# gets paid, exactly as originally specified -- no trusted intermediaries required.
 #
 # All of these addresses will persist in the Goerli network, so you should be able to find
 # these transactions to this day:
@@ -974,6 +1009,8 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     solc_version		= "0.8.17"
     solcx.install_solc( version=solc_version )
 
+    # For testing we'll use the Ethereum chain's gas pricing.
+    ETH				= Etherscan( "Ethereum" )
 
     # Fire up Web3, and get the list of accounts we can operate on
     w3				= Web3( provider )
@@ -1140,7 +1177,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
 
     # 3) Compute the 0th MultiPayoutERC20Forwarder Contract address, targeting this MultiPayoutERC20 Contract.
     salt_0			= w3.codec.encode( [ 'uint256' ], [ 0 ] )
-    mc_fwd0_addr_precomputed	= precomputed_contract_address(
+    mc_fwd0_addr_precomputed	= contract_address(
         address		= mc_cons_addr,
         salt		= salt_0,
         creation	= fwd_creation_code,
@@ -1213,7 +1250,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     } | gas_price )
     print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_addr} (instantiated)" )
 
-    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 pre-instantiate Forwarder#0:" )
+    print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-instantiate Forwarder#0:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ('fwd' if a == mc_fwd0_addr else ('payout' if a == mc_cons_addr else ''))}" )
 

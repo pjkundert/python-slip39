@@ -14,24 +14,44 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from enum		import Enum
+
+from rlp		import encode as rlp_encode
 
 from web3		import Web3
 
 from ..util		import into_bytes
 
-def precomputed_contract_address( address, salt, creation ):
+
+def contract_address(
+    address,			# Address that is constructing the contract
+    salt	= None,
+    creation	= None,
+    nonce	= None,		# traditional CREATE used address/nonce
+):
     """Deduces the Contract Address that will result from a CREATE2 contract given the the contract
      creator's 'address', a 'salt' and the contract 'creation' bytecode.
 
     """
-    pre				= '0xff'
-    b_pre			= into_bytes( pre )
     b_address			= into_bytes( address )
-    b_salt			= into_bytes( salt )
-    b_creation			= into_bytes( creation )
+    assert isinstance( b_address, bytes ) and len( b_address ) == 20, \
+        f"Expected 20-byte adddress, got {b_address!r}"
 
-    keccak_b_creation		= Web3.keccak( b_creation )
-    b_result			= Web3.keccak( b_pre + b_address + b_salt + keccak_b_creation )
+    if nonce is not None and salt is None and creation is None:
+        # A CREATE (traditional, or transaction-based) contract creation
+        assert isinstance( nonce, int ), \
+            f"The nonce for CREATE must be an integer, not {nonce!r}"
+        b_result		= Web3.keccak( rlp_encode([ b_address, nonce ]) )
+    else:
+        assert salt is not None and creation is not None and nonce is None, \
+            f"Need salt and creation bytecode for CREATE2"
+        b_pre			= into_bytes( '0xff' )
+        b_salt			= into_bytes( salt )
+        assert len( b_salt ) == 32, \
+            f"Expected 32-byte salt, got {len(b_salt)} bytes"
+        b_creation		= into_bytes( creation )
+        b_result		= Web3.keccak( b_pre + b_address + b_salt + Web3.keccak( b_creation ))
+
     result_address		= Web3.to_checksum_address( b_result[12:].hex() )
 
     return result_address
