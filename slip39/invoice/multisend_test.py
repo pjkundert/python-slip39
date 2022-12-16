@@ -569,71 +569,67 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
     }
 
     //
-    // value_except -- Compute the remainder after a certain fraction is reserved.
+    // value_except -- Compute the value, less a certain fraction reserved.
     //
-    // Assumes that the _scale is very small (eg. < ~10,000) vs. the size of the _value.
-    // This assumption is almost universally true, when the value is an amount of ETH or
-    // ERC-20 tokens, which have large denominators.  For example, ETH is denominated in
-    // 10^18 WEI.  So, when transferring .001 ETH, the _value in this calculation will be
-    // 10^15, or 1,000,000,000,000,000.  Therefore, we will always divide by the _scale *before*
-    // multiplying by the _reserve_scaled -- the opposite of what we would want to do to
-    // maintain precision.
+    // The _reserve is an N-bit fixed-point value with a denominator 2^N, so can only represent values
+    // in the range: (0,(2^N-1)/(2^N)), or fractionally: (0,1].  Assumes that this numerator is very
+    // small vs. the size of the _value.
     //
-    // This allows us to avoid overflow (assuming _reserve_scaled <= _scale).
-    // TODO: provide recipients to constructor, so we can confirm this.
+    // This assumption is almost universally true, when the value is an amount of ETH or ERC-20
+    // tokens, which have large very denominators.  For example, ETH is denominated in 10^18 WEI.  So,
+    // when transferring .001 ETH, the _value in this calculation will be 10^15, or
+    // 1,000,000,000,000,000.  Therefore, we will normally divide by the denominator *before*
+    // multiplying by the numerator -- the opposite of what we would want to do to maintain precision.
+    // However, if we detect that the _value is very large (there are 1-bits within the top N bits of
+    // the _value), we will do scaling in the opposite order.
+    //
+    // This allows us to avoid overflow (the _reserved numerator < 2^N, which *must* be the case).
     //
     function value_except(
         uint256			_value,
-        uint16			_reserve_scaled,
-        uint16			_scale
+        uint16			_reserve		// fixed-point (0,1] w/ denominator 2^16
     )
         private
         pure  // no state changed or read
         returns ( uint256 )
     {
         unchecked {
-            if ( _reserve_scaled == 0 || _scale == 0 ) {
-                return _value;
+            if (( _value >> ( 256 - 16 )) > 0 ) {
+                // Degenerate case: 1-bits in the top 16 bits of _value.  Loses precision in low bits,
+                // but maintains precision (and avoids overflow) for large values.
+                return _value - (( _value >> 16 ) * _reserve );
+            } else {
+                // Normal case: upper N bits of _value are empty; Maintains precision in low bits (no overflow).
+                return _value - (( _value * _reserve ) >> 16 );
             }
-            if ( _value > type(uint256).max / _scale ) {
-                return _value / _scale * _reserve_scaled;
-            }
-            // Only if _reserve_scale > _scale could this overflow, resulting in a loss of precision,
-            // and a *lower* value being transferred to this agent.  This would require an erroneous
-            // contract to be generated.
-            return _value * _reserve_scaled / _scale;
         }
     }
 
     //
-    // transfer_except_ERC20 -- transfer this ERC-20 token (if any) into 'to', reserving a proportion.
+    // transfer_ERC20_except -- transfer this ERC-20 token (if any) into 'to', reserving a proportion.
     //
     // ERC-20 .transfer call uses its msg.sender as from (ie. this contract address)
     //
-    function transfer_except_ERC20(
+    function transfer_ERC20_except(
         IERC20			_erc20,
         address payable		_to,
-        uint16			_reserve_scaled,
-        uint16			_scale
+        uint16			_reserve		// fixed-point (0,1] w/ denominator 2^16
     )
         private
         returns (bool, uint256)  // true iff successful, and any ERC-20 token amount transferred
     {
         uint256 tok_balance;
-        try _erc20.balanceOf( address( this )) returns ( uint256 v ) {
-            tok_balance		= v;
-        } catch {
-            return (false, 0);				// Exception, unknown ERC-20 amount
-        }
-        if ( tok_balance > 0 ) {
-            uint256 tok_value	= value_except( tok_balance, _reserve_scaled, _scale );
-            if ( tok_value > 0 ) {
-                try _erc20.transfer( _to, tok_value ) returns (bool tok_sent) {
-                    return (tok_sent, tok_value);	// Success/failure transferring tok_value
+        try _erc20.balanceOf( address( this )) returns ( uint256 balance ) {
+            if ( balance > 0 ) {
+                uint256 value		= value_except( balance, _reserve );
+                try _erc20.transfer( _to, value ) returns (bool sent) {
+                    return (sent, value );		// Success/failure transferring tok_value
                 } catch {
-                    return (false, tok_value);		// Exception, trying to transfer tok_value
+                    return (false, value );		// Exception, trying to transfer tok_value
                 }
             }
+        } catch {
+            return (false, 0);				// Exception, unknown ERC-20 amount
         }
         return (true, 0);				// Successful, but nothing to transfer
     }
@@ -650,27 +646,27 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
     //
     function transfer_except(
         address payable		_to,
-        uint16			_reserve_scaled,
-        uint16			_scale
+        uint16			_reserve		// fixed-point (0,1] w/ denominator 2^16
     )
         private
     {
         bool erc20s_sent = false;
-        for ( uint256 t = 0; t < erc20s.length; t++ ) {
-            (bool tok_sent, uint256 tok_value) = transfer_except_ERC20( erc20s[t], _to, _reserve_scaled, _scale );
+        for ( uint256 t = erc20s.length; t > 0; --t ) {
+            IERC20 token		= erc20s[t-1];
+            (bool tok_sent, uint256 tok_value) = transfer_ERC20_except( token, _to, _reserve );
             if ( tok_value > 0 ) {
-                emit PayoutERC20( tok_value, _to, tok_sent, erc20s[t] );
+                emit PayoutERC20( tok_value, _to, tok_sent, token );
                 if ( tok_sent ) {
                     erc20s_sent = true;  // We successfully sent some ERC-20 tokens into '_to'
                 }
             }
         }
-        uint256 eth_balance	= address( this ).balance;
+        uint256 eth_balance		= address( this ).balance;
         if ( eth_balance > 0 || erc20s_sent ) {
             // Some ETH or ERC-20s sent into '_to'; trigger its receive/fallback.  If its another
             // MultiPayoutERC20, this will trigger its own payout (even if eth_value is 0).
-            uint256 eth_value	= value_except( eth_balance, _reserve_scaled, _scale );
-            (bool eth_sent, )  	= _to.call{ value: eth_value }( "" );
+            uint256 eth_value		= value_except( eth_balance, _reserve );
+            (bool eth_sent, )  		= _to.call{ value: eth_value }( "" );
             emit PayoutETH( eth_value, _to, eth_sent );
         }
     }
@@ -737,13 +733,14 @@ ${RECIPIENTS}
 """ )
 
 
-def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
+def multipayout_ERC20_recipients( addr_frac, bits=16 ):
     """Produce recipients array elements w/ fixed fractional/proportional amounts to predefined
-    addresses.  Convert in the range (0,1) totalling to exactly 1.0 to within a multiple of scale,
-    or will raise Exception.
+    addresses.  Convert proportions in the range [0,1) totaling to exactly 1.0 to a remainder
+    fraction within a multiple of 2**bits, or will raise Exception.  It is not valid to specify
+    a recipient with a zero proportion.
 
-    The incoming { addr: fraction,... } dict values will be normalized, so any numeric/fractional
-    values may be used (eg. numeric "shares").
+    The incoming { addr: proportion,... } dict values will be normalized, so any numeric/fractional
+    values may be used (eg. arbitrary numeric "shares").
 
     So long as the final remainder is within +/- 1/scale of 0, its int will be zero, and
     this function will succeed.  Otherwise, it will terminate with a non-zero remainder,
@@ -751,25 +748,38 @@ def multipayout_ERC20_recipients( addr_frac, scale=10000 ):
 
     The Gas cost of shifts is 3 (FASTESTSTEP), divisions is 5 (FASTSTEP), so striving to use a scale
     multiplier that is a power of 2 and known at compile-time would be best: eg. a fixed-point
-    denominator that is some factor of the bit-size of the numerator (ie. 8, for a 16-bit numerator)
+    denominator that is some factor of the bit-size of the numerator.
+
+    Since we're producing fractions in the range (0,1], the fixed-point denominator can be the 2^N
+    for an N-bit value supporting the range (0,2^N-1) -- the largest possible fraction we can represent
+    will be (2^N-1)/(2^N).  Eg, for a 16-bit value:
+
+        65535/65536 =~= 0.9999847412
+            1/65536 =~= 0.0000152588
 
     """
     addr_frac_sorted		= sorted( addr_frac.items(), key=lambda a_p: a_p[1] )
     addresses,fractions		= zip( *addr_frac_sorted )
 
     payout			= ""
-    frac_total			= sum( fractions )
-    i				= 0
+    fractions_total		= sum( fractions )
+    i				= None
     for i,(addr,frac,rem) in enumerate( zip(
             addresses,
             fractions,
-            remainder_after( fractions, scale=scale / frac_total, total=scale )
+            remainder_after(
+                fractions,
+                scale	= 2 ** bits / fractions_total,  # If Fraction, will remain a Fraction
+                total	= 2 ** bits,
+            )
     )):
+        assert frac > 0, \
+            f"Encountered a zero proportion: {frac} for recipient {addr}"
         rem_scale		= int( rem )
-        assert rem_scale <= scale, \
-            f"Encountered a fraction: {rem_scale} numerator greater than scale: {scale} denominator"
-        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint16( {rem_scale:>{len(str(scale))}} ), uint16( {scale} ));  // {float(frac) * 100 / frac_total:6.2f}%\n"
-    assert i > 0 and rem_scale == 0, \
+        assert rem_scale < 2 ** bits, \
+            f"Encountered a remainder fraction: {rem_scale} numerator greater or equal to the denominator: {2**bits}"
+        payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint{bits}( {rem_scale:>{len(str(2**bits))}} ));  // {float(frac * 100 / fractions_total):7.3f}%\n"
+    assert i is not None and rem_scale == 0, \
         f"Total payout percentages didn't accumulate to zero remainder: {rem:7.4f} =~= {rem_scale}, for {commas( fractions, final='and' )}"
     return payout
 
@@ -798,6 +808,7 @@ multipayout_defaults_Fraction	= {
     '0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955': Fraction( 5310, 10000 ),
 }
 
+
 @pytest.mark.parametrize( "multipayout_defaults", [
     ( multipayout_defaults_proportion ),
     ( multipayout_defaults_percent ),
@@ -809,17 +820,35 @@ def test_multipayout_ERC20_recipients( multipayout_defaults ):
     print()
     print( payout )
     assert payout == """\
-transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16(  9310 ), uint16( 10000 ));  //   6.90%
-transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(  5703 ), uint16( 10000 ));  //  40.00%
-transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ), uint16( 10000 ));  //  53.10%
+transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16( 61014 ));  //   6.900%
+transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16( 37378 ));  //  40.000%
+transfer_except( payable( address( 0xa29618aBa937D2B3eeAF8aBc0bc6877ACE0a1955 )), uint16(     0 ));  //  53.100%
 """
 
-def multipayout_ERC20_solidity( addr_frac ):
-    recipients			= multipayout_ERC20_recipients( addr_frac )
+
+@pytest.mark.parametrize( "multipayout_defaults, expected", [
+    (
+        # Tiny recipients that round to almost zero receive the smallest representable proportion
+        {
+            '0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b': 1,
+            '0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B': 100000,
+        },"""\
+transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16( 65535 ));  //   0.001%
+transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16(     0 ));  //  99.999%
+"""
+    ),
+])
+def test_multipayout_ERC20_recipients_corner( multipayout_defaults, expected ):
+    assert multipayout_ERC20_recipients( multipayout_defaults ) == expected
+
+
+def multipayout_ERC20_solidity( addr_frac, **kwds ):
+    recipients			= multipayout_ERC20_recipients( addr_frac, **kwds )
     prefix			= ' ' * 8
     return multipayout_ERC20_template.substitute(
         RECIPIENTS	= indent( recipients, prefix ),
     )
+
 
 @pytest.mark.parametrize( "multipayout_defaults", [
     ( multipayout_defaults_proportion ),
@@ -831,8 +860,8 @@ def test_multipayout_ERC20_solidity( multipayout_defaults ):
     solidity			= multipayout_ERC20_solidity(
         addr_frac	= multipayout_defaults,
     )
-    print()
-    print( solidity )
+    # print()
+    # print( solidity )
 
 
 @pytest.mark.parametrize('address, salt, contract, expected_address', [
@@ -923,13 +952,13 @@ ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order
 # Test the ...Forwarder -> MultiPayoutERC20 -> Recipient flow
 #
 # Here are the Goerli testnet results from the first successful test:
-#    
+#
 # The funds came from the 0x667A... source account, and were:
 #
 #       .01 ETH
 #    820.00 WEENUS
 #    757    ZEENUS
-# 
+#
 # and were transferred into the fwd (Forwarder contract account):
 #
 #    Goerli    : Web3 Tester Accounts; MultiPayoutERC20 post-send ETH/*EENUS ERC-20 to Forwarder#0:
@@ -1086,17 +1115,20 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
             f"private key 0x{src_prvkey} isn't related to address {src}"
         src_prvkey		= None
 
-    # Generate a contract targeting these destination accounts, with random percentages.
+    # Generate a contract targeting these destination accounts, with random Fractional percentages.
+    # We'll make sure at the end that each target account got that fraction of the values put into
+    # the fwd account.  We'll select from 1 to N of the N destination accounts, and no account can
+    # receive 0%.
     addr_frac			= {
-        addr: random.random()
-        for addr in destination
+        addr: 1+random.choice(range(1000))
+        for addr in destination[random.choice(range(len(destination))):]
     }
 
     # Must be actual ERC-20 contracts; if these fail to have a .balanceOf or .transfer API, this
     # contract will fail.  So, if an ERC-20 token contract is self-destructed, the
     # MultiTransferERC20 would begin to fail, unless we caught and ignored ERC-20 API exceptions.
     tokens			= [ USDT_GOERLI, USDC_GOERLI, WEEN_GOERLI, ZEEN_GOERLI ]
-    payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac )
+    payout_sol			= multipayout_ERC20_solidity( addr_frac=addr_frac, bits=16 )
     print( payout_sol )
     compiled_sol		= solcx.compile_source(
         payout_sol,
@@ -1285,7 +1317,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     } | gas_price )
     mc_zeen_receipt		= w3.eth.wait_for_transaction_receipt( mc_zeen_hash )
     print( f"{testnet:10}: Web3 Tester Send ETH to ZEENUS receipt: {json.dumps( mc_zeen_receipt, indent=4, default=str ) }" )
-    print( "{:10}: Web3 Tester Send ETH to WEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Send ETH to ZEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_zeen_receipt.gasUsed,
         mc_zeen_receipt.gasUsed * ETH.GAS_GWEI,
@@ -1348,11 +1380,14 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # Also send some (10% of *EENUS) ERC-20 tokens to the forwarder address.  ZEENUS is a 0-decimal
     # token, so the amounts will not round the same as WEENUS (an 18-decimal token). TODO: since we
     # divide by the denominator first (losing precision), we could check if the value is below
-    # max/scale and change the order...
+    # max/scale and change the order...  Done.  Confirm mc_*een_paid gets correctly split between the
+    # final target accounts, according to the ratios in addr_frac.
     gas				= 150000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_ween_hash		= WEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_ween_balance // 10 ).transact({
+
+    mc_ween_paid		= mc_ween_balance // 10
+    mc_fwd0_ween_hash		= WEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_ween_paid ).transact({
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
@@ -1366,7 +1401,8 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         mc_fwd0_ween_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
 
-    mc_fwd0_zeen_hash		= ZEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_zeen_balance // 10 ).transact({
+    mc_zeen_paid		= mc_zeen_balance // 10
+    mc_fwd0_zeen_hash		= ZEEN_IERC20.functions.transfer( mc_fwd0_addr, mc_zeen_paid ).transact({
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
@@ -1391,12 +1427,12 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+            print( f"  o WEENUS ERC-20 == {wbal:23} == {wbal/WEEN_DEN:9,.2f}" )
         if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
+            print( f"  o ZEENUS ERC-20 == {zbal:23} == {zbal/ZEEN_DEN:9,.2f}" )
 
     # Instantiate the ...Forwarder#0 again; should re-create at the exact same address.
     gas				= 500000
@@ -1429,12 +1465,12 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+            print( f"  o WEENUS ERC-20 == {wbal:23} == {wbal/WEEN_DEN:9,.2f}" )
         if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
+            print( f"  o ZEENUS ERC-20 == {zbal:23} == {zbal/ZEEN_DEN:9,.2f}" )
 
 
     # Finally, invoke the payout function.
@@ -1481,12 +1517,12 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o WEENUS ERC-20 == {wbal/WEEN_DEN:,.2f}" )
+            print( f"  o WEENUS ERC-20 == {wbal:23} == {wbal/WEEN_DEN:9,.2f}" )
         if ( zbal := ZEEN_IERC20.functions.balanceOf( a ).call({
                 'nonce':	w3.eth.get_transaction_count( src ),
                 'gas':		gas,
         } | gas_price )):
-            print( f"  o ZEENUS ERC-20 == {zbal/ZEEN_DEN:,.2f}" )
+            print( f"  o ZEENUS ERC-20 == {zbal:23} == {zbal/ZEEN_DEN:9,.2f}" )
 
     # Finally, the Forwarder and Contract addresses should be empty!
     assert w3.eth.get_balance( mc_fwd0_addr ) == 0

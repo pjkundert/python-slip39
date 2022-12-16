@@ -28,17 +28,62 @@ def test_remainder_after():
         F( 1,  6 ),  #  2/12
     ]                   # 12/12
     assert sum( parts ) == 1
-    assert list( remainder_after( parts )) == [ F( 3 , 4 ), F( 5, 9 ), F( 3, 5 ), F( 2, 3 ), 0 ]
+    assert list( remainder_after( parts )) == [
+        F( 3, 4 ),
+        F( 5, 9 ),
+        F( 3, 5 ),
+        F( 2, 3 ),
+        0
+    ]
 
     percs			= [
         f * 100 for f in parts
     ]
     assert sum( percs ) == 100
-    assert list( remainder_after( percs, total=100 )) == [ F( 75, 1 ), F( 500, 9 ), F( 60, 1 ), F( 200, 3 ), 0 ]
+    assert list( remainder_after( percs, total=100 )) == [
+        F( 75, 1 ), F( 500, 9 ), F( 60, 1 ), F( 200, 3 ), 0
+    ]
 
     # Now, go straight from the ratio (0,1] to the parts in 10,000
-    assert list( remainder_after( parts, scale=10000, total=10000 )) == [ F( 7500, 1 ), F( 50000, 9 ), F( 6000, 1 ), F( 20000, 3 ), 0 ]
-    assert list( map( int, remainder_after( parts, scale=10000, total=10000 ))) == [ 7500, 5555, 6000, 6666, 0 ]
+    assert list( remainder_after( parts, scale=10000, total=10000 )) == [
+        F( 7500, 1 ), F( 50000, 9 ), F( 6000, 1 ), F( 20000, 3 ), 0
+    ]
+    assert list( map( int, remainder_after( parts, scale=10000, total=10000 ))) == [
+        7500, 5555, 6000, 6666, 0
+    ]
+
+    # If we're working entirely in Fractions and integers, make certain our results remain in
+    # Fractions.  Lets make our proportions in range (0,1] as fixed-point x 2^16, and support
+    # proportions that sum to something other than 1.  Since we are dealing in the *remainder*
+    # (after sending the proportion to a recipient, in no case will a remainder ever equal 1, so we
+    # don't have to worry about representing the range (0,1) in our outputs -- only (0,1].  Hence,
+    # our denominator can be the full bit-width of the unsigned value.
+    for factor in [ 1, 5, F( 99 / 100 ), F( 101, 100 )]:
+        parts_factor		= [
+            f * factor for f in parts
+        ]
+        rem_uint16		= list( remainder_after(
+            parts_factor,
+            scale	= ( 2 ** 16) / sum( parts_factor ),
+            total	= ( 2 ** 16),
+        ))
+        assert rem_uint16 == [
+            F(  49152, 1 ),
+            F( 327680, 9 ),
+            F( 196608, 5 ),
+            F( 131072, 3 ),
+            F(      0, 1 ),
+        ]
+        # And, sure enough, after correcting for our 2**16-1 scale, we get the originally calculated Fractions
+        assert [
+            f / ( 2 ** 16 ) for f in rem_uint16
+        ] == [
+            F( 3, 4 ),
+            F( 5, 9 ),
+            F( 3, 5 ),
+            F( 2, 3 ),
+            0
+        ]
 
 
 def exception_every( N=2, extra=0 ):

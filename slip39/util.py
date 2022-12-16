@@ -231,7 +231,7 @@ def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=lo
             wrapper.ok		= True		# Start off assuming success (hence no initial delay)
             wrapper.cnt		= 0
             wrapper.lst		= None		# time of last function invocation
-            
+
         wrapper.reset		= reset
 
         wrapper.reset()
@@ -517,6 +517,9 @@ def remainder_after( proportions, scale=None, total=1 ):
     If the desired total to compare each fraction and the sum to isn't 1, supply it.  Also, an
     optional scaling factor for each fraction can be supplied (if the incoming stream of fractions
     don't sum to desired total).
+
+    We support the proportions, scale and total being Fraction and integer values, and producing
+    Fraction results.
 
     """
     f_total			= 0

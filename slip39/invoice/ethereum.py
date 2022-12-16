@@ -158,7 +158,7 @@ class Etherscan:
         """Change the chain, flushing any memoize/retry result caching."""
         self._chain		= chain
         self.reset()
-    
+
     @property
     def GAS( self ):
         """Return Gas price oracle information, or empty dict"""
@@ -240,7 +240,6 @@ class Etherscan:
         you specify a 'gas' limit of 100000.  But, you can wait, so you don't want to spend too much
         on the transaction, say less than USD$1.50.
 
-          
             >>> gas, spend = 100000, 1.50  # USD$
             >>> ETH = Etherscan( "Ethereum )
             >>> maxFeePerGas = spend / ETH.GAS_USD ETH.GAS_WEI
@@ -273,7 +272,7 @@ class Etherscan:
             f"Require a numeric spend amount in USD$, not {spend!r}"
         assert isinstance( gas, (int,float,type(None))), \
             f"Require a numeric gas amount, not {gas!r}"
-            
+
         # Eg. USD$1.50 * 10^9 / USD$1,000 == 1,500,000 Gwei to use on Gas
         gwei_available			= spend
         gwei_available		       *= self.ETH_GWEI
@@ -296,13 +295,13 @@ class Etherscan:
             maxPriorityFeePerGas	= self.PRIORITY_WEI,
         ) | self.maxFeePerGas( spend=spend, gas=gas )
         log.info(
-            f"{self.chain}: EIP-1559 Gas Pricing at USD${self.ETH_USD:8,.2f}/ETH: : {gas_price['maxPriorityFeePerGas'] / self.GWEI_WEI:9,.2f} Priority + {self.BASE_GWEI:9,.2f} Base Gwei/Gas" 
-            + ( f"; for max USD${spend:9,.2f} per {gas:,} Gas transaction: {gas_price['maxFeePerGas'] / self.GWEI_WEI:9,.2f} Gwei/Gas" if 'maxFeePerGas' in gas_price else "" )
+            f"{self.chain}: EIP-1559 Gas Pricing at USD${self.ETH_USD:8,.2f}/ETH: : {gas_price['maxPriorityFeePerGas'] / self.GWEI_WEI:9,.2f} Priority + {self.BASE_GWEI:9,.2f} Base Gwei/Gas"
+            + ( f"; for max USD${spend:9,.2f} per {gas:10,} Gas transaction: {gas_price['maxFeePerGas'] / self.GWEI_WEI:9,.2f} Gwei/Gas" if 'maxFeePerGas' in gas_price else "" )
         )
         return gas_price
 
     def gasPrice( self ):
-        """The traditional gasPrice interface.  Returns the total gasPrice we're willing to pay, estimated based on 
+        """The traditional gasPrice interface.  Returns the total gasPrice we're willing to pay, estimated based on
         the latest block. """
         gas_price			= dict(
             gasPrice			= self.GAS_WEI,

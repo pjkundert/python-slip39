@@ -20,7 +20,7 @@ def test_ethereum_prices():
     log.warning( f"{ETH.chain}: Gas Pricing EIP-1559 for max $1.50 per 21,000 Gas transaction: {json.dumps( gas_pricing )}" )
     assert gas_pricing['maxFeePerGas'] == pytest.approx( 71428571428.57143 )
     assert gas_pricing['maxPriorityFeePerGas'] == pytest.approx( 2000000000.0 )
-    
+
     ETH.chain			= Chain.Ethereum
 
     gas_pricing			= ETH.maxPriorityFeePerGas( spend=1.50, gas=21000 )
