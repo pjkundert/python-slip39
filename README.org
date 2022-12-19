@@ -1723,10 +1723,14 @@ sets of 20 words is difficult, error-prone and time consuming.
 
   A valuable use of Cryptocurrency accounts is to send or receive payments for goods, services or
   remittances/donations.  The global monetary system makes this very difficult (or even impossible),
-  especially if any of the governments are hostile to you or any of the other individuals involved
-  in the transaction.  Worse yet, your business or family can be arbitrarily ejected from using the
-  financial system, by an of the many intermediary parties involved in any traditional financial
-  transaction.
+  especially if any of the involved corporations or governments are hostile to you or any of the
+  other individuals involved in the transaction.
+
+  Worse yet, your business or family can be arbitrarily ejected from using the financial system, by
+  an of the many intermediary parties involved in any traditional financial transaction.
+
+  Fortunately, DeFi (Decentralized Finance) provides you with the capability to receive payments,
+  quickly and efficiently, from anyone on the planet who wishes to pay you for your services.
 
 ** Using Plain HD Wallet Account
 
@@ -1743,39 +1747,62 @@ sets of 20 words is difficult, error-prone and time consuming.
 
 *** Withdrawal Fees and Smart Contracts
 
-   Since most exchanges do not allow withdrawal to an account that requires excessive fees; for
-   example, to an Ethereum Smart Contract address, which may trigger functionality requiring excess
-   "Gas" beyond what a normal transfer would require.
+    Since most exchanges do not allow withdrawal to an account that requires excessive fees; for
+    example, to an Ethereum Smart Contract address, which may trigger functionality requiring excess
+    "Gas" beyond what a normal transfer would require.
 
-   This limits the amount of automation that can be attached to a "client" cryptocurrency payment.
-   Usually, no Smart Contract invocation can be supported for the client's payment.  If you build a
-   system that requires the client to have their own wallets, and to understand eg. Ethereum "Gas"
-   pricing, you will prevent most clients from paying you.
+    This limits the amount of automation that can be attached to a "client" cryptocurrency payment
+    address.  Usually, no Smart Contract invocation can be supported for the client's payment.  If
+    you build a system that requires the client to have their own wallets, and to understand
+    eg. Ethereum "Gas" pricing, you will prevent most clients from paying you.
 
+** Some Drawbacks of using Plain Addresses for Client Payments
+   
+   So, generating a sequence of plain client addresses from an =xpub...= is a worthwhile solution to
+   consider.
 
-** Single Use Accounts
+*** Fee Distribution
 
-   The solution to this problem is to use plain accounts that *nobody* has access to -- including
-   your, or any payee!
+    Collecting up all the clients' payments later is a manual process, and if you wish to distribute
+    the payments (say, to pay partners, or a licensor whose software you sub-licensed, or to ensure
+    that *you* get paid should someone license your software), this must all be done manually.
 
-   One artifact of how Ethereum (and similar) Cryptocurrency systems create and validate
-   transactions, is that the "source" address may be deduced from the transaction and its
-   accompanying signature.  Normally, one already "has" a source address (and its private key)
-   containing funds, and then creates a transaction moving some of those funds (or executing a Smart
-   Contract call) to some destination, and finally signs it using their private key.  However, one
-   *can* create the exact same transaction performing the same actions -- and then *provide a random
-   signature*, and deduce what Ethereum Account it *must* have originated from.  This will be a
-   pseudo-random (unpredictable) source Address, assuming that some bit(s) in the transaction and/or
-   signature differ.
+*** Distribution Failures
 
-   This "signed" transaction from this random Ethereum account may do anything -- so long as (when
-   it's finally executed) there is sufficient Ethereum available to pay the "Gas" fees, and to
-   supply whatever value (in ETH, ERC-20 tokens, etc.) is required by the transaction.
+    In any payment system with many clients paying for product(s), and fees being distributed to
+    various payees, there are normally many trusted partners involved, and many manual (or
+    automated) processes that can fail.
 
-   This is *not possible* using Bitcoin, due to its lack of general-purpose smart contracts, and the
-   fact that one cannot "sign" transactions in advance to generate the "source" Account address: the
-   transaction must contain specific information about the source UTXO (Unspent TransaXion Outputs)
-   being spent, which is of course unavailable in advance.
+    For example, what if a piece of software is created and distributed by some organization, and
+    this software uses your licensed module?  If the organization fails, or the software is
+    abandoned, then clients who want to renew their license (or later find the software and install
+    it) will probably not be able to pay the organization for it -- and your license fees also will
+    go unpaid.
+
+    Surely, there must be a way to deploy a sequence of interconnected Smart Contracts that can ensure
+    that:
+
+    - Any new client can uniquely allocate (and store some data with) a "Forwarder" address and pay for the product, 
+    - Payment into that account address (and validation of its unique data) constitutes proof of licensing,
+    - Payees (direct and indirect) can flush any such payments through to themselves (and others)
+
+    These goals *can* be achieved using "Forwarder" Accounts
+
+** Single Use "Forwarder" Accounts
+
+   The solution to this problem is to use plain accounts that *nobody* has "private key" access to
+   -- including you (the software issuer), or any client.
+
+   These accounts are accessed by an Ethereum Smart Contract (the account address is actually the
+   address of the contract).
+
+   The *only* function of this "Forwarder" contract is collect the account's Ethereum and ERC-20
+   token contents into the product's "Fee Distribution Contract" account.
+
+*** Client "Forwarder" Contract
+
+    Once the product's =MultiPayoutERC20= contract address is identified, the act of obtaining a
+    unique client payee address is 
 
 *** Distributing Funds Deterministically
 
@@ -1814,9 +1841,86 @@ sets of 20 words is difficult, error-prone and time consuming.
     :     selfdestruc
     : }
 
+
+*** Client "Forwarder" Account Creation and Licensing   
+
+    Guaranteeing that each client's payments always flow through to the designated tree of payees is
+    the responsibility of the =MultiPayoutERC20Forwarder= (client "Forwarder" account) and
+    =MultiPayoutERC20= (product) Smart Contracts.
+
+    Confirmation of Licensing is the responsibility of the client software.  At software runtime,
+    some checks are completed.  At minimum, two pieces of data are loaded from storage:
+
+    - The Machine ID, and
+    - A Public Key and a Signature of the Machine ID (previously generated), or
+    - A Private Key (from which the Machine ID Signature can be generated)
+
+    Then, assuming:
+
+    - Accounts can be created uniquely for some pseudo-random client-specific identifying key
+      - A public key for example
+    - Some data can be stored and later retrieved using that client key
+      - The signature of some License text or the client-unique Machine ID (or a significant portion of it)
+    - Payments to the account can be queried from on the blockchain
+
+    The client software can check the blockchain to confirm payment to the account, and the saved
+    data (eg. Signature) can be checked to confirm that this client is indeed the licensee.  For
+    example, the client's Private Key generates the Public Key, and the retrieved signature matches
+    the Sgnature of the Machine ID.
+
+    If all of these tests pass, then the client software has confirmed that it is licensed.
+
+    If not, a licensing offer (invoice) can be generated, to allow the client to obtain a license.
     
+**** Licensing Attacks
 
+     An attacker can attempt to re-use some pre-existing license payment; it can inspect the
+     blockchain history to obtain the prior allocation of a paid "Forwarder" account, and recover the
+     client key (the client's public key), and the associated data stored for that key (the
+     signature).  However, when the software attempts to confirm that the public key signs the
+     machine ID, it will fail, because the attacker doesn't have the original payee's machine ID --
+     which was not included in the original blockchain transaction.
 
+     Only if the client software is also under the control of the attacker can this attack succeed;
+     but, in that case, the attacker can simply remove the entire license check from the software.
+
+** Single-Use Accounts using Pre-Signed Transfers
+
+   One tempting (but ultimately fragile) solution is to use Ethereum "transfer" transactions that
+   you don't actually have the private key to sign.
+
+   One artifact of how Ethereum (and similar) Cryptocurrency systems create and validate
+   transactions, is that the "source" address may be deduced from the transaction and its
+   accompanying signature.  Normally, one already "has" a source address (and its private key)
+   containing funds, and then creates a transaction moving some of those funds (or executing a Smart
+   Contract call) to some destination, and finally signs it using their private key.  However, one
+   *can* create the exact same transaction performing the same actions -- and then *provide a random
+   signature*, and deduce what Ethereum Account it *must* have originated from.  This will be a
+   pseudo-random (unpredictable) source Address, assuming that some bit(s) in the transaction and/or
+   signature differ.
+
+   This "signed" transaction from this random Ethereum account may do anything -- so long as (when
+   it's finally executed) there is sufficient Ethereum available to pay the "Gas" fees, and to
+   supply whatever value (in ETH, ERC-20 tokens, etc.) is required by the transaction.
+
+*** Collection Failure
+
+    A number of failure modes exist that can result in cryptocurrency lost in this client address:
+
+    - Only ETH supported at reasonable cost
+    - If an ERC-20 token transfer is invoked, the exact token must be known in advance.
+      - Any other token or Ethereum deposited would be lost
+    - If the exact correct amount of Ethereum to pay for Gas is not deposited, the transaction will fail
+      and will not be re-executable, resulting in loss of all funds at the address.
+   
+*** Not Supported for Bitcoin
+    
+    This idea is *not possible* using Bitcoin, due to its lack of general-purpose smart contracts,
+    and the fact that one cannot "sign" transactions in advance to generate the "source" Account
+    address: the transaction must contain specific information about the source UTXOs (Unspent
+    TransaXion Outputs) being spent, which is of course unavailable in advance.
+
+    
 * Building & Installing
 
   The =python-slip39= project is tested under both homebrew:

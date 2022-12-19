@@ -65,7 +65,11 @@ pragma solidity ^0.8.0;
 import "contracts/MultiPayoutERC20Base.sol";
 
 contract MultiPayoutERC20Forwarder {
-    constructor( address payable _multipayout ) payable {
+    constructor(
+        address payable		_multipayout
+    )
+        payable
+    {
         _multipayout.delegatecall( abi.encodeWithSignature( "erc20s_collector()" ));
         selfdestruct( _multipayout );
    }

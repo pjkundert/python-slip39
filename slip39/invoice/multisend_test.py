@@ -470,8 +470,8 @@ if ganache_xprvkey:
 # a fixed set of recipients.
 #
 #
-# Single Use Address "Vault"
-# --------------------------
+# Single Use Address "Forwarder"
+# ------------------------------
 #
 # Collect ETH/ERC-20 tokens from a single Client, either to the Product's Fee Distribution Contract
 # address, or even directly to the final fee recipients.
@@ -494,6 +494,10 @@ if ganache_xprvkey:
 #
 #     https://forum.openzeppelin.com/t/guide-to-using-create2-sol-library-in-openzeppelin-contracts-2-5-to-deploy-a-vault-contract/2268
 #
+# To minimize Gas usage, attempts to follow the principles outlined in:
+#
+#     https://0xmacro.com/blog/solidity-gas-optimizations-cheat-sheet/
+#
 multipayout_ERC20_template	= Template( r"""
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -509,11 +513,68 @@ import {
 
 contract MultiPayoutERC20 is MultiPayoutERC20Base {
 
-    event PayoutETH( uint256 value, address to, bool sent );
-    event PayoutERC20( uint256 value, address to, bool sent, IERC20 token );
+    //
+    // Confirm/Assign that the given _data is associated with the provided _salt
+    //
+    // 
+    //
+    mapping( uint256 => bytes32 ) private _salt_data;
+
+    error ForwarderMismatch( uint256 salt );		// The Forwarder has already been allocated w/ different _data
+
+    event Forwarder( uint256 indexed salt );		// A new Forwarder has been allocated
 
     //
-    // constructor (establishes unique contract creation bytcode by demanding owner supply their address)
+    // Confirm/assign _salt/_data
+    // 
+    // When a non-zero _data is provided, emits a Forwarder(<salt>) event to inform the MultiSendERC20
+    // owner that a new, arbitrary _salt has been used.  The address should be computed, so future
+    // payments to the contract may be harvested via .forwarder(<salt>).
+    //
+    // Only if both are bytes32(0), will a zero _data be allowed; ie. no legitimate non-zero data
+    // can be overridden by a bytes32(0).  If a bytes32(0) data is supplied for a previously
+    // valid non-zero _salt/_data, we'll revert with a ForwarderMismatch.  Only the owner may
+    // use the 
+    function _confirm_salt_data(
+         uint256		_salt,
+         bytes32		_data
+    )
+        private
+    {
+        bytes32 salt_data		= _salt_data[_salt];
+        if ( salt_data != _data ) {
+            if ( salt_data == bytes32( 0 )) {
+                _salt_data[_salt]	= _data;  // must be non-zero.
+                emit Forwarder( _salt );
+            } else {
+                revert ForwarderMismatch( _salt );
+            }
+        }
+    }
+
+    //
+    // Confirms/assigns _salt/_data -- NOTE: This MAY make state changes
+    //
+    modifier confirmSaltData(
+         uint256		_salt,
+         bytes32		_data
+    ) {
+        _confirm_salt_data( _salt, _data );
+        _;
+    }
+
+    event PayoutETH(   uint256 indexed value, address indexed to, bool indexed sent );
+    event PayoutERC20( uint256 indexed value, address indexed to, bool indexed sent, IERC20 token );
+
+    //
+    // constructor
+    //
+    // This is created via standard contract creation transactions, so the address is a hash of the
+    // creator's address + transaction nonce.  It will therefore be globally unique.  If we did create
+    // this from another contract (using the EVM CREATE2 opcode), then for each set of identical
+    // ERC-20s passed, we would need to use a unique CREATE2 salt value -- or the resultant Contract
+    // address would be duplicated.  So, since we do not use CREATE2, we do not need to pass anything
+    // to make the construction bytecode unique.
     //
     // Since ERC-20s are dynamic, we'll make them an array.  Since the payees / fractions are static,
     // we'll pass them textually as part of the contract code.  This is unlike the
@@ -528,44 +589,168 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
     // if multiple addresses instantiate them w/ the same nonce.
     //
     constructor(
-       address			_self,
        IERC20[] memory		_erc20s
     )
        payable
     {
-        require( _self == owner() );
         for ( uint256 t = 0; t < _erc20s.length; t++ ) {
             erc20s_add( _erc20s[t] );
         }
     }
 
     //
-    // Anyone can instantiate a forwarder; it can only forward the client's ETH/ERC-20 tokens
-    // to this very contract.  So: fill your boots.  So long as the ERC-20 tokens supported
-    // by this Contract are only settable by the Owner, it should be safe.
+    // forwarder...( <salt> [,<data>] )
     //
+    // Anyone can instantiate a forwarder; it can only forward the client's ETH/ERC-20 tokens to this
+    // very contract.  So: fill your boots.  So long as the ERC-20 tokens supported by this Contract
+    // are only settable by the Owner, it is designed to be safe for anyone to invoke.
+    //
+    // By convention, forwarder <salt> values allocated logically (ie. by your billing system) are
+    // assumed to start at uint256( 0 ) and count up.  It is up to you to ensure you don't re-use the
+    // same salt for multiple clients.  Just remember the address, and monitor it for incoming payment.
+    //
+    // If your client doesn't wish to use your billing system, they may allocate their own client
+    // account payment address.  These are assumed to be arbitrary random uint256 <salt> values (usually,
+    // derived from some unique client-specific data, like an Ed25519 public key).
+    //
+    // Any agent (eg. a custodial exchange wallet withdrawal) may pay the required cryptocurrency into
+    // any allocated client account.
+    //
+    // However, at some point, either your billing system (if you're issuing the Licenses), or the
+    // client itself (if it is self-provisoning the License) must invoke MultiPayoutERC20's
+    // .forwarder(<salt>[,<data>]).  This uniquely and atomically associates the client's _salt with a
+    // bytes32 _data -- and forwards the payment to your product's MultiPayoutERC20 contract.  An ETH
+    // payment can (also) be sent to this call, simultaneously paying for and allocating the License.
+    // If desired, a call to MultiPayoutERC20.forwarder_address(_salt,_data ) can also uniquely and
+    // atomically allocate the address and associate _salt/_data.  Then, ETH or ERC-20s can be safely
+    // transferred, and a later (more expensive) call to .forwarder(_salt) can be made (by anyone).
+    //
+    // There are always ways to game such a system.  However, so long as the client software's license
+    // checking code isn't defeated, or it isn't run in a client environment that always returns a
+    // predermined Machine ID and Ed25519 prvkey/pubkey), then the licensing checking will be atomic
+    // (no 2 clients can accidentally allocate and pay into the same ...Forwarder contract address)
+    // and reliable (the blockchain can be queried to determine that payment had been received to the
+    // ...Forwarder contract).
+    // 
+    // We are checking licensing for clients: not thieves that purposely run an altered product.
+    //
+
+    //
+    // Create and returns the ...Forwarder contract's address for <salt>, paying any <msg.value> thru
+    // 
+    // The ...Forwarder contract clears out its contract address, forwarding all ETH + ERC-20s into
+    // this MultiPayoutERC20 contract.  The msg.value *could* simply be left in the MultiPayoutERC20
+    // -- but, then it would *not* show as having been paid through the ...Forwarder contract address
+    // as part of the transaction.  A simple Licensing check *requires* that a query of the client's
+    // Forwarder contract address contains a payment.
+    //
+    // May be used with any <salt> whatsoever, "allocated" or not:
+    //
+    // Someone could collect the Forwarder(<salt>) events from all transactions on this contract,
+    // compute all the possible addresses, check them for non-zero values, and execute the
+    // .forwarder(<salt>) for each one containing any ETH/ERC-20 value.  For example, one of the
+    // payees of the MultiPayoutERC20 contract(s) who wishes to collect their portion of the
+    // contract's revenue could do it.
+    //
+    // Alternatively, an accounting system could determine to use a numeric sequence of <salt> values
+    // eg. 0, 1, 2, 3, ..., precompute the ...Forwarder contract addresses, and never invoke
+    // .forwarder(<salt>,<data>) or .forwarder_address(<salt>,<data>) to inform the MultiPayoutERC20
+    // contract that such addresses are "in play" via Forwarder(<salt>) events.  Later, when some
+    // address receives funds, the accounting system could detect this and invoke the
+    // .forwarder(<salt>) to collect the funds -- never allocating a _salt/_data for the address (and,
+    // presumably, accomplishing any client License detection some other way, or not at all).
+    //
+    // WARNING
+    //
+    // It is your client software's responsibility to use one (or both) of these approaches consistenly!
+    // If you 
     function forwarder(
          uint256		_salt
     )
-        external
-        returns ( address )
+        public			// Callable externally and internally
+        payable			// May include a non-zero ETH msg.value
+        notDelegated		// Does not allow creation of MultiPayoutForwarder w/ any other address( this ) value
+        returns ( address, bytes32 )
     {
-        return address( new MultiPayoutERC20Forwarder{ salt: bytes32( _salt ) }( payable( address( this ))));
+        return (
+            address( new MultiPayoutERC20Forwarder{
+                salt:	bytes32( _salt ),		// CREATE2 opcode requires salt
+                value:	msg.value			// Any msg.value is passed to ...Forwarder
+            }( payable( address( this )))),		// ...Forwarder constructor requires this contract's address
+            _salt_data[_salt]				// And return the _data associated with _salt (if any)
+        );
     }
 
+    // 
+    // Checks (or assigns) _salt/_data, creates Forwarder for _salt and returns its address, paying any msg.value thru
+    // 
+    // A single call can be used to:
+    // - Uniquely and atomically allocate a ...Forwarder address to a _salt, storing the client _data
+    // - Pay a sum of ETH through the ...Forwarder contract, noting the payment in the blockchain
+    //
+    // This forms the foundation of a simple and reliable Licensing scheme.   Determine the license required
+    // and the <ETH payment> required for it.  To check Licensing:
+    //
+    // - Query the Machine ID
+    // - Create/load the client's Ed25591 signing prvkey/pubkey
+    // - Sign the Machine ID using the prvkey; use 32-byte pubkey as uint256 _salt
+    // - Take 256 bits of (or hash) the signature to use as bytes32 _data
+    // - Invoke MultiPayoutERC20.forwarder_address( _salt ) to get (<address>, salt_data )
+    //   - If salt_data == _data, and if <address> was paid the required ETH/ERC-20 value
+    //     - Consider the product successfully licensed!
+    //
+    // If not yet licensed, query user to connect their wallet to proceed with Licensing:
+    // - Use Web3 to sign and send a MultiPayoutERC20.forwarder{ value: <ETH payment>}( _salt, _data ) call
+    //   - If successful,
+    //     - Consider the product successfully paid and licensed!
+    // 
+    // Othewise, fail Licensing check.
+    //
+    function forwarder(
+         uint256		_salt,
+         bytes32		_data
+    )
+        external		// Callable externally only
+        payable			// May include a non-zero ETH msg.value
+        confirmSaltData( _salt, _data )
+        returns ( address, bytes32 )
+    {
+        return forwarder( _salt );
+    }
+
+    //
+    // Returns the Forwarder contract address for _salt, and any associated _salt_data (0 of not allocated)
+    //
+    // Useful for computing the pre-defined CREATE2 contract address for the specified <salt>, and detecting
+    // if someone has already allocated the <salt> (associated it with a client-specific <data>).
+    //
     function forwarder_address(
         uint256			_salt
     )
-        external
-        view
-        returns ( address )
+        public			// Callable externally and internally
+        view			// No contract state changed
+        returns ( address, bytes32 )
     {
         bytes memory bytecode	= type(MultiPayoutERC20Forwarder).creationCode;
         bytes memory creation	= abi.encodePacked( bytecode, abi.encode( address( this )));
         bytes32 creation_hash	= keccak256(
             abi.encodePacked( bytes1( 0xff ), address( this ), bytes32( _salt ), keccak256( creation ))
         );
-        return address( uint160( uint256( creation_hash )));
+        return (address( uint160( uint256( creation_hash ))), _salt_data[_salt]);
+    }
+
+    //
+    // Checks (or assigns) the _salt/_data, returning the Forwarder contract address for _salt and _data
+    //
+    function forwarder_address(
+        uint256			_salt,
+        bytes32			_data
+    )
+        external		// Callable externally only
+        confirmSaltData( _salt, _data )
+        returns ( address, bytes32 )
+    {
+        return forwarder_address( _salt );
     }
 
     //
@@ -590,7 +775,7 @@ contract MultiPayoutERC20 is MultiPayoutERC20Base {
         uint16			_reserve		// fixed-point (0,1] w/ denominator 2^16
     )
         private
-        pure  // no state changed or read
+        pure			// No contract state changed or read
         returns ( uint256 )
     {
         unchecked {
@@ -720,9 +905,18 @@ ${RECIPIENTS}
      *
      * So, any wallet which can specify a high gas limit for a transfer transaction may be used.
      * Just transfer 0 ETH to the contract, and set a high gas limit (to allow for all the
-     * payout proportion calculations and any ERC-20 transfers to each payout recipient).
+     * payout proportion calculations and any ERC-20 transfers to each payout recipient).  Using
+     * .send/.transfer will not work, due to the low gas limit.
      */
     fallback()
+        external
+        payable
+        nonReentrant
+    {
+        payout_internal();
+    }
+
+    receive()
         external
         payable
         nonReentrant
@@ -1146,7 +1340,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 2000000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_cons_hash		= MultiPayoutERC20.constructor( src, tokens ).transact({
+    mc_cons_hash		= MultiPayoutERC20.constructor( tokens ).transact({
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
@@ -1239,14 +1433,15 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 250000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_aclc_result		= multipayout_ERC20.functions.forwarder_address( 0 ).call({
+    # The result is the (address, bytes32) associated with this salt
+    mc_fwd0_aclc_result,mc_fwd0_aclc_data = multipayout_ERC20.functions.forwarder_address( 0 ).call({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
         'value':	0,
     } | gas_price )
-    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_aclc_result} (calculated)" )
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_aclc_result} (calculated), and associated data: {mc_fwd0_aclc_data!r}" )
 
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 pre-instantiate Forwarder#0:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr_precomputed, ):
@@ -1274,13 +1469,13 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 500000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_addr		= multipayout_ERC20.functions.forwarder( 0 ).call({
+    mc_fwd0_addr,mc_fwd0_data	= multipayout_ERC20.functions.forwarder( 0 ).call({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
-    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_addr} (instantiated)" )
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_addr} (instantiated), and associated data: {mc_fwd0_data!r}" )
 
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-instantiate Forwarder#0:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr, ):
@@ -1471,7 +1666,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
                 'gas':		gas,
         } | gas_price )):
             print( f"  o ZEENUS ERC-20 == {zbal:23} == {zbal/ZEEN_DEN:9,.2f}" )
-
 
     # Finally, invoke the payout function.
     gas				= 500000
