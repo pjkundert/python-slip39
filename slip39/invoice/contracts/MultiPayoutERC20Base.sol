@@ -38,6 +38,17 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     //
     IERC20[] public		erc20s;
 
+    // Construct w/ 0 or more ERC-20 tokens.  Don't duplicate (just a waste, not checked)
+    constructor(
+       IERC20[] memory		_erc20s
+    )
+        payable
+    {
+        for ( uint256 t = 0; t < _erc20s.length; t++ ) {
+            erc20s.push( _erc20s[t] );
+        }
+    }
+
     function erc20s_len()
 	public
 	view
@@ -49,7 +60,7 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     function erc20s_add(
 	IERC20			_token
     ) 
-	public
+	external
 	onlyOwner
     {
 	for ( uint256 i = 0; i < erc20s.length; ++i ) {
@@ -63,20 +74,18 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     function erc20s_del(
 	IERC20			_token
     ) 
-	public
+	external
 	onlyOwner
-	returns ( bool )
     {
 	for ( uint256 i = 0; i < erc20s.length; i++ ) {
-	    if ( erc20s[i]  == _token ) {
+	    if ( erc20s[i] == _token ) {
 		unchecked {
 		    erc20s[i]		= erc20s[erc20s.length - 1];
 		}
 		erc20s.pop();
-		return true;
+		return;
 	    }
 	}
-	return false;
     }
 
     //
@@ -91,26 +100,32 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     // It is not necessary to protect this from reentrancy, if only reputable ERC-20 tokens
     // are included.  A disreputable ERC-20 token's transfer function could re-enter this
     // call, resulting in the same token transfers being re-attempted, and subsequent transfers
-    // delayed.	 But, only its own failure to implement check-effects-interactions can be exploited.
+    // delayed.	 But, only its own failure to implement check-effects-interactions can be exploited,
+    // since the full .balanceOf each token is being transferred out.
     //
+    // A failing ERC-20 will result in an exception (reverting the ...Forwarder), but this can be solved
+    // by removing the offending ERC-20 token via MultiPayoutERC20.erc20s_del(<token>).
+    //
+    function erc20_collect(
+	IERC20			_token
+    )
+	private
+    {
+	uint256 balance			= _token.balanceOf( address( this ));
+	if ( balance > 0 ) {
+	    // Forward the caller's balance to the recipient (this contract!)
+	    _token.transfer( __SELF, balance );
+	}
+    }
+
     function erc20s_collector()
 	external
 	isDelegated  // Only delegatecall allowed!  We'll be transferring from the caller's address( this )
     {
-	for ( uint256 i = MultiPayoutERC20Base( __SELF ).erc20s_len(); i > 0; --i ) {
-	    IERC20		token	= MultiPayoutERC20Base( __SELF ).erc20s( i-1 );
-	    try token.balanceOf( address( this )) returns ( uint256 balance ) {
-		if ( balance > 0 ) {
-		    // Forward the caller's balance to the recipient (this contract!)
-		    try token.transfer( __SELF, balance ) returns ( bool ) {
-			// ignore failing ERC-20 transfer
-		    } catch {
-			// ignore exception on ERC-20 transfer
-		    }
-		}
-	    } catch {
-		// ignore exception on ERC-20 balanceOf
-	    }
+	MultiPayoutERC20Base self	= MultiPayoutERC20Base( __SELF );
+	uint256 t			= self.erc20s_len();
+	while ( t > 0 ) {
+	    erc20_collect( self.erc20s( --t ));
 	}
     }
 }

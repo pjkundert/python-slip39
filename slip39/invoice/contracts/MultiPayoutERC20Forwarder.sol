@@ -62,7 +62,9 @@ pragma solidity ^0.8.0;
 //  creation_code		= ContractName.constructor( arg1, arg2 ).data_in_transaction;
 //  
 // 
-import "contracts/MultiPayoutERC20Base.sol";
+import {
+    MultiPayoutERC20Base
+} from "contracts/MultiPayoutERC20Base.sol";
 
 contract MultiPayoutERC20Forwarder {
     constructor(
