@@ -1,3 +1,22 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
+from __future__         import annotations
+
 import argparse
 import codecs
 import hashlib
@@ -8,7 +27,7 @@ import re
 import sys
 import subprocess
 
-from itertools import islice
+from itertools		import islice
 
 import PySimpleGUI as sg
 
@@ -21,6 +40,11 @@ from ..defaults		import (
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
     LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
 

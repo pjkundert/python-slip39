@@ -21,12 +21,12 @@ def test_remainder_after():
     # scale (multiplication factor required of each fraction to sum to desired total).
 
     parts			= [
-        F( 1,  4 ),  #  3/12
-        F( 1,  3 ),  #  4/12
-        F( 1,  6 ),  #  2/12
-        F( 1, 12 ),  #  1/12
-        F( 1,  6 ),  #  2/12
-    ]                   # 12/12
+        F( 1,  4 ),     # 3/12
+        F( 1,  3 ),     # 4/12
+        F( 1,  6 ),     # 2/12
+        F( 1, 12 ),     # 1/12
+        F( 1,  6 ),     # 2/12
+    ]                  # 12/12
     assert sum( parts ) == 1
     assert list( remainder_after( parts )) == [
         F( 3, 4 ),

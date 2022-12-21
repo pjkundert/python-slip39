@@ -14,7 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
-from __future__		import annotations
+from __future__          import annotations
 
 import base58
 import codecs
@@ -40,6 +40,11 @@ from hdwallet		import cryptocurrencies
 from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
 from .util		import ordinal, commas
 from .recovery		import produce_bip39, recover_bip39, recover as recover_slip39
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
 

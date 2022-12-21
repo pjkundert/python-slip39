@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from .ethereum		import Etherscan, Chain, Speed
+from .ethereum		import Etherscan, Chain
 
 log				= logging.getLogger( 'ethereum_test' )
 

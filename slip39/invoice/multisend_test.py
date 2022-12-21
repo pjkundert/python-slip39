@@ -5,11 +5,9 @@ import random
 import pytest
 
 from pathlib		import Path
-from textwrap		import indent
 from fractions		import Fraction
 from string		import Template
 
-import rlp
 import solcx
 
 from web3		import Web3, logs as web3_logs
@@ -17,16 +15,12 @@ from web3.contract	import normalize_address_no_ens
 from web3.middleware	import construct_sign_and_send_raw_middleware
 from eth_account	import Account
 
-from ..util		import remainder_after, into_bytes, commas
+from ..util		import remainder_after, commas
 from ..api		import (
     account, accounts,
 )
 
 from .			import contract_address
-from .multisend		import (
-    make_trustless_multisend, build_recursive_multisend, simulate_multisends,
-)
-
 from .ethereum		import Etherscan
 
 
@@ -204,20 +198,6 @@ multitransferether_contract	= bytes.fromhex(
 )
 
 
-@pytest.mark.skipif( True, reason="Incomplete" )
-def test_multisend_smoke():
-    payouts = [(k, int(v)) for k, v in json.load(open( __file__[:-3]+'-payouts.json', 'r' ))]
-    rootaddr, value, transactions = build_recursive_multisend(payouts, trustee_address, 110)
-    gas				= simulate_multisends( payouts, transactions )
-    print( "Root address 0x%s requires %d wei funding, uses %d wei gas" % (rootaddr.encode('hex'), value, gas))
-    out_path			= __file__[:-3]+'-transactions.js'
-    out = open(os.path.join( out_path, 'w'))
-    for tx in transactions:
-        out.write('web3.eth.sendRawTransaction("0x%s");\n' % (rlp.encode(tx).encode('hex'),))
-    out.close()
-    print( "Transactions written out to {out_path}".format( out_path=out_path ))
-
-
 def test_solc_smoke():
     solcx.install_solc( version="0.7.0" )
     contract_0_7_0 = solcx.compile_source(
@@ -360,7 +340,6 @@ ${PAYOUT}
 """ )
 
 
-
 #
 # Lets deduce the accounts to use in the Goerli Ethereum testnet.  Look for environment variables:
 #
@@ -401,7 +380,8 @@ if not goerli_xprvkey:
     goerli_seed			= os.getenv( 'GOERLI_SEED' )
     if goerli_seed:
         try:
-            goerli_xprvkey	= account( goerli_seed, crypto="ETH", path="m/44'/1'/0'" ).xprvkey  # why m/44'/1'?  Dunno.
+            # why m/44'/1'?  Dunno.  That's the derivation path Trezor Suite uses for Goerli wallets...
+            goerli_xprvkey	= account( goerli_seed, crypto="ETH", path="m/44'/1'/0'" ).xprvkey
         except Exception:
             pass
 
@@ -501,14 +481,14 @@ def payout_reserve( addr_frac, bits=16 ):
         assert frac > 0, \
             f"Encountered a zero proportion: {frac} for recipient {addr}"
         assert int( rem ) < 2 ** bits, \
-            f"Encountered a remainder fraction: {rem_scale} numerator greater or equal to the denominator: {2**bits}"
+            f"Encountered a remainder fraction: {rem} numerator greater or equal to the denominator: {2 ** bits}"
         yield addr,frac,rem,f"{float( frac * 100 / fractions_total ):9.5f}%"
 
     assert rem is not None, \
-        f"At least one payee is required"
+        "At least one payee is required"
     assert int( rem ) == 0, \
         f"Total payout percentages didn't accumulate to zero remainder: {rem:7.4f} =~= {int( rem )}, for {commas( fractions, final='and' )}"
-    
+
 
 def multipayout_ERC20_recipients( addr_frac, bits=16 ):
     payout			= ""
@@ -575,8 +555,7 @@ def test_multipayout_ERC20_recipients_corner( multipayout_defaults, expected ):
     assert multipayout_ERC20_recipients( multipayout_defaults ) == expected
 
 
-
-@pytest.mark.parametrize('address, salt, contract, expected_address', [
+@pytest.mark.parametrize('address, salt, creation, expected_address', [
     (
         '0x0000000000000000000000000000000000000000',
         '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -620,13 +599,14 @@ def test_multipayout_ERC20_recipients_corner( multipayout_defaults, expected ):
         '0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0',
     ),
 ])
-def test_create2(address, salt, contract, expected_address):
+def test_create2(address, salt, creation, expected_address):
     """Test the CREATE2 opcode Python implementation.
 
     EIP-104 https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
 
     """
-    assert contract_address( address, salt=salt, contract=contract ) == expected_address
+    assert contract_address( address, salt=salt, creation=creation ) == expected_address
+
 
 @pytest.mark.parametrize('address, nonce, expected_address', [
     (
@@ -640,7 +620,7 @@ def test_create2(address, salt, contract, expected_address):
         '0x343c43a37d37dff08ae8c4a11544c718abb4fcf8',
     ),
 ])
-def test_create2(address, nonce, expected_address):
+def test_create(address, nonce, expected_address):
     """Test the CREATE opcode (or transaction-based) contract creation address calculation.
 
     """
@@ -778,7 +758,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     #       run the contract, and provide a margin
     #
 
-
     # How do we specify a chain_id?
     # if chain_id is not None:
     #     w3.eth.chain_id		= chain_id
@@ -793,12 +772,12 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     base_fee			= latest['baseFeePerGas']
     est_gas_wei			= base_fee + max_priority_fee
     max_gas_wei			= base_fee * 2 + max_priority_fee  # fail transaction if gas prices go wild
-    print( "{:10}: Web3 Tester Gas Price at USD${:9,.2f}/ETH: fee gwei/gas est. base (latest): {:9,.2f} priority: {:9,.2f}; cost per 100,000 gas: {} == {}gwei == USD${:9,.2f} ({}); max: USD${:9,.2f}".format(
+    print( "{:10}: Web3 Tester Gas Price at USD${:9,.2f}/ETH: fee gwei/gas est. base (latest): {:9,.2f} priority: {:9,.2f}; cost per {:,d} Gas: {:,.4f} gwei == USD${:9,.2f}; max: USD${:9,.2f} ({})".format(  # noqa: E501
         testnet, ETH.ETH_USD,
         base_fee / ETH.GWEI_WEI, max_priority_fee / ETH.GWEI_WEI,
         100000,
         100000 * est_gas_wei / ETH.GWEI_WEI,
-        100000 * est_gas_wei * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
+        100000 * est_gas_wei * ETH.ETH_USD / ETH.ETH_WEI,
         100000 * max_gas_wei * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
@@ -833,7 +812,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # receive 0%.
     addr_frac			= {
         addr: Fraction( 1+random.choice( range( 1000 )))
-        for addr in destination   #[random.choice(range(len(destination))):]   #for determinism keep all...
+        for addr in destination   # [random.choice(range(len(destination))):]   #for determinism keep all...
     }
 
     # Must be actual ERC-20 contracts; if these fail to have a .balanceOf or .transfer API, this
@@ -850,7 +829,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     #print( payout_sol )
 
     compiled_sol		= solcx.compile_files(
-        Path( __file__ ).resolve().parent / 'contracts'/ 'MultiPayoutERC20.sol',
+        Path( __file__ ).resolve().parent / 'contracts' / 'MultiPayoutERC20.sol',
         output_values	= ['abi', 'bin'],
         solc_version	= solc_version,
         **solcx_options
@@ -925,7 +904,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
 
     # 2) Get the contract creation bytecode, including constructor arguments:
     #    (see: https://github.com/safe-global/safe-eth-py/blob/master/gnosis/safe/safe_create2_tx.py)
-    fwd_creation_code		= MultiPayoutERC20Forwarder.constructor( mc_cons_addr ).data_in_transaction;
+    fwd_creation_code		= MultiPayoutERC20Forwarder.constructor( mc_cons_addr ).data_in_transaction
 
     # 3) Compute the 0th MultiPayoutERC20Forwarder Contract address, targeting this MultiPayoutERC20 Contract.
     salt_0			= w3.codec.encode( [ 'uint256' ], [ 0 ] )
@@ -946,16 +925,15 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'gas':		gas,
         'value':	0,
     } | gas_price )
-    mc_fwd0_aclc_tx		= w3.eth.get_transaction( mc_fwd0_aclc_hash )
     mc_fwd0_aclc_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash )
-    print( "{:10}: Web3 Tester Forward#0 forwarder_address Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Forward#0 forwarder_address w/o <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_aclc_receipt.gasUsed,
         mc_fwd0_aclc_receipt.gasUsed * ETH.GAS_GWEI,
         mc_fwd0_aclc_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
+    print( f"{testnet:10}: Web3 Tester Forward#0 forwarder_address w/o <data> Receipt: {json.dumps( mc_fwd0_aclc_receipt, indent=4, default=str )} (calculated)" )
 
-    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address Receipt: {json.dumps( mc_fwd0_aclc_receipt, indent=4, default=str )} (calculated)" )
     gas				= 250000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
@@ -967,7 +945,26 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'gas':		gas,
         'value':	0,
     } | gas_price )
-    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address: {mc_fwd0_aclc_result} (calculated), and associated data: {mc_fwd0_aclc_data!r}" )
+    print( f"{testnet:10}: Web3 Tester Forward#0 MultiPayoutERC20 Contract Address (w/o <data>): {mc_fwd0_aclc_result} (calculated), and associated data: {mc_fwd0_aclc_data!r}" )
+
+    gas				= 250000
+    spend			= gas * max_usd_per_gas
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    mc_fwd0_aclc_hash_w		= MultiPayoutERC20.functions.forwarder_address( 0, bytes.fromhex( '00'*31+'01' )).transact({
+        'to':		mc_cons_addr,
+        'from':		src,
+        'nonce':	w3.eth.get_transaction_count( src ),
+        'gas':		gas,
+        'value':	0,
+    } | gas_price )
+    mc_fwd0_aclc_receipt_w	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash_w )
+    print( "{:10}: Web3 Tester Forward#0 forwarder_address w/  <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+        testnet,
+        mc_fwd0_aclc_receipt_w.gasUsed,
+        mc_fwd0_aclc_receipt_w.gasUsed * ETH.GAS_GWEI,
+        mc_fwd0_aclc_receipt_w.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+    ))
+    print( f"{testnet:10}: Web3 Tester Forward#0 forwarder_address w/  <data> Receipt: {json.dumps( mc_fwd0_aclc_receipt_w, indent=4, default=str )} (calculated)" )
 
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 pre-instantiate Forwarder#0:" )
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ) + ( mc_fwd0_addr_precomputed, ):
@@ -1012,7 +1009,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # Send a 0-value transaction to *EENUS and get 1,000 tokens back.  These are ERC-20 minting transactions, so will require more gas.
     gas				= 100000
     spend			= gas * max_usd_per_gas
-    gas_pric			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
+    gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
     mc_ween_hash		= w3.eth.send_transaction({
         'to':		WEEN_GOERLI,
         'from':		src,
@@ -1113,7 +1110,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
-    mc_fwd0_ween_tx		= w3.eth.get_transaction( mc_fwd0_ween_hash )
     mc_fwd0_ween_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_ween_hash )
     print( "{:10}: Web3 Tester Forward#0 WEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,
@@ -1128,7 +1124,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
-    mc_fwd0_zeen_tx		= w3.eth.get_transaction( mc_fwd0_zeen_hash )
     mc_fwd0_zeen_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_zeen_hash )
     print( "{:10}: Web3 Tester Forward#0 ZEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,
@@ -1136,7 +1131,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI,
         mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
     ))
-
 
     gas				= 25000
     spend			= gas * max_usd_per_gas
@@ -1165,7 +1159,6 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
-    mc_fwd0_agin_tx		= w3.eth.get_transaction( mc_fwd0_agin_hash )
     mc_fwd0_agin_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_agin_hash )
     print( "{:10}: Web3 Tester Forward#0 forwarder Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,

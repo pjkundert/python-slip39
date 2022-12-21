@@ -22,8 +22,14 @@ import logging
 import math
 import sys
 
+from typing		import Union
 from fractions		import Fraction
 from functools		import wraps
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( "util" )
 
@@ -506,7 +512,7 @@ class mixed_fraction( Fraction ):
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
         if whole and rest:
-            return f"{whole}+{fractions.Fraction( rest, self.denominator)}"
+            return f"{whole}+{Fraction( rest, self.denominator)}"
         return super().__str__()
 
 
@@ -528,6 +534,6 @@ def remainder_after( proportions, scale=None, total=1 ):
             f		       *= scale				# (0,total]
         f_starting		= total - f_total		# (0,total]
         f_removed		= f / f_starting		# (0,1]
-        f_remaining		= total - total * f_removed	# (0,total]
+        f_remaining		= total - total * f_removed     # (0,total]
         yield f_remaining
         f_total		       += f				# (0,total)

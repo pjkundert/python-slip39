@@ -15,6 +15,8 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+from __future__          import annotations
+
 import click
 import json
 import logging
@@ -24,6 +26,10 @@ from ..			import addresses as slip39_addresses
 from ..util		import commas, log_cfg, log_level, input_secure
 from ..defaults		import BITS
 
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 """
 Provide basic CLI access to the slip39 API.

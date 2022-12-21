@@ -15,12 +15,19 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+from __future__		import annotations
+
 import argparse
 import codecs
 import logging
 
 from ..util		import log_cfg, log_level, input_secure, ordinal
 from .			import recover, recover_bip39
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
 

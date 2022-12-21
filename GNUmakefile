@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=INFO #-vv --doctest-modules # --capture=no # --log-cli-level=INFO
+PYTESTOPTS	= --capture=no # --log-cli-level=DEBUG
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
