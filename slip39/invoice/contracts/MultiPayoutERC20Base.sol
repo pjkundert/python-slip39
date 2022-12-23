@@ -14,6 +14,8 @@ import {
 // access data about the supported ERC-20s.
 // 
 abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
+
+
     // 
     // __SELF -- specific at construction, and used to support ...Forwarder collection
     // 
@@ -22,7 +24,7 @@ abstract contract MultiPayoutERC20Base is ReentrancyGuard, Ownable {
     // does NOT actually interrogate the contract's data!  Thus, in "delegatecall"-ed code,
     // we can safely use these values.
     // 
-    address private immutable	__SELF	= address( this );
+    address internal immutable	__SELF	= address( this );
 
     modifier isDelegated() {
         require( address( this ) != __SELF );

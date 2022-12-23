@@ -66,8 +66,7 @@ class MultiPayoutERC20( Contract ):
         >>> mp = MultiPayoutERC20( Web3.WebsocketProvider( alchemy_url( Chain.Goerli )),
         ...    agent		= goerli_account.address,
         ...    agent_prvkey	= goerli_account.prvkey,
-        ...    address		= "0x3118Ef1113BC2d90CF65f998C9d0a884a0F813AF"
-        ...                     #  0xbe4F41B911E12E3a44437D100CA873E10D5864Fc  # another one
+        ...    address		= "0x8b3D24A120BB486c2B7583601E6c0cf37c9A2C04"
         ... )
         >>> print( json.dumps( mp._payees, indent=4, default=lambda f: f"{float( f * 100 ):9.5f}%" ))
         {
@@ -100,6 +99,7 @@ class MultiPayoutERC20( Contract ):
     def __init__( self, *args, **kwds ):
         self._erc20s		= dict()		# [ <ERC-20 address>: ("<symbol>",<decimals>), ... ]
         self._payees		= dict()		# { <Payee address>: <Fraction>, ... }
+        self._forwarder_hash	= None			# Keccack has of the Forwarder constructor bytecode for CREATE2
         super().__init__( *args, **kwds )
 
     def update( self ):
@@ -112,7 +112,8 @@ class MultiPayoutERC20( Contract ):
         the full tree of payees, and their aggregate percentages.
 
         """
-
+        self._forwarder_hash	= self.forwarder_hash()
+        log.info( f"{self.name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
         remaining		= Fraction( 1 )
         for i in count():
             payee, reserve	= self.payees( i, gas=50000 )

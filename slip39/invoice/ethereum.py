@@ -29,6 +29,7 @@ from typing		import Dict, Optional
 
 import requests
 import eth_account
+import eth_abi
 import solcx
 
 from rlp		import encode as rlp_encode
@@ -49,9 +50,10 @@ log				= logging.getLogger( 'ethereum' )
 
 def contract_address(
     address,			# Address that is constructing the contract
-    salt	= None,
-    creation	= None,
-    nonce	= None,		# traditional CREATE used address/nonce
+    salt		= None,
+    creation		= None,
+    creation_hash	= None,
+    nonce		= None,		# traditional CREATE used address/nonce
 ):
     """Deduces the Contract Address that will result from a creator's 'address' and a
     transaction/CREATE (given a 'nonce'), or CREATE2 (given a 'salt' and the contract's 'creation'
@@ -62,21 +64,27 @@ def contract_address(
     assert isinstance( b_address, bytes ) and len( b_address ) == 20, \
         f"Expected 20-byte adddress, got {b_address!r}"
 
-    if nonce is not None and salt is None and creation is None:
+    if nonce is not None and salt is None and creation is None and creation_hash:
         # A CREATE (traditional, or transaction-based) contract creation
         assert isinstance( nonce, int ), \
             f"The nonce for CREATE must be an integer, not {nonce!r}"
         b_result		= Web3.keccak( rlp_encode([ b_address, nonce ]) )
     else:
         # A CREATE2 (deterministic) contract creation
-        assert salt is not None and creation is not None and nonce is None, \
-            "Need salt and creation bytecode for CREATE2"
+        assert salt is not None and ( creation is not None or creation_hash is not None ) and nonce is None, \
+            "Need salt and creation bytecode/hash for CREATE2"
         b_pre			= into_bytes( '0xff' )
-        b_salt			= into_bytes( salt )
+        if isinstance( salt, int ):
+            b_salt		= eth_abi.encode( [ 'uint256' ], [ salt ] )
+        else:
+            b_salt		= into_bytes( salt )
         assert len( b_salt ) == 32, \
             f"Expected 32-byte salt, got {len(b_salt)} bytes"
-        b_creation		= into_bytes( creation )
-        b_result		= Web3.keccak( b_pre + b_address + b_salt + Web3.keccak( b_creation ))
+        if creation_hash:
+            b_creation_hash	= into_bytes( creation_hash )
+        else:
+            b_creation_hash	= Web3.keccak( into_bytes( creation ))
+        b_result		= Web3.keccak( b_pre + b_address + b_salt + b_creation_hash )
 
     result_address		= Web3.to_checksum_address( b_result[12:].hex() )
 
@@ -442,10 +450,10 @@ class Contract:
         self.w3.eth.default_account = str( self.agent )
         if agent_prvkey:
             account_signing	= eth_account.Account.from_key( '0x' + agent_prvkey )
-        self.w3.middleware_onion.add(
-            construct_sign_and_send_raw_middleware( account_signing ))
-        assert account_signing.address == agent, \
-            f"The agent Ethereum Account private key 0x{agent_prvkey} isn't related to agent account address {agent}"
+            assert account_signing.address == agent, \
+                f"The agent Ethereum Account private key 0x{agent_prvkey} isn't related to agent account address {agent}"
+            self.w3.middleware_onion.add(
+                construct_sign_and_send_raw_middleware( account_signing ))
 
         self.address		= address		# An existing deployed contract
 
@@ -486,7 +494,11 @@ class Contract:
         """
         try:
             func		= getattr( self.contract.functions, name )
-            tx			= kwds | self.gas_price( gas=gas or 0 )
+            # If a gas limit is supplied, also provide gas pricing.  Otherwise, assume this
+            # is a zero-cost call, and provide no gas limit or pricing information.
+            tx			= {}
+            if kwds or gas:
+                tx		= kwds | self.gas_price( gas=gas )
             log.info(  f"Calling {self.name}.{name}( {commas( args )} ) w/ tx: {tx!r}" )
             result		= func( *args ).call( tx )
             success		= True

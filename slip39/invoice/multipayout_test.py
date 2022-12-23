@@ -4,11 +4,13 @@ import os
 import random
 import pytest
 
+from hashlib		import sha256
 from pathlib		import Path
 from fractions		import Fraction
-from string		import Template
 
 import solcx
+
+from crypto_licensing	import licensing, ed25519
 
 from web3		import Web3, logs as web3_logs
 from web3.contract	import normalize_address_no_ens
@@ -22,7 +24,7 @@ from ..api		import (
 
 from .			import contract_address
 from .ethereum		import Etherscan
-
+from .multipayout	import MultiPayoutERC20
 
 #
 # Optimize, and search for imports relative to this directory.
@@ -36,308 +38,20 @@ solcx_options			= dict(
 )
 
 
-# Compiled with Solidity v0.3.5-2016-07-21-6610add with optimization enabled.
-
-# The old MultiSend contract used by https://github.com/Arachnid/extrabalance was displayed with
-# incorrectly compiled abi (probably from a prior version).  I recompiled this source online at
-# https://ethfiddle.com/ using solidity v0.3.5, and got roughly the same results when decompiled at
-# https://ethervm.io/decompile.  However, py-solc-x doesn't have access to pre-0.4.11, we've had to
-# update the contract.
-multisend_0_4_11_src		= """
-contract MultiSend {
-    function MultiSend(address[] recipients, uint[] amounts, address remainder) {
-        if(recipients.length != amounts.length)
-            throw;
-
-        for(uint i = 0; i < recipients.length; i++) {
-            recipients[i].send(amounts[i]);
-        }
-
-        selfdestruct(remainder);
-    }
-}
-
-"""
-# Upgraded to support available solidity compilers
-multisend_0_5_16_src		= """
-pragma solidity ^0.5.15;
-
-contract MultiSend {
-    constructor(address payable[] memory recipients, uint256[] memory amounts, address payable remainder) public payable {
-        // require(recipients.length == amounts.length);
-
-        for(uint256 i = 0; i < recipients.length; i++) {
-            recipients[i].send(amounts[i]);
-        }
-
-        selfdestruct(remainder);
-    }
-}
-"""
-
-multisend_original_abi			= [
-    {
-        "inputs":[
-            {"name":"recipients","type":"address[]"},
-            {"name":"amounts","type":"uint256[]"},
-            {"name":"remainder","type":"address"}
-        ],
-        "type":"constructor"
-    },
-    {
-        "anonymous":False,
-        "inputs":[
-            {"indexed":True,"name":"recipient","type":"address"},
-            {"indexed":False,"name":"amount","type":"uint256"}
-        ],
-        "name":"SendFailure","type":"event"
-    }
-]
-
-multisend_0_4_11_abi		= [
-    {
-        "inputs": [
-            {
-                "name": "recipients",
-                "type": "address[]"
-            },
-            {
-                "name": "amounts",
-                "type": "uint256[]"
-            },
-            {
-                "name": "remainder",
-                "type": "address"
-            }
-        ],
-        "payable": False,
-        "type": "constructor"
-    }
-]
-multisend_0_4_11_contract	= bytes.fromhex(
-    "60606040526040516099380380609983398101604052805160805160a05191830192019081518351600091146032576002565b5b8351811015608d5783818151"
-    "81101560025790602001906020020151600160a060020a0316600084838151811015600257906020019060200201516040518090506000604051808303818588"
-    "88f150505050506001016033565b81600160a060020a0316ff"
-)
-
-multisend_0_5_16_abi		= [
-    {
-        "inputs": [
-            {
-                "internalType": "address payable[]",
-                "name": "recipients",
-                "type": "address[]"
-            },
-            {
-                "internalType": "uint256[]",
-                "name": "amounts",
-                "type": "uint256[]"
-            },
-            {
-                "internalType": "address payable",
-                "name": "remainder",
-                "type": "address"
-            }
-        ],
-        "payable": True,
-        "stateMutability": "payable",
-        "type": "constructor"
-    }
-]
-multisend_0_5_16_contract	= bytes.fromhex(
-    "6080604052600080fdfea265627a7a72315820823834af322d8b2e7a0136f1462a1b2373f371f18ac1b787370136aa1f6f5f6d64736f6c63430005100032"
-)
-
-trustee_address = '0xda4a4626d3e16e094de3225a751aab7128e96526'
-
-
-# https://github.com/canepat/ethereum-multi-send
-# Used solidity 0.5.16 (see buidler.config.js; now hardhat.org)
-multitransferether_src		= """
-pragma solidity ^0.7.6;
-
-contract MultiTransferEther {
-    constructor(address payable account, address payable[] memory recipients, uint256[] memory amounts) public payable {
-        require(account != address(0), "MultiTransfer: account is the zero address");
-        require(recipients.length > 0, "MultiTransfer: recipients length is zero");
-        require(recipients.length == amounts.length, "MultiTransfer: size of recipients and amounts is not the same");
-
-        for (uint256 i = 0; i < recipients.length; i++) {
-            recipients[i].transfer(amounts[i]);
-        }
-        selfdestruct(account);
-    }
-}
-"""
-multitransferether_abi		= [
-    {
-        "inputs": [
-            {
-                "internalType": "address payable",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "internalType": "address payable[]",
-                "name": "recipients",
-                "type": "address[]"
-            },
-            {
-                "internalType": "uint256[]",
-                "name": "amounts",
-                "type": "uint256[]"
-            }
-        ],
-        # "payable": True,  # Why not payable?
-        "stateMutability": "payable",
-        "type": "constructor"
-    }
-]
-multitransferether_contract	= bytes.fromhex(
-    "6080604052600080fdfea2646970667358221220dfd6b117ffff81db399d86346fda6ff874f0f6a4d30a48da6bf4a2ef8be1316464736f6c63430007060033"  # TODO: This doesn't look right...
-)
-
-
-def test_solc_smoke():
+def test_solcx_smoke():
     solcx.install_solc( version="0.7.0" )
     contract_0_7_0 = solcx.compile_source(
         "contract Foo { function bar() public { return; } }",
         output_values=["abi", "bin-runtime"],
-        solc_version="0.7.0"
+        solc_version="0.7.0",
+        **solcx_options
     )
     assert contract_0_7_0 == {
         '<stdin>:Foo': {
             'abi': [{'inputs': [], 'name': 'bar', 'outputs': [], 'stateMutability': 'nonpayable', 'type': 'function'}],
-            'bin-runtime': '6080604052348015600f57600080fd5b506004361060285760003560e01c8063febb0f7e14602d575b600080fd5b60336035565b005b56fea2646970667358221220b5ea15465e27392fad41ce2ca5472bc4c1c4bacbbabe9a89eb05f1c76cd3103264736f6c63430007000033'  # noqa: E501
+            'bin-runtime': '6080604052348015600f57600080fd5b506004361060285760003560e01c8063febb0f7e14602d575b600080fd5b60336035565b005b56fea26469706673582212201e14b70708f9dab59194917fad07f469a23ebc424ad2213961b86d418988729764736f6c63430007000033'  # noqa: E501
         },
     }
-
-    solcx.install_solc( version="0.5.16" )
-    contract_0_5_15 = solcx.compile_source(
-        "contract Foo { function bar() public { return; } }",
-        output_values=["abi", "bin-runtime"],
-        solc_version="0.5.16",
-        **solcx_options
-    )
-    assert contract_0_5_15 == {
-        '<stdin>:Foo': {
-            'abi': [
-                {'constant': False,
-                 'inputs': [],
-                 'name': 'bar',
-                 'outputs': [],
-                 'payable': False,
-                 'stateMutability': 'nonpayable',
-                 'type': 'function'
-                 }
-            ],
-            'bin-runtime': '6080604052348015600f57600080fd5b506004361060285760003560e01c8063febb0f7e14602d575b600080fd5b60336035565b005b56fea265627a7a72315820a3e2ebb77b4d57e436df13f2e11eb1eb086dd4c0ac7a3e88fe75fbcf7a81445d64736f6c63430005100032',  # noqa: E501
-        }
-    }
-
-    assert contract_0_7_0['<stdin>:Foo']['bin-runtime'] != contract_0_5_15['<stdin>:Foo']['bin-runtime']
-
-
-def test_solc_multisend():
-    solcx.install_solc( version="0.5.16" )
-    contract_multisend_simple = solcx.compile_source(
-        multisend_0_5_16_src,
-        output_values=["abi", "bin-runtime"],
-        solc_version="0.5.16",
-        **solcx_options
-    )
-    print( json.dumps( contract_multisend_simple, indent=4 ))
-    assert contract_multisend_simple == {
-        '<stdin>:MultiSend': {
-            'abi': 		multisend_0_5_16_abi,
-            'bin-runtime':	multisend_0_5_16_contract.hex(),
-        }
-    }
-
-
-def test_solc_multitransferether():
-    solcx.install_solc( version="0.7.6" )
-    multitransferether_compile = solcx.compile_source(
-        multitransferether_src,
-        output_values=["abi", "bin-runtime"],
-        solc_version="0.7.6"
-    )
-    print( json.dumps( multitransferether_compile, indent=4 ))
-    assert multitransferether_compile == {
-        '<stdin>:MultiTransferEther': {
-            'abi': 		multitransferether_abi,
-            'bin-runtime':	multitransferether_contract.hex(),
-        }
-    }
-
-
-multipayout_template		= Template( r"""
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
-
-import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
-
-contract MultiPayout is ReentrancyGuard {
-    // Payout predefined percentages of whatever ETH is in the account to a predefined set of payees.
-
-    // Notification of Payout success/failure; significant cost in contract size; 2452 vs. ~1600 bytes
-    event Payout( uint256 value, address to, bool sent );
-
-    /*
-     * Nothing to do in a constructor, as there is no static data
-     */
-    constructor() payable {
-    }
-
-    /*
-     * Processing incoming payments:
-     *
-     *     Which function is called, fallback() or receive()?
-     *
-     *             send Ether
-     *                 |
-     *          msg.data is empty?
-     *                / \
-     *             yes   no
-     *             /       \
-     * receive() exists?  fallback()
-     *          /   \
-     *       yes     no
-     *       /         \
-     *    receive()   fallback()
-     *
-     * NOTE: we *can* receive ETH without processing it here, via selfdestruct(); any
-     * later call (even with a 0 value) will trigger payout.
-     *
-     * We want incoming ETH payments to be low cost (so trigger no functionality in the receive)
-     * Any other function (carrying a value of ETH or not) will trigger the fallback, which will
-     * payout the ETH in the contract.
-     *
-     * Anyone may invoke fallback payout function (indirectly, by sending ETH to the contract), which
-     * transfers the balance as designated by the fixed percentage factors.  The transaction's
-     * Gas/fees are paid by the caller, including the case of the initial contract creation -- no
-     * Gas/fees ever come from the ETH balance of the contract.  Only if NO ETH can successfully be
-     * sent to *any* address will the payout fail and revert.  Any payee who wishes to be paid should
-     * ensure that their address will accept an incoming transfer of ETH.
-     */
-    receive() external payable {
-    }
-
-${PAYOUT}
-
-    fallback() external payable {
-        if ( address( this ).balance > 0 ) {
-            payout_internal();
-        }
-    }
-
-    function payout() external payable {
-        if ( address( this ).balance > 0 ) {
-            payout_internal();
-        }
-    }
-}
-""" )
 
 
 #
@@ -491,6 +205,7 @@ def payout_reserve( addr_frac, bits=16 ):
 
 
 def multipayout_ERC20_recipients( addr_frac, bits=16 ):
+    """We used to generate contract code directly; still use for testing underlying functionality."""
     payout			= ""
     for addr,frac,rem,pct in payout_reserve( addr_frac, bits=bits ):
         payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint{bits}( {int( rem ):>{len(str(2**bits))}} ));  // {pct}\n"
@@ -721,7 +436,7 @@ ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order
 #     https://goerli.etherscan.io/address/0xcB5dc1F473A32f18dD4B834d8979fe914e249890
 #
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
-def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_prvkey, destination ):
+def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_prvkey, destination ):
     """Use web3 tester
 
     """
@@ -840,12 +555,12 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     mp_ERC20_bytecode		= compiled_sol[mp_ERC20_key]['bin']
     mp_ERC20_abi		= compiled_sol[mp_ERC20_key]['abi']
 
-    MultiPayoutERC20		= w3.eth.contract( abi=mp_ERC20_abi, bytecode=mp_ERC20_bytecode )
+    MultiPayoutERC20_contract	= w3.eth.contract( abi=mp_ERC20_abi, bytecode=mp_ERC20_bytecode )
 
-    gas				= 2000000
+    gas				= 3000000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_cons_hash		= MultiPayoutERC20.constructor( payees, tokens ).transact({
+    mc_cons_hash		= MultiPayoutERC20_contract.constructor( payees, tokens ).transact({
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
@@ -871,7 +586,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     for a in ( src, ) + tuple( destination ) + ( mc_cons_addr, ):
         print( f"- {a} == {w3.eth.get_balance( a )} {'src' if a == src else ('payout' if a == mc_cons_addr else '')}" )
 
-    multipayout_ERC20		= w3.eth.contract(
+    MultiPayoutERC20_instance		= w3.eth.contract(
         address	= mc_cons_addr,
         abi	= mp_ERC20_abi,
     )
@@ -918,7 +633,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 250000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_aclc_hash		= MultiPayoutERC20.functions.forwarder_address( 0 ).transact({
+    mc_fwd0_aclc_hash		= MultiPayoutERC20_instance.functions.forwarder_allocate( 0 ).transact({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
@@ -926,7 +641,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
         'value':	0,
     } | gas_price )
     mc_fwd0_aclc_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash )
-    print( "{:10}: Web3 Tester Forward#0 forwarder_address w/o <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Forward#0 forwarder_allocate w/o <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_aclc_receipt.gasUsed,
         mc_fwd0_aclc_receipt.gasUsed * ETH.GAS_GWEI,
@@ -937,8 +652,8 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 250000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    # The result is the (address, bytes32) associated with this salt
-    mc_fwd0_aclc_result,mc_fwd0_aclc_data = multipayout_ERC20.functions.forwarder_address( 0 ).call({
+    # The result is the address associated with this salt
+    mc_fwd0_aclc_result,mc_fwd0_aclc_data = MultiPayoutERC20_instance.functions.forwarder_allocate( 0 ).call({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
@@ -950,7 +665,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 250000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_aclc_hash_w		= MultiPayoutERC20.functions.forwarder_address( 0, bytes.fromhex( '00'*31+'01' )).transact({
+    mc_fwd0_aclc_hash_w		= MultiPayoutERC20_instance.functions.forwarder_allocate( 0, bytes.fromhex( '00'*31+'01' )).transact({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
@@ -992,7 +707,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 500000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_addr,mc_fwd0_data	= multipayout_ERC20.functions.forwarder( 0 ).call({
+    mc_fwd0_addr,mc_fwd0_data	= MultiPayoutERC20_instance.functions.forwarder( 0 ).call({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
@@ -1153,7 +868,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 500000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_fwd0_agin_hash		= multipayout_ERC20.functions.forwarder( 0 ).transact({
+    mc_fwd0_agin_hash		= MultiPayoutERC20_instance.functions.forwarder( 0 ).transact({
         'to':		mc_cons_addr,
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
@@ -1190,7 +905,7 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     gas				= 500000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_payo_hash		= multipayout_ERC20.functions.payout().transact({
+    mc_payo_hash		= MultiPayoutERC20_instance.functions.payout().transact({
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
@@ -1208,14 +923,14 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutETH events: {}".format(
         testnet,
         json.dumps(
-            multipayout_ERC20.events['PayoutETH']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
+            MultiPayoutERC20_instance.events['PayoutETH']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))
     print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutERC20 events: {}".format(
         testnet,
         json.dumps(
-            multipayout_ERC20.events['PayoutERC20']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
+            MultiPayoutERC20_instance.events['PayoutERC20']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))
@@ -1240,3 +955,59 @@ def test_solc_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, s
     # Finally, the Forwarder and Contract addresses should be empty!
     assert w3.eth.get_balance( mc_fwd0_addr ) == 0
     assert w3.eth.get_balance( mc_cons_addr ) == 0
+
+
+@pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
+def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destination ):
+    """Create (or reuse) a network of MultiPayoutERC20 contracts to process a payment through to
+    multiple recipients.
+
+    We'll create a new client-unique <salt> and <data>, pre-compute a unique client payment address,
+    issue an invoice, pay it and confirm that "Licensing" is satisfied by checking the associated
+    <data> matches
+
+    """
+    if testnet != "Goerli":
+        return
+    # Get local Machine ID data.  Many software installations may be resident on the same machine
+    # (and multiple virtual machines may have the same Machine ID; even though this isn't really
+    # supposed to happen, we assume it does.)
+
+    machine			= licensing.machine_UUIDv4( machine_id_path=__file__.replace( ".py", ".machine-id" ))
+    print( f"{machine} == {machine.bytes.hex()}" )
+
+    # Get unique Agent ID Keypair (plaintext; no username/password required)
+    (keyname,keypair),		= licensing.load_keys(
+        extra=[os.path.dirname( __file__ )], filename=__file__ )
+    print( f"{licensing.into_b64( keypair.vk )}: {keyname}" )
+
+    # OK, we can now sign the 128-bit UUIDv4 bytes w/ the agent keypair.sk (signing key).  The first
+    # 64 bytes of the signed document is the signature.
+    machine_signed		= ed25519.crypto_sign( machine.bytes, keypair.sk )
+    print( f"{licensing.into_b64( keypair.vk )}: machine UUID signed:    {machine_signed.hex()}" )
+
+    # A 512-bit Ed25519 signature encodes 2 points on an elliptical curve, but won't fit into our
+    # 256-bit <data>, so hash it (along with the document).  The result is a "fingerprint" of the
+    # signature + document, allowing a client to *confirm* that they arrived at the same signature
+    # (must have the same signing key, and the same data).  Nobody will be able to use the <data>
+    # directly to *verify* that the signature, however.  Therefore, future "Licensing" verification
+    # confirms 2 facts about the client (assuming the client is running un-corrupted software):
+    #
+    # - It has the same Machine ID
+    # - It has the Ed25519 signing key (not just the public key)
+    salt			= keypair.vk
+    data			= sha256( machine_signed ).digest()
+    assert len( salt ) == len( data ) == 256//8
+    print( f"{licensing.into_b64( keypair.vk )} salt: {salt.hex()}" )
+    print( f"{licensing.into_b64( keypair.vk )} data: {data.hex()}" )
+
+    # Now, we're ready to precompute this client's payment address.  We can ask the Contract for it,
+    # or compute it ourselves (but we have to know the ...Forwarder contract creation bytecode
+    # hash.)  This is a public immutable bytes32 value provided by the contract, which we can obtain
+    # with a free .call.
+    multipayout_address		= "0x8b3D24A120BB486c2B7583601E6c0cf37c9A2C04"
+
+    mp_c			= MultiPayoutERC20( provider, address=multipayout_address, agent=src, agent_prvkey=src_prvkey )
+    assert mp_c.forwarder_address( 0 ) \
+        == contract_address( address=multipayout_address, salt=0, creation_hash=mp_c._forwarder_hash ) \
+        == "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8"
