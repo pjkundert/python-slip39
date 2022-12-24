@@ -116,7 +116,7 @@ class MultiPayoutERC20( Contract ):
         log.info( f"{self.name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
         remaining		= Fraction( 1 )
         for i in count():
-            payee, reserve	= self.payees( i, gas=50000 )
+            payee, reserve	= self.payees( i )
             remaining_after	= remaining * Fraction( reserve, 2 ** 16 )  # TODO: get constant denominator from contract
             self._payees[payee]	= remaining - remaining_after
             if not reserve:
@@ -126,12 +126,12 @@ class MultiPayoutERC20( Contract ):
         payees_json		= json.dumps( self._payees, indent=4, default=lambda frac: f"{float( frac * 100 ):9.5f}% =~= {frac}" )
         log.info( f"{self.name} Payees: {payees_json}" )
 
-        for i in range( self.erc20s_len( gas=50000 )):
-            token		= self.erc20s( i, gas=50000 )
+        for i in range( self.erc20s_len()):
+            token		= self.erc20s( i )
 
             # Look up the contract interface we've imported as IERC20Metadata, and use its ABI for
             # accessing any ERC-20 tokens' symbol and decimals.
-            IERC20Metadata_key	= self.abi_key( "IERC20Metadata", self.source_path() )
+            IERC20Metadata_key	= self.abi_key( "IERC20Metadata" )
             IERC20Metadata	= self.w3.eth.contract(
                 address		= token,
                 abi		= self.compiled[IERC20Metadata_key]['abi'],

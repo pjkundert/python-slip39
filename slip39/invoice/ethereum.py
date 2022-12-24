@@ -25,6 +25,7 @@ import traceback
 from datetime		import datetime
 from enum		import Enum
 from pathlib		import Path
+from hashlib		import sha256
 from typing		import Dict, Optional
 
 import requests
@@ -427,6 +428,8 @@ class Contract:
 
     Specify an ALCHEMY_API_TOKEN and use Alchemy's Goerli or Ethereum (default) APIs.
 
+    Attempts to reload/compile the contract of the specified version, from the .source path.
+
     """
 
     def __init__(
@@ -435,6 +438,7 @@ class Contract:
         agent,						# The Ethereum account of the agent accessing the Contract
         agent_prvkey: Optional[bytes]	= None,		# Can only query public data, view methods without
         source: Optional[Path]		= None,
+        version: Optional[str]		= None,
         name: Optional[str]		= None,
         address: Optional[str]		= None,
         abi: Optional[Dict]		= None,
@@ -457,7 +461,8 @@ class Contract:
 
         self.address		= address		# An existing deployed contract
 
-        self.source		= source		# The Contract source path (compile for abi, or to deploy bytecode)
+        self._source		= source		# The Contract source path (compile for abi, or to deploy bytecode)
+        self.version		= version
         self.name		= name or self.__class__.__name__
         self.abi		= abi
         self.bytescode		= bytecode
@@ -478,6 +483,61 @@ class Contract:
                 "Must provide abi and bytecode, or source"
             self.contract	= self.w3.eth.contract( abi=self.abi, bytecode=self.bytecode )
 
+    @property
+    def source( self ):
+        """Search for the named file, relative to the ., ./contracts/ and finally slip39/invoice/contracts/.
+
+        Also used for caching artifacts related to that source file.
+
+        """
+        path			= Path( self._source or self.name + '.sol' )
+        if not path.is_absolute():
+            for base in '.', 'contracts', solcx_options['base_path'] / 'contracts':
+                check		= Path( base ) / path
+                if check.exists():
+                    path	= check
+                    break
+        if self.version is None:
+            with open( path, 'rb' ) as f:
+                self.version	= sha256( f.read() ).hexdigest()[:6].upper()
+        log.info( f"Found {self.name} v{self.version}: {path}" )
+        return path
+
+    def compile( self ):
+        """Compiled or reload existing compiled contract.
+
+        See if we've got this code compiled already, w/ the source code version, target solc
+        compiler version, and optimization level
+
+            ...sol-abc123-v0.8.17-o100
+
+        """
+        source			= self.source
+        specs			= [
+            '.sol',
+            self.version,
+            f"v{solc_version}",
+        ]
+        if {'optimize', 'optimize_runs'} <= set(solcx_options.keys()) and solcx_options['optimize']:
+            specs.append( f"o{solcx_options['optimize_runs']}" )
+        compiled		= source.with_suffix( '-'.join( specs ))
+        if compiled.exists():
+            self.compiled	= json.loads( compiled.read_text() )
+            log.info( f"{self.name} Reloaded: {compiled}: {json.dumps( self.compiled, indent=4, default=str )}" )
+        else:
+            self.compiled	= solcx.compile_files(
+                source,
+                output_values	= ['abi', 'bin'],
+                solc_version	= solc_version,
+                **solcx_options
+            )
+            compiled.write_text( json.dumps( self.compiled, indent=4 ))
+            log.info( f"{self.name} Compiled: {compiled}: {json.dumps( self.compiled, indent=4, default=str )}" )
+
+        key			= self.abi_key( self.name, compiled )
+        self.bytecode		= self.compiled[key]['bin']
+        self.abi		= self.compiled[key]['abi']
+
     def contract_call( self, name, *args, gas=None, **kwds ):
         """Invoke function name on deployed contract w/ supplied positional args.  For example,
         to call a function we'd normally use:
@@ -494,8 +554,9 @@ class Contract:
         """
         try:
             func		= getattr( self.contract.functions, name )
-            # If a gas limit is supplied, also provide gas pricing.  Otherwise, assume this
-            # is a zero-cost call, and provide no gas limit or pricing information.
+            # If tx details or a gas limit is supplied, also provide gas pricing; this must be
+            # intended to be a transaction to the blockchain.  Otherwise, assume this is a zero-cost
+            # call, and provide no gas limit or pricing information.
             tx			= {}
             if kwds or gas:
                 tx		= kwds | self.gas_price( gas=gas )
@@ -524,40 +585,13 @@ class Contract:
             return self.contract_call( name, *args, **kwds )
         return curry
 
-    def source_path( self ):
-        """Search for the named file, relative to the ., ./contracts/ and finally slip39/invoice/contracts/.
-
-        """
-        path			= Path( self.source or self.name + '.sol' )
-        if not path.is_absolute():
-            for base in '.', 'contracts', solcx_options['base_path'] / 'contracts':
-                check		= Path( base ) / path
-                if check.exists():
-                    path	= check
-                    break
-        return path
-
     def abi_key( self, name, path=None ):
         """Determine the ABI key for in .compiled source from 'path', matching contract 'name'"""
         try:
             key,		= ( k for k in self.compiled.keys() if k.endswith( f":{name}" ))
         except Exception as exc:
-            raise KeyError( f"Failed to find ABI for Contract {name} in Solidity compiled from {path or self.source_path()}" ) from exc
+            raise KeyError( f"Failed to find ABI for Contract {name} in Solidity compiled from {path or self.source}" ) from exc
         return key
-
-    def compile( self ):
-        path			= self.source_path()
-        self.compiled		= solcx.compile_files(
-            path,
-            output_values	= ['abi', 'bin'],
-            solc_version	= solc_version,
-            **solcx_options
-        )
-        log.info( f"{self.name} Compiled: {json.dumps( self.compiled, indent=4, default=str )}" )
-
-        key			= self.abi_key( self.name, path )
-        self.bytecode		= self.compiled[key]['bin']
-        self.abi		= self.compiled[key]['abi']
 
     def update( self ):
         pass
