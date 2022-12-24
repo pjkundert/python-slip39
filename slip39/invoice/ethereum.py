@@ -430,6 +430,7 @@ class Contract:
 
     Attempts to reload/compile the contract of the specified version, from the .source path.
 
+    Does not clutter up the object() API with names, to avoid shadowing any normal Contract API functions starting with letters.
     """
 
     def __init__(
@@ -447,63 +448,63 @@ class Contract:
         speed: Optional[Speed]		= None,		# The Etherscan Gas pricing selection for speed of transactions
         max_usd_per_gas:Optional[float]	= None,		# If not supplied, we'll set a cap of base fee + 2 x priority fee
     ):
-        self.ETH		= Etherscan( chain=chain, speed=speed )
-        self.w3			= Web3( w3_provider )
+        self._ETH		= Etherscan( chain=chain, speed=speed )
+        self._w3			= Web3( w3_provider )
 
-        self.agent		= agent
-        self.w3.eth.default_account = str( self.agent )
+        self._agent		= agent
+        self._w3.eth.default_account = str( self._agent )
         if agent_prvkey:
             account_signing	= eth_account.Account.from_key( '0x' + agent_prvkey )
             assert account_signing.address == agent, \
                 f"The agent Ethereum Account private key 0x{agent_prvkey} isn't related to agent account address {agent}"
-            self.w3.middleware_onion.add(
+            self._w3.middleware_onion.add(
                 construct_sign_and_send_raw_middleware( account_signing ))
 
-        self.address		= address		# An existing deployed contract
+        self._address		= address		# An existing deployed contract
 
-        self._source		= source		# The Contract source path (compile for abi, or to deploy bytecode)
-        self.version		= version
-        self.name		= name or self.__class__.__name__
-        self.abi		= abi
-        self.bytescode		= bytecode
-        self.max_usd_per_gas	= max_usd_per_gas       # 1.50/21000 --> up to $1.50 for a standard ETH transfer
+        self.__source		= source		# The Contract source path (compile for abi, or to deploy bytecode)
+        self._version		= version
+        self._name		= name or self.__class__.__name__
+        self._abi		= abi
+        self._bytescode		= bytecode
+        self._max_usd_per_gas	= max_usd_per_gas       # 1.50/21000 --> up to $1.50 for a standard ETH transfer
 
-        self.contract		= None
-        self.compiled		= None
-        if not self.abi:
-            self.compile()
+        self._contract		= None
+        self._compiled		= None
+        if not self._abi:
+            self._compile()
 
-        if self.address:
+        if self._address:
             # A deployed contract; update any cached data, etc.
-            self.contract	= self.w3.eth.contract( address=self.address, abi=self.abi )
-            self.update()
+            self._contract	= self._w3.eth.contract( address=self._address, abi=self._abi )
+            self._update()
         else:
             # Not yet deployed; lets use the provided or compiled ABI and bytecode
-            assert self.bytecode, \
-                "Must provide abi and bytecode, or source"
-            self.contract	= self.w3.eth.contract( abi=self.abi, bytecode=self.bytecode )
+            assert self._bytecode, \
+                "Must provide abi and bytecode, or Contract source"
+            self._contract	= self._w3.eth.contract( abi=self._abi, bytecode=self._bytecode )
 
     @property
-    def source( self ):
+    def _source( self ):
         """Search for the named file, relative to the ., ./contracts/ and finally slip39/invoice/contracts/.
 
         Also used for caching artifacts related to that source file.
 
         """
-        path			= Path( self._source or self.name + '.sol' )
+        path			= Path( self.__source or self._name + '.sol' )
         if not path.is_absolute():
             for base in '.', 'contracts', solcx_options['base_path'] / 'contracts':
                 check		= Path( base ) / path
                 if check.exists():
                     path	= check
                     break
-        if self.version is None:
+        if self._version is None:
             with open( path, 'rb' ) as f:
-                self.version	= sha256( f.read() ).hexdigest()[:6].upper()
-        log.info( f"Found {self.name} v{self.version}: {path}" )
+                self._version	= sha256( f.read() ).hexdigest()[:6].upper()
+        log.info( f"Found {self._name} v{self._version}: {path}" )
         return path
 
-    def compile( self ):
+    def _compile( self ):
         """Compiled or reload existing compiled contract.
 
         See if we've got this code compiled already, w/ the source code version, target solc
@@ -512,18 +513,18 @@ class Contract:
             ...sol-abc123-v0.8.17-o100
 
         """
-        source			= self.source
+        source			= self._source
         specs			= [
             '.sol',
-            self.version,
+            self._version,
             f"v{solc_version}",
         ]
         if {'optimize', 'optimize_runs'} <= set(solcx_options.keys()) and solcx_options['optimize']:
             specs.append( f"o{solcx_options['optimize_runs']}" )
         compiled		= source.with_suffix( '-'.join( specs ))
         if compiled.exists():
-            self.compiled	= json.loads( compiled.read_text() )
-            log.info( f"{self.name} Reloaded: {compiled}: {json.dumps( self.compiled, indent=4, default=str )}" )
+            self._compiled	= json.loads( compiled.read_text() )
+            log.info( f"{self._name} Reloaded: {compiled}: {json.dumps( self._compiled, indent=4 )}" )
         else:
             self.compiled	= solcx.compile_files(
                 source,
@@ -532,35 +533,35 @@ class Contract:
                 **solcx_options
             )
             compiled.write_text( json.dumps( self.compiled, indent=4 ))
-            log.info( f"{self.name} Compiled: {compiled}: {json.dumps( self.compiled, indent=4, default=str )}" )
+            log.info( f"{self._name} Compiled: {compiled}: {json.dumps( self.compiled, indent=4 )}" )
 
-        key			= self.abi_key( self.name, compiled )
-        self.bytecode		= self.compiled[key]['bin']
-        self.abi		= self.compiled[key]['abi']
+        key			= self._abi_key( self._name, compiled )
+        self._bytecode		= self._compiled[key]['bin']
+        self._abi		= self._compiled[key]['abi']
 
-    def contract_call( self, name, *args, gas=None, **kwds ):
+    def _call( self, name, *args, gas=None, **kwds ):
         """Invoke function name on deployed contract w/ supplied positional args.  For example,
         to call a function we'd normally use:
 
-            self.contract.functions.erc20s_len( ).call({ 'from': self.agent })
-                                               ^-- *args
+            self._contract.functions.erc20s_len( ).call({ 'to': "0x", ... })
+                                        *args --^       ^-- **kwds
 
-        Since we've already defaulted the self.agent, all we need is the gas price.  But, pass
+        Since we've already defaulted the self._agent, all we need is the gas price.  But, pass
         any kwds as transaction options.
 
         The default is to pass 0 gas; must be a free transaction, such as a public value or
-        view-only method.  This default will cause any Gas-consuming function call to fail.
+        'view' method.  This default will cause any Gas-consuming function call to fail.
 
         """
         try:
-            func		= getattr( self.contract.functions, name )
+            func		= getattr( self._contract.functions, name )
             # If tx details or a gas limit is supplied, also provide gas pricing; this must be
             # intended to be a transaction to the blockchain.  Otherwise, assume this is a zero-cost
             # call, and provide no gas limit or pricing information.
             tx			= {}
             if kwds or gas:
-                tx		= kwds | self.gas_price( gas=gas )
-            log.info(  f"Calling {self.name}.{name}( {commas( args )} ) w/ tx: {tx!r}" )
+                tx		= kwds | self._gas_price( gas=gas )
+            log.info(  f"Calling {self._name}.{name}( {commas( args )} ) w/ tx: {tx!r}" )
             result		= func( *args ).call( tx )
             success		= True
         except Exception as exc:
@@ -568,12 +569,14 @@ class Contract:
             success		= False
             raise
         finally:
-            log.warning( f"Called  {self.name}.{name}( {commas( args )} ) -{'-' if success else 'x'}> {result}" )
+            log.warning( f"Called  {self._name}.{name}( {commas( args )} ) -{'-' if success else 'x'}> {result}" )
         return result
 
     def __getattr__( self, name ):
         """Assume any unknown attribute (not found in any normal way) .name is assumed to be a call to
-        a Contract's API function.
+        a Contract's API function.  Calls to Contract functions that collide w/ methods must be made via
+
+            .call( name, *args, **kwds )
 
         All positional args are passed to the Contract API function.
 
@@ -582,21 +585,21 @@ class Contract:
 
         """
         def curry( *args, **kwds ):
-            return self.contract_call( name, *args, **kwds )
+            return self._call( name, *args, **kwds )
         return curry
 
-    def abi_key( self, name, path=None ):
+    def _abi_key( self, name, path=None ):
         """Determine the ABI key for in .compiled source from 'path', matching contract 'name'"""
         try:
-            key,		= ( k for k in self.compiled.keys() if k.endswith( f":{name}" ))
+            key,		= ( k for k in self._compiled.keys() if k.endswith( f":{name}" ))
         except Exception as exc:
-            raise KeyError( f"Failed to find ABI for Contract {name} in Solidity compiled from {path or self.source}" ) from exc
+            raise KeyError( f"Failed to find ABI for Contract {name} in Solidity compiled from {path or self._source}" ) from exc
         return key
 
-    def update( self ):
+    def _update( self ):
         pass
 
-    def gas_price( self, gas, fail_fast=None, max_factor=None ):
+    def _gas_price( self, gas, fail_fast=None, max_factor=None ):
         """Establish maxPriorityFeePerGas Gas fees for a transaction, optionally w/ a computed
         maxFeePerGas for the given estimated (max) amount of Gas required by the transaction.
 
@@ -604,7 +607,7 @@ class Contract:
         Fee required and the estimated Base Fee per Gas that the next block is likely to consume.
         From this, we can estimate what the likely total Fee per Gas is likely to be, in Wei.
 
-        Then, uses estimated Ethereum (ETH) price and self.max_usd_per_gas to compute our
+        Then, uses estimated Ethereum (ETH) price and self._max_usd_per_gas to compute our
         maxFeePerGas.  If the estimated total Fee per Gas exceeds this limit, the transaction is
         likely to fail, and we'll issue a warning (or raise an Exception, if fail_fast is truthy).
 
@@ -618,9 +621,9 @@ class Contract:
 
         # Find out what the network thinks the required Gas fees need to be.  This could be a
         # Testnet like Goerli, with abnormally low Gas prices.
-        latest			= self.w3.eth.get_block( 'latest' )
+        latest			= self._w3.eth.get_block( 'latest' )
         base_fee		= latest['baseFeePerGas']
-        max_priority_fee	= self.w3.eth.max_priority_fee
+        max_priority_fee	= self._w3.eth.max_priority_fee
         est_gas_wei		= base_fee + max_priority_fee
         max_gas_wei		= base_fee + max_priority_fee * ( max_factor or 2 )
         gas_info_network	= dict(
@@ -631,18 +634,18 @@ class Contract:
 
         # Now, find out what Etherscan's Gas Oracle thinks (from the real Ethereum mainnet,
         # usually).  We'll always use these, if they're not estimated, because we want to simulate
-        # real Gas costs even during testing.  However, if we don't have real, self.ETH.UPDATED
+        # real Gas costs even during testing.  However, if we don't have real, self._ETH.UPDATED
         # readings, we'll fall back to the chain's recommendations.
-        spend			= gas * self.max_usd_per_gas if gas and self.max_usd_per_gas else None
+        spend			= gas * self._max_usd_per_gas if gas and self._max_usd_per_gas else None
         try:
-            gas_info_oracle	= self.ETH.maxPriorityFeePerGas( gas=gas, spend=spend, max_factor=max_factor )
+            gas_info_oracle	= self._ETH.maxPriorityFeePerGas( gas=gas, spend=spend, max_factor=max_factor )
         except Exception as exc:
             log.warning( f"Gas Oracle API failed: {exc}; Using network estimate instead {traceback.format_exc() if log.isEnabledFor( logging.DEBUG ) else ''}"  )
         else:
-            if self.ETH.UPDATED:
+            if self._ETH.UPDATED:
                 if max_fee_wei := gas_info_oracle.get( 'maxFeePerGas' ):
                     if max_fee_wei < est_gas_wei:
-                        what		= f"Max Fee: {max_fee_wei / self.ETH.GWEI_WEI:,.4f} Gwei/Gas is below likely Fee: {est_gas_wei / self.ETH.GWEI_WEI:,.4f} Gwei/Gas"
+                        what		= f"Max Fee: {max_fee_wei / self._ETH.GWEI_WEI:,.4f} Gwei/Gas is below likely Fee: {est_gas_wei / self._ETH.GWEI_WEI:,.4f} Gwei/Gas"
                         if fail_fast:
                             raise RuntimeError( what + f"; Failing transaction on {self.__class__.__name__}" )
                         else:
@@ -653,7 +656,7 @@ class Contract:
 
         def gas_price_in_gwei( prices ):
             return {
-                k: f"{v / self.ETH.GWEI_WEI:,.4f} Gwei" if 'Gas' in k else v
+                k: f"{v / self._ETH.GWEI_WEI:,.4f} Gwei" if 'Gas' in k else v
                 for k, v in prices.items()
             }
 
@@ -667,26 +670,28 @@ class Contract:
             gas_info.update( gas=gas )
         return gas_info
 
-    def instantiate( self, *args, gas=None, **kwds ):
+    def _deploy( self, *args, gas=None, **kwds ):
         """Create an instance of Contract, passing args to the constructor, and kwds to the transaction.
 
         """
-        assert not self.address, \
-            f"You already have an instance of Contract {self.name}: {self.address}"
+        assert not self._address, \
+            f"You already have an instance of Contract {self._name}: {self._address}"
+        assert gas, \
+            f"You must specify an estimated gas amount to deploy a Contract, found: {gas}"
 
-        cons_hash		= self.contract.constructor( *args ).transact( kwds | self.gas_price( gas=gas ))
-        log.info( f"Web3 Construct {self.name} hash: {cons_hash.hex()}" )
-        cons_tx			= self.w3.eth.get_transaction( cons_hash )
-        log.info( f"Web3 Construct {self.name} tx: {json.dumps( cons_tx, indent=4, default=str )}" )
-        cons_receipt		= self.w3.eth.wait_for_transaction_receipt( cons_hash )
-        log.info( f"Web3 Construct {self.name} receipt: {json.dumps( cons_receipt, indent=4, default=str )}" )
-        self.address		= cons_receipt.contractAddress
+        cons_hash		= self._contract.constructor( *args ).transact( kwds | self._gas_price( gas=gas ))
+        log.info( f"Web3 Construct {self._name} hash: {cons_hash.hex()}" )
+        cons_tx			= self._w3.eth.get_transaction( cons_hash )
+        log.info( f"Web3 Construct {self._name} tx: {json.dumps( cons_tx, indent=4, default=str )}" )
+        cons_receipt		= self._w3.eth.wait_for_transaction_receipt( cons_hash )
+        log.info( f"Web3 Construct {self._name} receipt: {json.dumps( cons_receipt, indent=4, default=str )}" )
+        self._address		= cons_receipt.contractAddress
 
-        log.warning( f"Web3 Construct {self.name} Contract: {len(self.bytecode)} bytes, at Address: {self.address}" )
-        log.info( "Web3 Tester Construct {} Gas Used: {} == {}gwei == USD${:9,.2f} ({}): ${:.6f}/byte".format(
-            self.name,
+        log.warning( f"Web3 Construct {self._name} Contract: {len(self._bytecode)} bytes, at Address: {self._address}" )
+        log.info( "Web3 Construct {} Gas Used: {} == {}gwei == USD${:9,.2f} ({}): ${:.6f}/byte".format(
+            self._name,
             cons_receipt.gasUsed,
-            cons_receipt.gasUsed * self.ETH.GAS_GWEI,
-            cons_receipt.gasUsed * self.ETH.GAS_GWEI * self.ETH.ETH_USD / self.ETH.ETH_GWEI, self.ETH.STATUS or 'estimated',
-            cons_receipt.gasUsed * self.ETH.GAS_GWEI * self.ETH.ETH_USD / self.ETH.ETH_GWEI / len( self.bytecode ),
+            cons_receipt.gasUsed * self._ETH.GAS_GWEI,
+            cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI, self._ETH.STATUS or 'estimated',
+            cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI / len( self._bytecode ),
         ))

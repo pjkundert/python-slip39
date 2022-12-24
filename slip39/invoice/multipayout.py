@@ -102,7 +102,7 @@ class MultiPayoutERC20( Contract ):
         self._forwarder_hash	= None			# Keccack has of the Forwarder constructor bytecode for CREATE2
         super().__init__( *args, **kwds )
 
-    def update( self ):
+    def _update( self ):
         """Query the deployed MultiPayoutERC20 Contract to get payees and the (currently) specified
         ERC-20 tokens (<symbol>, <decimals>).
 
@@ -113,7 +113,7 @@ class MultiPayoutERC20( Contract ):
 
         """
         self._forwarder_hash	= self.forwarder_hash()
-        log.info( f"{self.name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
+        log.info( f"{self._name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
         remaining		= Fraction( 1 )
         for i in count():
             payee, reserve	= self.payees( i )
@@ -124,20 +124,20 @@ class MultiPayoutERC20( Contract ):
             remaining		= remaining_after
 
         payees_json		= json.dumps( self._payees, indent=4, default=lambda frac: f"{float( frac * 100 ):9.5f}% =~= {frac}" )
-        log.info( f"{self.name} Payees: {payees_json}" )
+        log.info( f"{self._name} Payees: {payees_json}" )
 
         for i in range( self.erc20s_len()):
             token		= self.erc20s( i )
 
             # Look up the contract interface we've imported as IERC20Metadata, and use its ABI for
             # accessing any ERC-20 tokens' symbol and decimals.
-            IERC20Metadata_key	= self.abi_key( "IERC20Metadata" )
-            IERC20Metadata	= self.w3.eth.contract(
+            IERC20Metadata_key	= self._abi_key( "IERC20Metadata" )
+            IERC20Metadata	= self._w3.eth.contract(
                 address		= token,
-                abi		= self.compiled[IERC20Metadata_key]['abi'],
+                abi		= self._compiled[IERC20Metadata_key]['abi'],
             )
             # These should be free calls (public data or view-only functions
             self._erc20s[token]	= IERC20Metadata.functions.symbol().call(),IERC20Metadata.functions.decimals().call()
 
         erc20s_json		= json.dumps( self._erc20s, indent=4 )
-        log.info( f"{self.name} ERC-20s: {erc20s_json}" )
+        log.info( f"{self._name} ERC-20s: {erc20s_json}" )

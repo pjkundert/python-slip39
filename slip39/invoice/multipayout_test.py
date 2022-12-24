@@ -1011,3 +1011,7 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     assert mp_c.forwarder_address( 0 ) \
         == contract_address( address=multipayout_address, salt=0, creation_hash=mp_c._forwarder_hash ) \
         == "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8"
+
+    # Make certain we haven't cluttered up the namespace (covered up any contract method names)
+    attrs_bare			= [n for n in dir( mp_c ) if not n.startswith( '_' )]
+    assert not attrs_bare
