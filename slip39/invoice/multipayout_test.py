@@ -1007,7 +1007,12 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     # with a free .call.
     multipayout_address		= "0x8b3D24A120BB486c2B7583601E6c0cf37c9A2C04"
 
-    mp_c			= MultiPayoutERC20( provider, address=multipayout_address, agent=src, agent_prvkey=src_prvkey )
+    mp_c			= MultiPayoutERC20(
+        provider,
+        address		= multipayout_address,
+        agent		= src,
+        agent_prvkey	= src_prvkey
+    )
     assert mp_c.forwarder_address( 0 ) \
         == contract_address( address=multipayout_address, salt=0, creation_hash=mp_c._forwarder_hash ) \
         == "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8"

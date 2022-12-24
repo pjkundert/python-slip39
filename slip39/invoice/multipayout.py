@@ -36,7 +36,7 @@ __license__                     = "Dual License: GPLv3 (or later) and Commercial
 
 log				= logging.getLogger( 'multipayout' )
 
-goerli_accout			= None
+goerli_account			= None
 goerli_xprvkey			= os.getenv( 'GOERLI_XPRVKEY' )
 if not goerli_xprvkey:
     goerli_seed			= os.getenv( 'GOERLI_SEED' )
@@ -46,8 +46,8 @@ if not goerli_xprvkey:
             goerli_xprvkey	= account( goerli_seed, crypto="ETH", path="m/44'/1'/0'" ).xprvkey
         except Exception:
             pass
-    # Using the "xprv..." key, and derive the 1st sub-account, on the combined path m/44'/1'/0'/0/0
-    goerli_account		= account( goerli_xprvkey, crypto='ETH', path="m/0/0" )
+        # Using the "xprv..." key, and derive the 1st sub-account, on the combined path m/44'/1'/0'/0/0
+        goerli_account		= account( goerli_xprvkey, crypto='ETH', path="m/0/0" )
 
 
 alchemy_urls			= dict(
@@ -63,6 +63,9 @@ def alchemy_url( chain, protocol='wss' ):
 class MultiPayoutERC20( Contract ):
     """Provide access to our MultiPayoutERC20 Contract.
 
+        >>> assert os.getenv( 'ETHERSCAN_API_TOKEN' )
+        >>> assert os.getenv( 'ALCHEMY_API_TOKEN' )
+        >>> assert goerli_account
         >>> mp = MultiPayoutERC20( Web3.WebsocketProvider( alchemy_url( Chain.Goerli )),
         ...    agent		= goerli_account.address,
         ...    agent_prvkey	= goerli_account.prvkey,
@@ -70,9 +73,9 @@ class MultiPayoutERC20( Contract ):
         ... )
         >>> print( json.dumps( mp._payees, indent=4, default=lambda f: f"{float( f * 100 ):9.5f}%" ))
         {
-            "0xEeC2b464c2f50706E3364f5893c659edC9E4153A": " 14.79645%",
-            "0x7Fc431B8FC8250A992567E3D7Da20EE68C155109": " 32.39857%",
-            "0xE5714055437154E812d451aF86239087E0829fA8": " 52.80498%"
+            "0x7Fc431B8FC8250A992567E3D7Da20EE68C155109": "  6.59637%",
+            "0xEeC2b464c2f50706E3364f5893c659edC9E4153A": " 35.09335%",
+            "0xE5714055437154E812d451aF86239087E0829fA8": " 58.31028%"
         }
         >>> print( json.dumps( mp._erc20s, indent=4 ))
         {
