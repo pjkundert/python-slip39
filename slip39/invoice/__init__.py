@@ -22,7 +22,10 @@ from .ethereum	import (		# noqa F401
     etherscan_urls,
     etherscan, gasoracle, ethprice,
     Chain, Speed, Etherscan,
-    Contract
+    Contract,
+)
+from .multipayout import (		# noqa F401
+    MultiPayoutERC20,
 )
 
 __author__                      = "Perry Kundert"

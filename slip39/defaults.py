@@ -160,6 +160,6 @@ COLOR				= [
     f"0x{__d}{__d}{__d}",  # Dark grey,
 ]
 
-HOUR				= 60 * 60
-ETHERSCAN_MEMO_MAXAGE		= HOUR * 1
+# We'll default to 1-minute intervals for querying Etherscan for Gas Pricing info
+ETHERSCAN_MEMO_MAXAGE		= 60
 ETHERSCAN_MEMO_MAXSIZE		= None

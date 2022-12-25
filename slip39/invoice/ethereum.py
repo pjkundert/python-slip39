@@ -106,12 +106,33 @@ etherscan_urls			= dict(
 
 @memoize( maxage=ETHERSCAN_MEMO_MAXAGE, maxsize=ETHERSCAN_MEMO_MAXSIZE, log_at=logging.INFO )
 def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=True ):
-    """Queries etherscan.io, IFF you have an apikey.  Must specify name of Ethereum blockchain to use.
-    The params must be a hashable sequence (tuple of tuples) usable to construct a dict, since
+    """Queries etherscan.io, optionaly w/ your apikey.  Must specify name of Ethereum blockchain to
+    use.  The params must be a hashable sequence (tuple of tuples) usable to construct a dict, since
     memoize only caches based on args, and all args must be hashable.
 
     Raises exception on timeout, absence of successful response, absence of 'result' in response.
     Does no other checking on the content of the response' 'result'.
+
+    Without an API key, request rates are severely restricted to ~1/5s, eg.:
+        {
+            "status": "1",
+            "message": "OK-Missing/Invalid API Key, rate limit of 1/5sec applied",
+            "result": {
+                "ethbtc": "0.07217",
+                "ethbtc_timestamp": "1671982262",
+                "ethusd": "1214.6",
+                "ethusd_timestamp": "1671982258"
+            }
+        }
+
+    or:
+
+        {
+            "status": "0",
+            "message": "NOTOK",
+            "result": "Max rate limit reached, please use API Key for higher rate limit"
+        }
+
 
     """
     url				= etherscan_urls[chain.name]
@@ -120,10 +141,15 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
         'Content-Type':  'application/x-javascript',
     }
     params			= dict( params )
-    params.setdefault( 'apikey', apikey or os.getenv( 'ETHERSCAN_API_TOKEN' ))  # May remain None
+    if apikey is None:
+        apikey			= os.getenv( 'ETHERSCAN_API_TOKEN' )
+    if apikey and apikey.strip():  # May remain None, or be empty
+        params.setdefault( 'apikey', apikey.strip() )
 
-    if params.get( 'apikey' ):
-        log.debug( "Querying {} w/ {}".format( url, params ))
+    # A successful request is a 200 OK, with a JSON-encoded result dict/ w a status: "1".  We do not
+    # want to return any non-Exception response excepts successes, because these are Memoized.
+    log.debug( "Querying {} w/ {}".format( url, params ))
+    try:
         response		= requests.get(
             url,
             params	= params,
@@ -133,13 +159,19 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
         )
         assert response.status_code == 200, \
             "Failed to query {} for {}: {}".format( chain, params, response.text )
-        log.info( "Querying {} w/ {}: {}".format(
-            url, params,
-            json.dumps( response.json(), indent=4 ) if log.isEnabledFor( logging.DEBUG ) else response.text
-        ))
-        return response.json()['result']  # A successful response must have a result
+        response_json	= response.json()
+        assert hasattr( response_json, 'keys' ) and {'status', 'result'} <= set( response_json.keys() ) and int( response_json['status'] ), \
+            "Query {} for {} yielded invalid response: {}".format( chain, params, response.text )
+    except Exception as exc:
+        log.info( f"Query failed w/ Exception: {exc}" )
+        raise
 
-    return None
+    # OK, got a valid, successful response we are prepared to Memoize!
+    log.info( "Querying {} w/ {}: {}".format(
+        url, params,
+        json.dumps( response_json, indent=4 ) if log.isEnabledFor( logging.DEBUG ) else response.text
+    ))
+    return response_json['result']
 
 
 @retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
