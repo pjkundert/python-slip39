@@ -537,3 +537,32 @@ def remainder_after( proportions, scale=None, total=1 ):
         f_remaining		= total - total * f_removed     # (0,total]
         yield f_remaining
         f_total		       += f				# (0,total)
+
+
+def fraction_allocated( reserves, scale=1 ):
+    """From a sequence of remainder Fractions, compute the Fraction allocated at each point.
+
+    If the reserves are known to be scaled by some factor, provide it (eg. if they are fixed-point
+    fractions, provide the denominator as scale).
+
+    Useful for computing the error between an original sequence of proportions, the resultant
+    reserve Fractions, and the final proportion allocated to each party, when the reserve
+    fraction is rounded (eg. represented as a fixed-point fraction).
+
+        >>> proportions	= [ 57, 26, 103 ]
+        >>> total = sum( proportions )
+        >>> total
+        186
+        >>> reserves = list( remainder_after( proportions, scale=Fraction( 1, total )))
+        >>> reserves
+        [Fraction(43, 62), Fraction(103, 129), Fraction(0, 1)]
+        >>> allocated = list( fraction_allocated( reserves ))
+        >>> allocated
+        [Fraction(19, 62), Fraction(13, 93), Fraction(103, 186)]
+
+    """
+    remaining			= Fraction( 1 )
+    for reserve in reserves:
+        remaining_after		= remaining * reserve / scale
+        yield remaining - remaining_after
+        remaining		= remaining_after

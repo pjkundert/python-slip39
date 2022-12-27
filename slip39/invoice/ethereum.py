@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import traceback
+import time
 
 from datetime		import datetime
 from enum		import Enum
@@ -37,9 +38,9 @@ from rlp		import encode as rlp_encode
 from web3		import Web3
 from web3.middleware	import construct_sign_and_send_raw_middleware
 
-from ..util		import memoize, retry, commas
+from ..util		import memoize, retry, commas, into_bytes, timer
 from ..defaults		import ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE
-from ..util		import into_bytes
+
 
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
@@ -688,7 +689,7 @@ class Contract:
 
         def gas_price_in_gwei( prices ):
             return {
-                k: f"{v / self._ETH.GWEI_WEI:,.4f} Gwei" if 'Gas' in k else v
+                k: f"{v / self._ETH.GWEI_WEI:,.4f} Gwei == {v:,} Wei" if 'Gas' in k else v
                 for k, v in prices.items()
             }
 
@@ -705,6 +706,9 @@ class Contract:
     def _deploy( self, *args, gas=None, **kwds ):
         """Create an instance of Contract, passing args to the constructor, and kwds to the transaction.
 
+        Once deployed, we can _update.  However, the contract will not be available for subsequent
+        calls until the block is accepted.
+
         """
         assert not self._address, \
             f"You already have an instance of Contract {self._name}: {self._address}"
@@ -717,7 +721,12 @@ class Contract:
         log.info( f"Web3 Construct {self._name} tx: {json.dumps( cons_tx, indent=4, default=str )}" )
         cons_receipt		= self._w3.eth.wait_for_transaction_receipt( cons_hash )
         log.info( f"Web3 Construct {self._name} receipt: {json.dumps( cons_receipt, indent=4, default=str )}" )
+        assert cons_receipt.status, \
+            f"Deployment of contract was not successful; status == {cons_receipt.status}"
+
+        # The Contract was successfully deployed.  Get its address, and provide an interface to it.
         self._address		= cons_receipt.contractAddress
+        self._contract		= self._w3.eth.contract( address=self._address, abi=self._abi )
 
         log.warning( f"Web3 Construct {self._name} Contract: {len(self._bytecode)} bytes, at Address: {self._address}" )
         log.info( "Web3 Construct {} Gas Used: {} == {}gwei == USD${:9,.2f} ({}): ${:.6f}/byte".format(
@@ -727,3 +736,13 @@ class Contract:
             cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI, self._ETH.STATUS or 'estimated',
             cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI / len( self._bytecode ),
         ))
+
+        # Wait for the next block to be mined, to ensure contract is available for use.  Is this
+        # necessary?  Once the Contract receipt is available, perhaps this means that the block has
+        # been mined and is ready for API access.  Otherwise, use '<=' here to wait for next block.
+        beg			= timer()
+        while ( block_number := self._w3.eth.block_number ) < cons_receipt.blockNumber:
+            time.sleep( 1 )
+        log.warning( f"Waited {timer()-beg:.2f}s for block {block_number} to be mined, vs. Contract block: {cons_receipt.blockNumber}" )
+
+        self._update()

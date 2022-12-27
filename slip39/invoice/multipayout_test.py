@@ -17,14 +17,13 @@ from web3.contract	import normalize_address_no_ens
 from web3.middleware	import construct_sign_and_send_raw_middleware
 from eth_account	import Account
 
-from ..util		import remainder_after, commas
 from ..api		import (
     account, accounts,
 )
 
 from .			import contract_address
 from .ethereum		import Etherscan
-from .multipayout	import MultiPayoutERC20
+from .multipayout	import MultiPayoutERC20, payout_reserve
 
 #
 # Optimize, and search for imports relative to this directory.
@@ -153,61 +152,11 @@ if ganache_xprvkey:
     ),]
 
 
-def payout_reserve( addr_frac, bits=16 ):
-    """Produce recipients array elements w/ fixed fractional/proportional amounts to predefined
-    addresses.  Convert proportions in the range [0,1) totaling to exactly 1.0 to a remainder
-    fraction within a multiple of 2**bits, or will raise Exception.  It is not valid to specify
-    a recipient with a zero proportion.
-
-    The incoming { addr: proportion,... } dict values will be normalized, so any numeric/fractional
-    values may be used (eg. arbitrary numeric "shares").
-
-    So long as the final remainder is within +/- 1/scale of 0, its int will be zero, and
-    this function will succeed.  Otherwise, it will terminate with a non-zero remainder,
-    and will raise an Exception.
-
-    The Gas cost of shifts is 3 (FASTESTSTEP), divisions is 5 (FASTSTEP), so striving to use a scale
-    multiplier that is a power of 2 and known at compile-time would be best: eg. a fixed-point
-    denominator that is some factor of the bit-size of the numerator.
-
-    Since we're producing fractions in the range (0,1], the fixed-point denominator can be the 2^N
-    for an N-bit value supporting the range (0,2^N-1) -- the largest possible fraction we can represent
-    will be (2^N-1)/(2^N).  Eg, for a 16-bit value:
-
-        65535/65536 =~= 0.9999847412
-            1/65536 =~= 0.0000152588
-
-    """
-    addr_frac_sorted		= sorted( addr_frac.items(), key=lambda a_p: a_p[1] )
-    addresses,fractions		= zip( *addr_frac_sorted )
-
-    fractions_total		= sum( fractions )
-    rem				= None
-    for addr,frac,rem in zip(
-            addresses,
-            fractions,
-            remainder_after(
-                fractions,
-                scale	= 2 ** bits / fractions_total,  # If Fraction, will remain a Fraction
-                total	= 2 ** bits,
-            )
-    ):
-        assert frac > 0, \
-            f"Encountered a zero proportion: {frac} for recipient {addr}"
-        assert int( rem ) < 2 ** bits, \
-            f"Encountered a remainder fraction: {rem} numerator greater or equal to the denominator: {2 ** bits}"
-        yield addr,frac,rem,f"{float( frac * 100 / fractions_total ):9.5f}%"
-
-    assert rem is not None, \
-        "At least one payee is required"
-    assert int( rem ) == 0, \
-        f"Total payout percentages didn't accumulate to zero remainder: {rem:7.4f} =~= {int( rem )}, for {commas( fractions, final='and' )}"
-
-
 def multipayout_ERC20_recipients( addr_frac, bits=16 ):
     """We used to generate contract code directly; still use for testing underlying functionality."""
     payout			= ""
-    for addr,frac,rem,pct in payout_reserve( addr_frac, bits=bits ):
+    for addr,frac,rem in payout_reserve( addr_frac, bits=bits ):
+        pct			= f"{float( frac * 100 ):9.5f}%"
         payout		       += f"transfer_except( payable( address( {normalize_address_no_ens( addr )} )), uint{bits}( {int( rem ):>{len(str(2**bits))}} ));  // {pct}\n"
     return payout
 
@@ -535,8 +484,8 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     # MultiTransferERC20 would begin to fail, unless we caught and ignored ERC-20 API exceptions.
     tokens			= [ USDT_GOERLI, USDC_GOERLI, WEEN_GOERLI, ZEEN_GOERLI ]
     payees			= [
-        (addr, int( rem ))  # , pct.encode('ASCII'))
-        for addr,frac,rem,pct in payout_reserve( addr_frac )
+        (addr, int( rem ))
+        for addr,frac,rem in payout_reserve( addr_frac )
     ]
     print( f"{testnet:10} Payees: {json.dumps( payees, indent=4, default=str )}" )
 
@@ -1015,8 +964,45 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     )
     assert mp_c.forwarder_address( 0 ) \
         == contract_address( address=multipayout_address, salt=0, creation_hash=mp_c._forwarder_hash ) \
+        == mp_c.forwarder_addrress_precompute( 0 ) \
         == "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8"
 
     # Make certain we haven't cluttered up the namespace (covered up any contract method names)
     attrs_bare			= [n for n in dir( mp_c ) if not n.startswith( '_' )]
     assert not attrs_bare
+
+
+@pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
+def test_multipayout_deploy( testnet, provider, chain_id, src, src_prvkey, destination ):
+    """Deploy a new MultiPayoutERC20 w/ random Fractional share allocations from 1/1 to 1/999.
+
+    Then, recover the contract just deployed.
+    """
+    if testnet != "Goerli":
+        return
+    # We'll use large "share" values, to ensure that we're likely to have fractions that don't
+    # divide smoothly by a 1/2^bits divisor.
+    payees			= {
+        payee: Fraction( 1+random.choice( range( 100000 )))  # (1,99999)
+        for payee in destination
+    }
+    erc20s 			= [ USDT_GOERLI, USDC_GOERLI, WEEN_GOERLI, ZEEN_GOERLI ]
+    mp_d			= MultiPayoutERC20(
+        provider,
+        agent		= src,
+        agent_prvkey	= src_prvkey,
+        payees		= payees,
+        erc20s		= erc20s,
+    )
+    print( f"Deployed  MultiPayoutERC20 to {mp_d._address}" )
+
+    # Recover an already deployed MultiPayoutERC20
+    mp_r			= MultiPayoutERC20(
+        provider,
+        address		= mp_d._address,
+        agent		= src,
+        agent_prvkey	= src_prvkey,
+    )
+    print( f"Recovered MultiPayoutERC20 at {mp_r._address}" )
+
+    assert mp_r._payees == mp_d._payees

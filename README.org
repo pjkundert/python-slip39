@@ -1920,7 +1920,6 @@ sets of 20 words is difficult, error-prone and time consuming.
     address: the transaction must contain specific information about the source UTXOs (Unspent
     TransaXion Outputs) being spent, which is of course unavailable in advance.
 
-    
 * Building & Installing
 
   The =python-slip39= project is tested under both homebrew:
