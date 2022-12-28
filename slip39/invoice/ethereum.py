@@ -27,7 +27,7 @@ from datetime		import datetime
 from enum		import Enum
 from pathlib		import Path
 from hashlib		import sha256
-from typing		import Dict, Optional
+from typing		import Dict, Optional, Tuple
 
 import requests
 import eth_account
@@ -213,10 +213,40 @@ class Speed( Enum ):
     Fast		= 2
 
 
-class Etherscan:
+class GasOracle:
+    GWEI_WEI			= 10 ** 9		# GWEI, in WEIs
+    ETH_GWEI			= 10 ** 9		# ETH, in GWEIs
+    ETH_WEI			= 10 ** 18		# ETH, in WEIs
+
+    # Some defaults; maintain the invariant BASE_... + PRIORITY_... == GAS_...
+    GAS_GWEI_DEFAULT		= 12.0
+    BASEFEE_GWEI_DEFAULT	= 10.0
+    ETH_USD_DEFAULT		= 1000.0
+
+    @property
+    def ETH_USD( self ):
+        """Return some estimate of ETH value in USD$, for use in Gas Price calculations."""
+        return self.ETH_USD_DEFAULT
+
+    def __bool__( self ):
+        """Return falsey until this GasOracle is available.  Good for waiting for Gas Oracle sources
+        with API rate limits, etc, or just to use this as a default that is never ready.
+
+        """
+        return False
+
+    def maxPriorityFeePerGas( self, spend=None, gas=None, max_factor=None ):
+        """At the very least, computes EIP-1559 Gas pricing, in Wei.  If spend/gas supplied, should
+        also include maxFeePerGas we're willing to spend for this transaction.
+
+        """
+        raise NotImplementedError()
+
+
+class Etherscan( GasOracle ):
     """Retrieve (or supply some defaults for) Gas and Ethereum pricing and some useful constants, IF
     you supply an etherscan.io API token in the ETHERSCAN_API_TOKEN environment variable and have
-    network access.  Defaults to the Ethereum chain.
+    network access.  Defaults to the Ethereum chain.  Implements the GasOracle API.
 
     If Etherscan.UPDATED or .STATUS are falsey, this indicates that the value(s) are estimated;
     otherwise, they will return the approximate *nix timestamp (or UTC time) of the provided Gas and
@@ -224,7 +254,6 @@ class Etherscan:
 
         >>> ETH = Etherscan( "Ethereum )
         >>> log.warning( f"Ethereum price: USD${ETH.ETH_USD:7.2f} ({ETH.STATUS or 'estimated'})" )
-
 
     To simplify Ethereum transaction gas pricing, we compute a proposed maxPriorityFeePerGas value;
     the only value required for new-style Ethereum transactions -- the "tip" we'll propose to
@@ -245,15 +274,6 @@ class Etherscan:
             speed,		= ( s for s in Speed if s.name.lower() == speed.lower() )
         assert isinstance( speed, (Speed, type(None)) )
         self.speed		= speed or Speed.Propose
-
-    GWEI_WEI			= 10 ** 9		# GWEI, in WEIs
-    ETH_GWEI			= 10 ** 9		# ETH, in GWEIs
-    ETH_WEI			= 10 ** 18		# ETH, in WEIs
-
-    # Some defaults; maintain the invariant BASE_... + PRIORITY_... == GAS_...
-    GAS_GWEI_DEFAULT		= 12.0
-    BASEFEE_GWEI_DEFAULT	= 10.0
-    ETH_USD_DEFAULT		= 1000.0
 
     @classmethod
     def reset( cls ):
@@ -371,6 +391,10 @@ class Etherscan:
         if updated:
             return datetime.utcfromtimestamp( updated ).ctime() + " UTC"
 
+    def __bool__( self ):
+        """The GasOracle API requires a True result when maxPriorityFeePerGas is available."""
+        return bool( self.UPDATED )
+
     def maxFeePerGas( self, spend=None, gas=None, max_factor=None ):
         """Returns new-style EIP-1559 max gas fees allowed, in Wei.  Computes a maxFeePerGas we're
         willing to pay per Gas, for max 'gas', to keep total transaction cost below 'spend'.
@@ -417,9 +441,11 @@ class Etherscan:
             maxPriorityFeePerGas	= self.PRIORITY_WEI,
         ) | self.maxFeePerGas( spend=spend, gas=gas, max_factor=max_factor )
         log.info(
-            f"{self.chain}: EIP-1559 Gas Pricing at USD${self.ETH_USD:9,.2f}/ETH: : {gas_price['maxPriorityFeePerGas'] / self.GWEI_WEI:9,.2f} Priority + {self.BASEFEE_GWEI:9,.2f} Base Gwei/Gas"
+            f"{self.chain}: EIP-1559 Gas Pricing at USD${self.ETH_USD:9,.2f}/ETH:"
+            f" {gas_price['maxPriorityFeePerGas'] / self.GWEI_WEI:9,.2f} Priority + {self.BASEFEE_GWEI:9,.2f} Base Gwei/Gas"
             + (
-                f"; for max USD${spend or gas * gas_price['maxFeePerGas'] * self.ETH_USD / self.ETH_WEI:9,.2f} per {gas:10,}-Gas transaction: {gas_price['maxFeePerGas'] / self.GWEI_WEI:9,.2f} Gwei/Gas"  # noqa E501
+                f"; for max USD${spend or gas * gas_price['maxFeePerGas'] * self.ETH_USD / self.ETH_WEI:9,.2f} per"
+                f" {gas:10,}-Gas transaction: {gas_price['maxFeePerGas'] / self.GWEI_WEI:9,.2f} Gwei/Gas"
                 if gas and 'maxFeePerGas' in gas_price
                 else ""
             )
@@ -463,7 +489,11 @@ class Contract:
 
     Attempts to reload/compile the contract of the specified version, from the .source path.
 
-    Does not clutter up the object() API with names, to avoid shadowing any normal Contract API functions starting with letters.
+    Does not clutter up the object() API with names, to avoid shadowing any normal Contract API
+    functions starting with letters.
+
+    If a GasOracle is supplied for gas_oracle, we'll use it. Otherwise, we'll fall back to just
+    using the gas pricing recommended by our Web3 API provider.
     """
 
     def __init__(
@@ -480,12 +510,19 @@ class Contract:
         chain: Optional[Chain]		= None,		# The Etherscan network to get data from (basically, always Ethereum)
         speed: Optional[Speed]		= None,		# The Etherscan Gas pricing selection for speed of transactions
         max_usd_per_gas:Optional[float]	= None,		# If not supplied, we'll set a cap of base fee + 2 x priority fee
+        gas_oracle: Optional[GasOracle]	= None,
+        gas_oracle_timeout: Optional[Tuple[int,float]] = None,  # None avoids waiting, doesn't check
     ):
-        self._ETH		= Etherscan( chain=chain, speed=speed )
-        self._w3			= Web3( w3_provider )
+        # If a GasOracle is supplied, well wait up to gas_oracle_timeout seconds for it to report
+        # online.  Give it a tickle here to get it started, while we do other time-consuming stuff.
+        self._gas_oracle	= GasOracle() if gas_oracle is None else gas_oracle
+        gas_oracle_beg		= timer()
+        bool( self._gas_oracle )
 
+        self._w3		= Web3( w3_provider )
         self._agent		= agent
         self._w3.eth.default_account = str( self._agent )
+
         if agent_prvkey:
             account_signing	= eth_account.Account.from_key( '0x' + agent_prvkey )
             assert account_signing.address == agent, \
@@ -506,6 +543,14 @@ class Contract:
         self._compiled		= None
         if not self._abi:
             self._compile()
+
+        # We've done all the stuff that may take some time; now, we may need the GasOracle
+        # to be online.  Check, and wait if specified.
+        if gas_oracle is not None and gas_oracle_timeout is not None:
+            while not self._gas_oracle and timer() - gas_oracle_beg < gas_oracle_timeout:
+                time.sleep( gas_oracle_timeout / 10 )
+            if not self._gas_oracle:
+                log.warning( f"Supplied GasOracle still offline after {timer() - gas_oracle_beg:7.2f}s" )
 
         if self._address:
             # A deployed contract; update any cached data, etc.
@@ -667,29 +712,30 @@ class Contract:
 
         # Now, find out what Etherscan's Gas Oracle thinks (from the real Ethereum mainnet,
         # usually).  We'll always use these, if they're not estimated, because we want to simulate
-        # real Gas costs even during testing.  However, if we don't have real, self._ETH.UPDATED
+        # real Gas costs even during testing.  However, if we don't have real, updated
         # readings, we'll fall back to the chain's recommendations.
         spend			= gas * self._max_usd_per_gas if gas and self._max_usd_per_gas else None
-        try:
-            gas_info_oracle	= self._ETH.maxPriorityFeePerGas( gas=gas, spend=spend, max_factor=max_factor )
-        except Exception as exc:
-            log.warning( f"Gas Oracle API failed: {exc}; Using network estimate instead {traceback.format_exc() if log.isEnabledFor( logging.DEBUG ) else ''}"  )
-        else:
-            if self._ETH.UPDATED:
+        if bool( self._gas_oracle ):
+            # OK, whatever GasOracle was provided claims to be online; use it!
+            try:
+                gas_info_oracle	= self._gas_oracle.maxPriorityFeePerGas( gas=gas, spend=spend, max_factor=max_factor )
+            except Exception as exc:
+                log.warning( f"Gas Oracle API failed: {exc}; Using network estimate instead {traceback.format_exc() if log.isEnabledFor( logging.DEBUG ) else ''}"  )
+            else:
                 if max_fee_wei := gas_info_oracle.get( 'maxFeePerGas' ):
                     if max_fee_wei < est_gas_wei:
-                        what		= f"Max Fee: {max_fee_wei / self._ETH.GWEI_WEI:,.4f} Gwei/Gas is below likely Fee: {est_gas_wei / self._ETH.GWEI_WEI:,.4f} Gwei/Gas"
+                        what		= f"Max Fee: {max_fee_wei / GasOracle.GWEI_WEI:,.4f} Gwei/Gas is below likely Fee: {est_gas_wei / GasOracle.GWEI_WEI:,.4f} Gwei/Gas"
                         if fail_fast:
                             raise RuntimeError( what + f"; Failing transaction on {self.__class__.__name__}" )
                         else:
                             log.warning( what )
                 gas_info	= gas_info_oracle
-            else:
-                log.warning( f"Gas Oracle not updated; using network Gas estimates instead {traceback.format_exc() if log.isEnabledFor( logging.DEBUG ) else ''}" )
+        else:
+            log.info( "Gas Oracle not updated; using network Gas estimates instead" )
 
         def gas_price_in_gwei( prices ):
             return {
-                k: f"{v / self._ETH.GWEI_WEI:,.4f} Gwei == {v:,} Wei" if 'Gas' in k else v
+                k: f"{v / GasOracle.GWEI_WEI:,.4f} Gwei == {v:,} Wei" if 'Gas' in k else v
                 for k, v in prices.items()
             }
 
@@ -699,9 +745,23 @@ class Contract:
             )
         )
 
+        # Finally, if a transaction gas limit was supplied, we are assuming this is a Gas-using
+        # transaction -- pass it through as the starting Gas.
         if gas is not None:
             gas_info.update( gas=gas )
         return gas_info
+
+    def _tx_gas_cost( self, tx, receipt ):
+        """Compute a transaction's actual gas cost, in Wei.  We must get the block's baseFeePerGas, and
+        add our transaction's "tip" maxPriorityFeePerGas.  All prices are in Wei/Gas.
+
+        """
+        block			= self._w3.eth.get_block( receipt.blockNumber )  # w/ Web3 Tester, may be None
+        tx_idx			= receipt.transactionIndex
+        base_fee		= block.baseFeePerGas
+        prio_fee		= tx.maxPriorityFeePerGas
+        log.debug( f"Block {block.number!r:10} base fee: {base_fee/GasOracle.GWEI_WEI:7.4f}Gwei + Tx #{tx_idx!r:4} prio fee: {prio_fee/GasOracle.GWEI_WEI:7.4f}Gwei" )
+        return base_fee + prio_fee
 
     def _deploy( self, *args, gas=None, **kwds ):
         """Create an instance of Contract, passing args to the constructor, and kwds to the transaction.
@@ -727,14 +787,14 @@ class Contract:
         # The Contract was successfully deployed.  Get its address, and provide an interface to it.
         self._address		= cons_receipt.contractAddress
         self._contract		= self._w3.eth.contract( address=self._address, abi=self._abi )
-
+        gas_cost		= self._tx_gas_cost( cons_tx, cons_receipt )
         log.warning( f"Web3 Construct {self._name} Contract: {len(self._bytecode)} bytes, at Address: {self._address}" )
-        log.info( "Web3 Construct {} Gas Used: {} == {}gwei == USD${:9,.2f} ({}): ${:.6f}/byte".format(
+        log.info( "Web3 Construct {} Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({}): ${:.6f}/byte".format(
             self._name,
             cons_receipt.gasUsed,
-            cons_receipt.gasUsed * self._ETH.GAS_GWEI,
-            cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI, self._ETH.STATUS or 'estimated',
-            cons_receipt.gasUsed * self._ETH.GAS_GWEI * self._ETH.ETH_USD / self._ETH.ETH_GWEI / len( self._bytecode ),
+            cons_receipt.gasUsed * gas_cost / GasOracle.GWEI_WEI,
+            cons_receipt.gasUsed * gas_cost * self._gas_oracle.ETH_USD / GasOracle.ETH_WEI, self._gas_oracle or 'estimated',
+            cons_receipt.gasUsed * gas_cost * self._gas_oracle.ETH_USD / GasOracle.ETH_WEI / len( self._bytecode ),
         ))
 
         # Wait for the next block to be mined, to ensure contract is available for use.  Is this

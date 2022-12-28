@@ -17,9 +17,9 @@
 
 from __future__		import annotations
 
-import json
 import logging
 import os
+import textwrap
 
 from typing		import Union
 from itertools		import count
@@ -154,74 +154,141 @@ class MultiPayoutERC20( Contract ):
     TODO: This is a quite complex test with a lot of prerequisites; perhaps move from doctest to pytest
 
     """
-    def __init__( self, *args, payees=None, erc20s=None, gas=2000000, **kwds ):
-        self._erc20s		= dict()		# [ <ERC-20 address>: ("<symbol>",<decimals>), ... ]
-        self._payees		= dict()		# { <Payee address>: <Fraction>, ... }
-        self._forwarder_hash	= None			# Keccack has of the Forwarder constructor bytecode for CREATE2
-        super().__init__( *args, **kwds )
-        assert bool( self._address ) ^ bool( payees or erc20s ), \
+    def __init__( self, *args, address=None, payees=None, erc20s=None, gas=2000000, **kwds ):
+        """Either connect to an existing Contract by address, or deploy the contract w/ the specified payees
+        and (initial) ERC-20s.
+
+        If deploying, produces the _payees_data from the original fractions, and can deduce the
+        "error" between the specified fractions and the resultant payout fractions based on
+        decimated fixed-point "reserve" values.  If reading from existing deployed contract,
+        no error can be calculated as only "reserve" values are available.
+
+        """
+        assert bool( address ) ^ bool( payees or erc20s ), \
             "Either a Contract address, or details of desired payees and optionally ERC-20s must be supplied"
-        if self._address:
-            payees		= self._payees		# recovered payout Fractions
-            erc20s		= self._erc20s.keys()
 
-        # Could be deploying a new MultiPayoutERC20 (or just documenting a pre-existing contract's
-        # payees).  Computes the Fraction x 2^16 in reserve after each payee, min. 1/2^16.  We start
-        # w/ percentages or shares, which may or may not sum to 1.
-        payees_frac_total	= sum( payees.values() )
-        payees_frac_json	= json.dumps( payees, indent=4, default=lambda frac: f"{float( frac * 100 / payees_frac_total ):9.5f}% =~= {frac}" )
-        print( f"Payout Percentages: {payees_frac_json}" )
+        self._payees		= payees or dict()      # { <Payee address>: <Fraction>, ... }
+        self._erc20s		= erc20s or list()      # [ <ERC-20 address>: ("<symbol>",<decimals>), ... ]
+        self._erc20s_data	= dict()
+        self._forwarder_hash	= None			# Keccack has of the Forwarder constructor bytecode for CREATE2
+        self._bits		= 16			# reserve values denominated in 1/2^bits
 
-        # The original proportion assigned to each address is in fracs; the reserve remaining after
-        # each payout is in rsvs, and this actual payout percentage vs. recovered payout percentage
-        # error is computed later in 'error'.  This may differ from the exact original percentages
-        # above, by < 1/2^bits due to fixed point math.  If the payee fractions are recovered from
-        # an existing contract, of course these will be exact (no "error").
-        bits			= 16
-        addrs,fracs,rsvs	= zip( *payout_reserve( payees, bits=bits ))
-        payees_reserve		= [ (a,int(r)) for a,r in zip( addrs, rsvs )]
+        super().__init__(
+            *args, address=address, **kwds		# If address supplied, will invoke self._update()
+        )
 
-        payees_reserve_json	= json.dumps([
-            (a,f"{float( r * 100 / 2**bits ):9.5f}% =~= {r}/{2**bits}" )
-            for a,r in payees_reserve
-        ], indent=4)
-        print( f"Payout Reserve: {payees_reserve_json}" )
+        if not self._address:
+            # Otherwise, will deploy Contract from computed payees reserve values and erc20s list,
+            # and then invoke self._update
+            self._deploy( self._payees_reserve, self._erc20s, gas=gas )
 
+        print( self )
+
+    def __str__( self ):
+        return f"""\
+{self.__class__.__name__} Payees:
+{textwrap.indent( self._payees_table, ' ' * 4 )}
+ERC-20s:
+{textwrap.indent( self._erc20s_table, ' ' * 4 )}
+"""
+
+    @property
+    def _erc20s_table( self ):
+        return tabulate(
+            list(
+                (tok,sym,dig)
+                for tok,(sym,dig) in self._erc20s_data.items()
+            ),
+            headers	= [ 'Token', 'Symbol', 'Digits' ],
+            tablefmt	= 'orgtbl'
+        )
+
+    @property
+    def _payees_data( self ):
+        """The original proportion assigned to each address is in shares/fractions; the reserve
+        remaining after each payout is in rsvs, and this actual payout percentage vs. recovered
+        payout percentage error is computed later in 'error'.  This may differ from the exact
+        original percentages above, by < 1/2^bits due to fixed point math.  If the payee fractions
+        are recovered from an existing contract, of course these will be exact (no "error").
+
+        """
+        addrs,fracs,rsrvs	= zip( *payout_reserve( self._payees, bits=self._bits ))
+        share			= list( self._payees[a] for a in addrs )
+        rsrvs_int		= list( map( int, rsrvs ))
+        fracs_recov		= list( fraction_allocated(
+            rsrvs_int,
+            scale	= 2**self._bits,
+        ))
         # Now, compute the "error" between the originally specified payout fractions, and the payout
         # fractions recovered after reversing the 1/2^bits reserve calculations.  The error should
         # always be < 1/2^bits.
-        addrs,rsvs_int		= zip( *payees_reserve )
-        data			= list(
+        fracs_error		= list( fr - f for f,fr in zip( fracs, fracs_recov ))
+
+        return dict(
             zip(
                 addrs,					# The Payee address
-                ( str( payees[a] ) for a in addrs ),    # Original "Share" value specified
-                fracs,					# Fraction computed [0,1), full resolution
-                rsvs,					# Reserve after payee, full resolution
-                rsvs_int,				# Reserve, denominated in 1/2^bits
-                fraction_allocated(			# Fraction recovered in 1/2^bits resolution
-                    rsvs_int,
-                    scale	= 2**bits,
+                zip(
+                    share,				# Original "Share" value specified
+                    fracs,				# Fraction computed [0,1), full resolution
+                    rsrvs,				# Reserve after each payee, full resolution
+                    rsrvs_int,				# Reserve, denominated in 1/2^bits
+                    fracs_recov,			# Fraction recovered in 1/2^bits resolution
+                    fracs_error,
                 )
             )
         )
-        error			= list(
-            (a,s,f"{float(f*100):10.6f}",f"{float(r):10.6f}",ri,f"{float(p*100):10.6f}",f"{(float(p)-float(f))*100:10.6f}")
-            for a,s,f,r,ri,p in data
+
+    @property
+    def _payees_reserve( self ):
+        return list(
+            (a,ri)
+            for a,(s,f,r,ri,fr,fe) in self._payees_data.items()
         )
-        error_table		= tabulate(
-            error,
-            headers	= [ 'Payee', 'Share', 'Frac. %', 'Reserve', f"Reserve/2^{bits}",'Frac.Rec. %','Error %' ],
+
+    @_payees_reserve.setter
+    def _payees_reserve( self, payees_reserve ):
+        """Recovers payee payout fractions from fixed-point (decimated) reserves (eg. obtained from an
+        existing contract's data).  If we already have self._payees, just confirms that exactly the same
+        reserves are computed!
+
+        This provides a round-trip confirmation of our originally specified payees fractions, to
+        decimated reserves and fractions, through contract deployment, and then recovery of
+        payees/reserve from the contract, to recomputed decimated fractions.
+
+        """
+        addrs,reserve		= zip( *payees_reserve )
+        payees			= dict(
+            zip(
+                addrs,
+                fraction_allocated(
+                    reserve,
+                    scale	= 2**self._bits,
+                )
+            )
+        )
+        if self._payees:
+            payees_current	= dict(
+                (a,fr)
+                for a,(s,f,r,ri,fr,fe) in self._payees_data.items()
+            )
+            if payees != payees_current:
+                log.warning( f"Recovered payees fractions don't match: \n{self._payees_table}" )
+        else:
+            self._payees	= payees
+            log.info( f"Recovered payees fractions from reserves: \n{self._payees_table}" )
+
+    @property
+    def _payees_table( self ):
+        return tabulate(
+            list(
+                (a,f"{s}",f"{float(f*100):10.6f}",f"{float(r):10.6f}",ri,f"{float(fr*100):10.6f}",f"{float(fe*100):10.6f}")
+                for a,(s,f,r,ri,fr,fe) in self._payees_data.items()
+            ),
+            headers	= [ 'Payee', 'Share', 'Frac. %', 'Reserve', f"Reserve/2^{self._bits}",'Frac.Rec. %','Error %' ],
             tablefmt	= 'orgtbl'
         )
-        print( f"Payout Error Percentage: \n{error_table}" )
 
-        erc20s_support			= list( erc20s )
-        print( f"ERC-20s: {json.dumps( erc20s_support, indent=4, default=str )}" )
-
-        if not self._address:
-            self._deploy( payees_reserve, erc20s_support, gas=gas )
-
-    def forwarder_address_precompute(
+    def _forwarder_address_precompute(
         self,
         salt: Union[int,bytes,str]
     ):
@@ -249,49 +316,37 @@ class MultiPayoutERC20( Contract ):
         self._forwarder_hash	= self.forwarder_hash()
         log.info( f"{self._name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
 
-        def payees_reserves():
+        def payees_reserve():
             for i in count():
                 payee, reserve	= self.payees( i )
                 yield payee, reserve
                 if not reserve:
                     break
 
-        bits			= 16
-        payee,reserve		= zip( *payees_reserves() )
-        self._payees		= {
-            p: f
-            for p, f in zip(
-                payee,
-                fraction_allocated(
-                    reserve,
-                    scale	= 2**bits,
+        # This only *needs* to be done at initial _update from an existing deployed contract.
+        # However, we'll always recover them here (even if we just deployed the contract), to
+        # make certain our reverse Reserve to Fraction calculation is correct.  Computes
+        # self._payees if absent.
+        self._payees_reserve	= list( payees_reserve() )
+
+        def erc20s_data():
+            # Look up the contract interface we've imported as IERC20Metadata, and use its ABI
+            # for accessing any ERC-20 tokens' symbol and decimals.
+            IERC20_key		= self._abi_key( "IERC20Metadata" )
+            for i in range( self.erc20s_len()):
+                tok		= self.erc20s( i )
+                IERC20_tok	= self._w3.eth.contract(
+                    address	= tok,
+                    abi		= self._compiled[IERC20_key]['abi'],
                 )
-            )
-        }
-        # remaining		= Fraction( 1 )
-        # for i in count():
-        #     payee, reserve	= self.payees( i )
-        #     remaining_after	= remaining * Fraction( reserve, 2 ** 16 )  # TODO: get constant denominator from contract
-        #     self._payees[payee]	= remaining - remaining_after
-        #     if not reserve:
-        #         break  # final payee must have zero reserve
-        #     remaining		= remaining_after
+                # These should be free calls (public data or view-only functions)
+                sym			= IERC20_tok.functions.symbol().call()
+                dig			= IERC20_tok.functions.decimals().call()
+                yield tok,(sym,dig)
 
-        payees_json		= json.dumps( self._payees, indent=4, default=lambda frac: f"{float( frac * 100 ):9.5f}% =~= {frac}" )
-        log.info( f"{self._name} Payees: {payees_json}" )
-
-        for i in range( self.erc20s_len()):
-            token		= self.erc20s( i )
-
-            # Look up the contract interface we've imported as IERC20Metadata, and use its ABI for
-            # accessing any ERC-20 tokens' symbol and decimals.
-            IERC20Metadata_key	= self._abi_key( "IERC20Metadata" )
-            IERC20Metadata	= self._w3.eth.contract(
-                address		= token,
-                abi		= self._compiled[IERC20Metadata_key]['abi'],
-            )
-            # These should be free calls (public data or view-only functions
-            self._erc20s[token]	= IERC20Metadata.functions.symbol().call(),IERC20Metadata.functions.decimals().call()
-
-        erc20s_json		= json.dumps( self._erc20s, indent=4 )
-        log.info( f"{self._name} ERC-20s: {erc20s_json}" )
+        self._erc20s_data	= dict( erc20s_data() )
+        erc20s			= list( self._erc20s_data )
+        if self._erc20s:
+            assert self._erc20s == erc20s
+        else:
+            self._ers20s	= erc20s

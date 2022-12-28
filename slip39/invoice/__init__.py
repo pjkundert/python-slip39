@@ -21,7 +21,7 @@ from .ethereum	import (		# noqa F401
     contract_address,
     etherscan_urls,
     etherscan, gasoracle, ethprice,
-    Chain, Speed, Etherscan,
+    GasOracle, Chain, Speed, Etherscan,
     Contract,
 )
 from .multipayout import (		# noqa F401

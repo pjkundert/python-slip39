@@ -1719,20 +1719,24 @@ sets of 20 words is difficult, error-prone and time consuming.
      are dangerous and unreliable, and only serve to make your Cryptocurrency accounts *less*
      secure!
 
-* Single-use Accounts, Smart Contracts and Invoicing
+* Cryptocurrency Invoicing and Licensing
 
   A valuable use of Cryptocurrency accounts is to send or receive payments for goods, services or
   remittances/donations.  The global monetary system makes this very difficult (or even impossible),
-  especially if any of the involved corporations or governments are hostile to you or any of the
-  other individuals involved in the transaction.
+  especially if any of the corporations or governments involved in the transaction are hostile to
+  you or any of the other individuals attempting to transact business.
 
-  Worse yet, your business or family can be arbitrarily ejected from using the financial system, by
-  an of the many intermediary parties involved in any traditional financial transaction.
+  Worse yet, your business or family can be arbitrarily ejected from the financial system by an of
+  the many intermediary banking industry and government parties involved in any traditional
+  financial transaction, even if you are not convicted of a crime.
 
   Fortunately, DeFi (Decentralized Finance) provides you with the capability to receive payments,
   quickly and efficiently, from anyone on the planet who wishes to pay you for your services.
 
-** Using Plain HD Wallet Account
+  Your software can use a variety of means to verify payment, and then license use of the various
+  functionality of your software.
+
+** Using Plain HD Wallet Accounts
 
    If your needs are simple, you can [[X Public Keys][securely generate an =xpub...= key]] using a unique HD Wallet
    derivation path for each separate enterprise you wish to receive funds for.  If this is done in a
@@ -1743,29 +1747,25 @@ sets of 20 words is difficult, error-prone and time consuming.
    your normal, secure (ie. Hardware Wallet) transfer process.
 
    This is simplest for the client, as they can buy Cryptocurrency on any exchange, and simply
-   "withdraw" the correct amount of Cryptocurrency to the given account.
+   "withdraw" the correct amount of Cryptocurrency to the given account.  However, these is no other
+   information attached to the transaction -- all "licensing" verification takes place manually,
+   outside the cryptocurrency system.
 
-*** Withdrawal Fees and Smart Contracts
-
-    Since most exchanges do not allow withdrawal to an account that requires excessive fees; for
-    example, to an Ethereum Smart Contract address, which may trigger functionality requiring excess
-    "Gas" beyond what a normal transfer would require.
-
-    This limits the amount of automation that can be attached to a "client" cryptocurrency payment
-    address.  Usually, no Smart Contract invocation can be supported for the client's payment.  If
-    you build a system that requires the client to have their own wallets, and to understand
-    eg. Ethereum "Gas" pricing, you will prevent most clients from paying you.
-
-** Some Drawbacks of using Plain Addresses for Client Payments
-   
-   So, generating a sequence of plain client addresses from an =xpub...= is a worthwhile solution to
-   consider.
+   So, generating a sequence of plain (Externally Owned Account, or EOA) client addresses from an
+   =xpub...= is a worthwhile solution to consider.  However, it does have some drawbacks:
 
 *** Fee Distribution
 
-    Collecting up all the clients' payments later is a manual process, and if you wish to distribute
+    Collecting up all the clients' payments later is a manual process.  If you wish to distribute
     the payments (say, to pay partners, or a licensor whose software you sub-licensed, or to ensure
     that *you* get paid should someone license your software), this must all be done manually.
+
+*** ERC-20 Tokens    
+
+    If ERC-20 tokens are accepted into the generated EOA addresses, then you must transfer Ethereum
+    into the account first, before transferring out the ERC-20 tokens.  This requires at least one
+    additional transfer fee, and since Gas fees are now variable, may result in a small amount of
+    Ethereum abandoned in the account.
 
 *** Distribution Failures
 
@@ -1774,35 +1774,86 @@ sets of 20 words is difficult, error-prone and time consuming.
     automated) processes that can fail.
 
     For example, what if a piece of software is created and distributed by some organization, and
-    this software uses your licensed module?  If the organization fails, or the software is
-    abandoned, then clients who want to renew their license (or later find the software and install
-    it) will probably not be able to pay the organization for it -- and your license fees also will
-    go unpaid.
+    this software uses your licensed module?  If the organization fails, or is deplatformed by a
+    hostile government or corporation, or the software is abandoned, then clients who find the
+    software and install it and want to pay for a license will probably not be able to pay the
+    organization for it -- and your license fees also will go unpaid.
 
-    Surely, there must be a way to deploy a sequence of interconnected Smart Contracts that can ensure
-    that:
+    Surely, there must be a way to deploy a sequence of interconnected Smart Contracts that can
+    ensure that:
 
-    - Any new client can uniquely allocate (and store some data with) a "Forwarder" address and pay for the product, 
-    - Payment into that account address (and validation of its unique data) constitutes proof of licensing,
+    - Any new client can uniquely allocate (and optionally store some data with) a "Forwarder"
+      address and pay for the product,
+    - Payment into that account address (and perhaps validation of its unique data) constitutes
+      proof of licensing,
     - Payees (direct and indirect) can flush any such payments through to themselves (and others)
 
-    These goals *can* be achieved using "Forwarder" Accounts
+    These goals *can* be achieved using per-client "Forwarder" account addresses.
 
-** Single Use "Forwarder" Accounts
+** "Forwarder" Account Addresses
 
-   The solution to this problem is to use plain accounts that *nobody* has "private key" access to
+   The solution to this problem is to use accounts that *nobody* has "private key" access to
    -- including you (the software issuer), or any client.
 
-   These accounts are accessed by an Ethereum Smart Contract (the account address is actually the
-   address of the contract).
+   These accounts host an Ethereum Smart Contract (the account address is actually the pre-computed
+   address of a future instance of a "Forwarder" contract).  They are not Externally Owned Account
+   (EOA) addresses, and have no Private Key; they can only do what their Smart Contract defines.
 
-   The *only* function of this "Forwarder" contract is collect the account's Ethereum and ERC-20
-   token contents into the product's "Fee Distribution Contract" account.
+   The *only* function of these "Forwarder" Contracts is to collect the address' Ethereum and ERC-20
+   tokens into the product's "Fee Distribution" =MultiPayoutERC20= Contract account, optionally
+   storing an immutable value associated with the "salt" value from which the "Forwarder" account
+   address is derived.
 
 *** Client "Forwarder" Contract
 
-    Once the product's =MultiPayoutERC20= contract address is identified, the act of obtaining a
-    unique client payee address is 
+    Once the product's =MultiPayoutERC20= "Fee Distribution" contract address is identified, the act
+    of obtaining a unique client payee "Forwarder" address is simple.
+
+    1) A "salt" value unique to the client is deduced, usually consisting of "something they know"
+       (eg. a Public Key) plus "something they have" (eg. a Machine ID).
+    2) The salt is used to deduce the client's unique "Forwarder" address
+
+    Here's an example (using the Ethereum "Goerli" testnet):
+
+    #+LATEX: {\scriptsize
+    #+BEGIN_SRC ipython :session :exports both :results output raw drawer
+
+    # Provide yourself with a Goerli testnet account under your control;
+    # provide an "xpub..." key for it, or the BIP-39 Mnemonic phrase to
+    # derive its HD wallet.  Use the https://goerlifaucet.com to fund the
+    # account with some Goerli test Ethereum; requires you to set up an
+    # https://alchemy.com account, and put your API token in the
+    # ALCHEMY_API_TOKEN environment variable.
+    goerli_xprvkey		= os.getenv( 'GOERLI_XPRVKEY' )
+    if not goerli_xprvkey:
+    	  goerli_seed		= os.getenv( 'GOERLI_SEED' )
+    	  if goerli_seed:
+    	      try:
+    		  # why m/44'/1'/... instead of m/44'/60'/...?  Dunno;
+    		  # That's the derivation path that Trezor Suite uses for
+    		  # Goerli testnet wallets...
+    		  goerli_xprvkey = slip39.account(
+    		      goerli_seed, crypto="ETH", path="m/44'/1'/0'"
+    		  ).xprvkey
+    	      except Exception:
+    		  pass
+    if goerli_xprvkey:
+    	  # the Account.address/.prvkey
+    	  goerli_src		= slip39.account(
+    	      goerli_xprvkey, crypto='ETH', path="m/0/0"
+        )
+
+    from slip39.invoice import MultiPayoutERC20
+
+    mp				= MultiPayoutERC20(
+    	agent		= goerli_src.address,
+    	agent_prvkey	= goerli_src.prvkey,
+    	address		= "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8",
+    )
+    salt			
+
+    #+END_SRC
+    #+LATEX: }
 
 *** Distributing Funds Deterministically
 
@@ -1846,7 +1897,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     Guaranteeing that each client's payments always flow through to the designated tree of payees is
     the responsibility of the =MultiPayoutERC20Forwarder= (client "Forwarder" account) and
-    =MultiPayoutERC20= (product) Smart Contracts.
+    =MultiPayoutERC20= (product's "Fee Distribution") Smart Contracts.
 
     Confirmation of Licensing is the responsibility of the client software.  At software runtime,
     some checks are completed.  At minimum, two pieces of data are loaded from storage:

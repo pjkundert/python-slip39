@@ -17,13 +17,11 @@ from web3.contract	import normalize_address_no_ens
 from web3.middleware	import construct_sign_and_send_raw_middleware
 from eth_account	import Account
 
-from ..api		import (
-    account, accounts,
-)
-
 from .			import contract_address
-from .ethereum		import Etherscan
+from .ethereum		import Etherscan, Chain
 from .multipayout	import MultiPayoutERC20, payout_reserve
+from ..api		import account, accounts
+
 
 #
 # Optimize, and search for imports relative to this directory.
@@ -523,12 +521,26 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
 
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 receipt: {json.dumps( mc_cons_receipt, indent=4, default=str )}" )
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 Contract: {len( mp_ERC20_bytecode)} bytes, at Address: {mc_cons_addr}" )
-    print( "{:10}: Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:9,.2f} ({}): ${:7.6f}/byte".format(
+
+    def tx_gas_cost( tx, receipt ):
+        """Compute a transaction's actual gas cost, in Wei.  We must get the block's baseFeePerGas, and
+        add our transaction's "tip" maxPriorityFeePerGas.  All prices are in Wei/Gas.
+
+        """
+        block			= w3.eth.get_block( receipt.blockNumber )  # w/ Web3 Tester, may be None
+        tx_idx			= receipt.transactionIndex
+        base_fee		= block.baseFeePerGas
+        prio_fee		= tx.maxPriorityFeePerGas
+        print( f"{testnet:10}: Block {block.number!r:10} base fee: {base_fee/ETH.GWEI_WEI:7.4f}Gwei + Tx #{tx_idx!r:4} prio fee: {prio_fee/ETH.GWEI_WEI:7.4f}Gwei" )
+        return base_fee + prio_fee
+
+    gas_cost			= tx_gas_cost( mc_cons, mc_cons_receipt )
+    print( "{:10}: Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({}): ${:7.6f}/byte".format(
         testnet,
         mc_cons_receipt.gasUsed,
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
-        mc_cons_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI / len( mp_ERC20_bytecode ),
+        mc_cons_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_cons_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
+        mc_cons_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI / len( mp_ERC20_bytecode ),
     ))
 
     print( f"{testnet:10}: Web3 Tester Accounts; MultiPayoutERC20 post-contract creation:" )
@@ -589,12 +601,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
         'value':	0,
     } | gas_price )
+    mc_fwd0_aclc		= w3.eth.get_transaction( mc_fwd0_aclc_hash )
     mc_fwd0_aclc_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash )
-    print( "{:10}: Web3 Tester Forward#0 forwarder_allocate w/o <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    gas_cost			= tx_gas_cost( mc_fwd0_aclc, mc_fwd0_aclc_receipt )
+    print( "{:10}: Web3 Tester Forward#0 forwarder_allocate w/o <data> Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_aclc_receipt.gasUsed,
-        mc_fwd0_aclc_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_fwd0_aclc_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_fwd0_aclc_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_fwd0_aclc_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
     print( f"{testnet:10}: Web3 Tester Forward#0 forwarder_address w/o <data> Receipt: {json.dumps( mc_fwd0_aclc_receipt, indent=4, default=str )} (calculated)" )
 
@@ -621,12 +635,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
         'value':	0,
     } | gas_price )
+    mc_fwd0_aclc_w		= w3.eth.get_transaction( mc_fwd0_aclc_hash_w )
     mc_fwd0_aclc_receipt_w	= w3.eth.wait_for_transaction_receipt( mc_fwd0_aclc_hash_w )
-    print( "{:10}: Web3 Tester Forward#0 forwarder_address w/  <data> Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    gas_cost			= tx_gas_cost( mc_fwd0_aclc_w, mc_fwd0_aclc_receipt_w )
+    print( "{:10}: Web3 Tester Forward#0 forwarder_address w/  <data> Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_aclc_receipt_w.gasUsed,
-        mc_fwd0_aclc_receipt_w.gasUsed * ETH.GAS_GWEI,
-        mc_fwd0_aclc_receipt_w.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_fwd0_aclc_receipt_w.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_fwd0_aclc_receipt_w.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
     print( f"{testnet:10}: Web3 Tester Forward#0 forwarder_address w/  <data> Receipt: {json.dumps( mc_fwd0_aclc_receipt_w, indent=4, default=str )} (calculated)" )
 
@@ -681,13 +697,15 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
         'value':	0,
     } | gas_price )
+    mc_ween			= w3.eth.get_transaction( mc_ween_hash )
     mc_ween_receipt		= w3.eth.wait_for_transaction_receipt( mc_ween_hash )
+    gas_cost			= tx_gas_cost( mc_ween, mc_ween_receipt )
     print( f"{testnet:10}: Web3 Tester Send ETH to WEENUS receipt: {json.dumps( mc_ween_receipt, indent=4, default=str ) }" )
-    print( "{:10}: Web3 Tester Send ETH to WEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Send ETH to WEENUS Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_ween_receipt.gasUsed,
-        mc_ween_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_ween_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_ween_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_ween_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     mc_zeen_hash		= w3.eth.send_transaction({
@@ -697,15 +715,18 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
         'value':	0,
     } | gas_price )
+    mc_zeen			= w3.eth.get_transaction( mc_zeen_hash )
     mc_zeen_receipt		= w3.eth.wait_for_transaction_receipt( mc_zeen_hash )
+    gas_cost			= tx_gas_cost( mc_zeen, mc_zeen_receipt )
     print( f"{testnet:10}: Web3 Tester Send ETH to ZEENUS receipt: {json.dumps( mc_zeen_receipt, indent=4, default=str ) }" )
-    print( "{:10}: Web3 Tester Send ETH to ZEENUS Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Send ETH to ZEENUS Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_zeen_receipt.gasUsed,
-        mc_zeen_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_zeen_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_zeen_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_zeen_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
+    # Hmm; this should be free; make sure it is, by getting our balance before/after
     gas				= 25000
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
@@ -715,11 +736,11 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
     } | gas_price )
     src_pre_zeen_bal		= w3.eth.get_balance( src )
-    print( "{:10}: Web3 Tester WEENUS.balanceOf({}) == {!r} Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester WEENUS.balanceOf({}) == {!r} Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet, src, mc_ween_balance,
         ( src_pre_ween_bal - src_pre_zeen_bal ),
-        ( src_pre_ween_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI,
-        ( src_pre_ween_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        ( src_pre_ween_bal - src_pre_zeen_bal ),
+        ( src_pre_ween_bal - src_pre_zeen_bal ) * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     mc_zeen_balance		= ZEEN_IERC20.functions.balanceOf( src ).call({
@@ -727,11 +748,11 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'gas':		gas,
     } | gas_price )
     src_aft_zeen_bal		= w3.eth.get_balance( src )
-    print( "{:10}: Web3 Tester ZEENUS.balanceOf({}) == {!r} Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester ZEENUS.balanceOf({}) == {!r} Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet, src, mc_zeen_balance,
         ( src_aft_zeen_bal - src_pre_zeen_bal ),
-        ( src_aft_zeen_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI,
-        ( src_aft_zeen_bal - src_pre_zeen_bal ) * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        ( src_aft_zeen_bal - src_pre_zeen_bal ),
+        ( src_aft_zeen_bal - src_pre_zeen_bal ) * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     # So, just send some ETH to the forwarder address from the default account.  This will *not*
@@ -750,13 +771,15 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     mc_send			= w3.eth.get_transaction( mc_send_hash )
     print( f"{testnet:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 transaction: {json.dumps( mc_send, indent=4, default=str )}" )
 
+    mc_send			= w3.eth.get_transaction( mc_send_hash )
     mc_send_receipt		= w3.eth.wait_for_transaction_receipt( mc_send_hash )
+    gas_cost			= tx_gas_cost( mc_send, mc_send_receipt )
     print( f"{testnet:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 receipt: {json.dumps( mc_send_receipt, indent=4, default=str ) }" )
-    print( "{:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester Send ETH to MultiPayoutERC20Forwarder#0 Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_send_receipt.gasUsed,
-        mc_send_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_send_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_send_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_send_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     # Also send some (10% of *EENUS) ERC-20 tokens to the forwarder address.  ZEENUS is a 0-decimal
@@ -774,12 +797,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
+    mc_fwd0_ween		= w3.eth.get_transaction( mc_fwd0_ween_hash )
     mc_fwd0_ween_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_ween_hash )
-    print( "{:10}: Web3 Tester Forward#0 WEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    gas_cost			= tx_gas_cost( mc_fwd0_ween, mc_fwd0_ween_receipt )
+    print( "{:10}: Web3 Tester Forward#0 WEENUS transfer Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_ween_receipt.gasUsed,
-        mc_fwd0_ween_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_fwd0_ween_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_fwd0_ween_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_fwd0_ween_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     mc_zeen_paid		= mc_zeen_balance // 10
@@ -788,12 +813,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
+    mc_fwd0_zeen		= w3.eth.get_transaction( mc_fwd0_zeen_hash )
     mc_fwd0_zeen_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_zeen_hash )
-    print( "{:10}: Web3 Tester Forward#0 ZEENUS transfer Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    gas_cost			= tx_gas_cost( mc_fwd0_zeen, mc_fwd0_zeen_receipt )
+    print( "{:10}: Web3 Tester Forward#0 ZEENUS transfer Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_zeen_receipt.gasUsed,
-        mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_fwd0_zeen_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_fwd0_zeen_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_fwd0_zeen_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
 
     gas				= 25000
@@ -823,12 +850,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
     } | gas_price )
+    mc_fwd0_agin		= w3.eth.get_transaction( mc_fwd0_agin_hash )
     mc_fwd0_agin_receipt	= w3.eth.wait_for_transaction_receipt( mc_fwd0_agin_hash )
-    print( "{:10}: Web3 Tester Forward#0 forwarder Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    gas_cost			= tx_gas_cost( mc_fwd0_agin, mc_fwd0_agin_receipt )
+    print( "{:10}: Web3 Tester Forward#0 forwarder Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_fwd0_agin_receipt.gasUsed,
-        mc_fwd0_agin_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_fwd0_agin_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_fwd0_agin_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_fwd0_agin_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
     # How do we harvest the result from the tx/receipt?
     #assert mc_fwd0_addr_again == mc_fwd0_addr
@@ -860,14 +889,16 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     } | gas_price )
     print( f"{testnet:10}: Web3 Tester payout MultiPayoutERC20 hash: {mc_payo_hash.hex()}" )
 
+    mc_payo			= w3.eth.get_transaction( mc_payo_hash )
     mc_payo_receipt		= w3.eth.wait_for_transaction_receipt( mc_payo_hash )
+    gas_cost			= tx_gas_cost( mc_payo, mc_payo_receipt )
     print( f"{testnet:10}: Web3 Tester payout MultiPayoutERC20: {json.dumps( mc_payo_receipt, indent=4, default=str )}" )
 
-    print( "{:10}: Web3 Tester payout MultiPayoutERC20 Gas Used: {} == {}gwei == USD${:9,.2f} ({})".format(
+    print( "{:10}: Web3 Tester payout MultiPayoutERC20 Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({})".format(
         testnet,
         mc_payo_receipt.gasUsed,
-        mc_payo_receipt.gasUsed * ETH.GAS_GWEI,
-        mc_payo_receipt.gasUsed * ETH.GAS_GWEI * ETH.ETH_USD / ETH.ETH_GWEI, ETH.STATUS or 'estimated',
+        mc_payo_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
+        mc_payo_receipt.gasUsed * gas_cost * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
     ))
     print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutETH events: {}".format(
         testnet,
@@ -956,6 +987,8 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     # with a free .call.
     multipayout_address		= "0x8b3D24A120BB486c2B7583601E6c0cf37c9A2C04"
 
+    # Since we're not deploying or making non-free Contract API calls, don't bother providing a
+    # legitimate GasOracle, eg.Etherscan( chain=chain, speed=speed )
     mp_c			= MultiPayoutERC20(
         provider,
         address		= multipayout_address,
@@ -964,12 +997,28 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     )
     assert mp_c.forwarder_address( 0 ) \
         == contract_address( address=multipayout_address, salt=0, creation_hash=mp_c._forwarder_hash ) \
-        == mp_c.forwarder_addrress_precompute( 0 ) \
+        == mp_c._forwarder_address_precompute( 0 ) \
         == "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8"
 
     # Make certain we haven't cluttered up the namespace (covered up any contract method names)
     attrs_bare			= [n for n in dir( mp_c ) if not n.startswith( '_' )]
     assert not attrs_bare
+
+
+@pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
+def test_multipayout_recover( testnet, provider, chain_id, src, src_prvkey, destination ):
+    """Recover an existing MultiPayoutERC20
+    """
+    if testnet != "Goerli":
+        return
+    # Recover an already deployed MultiPayoutERC20.  No need for a GasOracle (free calls only)
+    mp_r			= MultiPayoutERC20(
+        provider,
+        address		= "0xb8A8db0B4B8107c71D0C079351Be69c8CCe27469",
+        agent		= src,
+        agent_prvkey	= src_prvkey,
+    )
+    print( f"Recovered MultiPayoutERC20 at {mp_r._address}" )
 
 
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
@@ -987,22 +1036,31 @@ def test_multipayout_deploy( testnet, provider, chain_id, src, src_prvkey, desti
         for payee in destination
     }
     erc20s 			= [ USDT_GOERLI, USDC_GOERLI, WEEN_GOERLI, ZEEN_GOERLI ]
+
+    gas_oracle			= Etherscan( chain=Chain.Ethereum )
+
     mp_d			= MultiPayoutERC20(
         provider,
         agent		= src,
         agent_prvkey	= src_prvkey,
         payees		= payees,
         erc20s		= erc20s,
+        gas_oracle	= gas_oracle,
+        gas_oracle_timeout = 10,
     )
-    print( f"Deployed  MultiPayoutERC20 to {mp_d._address}" )
+    print( f"Deployed  MultiPayoutERC20 to {mp_d._address}: \n{mp_d}" )
 
-    # Recover an already deployed MultiPayoutERC20
+    # Recover the just-deployed MultiPayoutERC20.  Only free calls; no GasOracle needed
     mp_r			= MultiPayoutERC20(
         provider,
         address		= mp_d._address,
         agent		= src,
         agent_prvkey	= src_prvkey,
     )
-    print( f"Recovered MultiPayoutERC20 at {mp_r._address}" )
+    print( f"Recovered MultiPayoutERC20 at {mp_r._address}: \n{mp_r}" )
 
-    assert mp_r._payees == mp_d._payees
+    # The deployed ._payees will not match the recovered _payees, because the original one has
+    # full-precision shares/fractions, while the recovered one has fractions deduced from the
+    # decimated "reserve" remainders stored in the contract.  However, the ._payees_reserve must be
+    # identical.
+    assert mp_r._payees_reserve == mp_d._payees_reserve
