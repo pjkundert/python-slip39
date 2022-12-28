@@ -207,6 +207,135 @@ def ethprice( chain=None, **kwds ):
     )
 
 
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+def erc20tx( chain=None, address=None, token=None, **kwds ):
+    """Return (possibly cached) ERC-20 transactions from etherscan.io, or empty dict (performs exponential
+    backoff of 3^5 seconds (4 min.) on Exceptions.)
+
+    Caches based on account address and (optionally) a specific token address.  Otherwise, returns
+    all (known) ERC-20 token operations on the specified account.
+
+    TODO: There may be unknown ERC-20 tokens that this won't find, unless contractAddress specified.
+
+    """
+    assert address is not None, \
+        "Require an Ethereum account 'address' to query for ERC-20 transactions"
+    if token is None:
+        params			= (
+            ('module', 'account'),
+            ('action', 'tokentx'),
+            ('address', address),
+        )
+    else:
+        params			= (
+            ('module', 'account'),
+            ('action', 'tokentx'),
+            ('address', address),
+            ('contractAddress', token),
+        )
+    return etherscan(
+        chain or Chain.Ethereum,
+        params,
+        **kwds,
+    )
+
+
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+def etherbalance( chain=None, address=None, **kwds ):
+    """Return (possibly cached) ETH balance from etherscan.io, or empty dict (performs exponential
+    backoff of 3^5 seconds (4 min.) on Exceptions.)
+
+    Caches based on account address.
+
+    """
+    assert address is not None, \
+        "Require an Ethereum account 'address' to query for Ethereum balance"
+    params			= (
+        ('module', 'account'),
+        ('action', 'balance'),
+        ('address', address),
+    )
+    return etherscan(
+        chain or Chain.Ethereum,
+        params,
+        **kwds,
+    )
+
+
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+def ethertx( chain=None, address=None, **kwds ):
+    """Return (possibly cached) ETH normal transactions from etherscan.io, or empty dict (performs exponential
+    backoff of 3^5 seconds (4 min.) on Exceptions.)
+
+    Caches based on account address.
+
+    Includes contract invocations, incoming/outgoing value transactions, etc., including those that
+    have "isError": "1".
+
+    """
+    assert address is not None, \
+        "Require an Ethereum account 'address' to query for Ethereum transactions"
+    params			= (
+        ('module', 'account'),
+        ('action', 'txlist'),
+        ('address', address),
+    )
+    return etherscan(
+        chain or Chain.Ethereum,
+        params,
+        **kwds,
+    )
+
+
+class Direction( Enum ):
+    Incoming		= 0b01
+    Outgoing		= 0b10
+    Both		= 0b11
+
+
+def etherio( chain=None, address=None, direction=None, **kwds ):
+    """Yields a sequence of successful Ethereum value incoming/outgoing transactions for an account.
+    By default, returns only Incoming value transactions.
+
+    Ignores non-value (eg. contract) and failed transactions.
+
+    """
+    if direction is None:
+        direction		= Direction.Incoming
+    for tx in ethertx( chain=chain, address=address ):
+        if tx["value"] == "0" or tx["isError"] != "0":
+            continue
+        # A non-error value-bearing transaction.  Ignore?
+        if not ( direction == Direction.Both
+                 or (( direction.value & Direction.Incoming.value ) and tx["to"  ].lower() == address.lower() )
+                 or (( direction.value & Direction.Outgoing.value ) and tx["from"].lower() == address.lower() )):
+            continue
+        yield tx
+
+
+def erc20io( chain=None, address=None, token=None, tokens=None, direction=None, **kwds ):
+    """Yields a sequence of successful ERC-20 value incoming/outgoing transactions for an account.
+    By default, returns only Incoming value transactions.
+
+    Specifying a specific 'token' limits the query to only a single token.  Alternatively,
+    specifying a set/list of tokens filters transactions to only those tokens.
+
+    """
+    assert not bool( token ) or not bool( tokens ) or token in tokens, \
+        "Cannot specify both a 'token' and 'tokens' set that do not overlap"
+    if direction is None:
+        direction		= Direction.Incoming
+    tokens			= set( t.lower() for t in tokens ) if tokens else set()
+    for tx in erc20tx( chain=chain, address=address, token=token ):
+        if tokens and tx["contractAddress"].lower() not in tokens:
+            continue
+        if not ( direction == Direction.Both
+                 or (( direction.value & Direction.Incoming.value ) and tx["to"  ].lower() == address.lower() )
+                 or (( direction.value & Direction.Outgoing.value ) and tx["from"].lower() == address.lower() )):
+            continue
+        yield tx
+
+
 class Speed( Enum ):
     Propose		= 0
     Safe		= 1

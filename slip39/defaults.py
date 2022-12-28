@@ -160,6 +160,6 @@ COLOR				= [
     f"0x{__d}{__d}{__d}",  # Dark grey,
 ]
 
-# We'll default to 1-minute intervals for querying Etherscan for Gas Pricing info
-ETHERSCAN_MEMO_MAXAGE		= 60
+# We'll default to 30-second intervals for querying Etherscan for Gas, ETH, ERC-20 Pricing info
+ETHERSCAN_MEMO_MAXAGE		= 30
 ETHERSCAN_MEMO_MAXSIZE		= None

@@ -21,6 +21,8 @@ from .ethereum	import (		# noqa F401
     contract_address,
     etherscan_urls,
     etherscan, gasoracle, ethprice,
+    etherbalance, ethertx, erc20tx,
+    Direction, etherio, erc20io,
     GasOracle, Chain, Speed, Etherscan,
     Contract,
 )
