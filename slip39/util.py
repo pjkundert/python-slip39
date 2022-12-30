@@ -96,6 +96,25 @@ def log_level( adjust ):
     ]
 
 
+#
+# util.is_...		-- Test for various object capabilities
+#
+def is_mapping( thing ):
+    """See if the thing implements the Mapping protocol."""
+    return hasattr( thing, 'keys' ) and hasattr( thing, '__getitem__' )
+
+
+def is_listlike( thing ):
+    """Something like a list or tuple; indexable, but not a string or a class (some may have
+    __getitem__, eg. cpppo.state, based on a dict).
+
+    """
+    return not isinstance( thing, (str,bytes,type) ) and hasattr( thing, '__getitem__' )
+
+
+#
+# @util.memoize		-- Cache function results data based on positional args, and maxage/size
+#
 def memoize( maxsize=None, maxage=None, log_at=None ):
     """A very simple memoization wrapper based on (immutable) args only, for simplicity.  Any
     keyword arguments must be immaterial to the successful outcome, eg. timeout, selection of
@@ -177,6 +196,9 @@ def memoize( maxsize=None, maxage=None, log_at=None ):
     return decorator
 
 
+#
+# @util.retry		-- Retry w/ exponential back-off, 'til truthy result returned
+#
 def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=logging.WARNING ):
     """Retries a function or method until it returns a truthy value.  If default_cls is None, will
     recycle (keep returning) any prior non-falsey value 'til successful again.  Otherwise, will

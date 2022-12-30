@@ -163,3 +163,7 @@ COLOR				= [
 # We'll default to 30-second intervals for querying Etherscan for Gas, ETH, ERC-20 Pricing info
 ETHERSCAN_MEMO_MAXAGE		= 30
 ETHERSCAN_MEMO_MAXSIZE		= None
+
+
+SMTP_TO				= "licensing@dominionrnd.com"
+SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
