@@ -66,6 +66,8 @@
 #    and we do not want people using the same email address, or other people's
 #    email addresses.
 
+KTYPE="rsa"  # "ed25519"  # but not well supported yet; even by Cloudflare
+
 COMPANY=""
 while [ "${COMPANY}" == "" ]; do
     echo -n "What is your company's name: "
@@ -92,16 +94,16 @@ if [ -z "${SELECTOR}" ]; then
 fi   
 TXTFILE="${SUB}.${DOMAIN}.${SELECTOR}.dns"
 if [ ! -r  "${TXTFILE}" ]; then
-    dknewkey --ktype ed25519 ${SUB}.${DOMAIN}.${SELECTOR}
+    dknewkey --ktype ${KTYPE} ${SUB}.${DOMAIN}.${SELECTOR}
 fi
 ls -l ${TXTFILE}
 
 echo "Found DKIM key: $( cat ${TXTFILE} )"
 
-# See if it's installed in DNS
+# See if it's installed in DNS.  Dig always returns TXT as string literals: "..."
 TXTREC="${SELECTOR}._domainkey.${SUB}.${DOMAIN}"
 echo -n "Checking DNS at ${TXTREC} ..." 
-TXT=$( dig +short ${TXTREC} TXT )
+TXT=$( python3 -m crypto_licensing.licensing.doh --no-json dig ${TXTREC} TXT )
 echo ${TXT}
 
 if (( $? )); then
@@ -110,8 +112,8 @@ if (( $? )); then
 elif [ -z "${TXT}" ]; then
     echo "No TXT record found at ${TXTREC}"
     exit 1
-elif grep "${TXT}" ${TXTFILE}; then
-    echo "${TXTFILE} doesn't match TXT record $TXT"
+elif ! echo -n ${TXT//\"} | diff ${TXTFILE} -; then
+    echo "${TXTFILE} doesn't match ${TXTREC} TXT record"
     exit 1
 fi
 

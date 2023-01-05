@@ -3,7 +3,7 @@ py-solc-x		>=1.1.1,<1.2
 pycryptodome		>=3.16,	<4 
 requests		>=2.20,	<3
 tabulate		>=0.9,	<1
-crypto-licensing	>=3
+crypto-licensing	>=3.0.3
 dkimpy[ed25519]		>=1.0.5,<2
 
 # These versions are very brittle; must be upgraded in lock-step (see web3.py/setup.py)
