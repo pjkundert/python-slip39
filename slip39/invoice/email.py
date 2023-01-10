@@ -1,4 +1,4 @@
-
+#! /usr/bin/env python3
 #
 # Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
 #
@@ -15,18 +15,22 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 import logging
+import re
 import smtplib
 import ssl
+import sys
 
-from tabulate		import tabulate
-from email		import utils
-from email.mime		import multipart, text
+from subprocess		import Popen, PIPE
 
+import click
 import dkim
 
+from tabulate		import tabulate
+from email		import utils, message_from_file
+from email.mime		import multipart, text
 from crypto_licensing.licensing import doh
 
-from ..util		import is_listlike, commas
+from ..util		import is_listlike, commas, uniq, log_cfg, log_level
 
 
 __author__                      = "Perry Kundert"
@@ -170,10 +174,10 @@ def send_message(
     from_addr		= None,		# Envelope MAIL FROM: (use msg['Sender'/'From'] if not specified)
     to_addrs		= None,		# Envelope RCTP TO:   (use msg['To'/'CC'/'BCC'] if not specified)
     relay		= None,		# Eg. "localhost"; None --> lookup MX record
-    port		= 587,		# Eg. 25 --> raw TCP/IP, 587 --> TLS, 465 --> SSL
-    starttls		= True,		# Upgrade SMTP connection w/ TLS
-    verifycert		= False,        # and verify SSL/TLS certs (not generally supported)
-    usessl		= False,        # Connect using SMTP_SSL
+    port		= None,		# Eg. 25 --> raw TCP/IP, 587 --> TLS (default), 465 --> SSL
+    starttls		= None,		# Upgrade SMTP connection w/ TLS (default: True iff port == 587)
+    usessl		= None,		# Connect using SMTP_SSL (default: True iff port == 465)
+    verifycert		= None,		# and verify SSL/TLS certs (not generally supported)
     username		= None,
     password		= None,
 ):
@@ -205,8 +209,8 @@ def send_message(
     # Now that we have a to_addrs, construct a mapping of (mx, ...) --> [addr, ...].  For each
     # to_addrs, lookup its destination's mx records; we'll append all to_addrs w/ the same mx's
     # (sorted by priority).
+    relay_addrs			= {}
     if relay is None:
-        relay_addrs		= dict()
         for to in to_addrs:
             relay_addrs.setdefault( tuple( mx_records( to.split( '@', 1 )[1] )), [] ).append( to )
     else:
@@ -215,7 +219,7 @@ def send_message(
         relay_addrs[tuple( relay )] = to_addrs
     relay_max			= max( len( r ) for r in relay_addrs.keys() )
     addrs_max			= max( len( a ) for a in relay_addrs.values() )
-    log.info( f"Relays, and their destination addresses\n" + tabulate(
+    log.info( "Relays, and their destination addresses\n" + tabulate(
         [
             list( r ) + ([ None ] * (relay_max - len( r ))) + list( a )
             for r,a in relay_addrs.items()
@@ -223,6 +227,16 @@ def send_message(
         headers= tuple( f"mx {m+1}" for m in range( relay_max ) ) + tuple( f"addr {a+1}" for a in range( addrs_max )),
         tablefmt='orgtbl'
     ))
+
+    # Default port and TLS/SSL if unspecified.
+    if port is None:
+        port			= 587
+    if starttls is None:
+        starttls		= True if port == 587 else False
+    if usessl is None:
+        usessl			= True if port == 465 else False
+    if verifycert is None:
+        verifycert		= False
 
     try:
         # Python 3 libraries expect bytes.
@@ -287,3 +301,180 @@ def send_message(
     log.info( f"{relayed} of {len( relay_addrs )} relays succeeded" )
 
     return msg
+
+
+class postqueue:
+    """A postfix-compatible post-queue filter.  See:
+    https://codepoets.co.uk/2015/python-content_filter-for-postfix-rewriting-the-subject/
+
+    Receives an email via stdin, and re-injects it into the mail system via /usr/sbin/sendmail,
+    raising an exception if for any reason it is unable to do so (caller should trap and return
+    an appropriate exit status compatible w/ postfix:
+
+         0: success
+        69: bounce
+        75: tempfail
+
+    Creates and sends a response email via SMTP to a relay (default is the local SMTP server at
+    localhost:25)
+
+    The msg, from_addr and to_addrs are retained in self.msg, etc.
+
+    Postfix will pass all To:, Cc: and Bcc: recipients in to_addrs.
+
+    The reinject command is executed/called, and passed from_addr and *to_addrs.
+    """
+    def __init__( self, reinject=None ):
+        if reinject is None:
+            reinject		= [ '/usr/bin/sendmail', '-G', '-i', '-f' ]
+        self.reinject		= reinject
+
+    def respond( self, from_addr, *to_addrs ):
+        msg			= self.message()
+        try:
+            # Allow a command (list), or a function for reinject
+            if is_listlike( self.reinject ):
+                with Popen( self.reinject + [ from_addr] + to_addrs, stdin=PIPE ) as process:
+                    process.communicate( msg.as_bytes() )
+            else:
+                self.reinject( from_addr, *to_addrs )
+        except Exception as exc:
+            log.warning( f"Re-injecting message From: {from_addr}, To: {commas( to_addrs )} via sendmail failed: {exc}" )
+            raise
+        return msg
+
+    def message( self ):
+        """Return (a possibly altered) email.Message as the auto-response.  By default, an filter
+        receives its email.Message from stdin, unaltered.
+
+        """
+        msg			= message_from_file( sys.stdin )
+        return msg
+
+    def response( self, msg ):
+        """Prepare the response message.  Normally, it is at least just a different message."""
+        msg
+        return msg
+
+
+def matchaddr( address, mailbox=None, domain=None ):
+    """The supplied address begins with "<mailbox>", optionally followed by a "+<extension>", and
+    then ends with "@<domain>".  If so, return the re.match w/ the 3 groups.  If either 'mailbox' or
+    'domain' is falsey, any will be allowed.
+
+    Does not properly respect email addresses with quoting, eg. 'abc"123@456"@domain.com'
+    """
+    _,email			= utils.parseaddr( address )
+    return re.match(
+        rf"(^{mailbox if mailbox else '[^@+]*'})(?:\+([^@]+))?@({domain if domain else '.*'})",
+        email,
+        re.IGNORECASE
+    )
+
+
+class autoresponder( postqueue ):
+    def __init__( self, *args, address=None, server=None, port=None, **kwds ):
+        m			= matchaddr( address or '' )
+        assert m, \
+            f"Must supply a valid email destination address to auto-respond to: {address}"
+        self.address		= address
+        self.mailbox,self.extension,self.domain	= m.groups()
+        self.relay		= 'localhost' if server is None else server
+        self.port		= 25 if port is None else port
+
+        super().__init__( *args, **kwds )
+
+        log.info( f"autoresponding to DKIM-signed emails To: {self.address}@{self.domain}" )
+
+    def respond( self, from_addr, *to_addrs ):
+        """Decide if we should auto-respond, and do so."""
+
+        msg			= super().respond( from_addr, *to_addrs )
+        log.info( f"Filtered From: {msg['from']}, To: {msg['to']}"
+                  f" originally     from {from_addr} to {len(to_addrs)} recipients: {commas( to_addrs, final='and' )}" )
+
+        if 'to' not in msg or not matchaddr( msg['to'], mailbox=self.mailbox, domain=self.domain ):
+            log.warning( f"Message From: {msg['from']}, To: {msg['to']} expected To: {self.address}; not auto-responding" )
+            return 0
+        if 'dkim-signature' not in msg:
+            log.warning( f"Message From: {msg['from']}, To: {msg['to']} is not DKIM signed; not auto-responding" )
+            return 0
+        if not dkim.verify( msg.as_bytes() ):
+            log.warning( f"Message From: {msg['from']}, To: {msg['to']} DKIM signature fails; not auto-responding " )
+            return 0
+
+        # Normalize, uniqueify and filter the addresses (discarding invalids).  Avoid sending it to
+        # the designated self.address, as this would set up a mail loop.
+        to_addrs_filt		= [
+            fa
+            for fa in uniq( filter( None, (
+                utils.parseaddr( a )[1]
+                for a in to_addrs
+            )))
+            if fa != self.address
+        ]
+
+        rsp			= self.response( msg )
+        # Also use the Reply-To: address, if supplied
+        if 'reply-to' in rsp:
+            _,reply_to		= utils.parseaddr( rsp['reply-to'] )
+            if reply_to not in to_addrs_filt:
+                to_addrs_filt.append( reply_to )
+
+        log.info( f"Response From: {rsp['from']}, To: {rsp['to']}"
+                  f" autoresponding from {from_addr} to {len(to_addrs_filt)} recipients: {commas( to_addrs_filt, final='and' )}"
+                  + ( f" (was {len(to_addrs)}: {commas( to_addrs, final='and' )})" if to_addrs != to_addrs_filt else "" ))
+
+        # Now, send the same message to all the supplied Reply-To, and Cc/Bcc address (already in
+        # responder.to_addrs).  If it is DKIM signed, since we're not adjusting the message -- just
+        # send w/ new RCPT TO: envelope addresses.  We'll use the same from_addr address (it must be
+        # from our domain, or we wouldn't be processing it.
+        try:
+            send_message(
+                rsp,
+                from_addr	= from_addr,
+                to_addrs	= to_addrs_filt,
+                relay		= self.relay,
+                port		= self.port,
+            )
+        except Exception as exc:
+            log.warning( f"Message From: {rsp['from']}, To: {rsp['to']} autoresponder SMTP send failed: {exc}" )
+            return 75  # tempfail
+
+        return 0
+
+
+@click.group()
+@click.option('-v', '--verbose', count=True)
+@click.option('-q', '--quiet', count=True)
+@click.option( '--json/--no-json', default=True, help="Output JSON (the default)")
+def cli( verbose, quiet, json ):
+    cli.verbosity		= verbose - quiet
+    log_cfg['level']		= log_level( cli.verbosity )
+    logging.basicConfig( **log_cfg )
+    if verbose or quiet:
+        logging.getLogger().setLevel( log_cfg['level'] )
+    cli.json			= json
+cli.verbosity			= 0  # noqa: E305
+cli.json			= False
+
+
+@click.command()
+@click.argument( 'address' )
+@click.option( '--server', default='localhost' )
+@click.option( '--port', default=25 )
+def respond( address, server, port ):
+    """Run an auto-responder that replies to all incoming emails to the specified email address.
+
+    - Must be DKIM signed, including the From: and To: addresses.
+    - The RCPT TO: "envelope" address must match 'address':
+      - We won't autorespond to copies of the email being delivered to other inboxes
+    - The MAIL FROM: "envelope" address must match the From: address
+      - We won't autorespond to copies forwarded from other email addresses
+
+    """
+    pass
+
+
+if __name__ == "__main__":
+    cli()
