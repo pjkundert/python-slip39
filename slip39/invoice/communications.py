@@ -35,7 +35,7 @@ from ..util		import is_listlike, commas, uniq, log_cfg, log_level
 
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
-__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__copyright__                   = "Copyright (c) 2023 Dominion Research & Development Corp."
 __license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( 'email' )
@@ -55,6 +55,25 @@ def mx_records( domain, timeout=None ):
         )
     ):
         yield mx
+
+
+def matchaddr( address, mailbox=None, domain=None ):
+    """The supplied email address begins with "<mailbox>", optionally followed by a "+<extension>", and
+    then ends with "@<domain>".  If so, return the re.match w/ the 3 groups.  If either 'mailbox' or
+    'domain' is falsey, any will be allowed.
+
+    Does not properly respect email addresses with quoting, eg. 'abc"123@456"@domain.com' because,
+    quite frankly, I don't want to and that's just "Little Bobby Tables" (https://xkcd.com/327/)
+    level asking for trouble...
+
+    Simple <mailbox>[+<extension>]@<domain>, please.
+
+    """
+    return re.match(
+        rf"(^{mailbox if mailbox else '[^@+]*'})(?:\+([^@]+))?@({domain if domain else '.*'})",
+        utils.parseaddr( address )[1],
+        re.IGNORECASE
+    )
 
 
 def dkim_message(
@@ -99,9 +118,9 @@ def dkim_message(
     if signature_algorithm is None:
         signature_algorithm	= "rsa-sha256"  # "ed25519-sha256" not well supported, yet.
 
-    sender_domain = sender_email.split("@")[-1]
+    sender_domain		= matchaddr( sender_email ).group( 3 )
 
-    msg = multipart.MIMEMultipart("alternative")
+    msg				= multipart.MIMEMultipart("alternative")
     msg.attach(text.MIMEText(message_text, "plain"))
     if message_html:
         msg.attach(text.MIMEText(message_html, "html"))
@@ -117,7 +136,7 @@ def dkim_message(
     if reply_to_email:
         # Autoresponders don't generally respect Reply-To (as recommended in RFC-3834)
         # https://www.rfc-editor.org/rfc/rfc3834#section-4.
-        msg["Reply-To"] = reply_to_email
+        msg["Reply-To"]		= reply_to_email
     msg["Subject"]		= subject
 
     try:
@@ -146,7 +165,8 @@ def dkim_message(
         #     b'DKIM-Signature: v=1; i=@lic...\r\n s=... b=Fp2...6H\r\n 5//6o...Ag=='
         #                                     ^^^^^                ^^^^^
         #
-        # contains a bunch of errant whitespace, especially within the b: and bh: base-64 data
+        # contains a bunch of unnecessary whitespace, especially within the b: and bh: base-64
+        # data.  However, this whitespace is ignored by the standard email.Message parser.
         #
         pre,sig_dirty		= sig.decode( 'utf-8' ).split( ':', 1 )
         log.info( f"DKIM signed: {sig_dirty!r}" )
@@ -162,9 +182,7 @@ def dkim_message(
         #log.info( f"DKIM clean:  {sig_clean!r}" )
 
         # add the dkim signature to the email message headers.
-        # decode the signature back to string_type because later on
-        # the call to msg.as_string() performs it's own bytes encoding...
-        msg["DKIM-Signature"]	= sig_dirty.strip()   # sig_clean
+        msg["DKIM-Signature"]	= sig_dirty.strip()
 
         return msg
 
@@ -303,7 +321,7 @@ def send_message(
     return msg
 
 
-class postqueue:
+class PostQueue:
     """A postfix-compatible post-queue filter.  See:
     https://codepoets.co.uk/2015/python-content_filter-for-postfix-rewriting-the-subject/
 
@@ -322,22 +340,48 @@ class postqueue:
 
     Postfix will pass all To:, Cc: and Bcc: recipients in to_addrs.
 
-    The reinject command is executed/called, and passed from_addr and *to_addrs.
+    The reinject command is executed/called, and passed from_addr and *to_addrs; False disables.
     """
     def __init__( self, reinject=None ):
-        if reinject is None:
-            reinject		= [ '/usr/bin/sendmail', '-G', '-i', '-f' ]
-        self.reinject		= reinject
+        if reinject in (None, True):
+            reinject		= [ '/usr/sbin/sendmail', '-G', '-i', '-f' ]
+        if is_listlike( reinject ):
+            self.reinject	= list( map( str, reinject ))
+        elif not reinject:
+            self.reinject	= lambda *args: None		# False, ''
+        else:
+            self.reinject	= reinject			# str, callable
+        log.info( f"Mail reinjection: {self.reinject!r}" )
 
     def respond( self, from_addr, *to_addrs ):
         msg			= self.message()
         try:
-            # Allow a command (list), or a function for reinject
+            # Allow a command (list), a shell command or a function for reinject
+            err			= None
             if is_listlike( self.reinject ):
-                with Popen( self.reinject + [ from_addr] + to_addrs, stdin=PIPE ) as process:
-                    process.communicate( msg.as_bytes() )
+                with Popen(
+                        self.reinject + [ from_addr] + list( to_addrs ),
+                        stdin	= PIPE,
+                        stdout	= PIPE,
+                        stderr	= PIPE
+                ) as process:
+                    out, err	= process.communicate( msg.as_bytes() )
+                    out		= out.decode( 'UTF-8' )
+                    err		= err.decode( 'UTF-8' )
+            elif isinstance( self.reinject, str ):
+                with Popen(
+                        f"{self.reinject} {from_addr} {' '.join( to_addrs )}",
+                        shell	= True,
+                        stdin	= PIPE,
+                        stdout	= PIPE,
+                        stderr	= PIPE
+                ) as process:
+                    out, err	= process.communicate( msg.as_bytes() )
+                    out		= out.decode( 'UTF-8' )
+                    err		= err.decode( 'UTF-8' )
             else:
-                self.reinject( from_addr, *to_addrs )
+                out		= self.reinject( from_addr, *to_addrs )
+            log.info( f"Results of reinjection: stdout: {out}, stderr: {err}" )
         except Exception as exc:
             log.warning( f"Re-injecting message From: {from_addr}, To: {commas( to_addrs )} via sendmail failed: {exc}" )
             raise
@@ -357,22 +401,7 @@ class postqueue:
         return msg
 
 
-def matchaddr( address, mailbox=None, domain=None ):
-    """The supplied address begins with "<mailbox>", optionally followed by a "+<extension>", and
-    then ends with "@<domain>".  If so, return the re.match w/ the 3 groups.  If either 'mailbox' or
-    'domain' is falsey, any will be allowed.
-
-    Does not properly respect email addresses with quoting, eg. 'abc"123@456"@domain.com'
-    """
-    _,email			= utils.parseaddr( address )
-    return re.match(
-        rf"(^{mailbox if mailbox else '[^@+]*'})(?:\+([^@]+))?@({domain if domain else '.*'})",
-        email,
-        re.IGNORECASE
-    )
-
-
-class autoresponder( postqueue ):
+class AutoResponder( PostQueue ):
     def __init__( self, *args, address=None, server=None, port=None, **kwds ):
         m			= matchaddr( address or '' )
         assert m, \
@@ -460,11 +489,17 @@ cli.json			= False
 
 
 @click.command()
-@click.argument( 'address' )
+@click.argument( 'address', nargs=1 )
+@click.argument( 'from_addr', nargs=1 )
+@click.argument( 'to_addrs', nargs=-1 )
 @click.option( '--server', default='localhost' )
 @click.option( '--port', default=25 )
-def respond( address, server, port ):
+@click.option( '--reinject', type=str, default=None, help="A custom command to reinject email, eg. via sendmail" )
+@click.option( '--no-reinject', 'reinject', flag_value='', help="Disable reinjection of filtered mail, eg. via sendmail" )
+def autoresponder( address, from_addr, to_addrs, server, port, reinject ):
     """Run an auto-responder that replies to all incoming emails to the specified email address.
+
+    Will be invoked with a from_addr and 1 or more to_addrs.
 
     - Must be DKIM signed, including the From: and To: addresses.
     - The RCPT TO: "envelope" address must match 'address':
@@ -472,8 +507,24 @@ def respond( address, server, port ):
     - The MAIL FROM: "envelope" address must match the From: address
       - We won't autorespond to copies forwarded from other email addresses
 
+
+    Configure Postfix system as per: https://github.com/innovara/autoreply, except create
+
+        # autoresponder pipe
+        autoreply unix  -       n       n       -       -       pipe
+         flags= user=autoreply null_sender=
+         argv=python -m slip39.email autoresponder licensing@dominionrnd.com ${sender} ${recipient}
+
     """
-    pass
+    AutoResponder(
+        address		= address,
+        server		= server,
+        port		= port,
+        reinject	= reinject,
+    ).respond( from_addr, *to_addrs )
+
+
+cli.add_command( autoresponder )
 
 
 if __name__ == "__main__":

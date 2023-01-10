@@ -1,20 +1,33 @@
-from io			import StringIO
+import logging
+import os
 
+from io			import StringIO
 from pathlib		import Path
+from subprocess		import Popen, PIPE
 
 import dkim
 
 from aiosmtpd.controller import Controller
 
-from .email		import dkim_message, send_message, matchaddr, autoresponder
+from .communications	import dkim_message, send_message, matchaddr, AutoResponder
 from ..defaults		import SMTP_TO, SMTP_FROM
 
+log				= logging.getLogger( __package__ )
 
 dkim_key			= Path( __file__ ).resolve().parent.parent.parent / 'licensing.dominionrnd.com.20221230.key'
 dkim_selector			= '20221230'
 
 
-def test_email_dkim():
+def test_communications_matchaddr():
+    assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ).groups() == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz",                domain="xYz" ).groups() == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz", mailbox="Abc"               ).groups() == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz",                             ).groups() == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz",                             ).group( 3 ) == "xyz"
+    assert matchaddr( "abc+def@xyz", mailbox="xxx"               ) is None
+
+
+def test_communications_dkim():
     msg				= dkim_message(
         sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
         to_email	= SMTP_TO,			# See https://dkimvalidator.com to test!
@@ -52,27 +65,19 @@ def test_email_dkim():
         msg,
         #from_addr	= SMTP_FROM,		# Envelope MAIL FROM: specifies actual sender
         #to_addrs	= [ SMTP_TO ],		# Will be the same as message To: (should default)
-        #relay		=  ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
+        #relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
         #port		= 25,  # 465 --> SSL, 587 --> TLS (default),
         #usessl = False, starttls = False, verifycert = False,  # to mail.kundert.ca; no TLS
         #usessl = False, starttls = True, verifycert = False,  # default
     )
+    # This may fail (eg. if you have no access to networking), so we don't check.
 
 
-def test_email_matchaddr():
-    assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                domain="xYz" ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz", mailbox="Abc"               ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                             ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                             ).group( 3 ) == "xyz"
-    assert matchaddr( "abc+def@xyz", mailbox="xxx"               ) is None
-
-
-def test_email_autoresponder( monkeypatch ):
-    """The Postfix-compatible autoresponder takes an email from stdin, and auto-forwards it (via a
+def test_communications_autoresponder( monkeypatch ):
+    """The Postfix-compatible auto-responder takes an email from stdin, and auto-forwards it (via a
     relay; normally the same Postfix installation that it is running within).
 
-    Let's shuttle a simple message through the autoresponder, and fire up an SMTP daemon to receive
+    Let's shuttle a simple message through the AutoResponder, and fire up an SMTP daemon to receive
     the auto-forwarded message(s).
 
     """
@@ -87,8 +92,8 @@ def test_email_autoresponder( monkeypatch ):
         dkim_selector	= dkim_selector,
         headers		= ['From', 'To'],
     )
-
     envelopes		= []
+
     class PrintingHandler:
         async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
             if matchaddr( address ).group( 3 ) not in ('dominionrnd.com', 'kundert.ca'):
@@ -136,15 +141,47 @@ def test_email_autoresponder( monkeypatch ):
             to_addrs	       += map( str.strip, msg[cc].split( ',' ) )
 
     monkeypatch.setattr( 'sys.stdin', StringIO( msg.as_string() ))
-    ar				= autoresponder(
+    ar				= AutoResponder(
         address		= SMTP_TO,
         server		= controller.hostname,
         port		= controller.port,
-        reinject	= lambda *args, **kwds: None
+        reinject	= False,
     )
     ar.respond(
         from_addr, *to_addrs
     )
-        
+
     assert len( envelopes ) == 2
+    assert envelopes[-1].rcpt_tos == [ 'perry@kundert.ca' ]
+
+    # Now, try the CLI version.
+    here			= Path( __file__ ).resolve().parent
+    for execute in [
+        [
+            "python3", "-m", "slip39.invoice.communications",
+        ]
+
+    ]:
+        command			= list( map( str, execute + [
+            '-v',
+            'autoresponder',
+            '--server',		controller.hostname,
+            '--port',		controller.port,
+            #'--no-reinject',
+            '--reinject',	"echo",
+            'licensing@dominionrnd.com',
+            from_addr,
+            *to_addrs
+        ] ))
+        log.info( f"Running filter: {' . '.join( command )}" )
+        with Popen(
+                command,
+                stdin	= PIPE,
+                env	= dict(
+                    os.environ,
+                    PYTHONPATH	= f"{here.parent.parent}"
+                )) as process:
+            process.communicate( msg.as_bytes() )
+
+    assert len( envelopes ) == 3
     assert envelopes[-1].rcpt_tos == [ 'perry@kundert.ca' ]
