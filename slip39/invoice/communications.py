@@ -14,6 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+import json
 import logging
 import re
 import smtplib
@@ -25,10 +26,10 @@ from subprocess		import Popen, PIPE
 import click
 import dkim
 
-from tabulate		import tabulate
-from email		import utils, message_from_file
-from email.mime		import multipart, text
 from crypto_licensing.licensing import doh
+from email		import utils, message_from_file, message_from_string
+from email.mime		import multipart, text
+from tabulate		import tabulate
 
 from ..util		import is_listlike, commas, uniq, log_cfg, log_level
 
@@ -115,8 +116,6 @@ def dkim_message(
 
     if headers is None:
         headers			= ["From", "To", "Subject"]
-    if signature_algorithm is None:
-        signature_algorithm	= "rsa-sha256"  # "ed25519-sha256" not well supported, yet.
 
     sender_domain		= matchaddr( sender_email ).group( 3 )
 
@@ -151,6 +150,10 @@ def dkim_message(
         # needs to be encoded from strings to bytes.
         with open(dkim_private_key_path) as fh:
             dkim_private_key	= fh.read()
+        if signature_algorithm is None:
+            # "ed25519-sha256" not well supported, yet.  But, if the key is short, that's probably what it is.
+            signature_algorithm	= "rsa-sha256" if len( dkim_private_key ) > 48 else 'ed25519-sha256'
+
         sig			= dkim.sign(
             message		= msg_data,
             selector		= str(dkim_selector).encode(),
@@ -165,24 +168,27 @@ def dkim_message(
         #     b'DKIM-Signature: v=1; i=@lic...\r\n s=... b=Fp2...6H\r\n 5//6o...Ag=='
         #                                     ^^^^^                ^^^^^
         #
-        # contains a bunch of unnecessary whitespace, especially within the b: and bh: base-64
-        # data.  However, this whitespace is ignored by the standard email.Message parser.
+        # contains a bunch of unnecessary whitespace, especially within the b: and bh: base-64 data.
+        # However, this whitespace is ignored by the standard email.Message parser.  Tidy it up.
         #
         pre,sig_dirty		= sig.decode( 'utf-8' ).split( ':', 1 )
-        log.info( f"DKIM signed: {sig_dirty!r}" )
+        log.info( f"DKIM signed: {sig_dirty.strip()!r}" )
         assert pre.lower() == "dkim-signature"
 
-        # This seems to corrupt the signature, unexpectedly...
-        #sig_kvs		= sig_dirty.split( ';' )
-        #sig_k_v		= list(
-        #    (k.strip(), ''.join(v.split()))  # eliminates internal v whitespace
-        #    for k,v in ( kv.split( '=', 1 ) for kv in sig_kvs )
-        #)
-        #sig_clean		= '; '.join( f"{k}={v}" for k,v in sig_k_v )
-        #log.info( f"DKIM clean:  {sig_clean!r}" )
-
+        # This seemed to corrupt the signature, unexpectedly...  Ah, because we removed internal
+        # whitespace from with the '; h=from : to', which is part of the signature.  Only clean b/bh.
+        sig_kvs		= sig_dirty.split( ';' )
+        sig_k_v		= dict(
+            (k.strip(), v.strip())
+            for k,v in ( kv.split( '=', 1 ) for kv in sig_kvs )
+        )
+        for k in ('b', 'bh'):
+            if k in sig_k_v:  # eliminates internal whitespace
+                sig_k_v[k]	= ''.join( sig_k_v[k].split() )
+        sig_clean		= '; '.join( f"{k}={v}" for k,v in sig_k_v.items() )
+        log.info( f"DKIM clean:  {sig_clean!r}" )
         # add the dkim signature to the email message headers.
-        msg["DKIM-Signature"]	= sig_dirty.strip()
+        msg["DKIM-Signature"]	= sig_clean
 
         return msg
 
@@ -346,17 +352,33 @@ class PostQueue:
         if reinject in (None, True):
             reinject		= [ '/usr/sbin/sendmail', '-G', '-i', '-f' ]
         if is_listlike( reinject ):
-            self.reinject	= list( map( str, reinject ))
+            self.reinject	= list( map( str, reinject ))   # [...]: command, eg. 'sendmail', ...
         elif not reinject:
-            self.reinject	= lambda *args: None		# False, ''
+            self.reinject	= lambda *args: None		# False, '': A NO-OP -- do not re-inject
         else:
-            self.reinject	= reinject			# str, callable
-        log.info( f"Mail reinjection: {self.reinject!r}" )
+            self.reinject	= reinject			# str, callable: a Shell command, or a function
+        self.reset()
 
-    def respond( self, from_addr, *to_addrs ):
-        msg			= self.message()
+    def reset( self ):
+        self.msg		= None				# The incoming original email.Message
+        self.msg_peers		= (None,[])			# and its (mail_from, [rcpt_to, ...])
+        self.rsp		= None				# The intended response email.Message
+        self.rsp_peers		= (None,[])			# and its (mail_from, [rcpt_to, ...])
+
+    def __call__( self, from_addr, *to_addrs ):
+        """Respond to an incoming email.Message according to the filter.  Returns an appropriate Filter exit
+        status code (see above).
+
+        The base class simply re-injects the message, and does nothing else (does not even try to
+        generate the self.rsp from self.response( msg ), which remains None.)
+
+        """
+        self.reset()
+        self.msg		= self.message()
+        self.msg_peers		= (from_addr, to_addrs)
         try:
-            # Allow a command (list), a shell command or a function for reinject
+            # Allow a command (list), a shell command or a function for reinject, logging
+            # the results of the re-injection command/function.
             err			= None
             if is_listlike( self.reinject ):
                 with Popen(
@@ -365,7 +387,7 @@ class PostQueue:
                         stdout	= PIPE,
                         stderr	= PIPE
                 ) as process:
-                    out, err	= process.communicate( msg.as_bytes() )
+                    out, err	= process.communicate( self.msg.as_bytes() )
                     out		= out.decode( 'UTF-8' )
                     err		= err.decode( 'UTF-8' )
             elif isinstance( self.reinject, str ):
@@ -376,29 +398,39 @@ class PostQueue:
                         stdout	= PIPE,
                         stderr	= PIPE
                 ) as process:
-                    out, err	= process.communicate( msg.as_bytes() )
+                    out, err	= process.communicate( self.msg.as_bytes() )
                     out		= out.decode( 'UTF-8' )
                     err		= err.decode( 'UTF-8' )
             else:
                 out		= self.reinject( from_addr, *to_addrs )
             log.info( f"Results of reinjection: stdout: {out}, stderr: {err}" )
         except Exception as exc:
+            # Something went wrong attempting re-injection
             log.warning( f"Re-injecting message From: {from_addr}, To: {commas( to_addrs )} via sendmail failed: {exc}" )
-            raise
-        return msg
+            return 75  # tempfail
+        return 0
 
     def message( self ):
-        """Return (a possibly altered) email.Message as the auto-response.  By default, an filter
-        receives its email.Message from stdin, unaltered.
+        """Obtain and return the email.Message we are to process.  By default, an filter receives its
+        email.Message from stdin, unaltered.
 
         """
-        msg			= message_from_file( sys.stdin )
-        return msg
+        return message_from_file( sys.stdin )
 
-    def response( self, msg ):
-        """Prepare the response message.  Normally, it is at least just a different message."""
-        msg
-        return msg
+    def response( self, msg, new_id=None ):
+        """Prepare the auto-responder message.  Copies the incoming email.Message, to avoid altering
+        it. Optionally, give it a different Message-ID.
+
+        """
+        rsp			= message_from_string( msg.as_string() )
+        if new_id:
+            domain		= None
+            # Prefer the sender field per RFC 2822:3.6.2.
+            sender_m		= matchaddr( rsp['Sender'] if 'Sender' in rsp else rsp['From'] )
+            if sender_m:
+                domain		= sender_m.group( 3 )
+            rsp['Message-ID']	= utils.make_msgid( domain=domain )
+        return rsp
 
 
 class AutoResponder( PostQueue ):
@@ -415,25 +447,33 @@ class AutoResponder( PostQueue ):
 
         log.info( f"autoresponding to DKIM-signed emails To: {self.address}@{self.domain}" )
 
-    def respond( self, from_addr, *to_addrs ):
-        """Decide if we should auto-respond, and do so."""
+    def __call__( self, from_addr, *to_addrs ):
+        """Decide if we should auto-respond, and do so.  Return the email.Message, and an appropriate
+        Postfix exit code.
 
-        msg			= super().respond( from_addr, *to_addrs )
-        log.info( f"Filtered From: {msg['from']}, To: {msg['to']}"
+        """
+
+        status			= super().__call__( from_addr, *to_addrs )
+        if status:
+            return status
+
+        log.info( f"Filtered From: {self.msg['From']}, To: {self.msg['To']}"
                   f" originally     from {from_addr} to {len(to_addrs)} recipients: {commas( to_addrs, final='and' )}" )
 
-        if 'to' not in msg or not matchaddr( msg['to'], mailbox=self.mailbox, domain=self.domain ):
-            log.warning( f"Message From: {msg['from']}, To: {msg['to']} expected To: {self.address}; not auto-responding" )
+        # Detect if this is a message we are intended to autorespond to; if not, do nothing.
+        if 'To' not in self.msg or not matchaddr( self.msg['To'], mailbox=self.mailbox, domain=self.domain ):
+            log.warning( f"Message From: {self.msg['From']}, To: {self.msg['To']} expected To: {self.address}; not auto-responding" )
             return 0
-        if 'dkim-signature' not in msg:
-            log.warning( f"Message From: {msg['from']}, To: {msg['to']} is not DKIM signed; not auto-responding" )
+        if 'dkim-signature' not in self.msg:
+            log.warning( f"Message From: {self.msg['From']}, To: {self.msg['To']} is not DKIM signed; not auto-responding" )
             return 0
-        if not dkim.verify( msg.as_bytes() ):
-            log.warning( f"Message From: {msg['from']}, To: {msg['to']} DKIM signature fails; not auto-responding " )
+        if not dkim.verify( self.msg.as_bytes() ):
+            log.warning( f"Message From: {self.msg['From']}, To: {self.msg['To']} DKIM signature fails; not auto-responding " )
             return 0
 
-        # Normalize, uniqueify and filter the addresses (discarding invalids).  Avoid sending it to
-        # the designated self.address, as this would set up a mail loop.
+        # This message is a target: Normalize, uniqueify and filter the addresses (discarding
+        # invalids).  Avoid sending it to the designated self.address, as this would set up a mail
+        # loop.
         to_addrs_filt		= [
             fa
             for fa in uniq( filter( None, (
@@ -443,36 +483,40 @@ class AutoResponder( PostQueue ):
             if fa != self.address
         ]
 
-        rsp			= self.response( msg )
-        # Also use the Reply-To: address, if supplied
-        if 'reply-to' in rsp:
-            _,reply_to		= utils.parseaddr( rsp['reply-to'] )
+        # Get the outgoing message; also use the Reply-To: address, if supplied
+        self.rsp		= self.response( self.msg )
+        if 'reply-to' in self.rsp:
+            _,reply_to		= utils.parseaddr( self.rsp['reply-to'] )
             if reply_to not in to_addrs_filt:
                 to_addrs_filt.append( reply_to )
+        self.rsp_peers		= (from_addr, tuple( to_addrs_filt ))
 
-        log.info( f"Response From: {rsp['from']}, To: {rsp['to']}"
+        log.info( f"Response From: {self.rsp['From']}, To: {self.rsp['To']}"
                   f" autoresponding from {from_addr} to {len(to_addrs_filt)} recipients: {commas( to_addrs_filt, final='and' )}"
-                  + ( f" (was {len(to_addrs)}: {commas( to_addrs, final='and' )})" if to_addrs != to_addrs_filt else "" ))
+                  + ( ""  if set( to_addrs ) == set( to_addrs_filt ) else f" (was {len(to_addrs)}: {commas( to_addrs, final='and' )})" ))
 
-        # Now, send the same message to all the supplied Reply-To, and Cc/Bcc address (already in
-        # responder.to_addrs).  If it is DKIM signed, since we're not adjusting the message -- just
-        # send w/ new RCPT TO: envelope addresses.  We'll use the same from_addr address (it must be
-        # from our domain, or we wouldn't be processing it.
+        # Now, send the same message to all the supplied Reply-To, and Cc/Bcc addresses (which were
+        # already in to_addrs).  If it is DKIM signed, it will remain so, since we're not adjusting
+        # the message -- just send w/ new RCPT TO: envelope addresses.  We'll use the same from_addr
+        # address.
         try:
             send_message(
-                rsp,
+                self.rsp,
                 from_addr	= from_addr,
                 to_addrs	= to_addrs_filt,
                 relay		= self.relay,
                 port		= self.port,
             )
         except Exception as exc:
-            log.warning( f"Message From: {rsp['from']}, To: {rsp['to']} autoresponder SMTP send failed: {exc}" )
+            log.warning( f"Message From: {self.rsp['From']}, To: {self.rsp['To']} autoresponder SMTP send failed: {exc}" )
             return 75  # tempfail
 
         return 0
 
 
+#
+# Provide a CLI to access the AutoResponder
+#
 @click.group()
 @click.option('-v', '--verbose', count=True)
 @click.option('-q', '--quiet', count=True)
@@ -508,20 +552,42 @@ def autoresponder( address, from_addr, to_addrs, server, port, reinject ):
       - We won't autorespond to copies forwarded from other email addresses
 
 
-    Configure Postfix system as per: https://github.com/innovara/autoreply, except create
+    Configure Postfix system as per: https://github.com/innovara/autoreply, eg.:
 
         # autoresponder pipe
         autoreply unix  -       n       n       -       -       pipe
          flags= user=autoreply null_sender=
-         argv=python -m slip39.email autoresponder licensing@dominionrnd.com ${sender} ${recipient}
+         argv=python3 -m slip39.invoice.communication autoresponder licensing@dominionrnd.com ${sender} ${recipient}
 
     """
-    AutoResponder(
+    ar				= AutoResponder(
         address		= address,
         server		= server,
         port		= port,
         reinject	= reinject,
-    ).respond( from_addr, *to_addrs )
+    )
+    status			= ar( from_addr, *to_addrs )
+    if cli.json:
+        click.echo( json.dumps( dict(
+            dict(
+                dict(
+                    Original	= ar.msg.as_string() if ar.msg else None,
+                ) if cli.verbosity > 1 else dict(),
+                Response	= ar.rsp.as_string() if ar.rsp else None,
+            ) if cli.verbosity > 0 else dict(),
+            status		= status,
+            MAIL_FROM		= ar.rsp_peers[0],
+            RCPT_TOs		= ar.rsp_peers[1],
+        ), indent=4 ))
+    else:
+        click.echo( f"status:    {status}" )
+        click.echo( f"MAIL FROM: {ar.rsp_peers[0]}" )
+        click.echo( f"RCPT TOs:  {commas( ar.rsp_peers[1] )}" )
+        if cli.verbosity > 1:
+            click.echo( f"Original:\n{ar.msg.as_string() if ar.msg else None}" )
+        if cli.verbosity > 0:
+            click.echo( f"Response:\n{ar.rsp.as_string() if ar.rsp else None}" )
+    sys.exit( status )
 
 
 cli.add_command( autoresponder )

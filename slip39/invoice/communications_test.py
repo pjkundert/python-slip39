@@ -1,9 +1,11 @@
 import logging
+import re
 import os
 
 from io			import StringIO
 from pathlib		import Path
 from subprocess		import Popen, PIPE
+from email		import message_from_string
 
 import dkim
 
@@ -14,8 +16,45 @@ from ..defaults		import SMTP_TO, SMTP_FROM
 
 log				= logging.getLogger( __package__ )
 
-dkim_key			= Path( __file__ ).resolve().parent.parent.parent / 'licensing.dominionrnd.com.20221230.key'
-dkim_selector			= '20221230'
+# If we find a key, lets use it.  Otherwise, we'll just use the pre-defined pre-signed email.Message
+
+dkim_keys			= list( Path( __file__ ).resolve().parent.parent.parent.glob( 'licensing.dominionrnd.com.*.key' ))
+dkim_key			= None
+dkim_msg			= None
+if dkim_keys:
+    # Choose the latest available, assuming YYYYMMDD selector
+    dkim_key			= str( sorted( dkim_keys )[-1] )
+    dkim_selector		= re.match( r'.*\.(\d+)\.key', dkim_key ).group( 1 )
+else:
+    # No local key (the usual case, unless you're Dominion R&D!)
+    dkim_selector		= '20221230'
+    dkim_msg			= message_from_string( """\
+MIME-Version: 1.0
+From: no-reply@licensing.dominionrnd.com
+To: licensing@dominionrnd.com
+Reply-To: perry@kundert.ca
+Subject: Hello, world!
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=licensing.dominionrnd.com; i=@licensing.dominionrnd.com; q=dns/txt; s=20221230; t=1673405994; h=from : to;\
+ bh=RkF6KP4Q94MVDBEv7pluaWdzw0z0GNQxK72rU02XNcE=; b=Tao30CJGcqyX86f37pSrSFLSDvA8VkzQW0jiMf+aFg5D99LsUYmUZxSgnDhW2ZEzjwu6bzjkEEyvSEv8LxfDUW+AZZG3enbq/mnnUZw3PXp4l\
+MaZGN9whvTIUy4/QUlMGKuf+7Vzi+8eKKjh4CWKN/UEyX6YoU7V5eyjTTA7q1jIjEl8jiM4LXYEFQ9LaKUmqqmRh2OkxBVf1QG+fEYTYUed+oS05m/d1SyVLjxv8ldeXT/mGgm1CrGk1qfRTzfcksX4qNAluTfJTa\
+kDpHNPw0RX0QzkuWvgWG5GngV65yg6fL87wQOVqV4O7OhK6eTkzWqzNyerJd4i6B7ZCoYEUg==
+
+--===============1903566236404015660==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+Testing 123
+--===============1903566236404015660==
+Content-Type: text/html; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+<em>Testing 123</em>
+--===============1903566236404015660==--
+""" )
+
+log.warning( f"Using DKIM: {dkim_selector}: {dkim_key}" )
 
 
 def test_communications_matchaddr():
@@ -38,11 +77,19 @@ def test_communications_dkim():
         dkim_private_key_path = dkim_key,
         dkim_selector	= dkim_selector,
         headers		= ['From', 'To'],
-    )
+    ) if dkim_key else dkim_msg
 
-    assert msg['DKIM-Signature'].startswith(
-        'v=1; a=rsa-sha256; c=relaxed/simple;'  # ' d=licensing.dominionrnd.com; i=@licensing.dominionrnd.com; q=dns/txt; s=20221230; t='
+    log.info( f"DKIM Message: {msg}" )
+
+    sig			= msg['DKIM-Signature']
+    sig_kvs		= sig.split( ';' )
+    sig_k_v		= dict(
+        (k.strip(), v.strip())
+        for k,v in ( kv.split( '=', 1 ) for kv in sig_kvs )
     )
+    assert sig_k_v['v'] == '1'
+    assert sig_k_v['a'] in ( 'rsa-sha256', 'ed25519-sha256' )
+
     assert dkim.verify( msg.as_bytes() )
 
     # Send via port 587 w/ TLS.  Use the appropriate relay servers.  The cloudflare MX servers only
@@ -91,7 +138,8 @@ def test_communications_autoresponder( monkeypatch ):
         dkim_private_key_path = dkim_key,
         dkim_selector	= dkim_selector,
         headers		= ['From', 'To'],
-    )
+    ) if dkim_key else dkim_msg
+
     envelopes		= []
 
     class PrintingHandler:
@@ -147,10 +195,10 @@ def test_communications_autoresponder( monkeypatch ):
         port		= controller.port,
         reinject	= False,
     )
-    ar.respond(
+    status			= ar(
         from_addr, *to_addrs
     )
-
+    assert status == 0
     assert len( envelopes ) == 2
     assert envelopes[-1].rcpt_tos == [ 'perry@kundert.ca' ]
 
@@ -163,7 +211,7 @@ def test_communications_autoresponder( monkeypatch ):
 
     ]:
         command			= list( map( str, execute + [
-            '-v',
+            '-vv', '--no-json',
             'autoresponder',
             '--server',		controller.hostname,
             '--port',		controller.port,
@@ -177,11 +225,14 @@ def test_communications_autoresponder( monkeypatch ):
         with Popen(
                 command,
                 stdin	= PIPE,
+                stdout	= PIPE,
+                stderr	= PIPE,
                 env	= dict(
                     os.environ,
                     PYTHONPATH	= f"{here.parent.parent}"
                 )) as process:
-            process.communicate( msg.as_bytes() )
-
+            out, err		= process.communicate( msg.as_bytes() )
+            log.info( f"Filter stdout: {out.decode( 'UTF-8' ) if out else out}, stderr: {err.decode( 'UTF-8' ) if err else err}" )
+            assert process.returncode == 0
     assert len( envelopes ) == 3
     assert envelopes[-1].rcpt_tos == [ 'perry@kundert.ca' ]
