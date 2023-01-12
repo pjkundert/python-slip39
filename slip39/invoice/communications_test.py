@@ -16,8 +16,7 @@ from ..defaults		import SMTP_TO, SMTP_FROM
 
 log				= logging.getLogger( __package__ )
 
-# If we find a key, lets use it.  Otherwise, we'll just use the pre-defined pre-signed email.Message
-
+# If we find a DKIM key, lets use it.  Otherwise, we'll just use the pre-defined pre-signed email.Message
 dkim_keys			= list( Path( __file__ ).resolve().parent.parent.parent.glob( 'licensing.dominionrnd.com.*.key' ))
 dkim_key			= None
 dkim_msg			= None
@@ -34,6 +33,7 @@ From: no-reply@licensing.dominionrnd.com
 To: licensing@dominionrnd.com
 Reply-To: perry@kundert.ca
 Subject: Hello, world!
+Content-Type: multipart/alternative; boundary================1903566236404015660==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=licensing.dominionrnd.com; i=@licensing.dominionrnd.com; q=dns/txt; s=20221230; t=1673405994; h=from : to;\
  bh=RkF6KP4Q94MVDBEv7pluaWdzw0z0GNQxK72rU02XNcE=; b=Tao30CJGcqyX86f37pSrSFLSDvA8VkzQW0jiMf+aFg5D99LsUYmUZxSgnDhW2ZEzjwu6bzjkEEyvSEv8LxfDUW+AZZG3enbq/mnnUZw3PXp4l\
 MaZGN9whvTIUy4/QUlMGKuf+7Vzi+8eKKjh4CWKN/UEyX6YoU7V5eyjTTA7q1jIjEl8jiM4LXYEFQ9LaKUmqqmRh2OkxBVf1QG+fEYTYUed+oS05m/d1SyVLjxv8ldeXT/mGgm1CrGk1qfRTzfcksX4qNAluTfJTa\
@@ -52,22 +52,26 @@ Content-Transfer-Encoding: 7bit
 
 <em>Testing 123</em>
 --===============1903566236404015660==--
+
 """ )
 
 log.warning( f"Using DKIM: {dkim_selector}: {dkim_key}" )
 
 
 def test_communications_matchaddr():
-    assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                domain="xYz" ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz", mailbox="Abc"               ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                             ).groups() == ("abc", "def", "xyz")
-    assert matchaddr( "abc+def@xyz",                             ).group( 3 ) == "xyz"
+    assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ) == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz",                domain="xYz" ) == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz", mailbox="Abc"               ) == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz",                             ) == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz", "a*c","*f","x?z"            ) == ("abc", "def", "xyz")
+    assert matchaddr( "abc+def@xyz", "b*c","*f","x?z"            ) is None
+    assert matchaddr( "abc+def@xyz", "a*c","*f","x?"             ) is None
+    assert matchaddr( "abc+def@xyz",                             )[2] == "xyz"
     assert matchaddr( "abc+def@xyz", mailbox="xxx"               ) is None
 
 
 def test_communications_dkim():
-    msg				= dkim_message(
+    msg				= dkim_msg if not dkim_key else dkim_message(
         sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
         to_email	= SMTP_TO,			# See https://dkimvalidator.com to test!
         reply_to_email	= "perry@kundert.ca",
@@ -77,7 +81,7 @@ def test_communications_dkim():
         dkim_private_key_path = dkim_key,
         dkim_selector	= dkim_selector,
         headers		= ['From', 'To'],
-    ) if dkim_key else dkim_msg
+    )
 
     log.info( f"DKIM Message: {msg}" )
 
@@ -108,27 +112,31 @@ def test_communications_dkim():
     # recipient of the response.  I guess, to avoid using "bounces" to send SPAM email.  Therefore,
     # the auto-responder must be programmed to use the Reply-To address -- something that eg. Gmail
     # cannot be programmed to do.
-    send_message(
-        msg,
-        #from_addr	= SMTP_FROM,		# Envelope MAIL FROM: specifies actual sender
-        #to_addrs	= [ SMTP_TO ],		# Will be the same as message To: (should default)
-        #relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
-        #port		= 25,  # 465 --> SSL, 587 --> TLS (default),
-        #usessl = False, starttls = False, verifycert = False,  # to mail.kundert.ca; no TLS
-        #usessl = False, starttls = True, verifycert = False,  # default
-    )
-    # This may fail (eg. if you have no access to networking), so we don't check.
+    try:
+        send_message(
+            msg,
+            #from_addr	= SMTP_FROM,		# Envelope MAIL FROM: specifies actual sender
+            #to_addrs	= [ SMTP_TO ],		# Will be the same as message To: (should default)
+            relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
+            #port		= 25,  # 465 --> SSL, 587 --> TLS (default),
+            #usessl = False, starttls = False, verifycert = False,  # to mail.kundert.ca; no TLS
+            #usessl = False, starttls = True, verifycert = False,  # default
+        )
+    except Exception as exc:
+        # This may fail (eg. if you have no access to networking), so we don't check.
+        log.warning( f"Failed to send DKIM-validated email to {SMTP_TO}: {exc}" )
+        pass
 
 
 def test_communications_autoresponder( monkeypatch ):
-    """The Postfix-compatible auto-responder takes an email from stdin, and auto-forwards it (via a
-    relay; normally the same Postfix installation that it is running within).
+    """The Postfix-compatible auto-responder takes an email.Message from stdin, and auto-forwards it
+    (via a relay; normally the same Postfix installation that it is running within).
 
     Let's shuttle a simple message through the AutoResponder, and fire up an SMTP daemon to receive
     the auto-forwarded message(s).
 
     """
-    msg				= dkim_message(
+    msg				= dkim_msg if not dkim_key else dkim_message(
         sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
         to_email	= SMTP_TO,			# See https://dkimvalidator.com to test!
         reply_to_email	= "perry@kundert.ca",
@@ -138,13 +146,13 @@ def test_communications_autoresponder( monkeypatch ):
         dkim_private_key_path = dkim_key,
         dkim_selector	= dkim_selector,
         headers		= ['From', 'To'],
-    ) if dkim_key else dkim_msg
+    )
 
     envelopes		= []
 
     class PrintingHandler:
         async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
-            if matchaddr( address ).group( 3 ) not in ('dominionrnd.com', 'kundert.ca'):
+            if matchaddr( address )[2] not in ('dominionrnd.com', 'kundert.ca'):
                 return f'550 not relaying to {address}'
             envelope.rcpt_tos.append(address)
             return '250 OK'
@@ -190,7 +198,7 @@ def test_communications_autoresponder( monkeypatch ):
 
     monkeypatch.setattr( 'sys.stdin', StringIO( msg.as_string() ))
     ar				= AutoResponder(
-        address		= SMTP_TO,
+        address		= SMTP_FROM,
         server		= controller.hostname,
         port		= controller.port,
         reinject	= False,
@@ -217,7 +225,7 @@ def test_communications_autoresponder( monkeypatch ):
             '--port',		controller.port,
             #'--no-reinject',
             '--reinject',	"echo",
-            'licensing@dominionrnd.com',
+            '*@*licensing.dominionrnd.com',  # allow any sender mailbox, any ...licensing subdomain of dominionrnd.com
             from_addr,
             *to_addrs
         ] ))
