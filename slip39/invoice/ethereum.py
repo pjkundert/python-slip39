@@ -66,8 +66,8 @@ def contract_address(
     assert isinstance( b_address, bytes ) and len( b_address ) == 20, \
         f"Expected 20-byte adddress, got {b_address!r}"
 
-    if nonce is not None and salt is None and creation is None and creation_hash:
-        # A CREATE (traditional, or transaction-based) contract creation
+    if nonce is not None and salt is None and creation is None and creation_hash is None:
+        # A CREATE (traditional, or transaction-based) contract creation; only address and nonce
         assert isinstance( nonce, int ), \
             f"The nonce for CREATE must be an integer, not {nonce!r}"
         b_result		= Web3.keccak( rlp_encode([ b_address, nonce ]) )
@@ -99,10 +99,55 @@ class Chain( Enum ):
     Goerli		= 2
 
 
+#
+# Etherscan API, for accessing Gas Oracle and wallet data
+#
 etherscan_urls			= dict(
     Ethereum	= 'https://api.etherscan.io/api',
     Goerli	= 'https://api-goerli.etherscan.io/api',
 )
+
+#
+# Alchemy API, for accessing the Ethereum blockchain w/o running a local instance
+#
+#     They provide a free "testing" API token, with a very low 50 "Compute Units/Second" limit, for
+# testing their API: https://docs.alchemy.com/reference/throughput.  This should be sufficient for
+# accessing "free" (view) APIs in contracts.  However, for any advanced usage (ie. to deploy
+# contracts), you'll probably need an official ALCHEMY_API_TOKEN
+#
+alchemy_urls			= dict(
+    Ethereum	= 'eth-mainnet.g.alchemy.com/v2',
+    Goerli	= 'eth-goerli.g.alchemy.com/v2',
+)
+
+alchemy_api_testing		= dict(
+    Goerli	= 'AxnmGEYn7VDkC4KqfNSFbSW9pHFR7PDO',
+    Ethereum	= 'J038e3gaccJC6Ue0BrvmpjzxsdfGly9n',
+)
+
+
+def alchemy_url( chain, protocol='wss' ):
+    """Return our Alchemy API URL, including our API token, from the ALCHEMY_API_TOKEN environment
+    variable.
+
+    If none specified, we'll default to their "Testing" API token, which should be adequate for
+    low-rate "free" (view) contract APIs.  However, for deploying contracts, either an official
+    (free) Alchemy API token will be required, or a local Ethereum node.
+
+    """
+    assert protocol in ( 'wss', 'https' ), \
+        "Must specify either Websocket over SSL ('wss') or HTTP over SSL ('https')"
+    api_token			= os.getenv( 'ALCHEMY_API_TOKEN' )
+    if not alchemy_url.api_token or api_token != alchemy_url.api_token:
+        # Alchemy API token not yet discovered, or has changed
+        if api_token:
+            alchemy_url.api_token	= api_token
+            log.info( f"Using supplied Alchemy {chain} API token: {alchemy_url.api_token:.5}..." )
+        elif not alchemy_url.api_token:
+            alchemy_url.api_token	= alchemy_api_testing[chain.name]
+            log.warning( f"Using \"Testing\" Alchemy {chain} API token: {alchemy_url.api_token}; obtain an official API key: https://docs.alchemy.com/reference/api-overview" )
+    return f"{protocol}://{alchemy_urls[chain.name]}/{alchemy_url.api_token}"
+alchemy_url.api_token		= None   # noqa E305
 
 
 @memoize( maxage=ETHERSCAN_MEMO_MAXAGE, maxsize=ETHERSCAN_MEMO_MAXSIZE, log_at=logging.INFO )
@@ -628,7 +673,7 @@ class Contract:
     def __init__(
         self,
         w3_provider,
-        agent,						# The Ethereum account of the agent accessing the Contract
+        agent				= None,		# The Ethereum account of the agent accessing the Contract
         agent_prvkey: Optional[bytes]	= None,		# Can only query public data, view methods without
         source: Optional[Path]		= None,
         version: Optional[str]		= None,
@@ -642,7 +687,7 @@ class Contract:
         gas_oracle: Optional[GasOracle]	= None,
         gas_oracle_timeout: Optional[Tuple[int,float]] = None,  # None avoids waiting, doesn't check
     ):
-        # If a GasOracle is supplied, well wait up to gas_oracle_timeout seconds for it to report
+        # If a GasOracle is supplied, we'll wait up to gas_oracle_timeout seconds for it to report
         # online.  Give it a tickle here to get it started, while we do other time-consuming stuff.
         self._gas_oracle	= GasOracle() if gas_oracle is None else gas_oracle
         gas_oracle_beg		= timer()
@@ -650,7 +695,8 @@ class Contract:
 
         self._w3		= Web3( w3_provider )
         self._agent		= agent
-        self._w3.eth.default_account = str( self._agent )
+        if self._agent is not None:
+            self._w3.eth.default_account = str( self._agent )
 
         if agent_prvkey:
             account_signing	= eth_account.Account.from_key( '0x' + agent_prvkey )

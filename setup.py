@@ -3,7 +3,6 @@ import sys
 import glob
 import fnmatch
 
-
 # 
 # All platforms
 # 
@@ -12,14 +11,21 @@ HERE				= os.path.dirname( os.path.abspath( __file__ ))
 install_requires		= open( os.path.join( HERE, "requirements.txt" )).readlines()
 tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readlines()
 extras_require			= {
-    option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+    option: list(
+        # Remove whitespace, elide blank lines and comments
+        ''.join( r.split() )
+        for r in open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+        if r.strip() and not r.strip().startswith( '#' )
+    )
     for option in [
-        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
-        'dev',		# slip39[dev]:    All modules to support development
-        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
-        'wallet',	# slip39[wallet]: Paper Wallet and BIP-38/Ethereum wallet encryption
+        'gui',		# slip39[gui]:		Support PySimpleGUI/tkinter Graphical UI App
+        'serial',	# slip39[serial]:	Support serial I/O of generated wallet data
+        'wallet',	# slip39[wallet]:	Paper Wallet and BIP-38/Ethereum wallet encryption
+        'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
     ]
 }
+# Make python-slip39[all] install all extra (non-tests) requirements, excluding duplicates
+extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 
 Executable			= None
 if sys.platform == 'win32':

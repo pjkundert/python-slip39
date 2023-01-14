@@ -18,7 +18,6 @@
 from __future__		import annotations
 
 import logging
-import os
 import textwrap
 
 from typing		import Union
@@ -28,7 +27,6 @@ from web3		import Web3		# noqa F401
 from tabulate		import tabulate
 
 from ..util		import remainder_after, fraction_allocated, commas
-from ..api		import account
 from .ethereum		import Chain, Contract, contract_address  # noqa F401
 
 __author__                      = "Perry Kundert"
@@ -37,29 +35,6 @@ __copyright__                   = "Copyright (c) 2022 Dominion Research & Develo
 __license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( 'multipayout' )
-
-goerli_account			= None
-goerli_xprvkey			= os.getenv( 'GOERLI_XPRVKEY' )
-if not goerli_xprvkey:
-    goerli_seed			= os.getenv( 'GOERLI_SEED' )
-    if goerli_seed:
-        try:
-            # why m/44'/1'?  Dunno.  That's the derivation path Trezor Suite uses for Goerli wallets...
-            goerli_xprvkey	= account( goerli_seed, crypto="ETH", path="m/44'/1'/0'" ).xprvkey
-        except Exception:
-            pass
-        # Using the "xprv..." key, and derive the 1st sub-account, on the combined path m/44'/1'/0'/0/0
-        goerli_account		= account( goerli_xprvkey, crypto='ETH', path="m/0/0" )
-
-
-alchemy_urls			= dict(
-    Ethereum	= 'eth-mainnet.g.alchemy.com/v2',
-    Goerli	= 'eth-goerli.g.alchemy.com/v2',
-)
-
-
-def alchemy_url( chain, protocol='wss' ):
-    return f"{protocol}://{alchemy_urls[chain.name]}/{os.getenv( 'ALCHEMY_API_TOKEN' )}"
 
 
 def payout_reserve( addr_frac, bits=16 ):
@@ -117,21 +92,32 @@ class MultiPayoutERC20( Contract ):
     address, or _deploy a new contract by specifying payees and optionally a list of erc20s to
     support.
 
-        >>> assert os.getenv( 'ETHERSCAN_API_TOKEN' )
-        >>> assert os.getenv( 'ALCHEMY_API_TOKEN' )
-        >>> assert goerli_account
+        >>> from .ethereum import Chain, alchemy_url
         >>> mp = MultiPayoutERC20( Web3.WebsocketProvider( alchemy_url( Chain.Goerli )),
-        ...    agent		= goerli_account.address,
-        ...    agent_prvkey	= goerli_account.prvkey,
         ...    address		= "0x8b3D24A120BB486c2B7583601E6c0cf37c9A2C04"
         ... )
+        MultiPayoutERC20 Payees:
+            | Payee                                      | Share                 |   Frac. % |   Reserve |   Reserve/2^16 |   Frac.Rec. % |   Error % |
+            |--------------------------------------------+-----------------------+-----------+-----------+----------------+---------------+-----------|
+            | 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 | 4323/65536            |   6.59638 |     61213 |          61213 |       6.59638 |         0 |
+            | 0xEeC2b464c2f50706E3364f5893c659edC9E4153A | 1507247699/4294967296 |  35.0933  |     40913 |          40913 |      35.0933  |         0 |
+            | 0xE5714055437154E812d451aF86239087E0829fA8 | 2504407469/4294967296 |  58.3103  |         0 |              0 |      58.3103  |         0 |
+        ERC-20s:
+            | Token                                      | Symbol   |   Digits |
+            |--------------------------------------------+----------+----------|
+            | 0xe802376580c10fE23F027e1E19Ed9D54d4C9311e | USDT     |        6 |
+            | 0xde637d4C445cA2aae8F782FFAc8d2971b93A4998 | USDC     |        6 |
+            | 0xaFF4481D10270F50f203E0763e2597776068CBc5 | WEENUS   |       18 |
+            | 0x1f9061B953bBa0E36BF50F21876132DcF276fC6e | ZEENUS   |        0 |
+
+        >>> import json
         >>> print( json.dumps( mp._payees, indent=4, default=lambda f: f"{float( f * 100 ):9.5f}%" ))
         {
             "0x7Fc431B8FC8250A992567E3D7Da20EE68C155109": "  6.59637%",
             "0xEeC2b464c2f50706E3364f5893c659edC9E4153A": " 35.09335%",
             "0xE5714055437154E812d451aF86239087E0829fA8": " 58.31028%"
         }
-        >>> print( json.dumps( mp._erc20s, indent=4 ))
+        >>> print( json.dumps( mp._erc20s_data, indent=4 ))
         {
             "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e": [
                 "USDT",
@@ -189,8 +175,7 @@ class MultiPayoutERC20( Contract ):
 {self.__class__.__name__} Payees:
 {textwrap.indent( self._payees_table, ' ' * 4 )}
 ERC-20s:
-{textwrap.indent( self._erc20s_table, ' ' * 4 )}
-"""
+{textwrap.indent( self._erc20s_table, ' ' * 4 )}"""
 
     @property
     def _erc20s_table( self ):
@@ -215,10 +200,7 @@ ERC-20s:
         addrs,fracs,rsrvs	= zip( *payout_reserve( self._payees, bits=self._bits ))
         share			= list( self._payees[a] for a in addrs )
         rsrvs_int		= list( map( int, rsrvs ))
-        fracs_recov		= list( fraction_allocated(
-            rsrvs_int,
-            scale	= 2**self._bits,
-        ))
+        fracs_recov		= list( fraction_allocated( rsrvs_int, scale=2**self._bits ))
         # Now, compute the "error" between the originally specified payout fractions, and the payout
         # fractions recovered after reversing the 1/2^bits reserve calculations.  The error should
         # always be < 1/2^bits.
@@ -275,7 +257,6 @@ ERC-20s:
                 log.warning( f"Recovered payees fractions don't match: \n{self._payees_table}" )
         else:
             self._payees	= payees
-            log.info( f"Recovered payees fractions from reserves: \n{self._payees_table}" )
 
     @property
     def _payees_table( self ):
@@ -314,7 +295,6 @@ ERC-20s:
 
         """
         self._forwarder_hash	= self.forwarder_hash()
-        log.info( f"{self._name} Forwarder CREATE2 hash: 0x{self._forwarder_hash.hex()}" )
 
         def payees_reserve():
             for i in count():
@@ -349,4 +329,4 @@ ERC-20s:
         if self._erc20s:
             assert self._erc20s == erc20s
         else:
-            self._ers20s	= erc20s
+            self._erc20s	= erc20s

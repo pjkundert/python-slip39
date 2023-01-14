@@ -167,7 +167,7 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 
 # Install from wheel, including all optional extra dependencies (except dev)
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[gui,wallet,serial]
+	$(PY3) -m pip install --force-reinstall $<[all]
 
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt

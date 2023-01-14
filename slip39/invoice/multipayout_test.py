@@ -18,7 +18,7 @@ from web3.middleware	import construct_sign_and_send_raw_middleware
 from eth_account	import Account
 
 from .			import contract_address
-from .ethereum		import Etherscan, Chain
+from .ethereum		import Etherscan, Chain, alchemy_url
 from .multipayout	import MultiPayoutERC20, payout_reserve
 from ..api		import account, accounts
 
@@ -108,10 +108,9 @@ if goerli_xprvkey:
     print( f"Goerli Ethereum Testnet dst ETH addresses: {json.dumps( goerli_destination, indent=4 )}" )
 
     web3_testers	       += [(
-        # Web3.HTTPProvider( f"https://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}" ),
         "Goerli",
-        Web3.WebsocketProvider(					# Provider and chain_id (if any)
-            f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}"
+        Web3.WebsocketProvider(
+            alchemy_url( Chain.Goerli )  # f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}"
         ),  None,
         goerli_src.address, goerli_src.prvkey, goerli_destination,
     ),]
@@ -274,12 +273,12 @@ def test_create2(address, salt, creation, expected_address):
     (
         '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0',
         0,
-        '0xcd234a471b72ba2f1ccf0a70fcaba648a5eecd8d',
+        '0xcd234A471b72ba2F1Ccf0A70FCABA648a5eeCD8d',
     ),
     (
         '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0',
         1,
-        '0x343c43a37d37dff08ae8c4a11544c718abb4fcf8',
+        '0x343c43A37D37dfF08AE8C4A11544c718AbB4fCF8',
     ),
 ])
 def test_create(address, nonce, expected_address):

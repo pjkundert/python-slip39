@@ -117,7 +117,7 @@ def test_communications_dkim():
             msg,
             #from_addr	= SMTP_FROM,		# Envelope MAIL FROM: specifies actual sender
             #to_addrs	= [ SMTP_TO ],		# Will be the same as message To: (should default)
-            relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
+            #relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
             #port		= 25,  # 465 --> SSL, 587 --> TLS (default),
             #usessl = False, starttls = False, verifycert = False,  # to mail.kundert.ca; no TLS
             #usessl = False, starttls = True, verifycert = False,  # default

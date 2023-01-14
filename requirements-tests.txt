@@ -1,4 +1,9 @@
+aiosmtpd		>=1.4,	<2
+build
+cx_Freeze		>=6.12
 flake8
+pyinstaller		>=5.5
 pytest			>=7.2.0,<8
 pytest-cov		>=4.0.0,<5
-aiosmtpd		>=1.4,	<2
+setuptools
+wheel
