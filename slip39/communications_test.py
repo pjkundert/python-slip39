@@ -12,12 +12,12 @@ import dkim
 from aiosmtpd.controller import Controller
 
 from .communications	import dkim_message, send_message, matchaddr, AutoResponder
-from ..defaults		import SMTP_TO, SMTP_FROM
+from .defaults		import SMTP_TO, SMTP_FROM
 
 log				= logging.getLogger( __package__ )
 
 # If we find a DKIM key, lets use it.  Otherwise, we'll just use the pre-defined pre-signed email.Message
-dkim_keys			= list( Path( __file__ ).resolve().parent.parent.parent.glob( 'licensing.dominionrnd.com.*.key' ))
+dkim_keys			= list( Path( __file__ ).resolve().parent.parent.glob( 'licensing.dominionrnd.com.*.key' ))
 dkim_key			= None
 dkim_msg			= None
 if dkim_keys:
@@ -214,7 +214,7 @@ def test_communications_autoresponder( monkeypatch ):
     here			= Path( __file__ ).resolve().parent
     for execute in [
         [
-            "python3", "-m", "slip39.invoice.communications",
+            "python3", "-m", "slip39.communications",
         ]
 
     ]:
