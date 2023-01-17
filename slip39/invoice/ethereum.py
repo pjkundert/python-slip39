@@ -25,8 +25,9 @@ import time
 
 from datetime		import datetime
 from enum		import Enum
-from pathlib		import Path
+from fractions		import Fraction
 from hashlib		import sha256
+from pathlib		import Path
 from typing		import Dict, Optional, Tuple
 
 import requests
@@ -39,7 +40,7 @@ from web3		import Web3
 from web3.middleware	import construct_sign_and_send_raw_middleware
 
 from ..util		import memoize, retry, commas, into_bytes, timer
-from ..defaults		import ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE
+from ..defaults		import ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE, TOKPRICES_MEMO_MAXAGE, TOKPRICES_MEMO_MAXSIZE
 
 
 __author__                      = "Perry Kundert"
@@ -145,14 +146,15 @@ def alchemy_url( chain, protocol='wss' ):
             log.info( f"Using supplied Alchemy {chain} API token: {alchemy_url.api_token:.5}..." )
         elif not alchemy_url.api_token:
             alchemy_url.api_token	= alchemy_api_testing[chain.name]
-            log.warning( f"Using \"Testing\" Alchemy {chain} API token: {alchemy_url.api_token}; obtain an official API key: https://docs.alchemy.com/reference/api-overview" )
+            log.warning( f"Using \"Testing\" Alchemy {chain} API token: {alchemy_url.api_token};"
+                         " obtain an official API key: https://docs.alchemy.com/reference/api-overview" )
     return f"{protocol}://{alchemy_urls[chain.name]}/{alchemy_url.api_token}"
 alchemy_url.api_token		= None   # noqa E305
 
 
 @memoize( maxage=ETHERSCAN_MEMO_MAXAGE, maxsize=ETHERSCAN_MEMO_MAXSIZE, log_at=logging.INFO )
 def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=True ):
-    """Queries etherscan.io, optionaly w/ your apikey.  Must specify name of Ethereum blockchain to
+    """Queries etherscan.io, optionally w/ your apikey.  Must specify name of Ethereum blockchain to
     use.  The params must be a hashable sequence (tuple of tuples) usable to construct a dict, since
     memoize only caches based on args, and all args must be hashable.
 
@@ -223,7 +225,7 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
 @retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
 def gasoracle( chain=None, **kwds ):
     """Return (possibly cached) Gas Oracle values from etherscan.io, or empty dict, allowing retries w/
-    up to 3^5 seconds (4 min.) exponential backoff.
+    up to 3*1.5^5 seconds (22s) exponential backoff.
 
     """
     return etherscan(
@@ -238,8 +240,8 @@ def gasoracle( chain=None, **kwds ):
 
 @retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
 def ethprice( chain=None, **kwds ):
-    """Return (possibly cached) Ethereum price from etherscan.io, or empty dict (performs exponential
-    backoff of 3^5 seconds (4 min.) on Exceptions.)
+    """Return (possibly cached) Ethereum price in $USD from etherscan.io, or empty dict (performs exponential
+    backoff of 3*1.5^5 seconds (22s) on Exceptions.)
 
     """
     return etherscan(
@@ -255,7 +257,7 @@ def ethprice( chain=None, **kwds ):
 @retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
 def erc20tx( chain=None, address=None, token=None, **kwds ):
     """Return (possibly cached) ERC-20 transactions from etherscan.io, or empty dict (performs exponential
-    backoff of 3^5 seconds (4 min.) on Exceptions.)
+    backoff of 3*1.5^5 seconds (22s) on Exceptions.)
 
     Caches based on account address and (optionally) a specific token address.  Otherwise, returns
     all (known) ERC-20 token operations on the specified account.
@@ -673,7 +675,7 @@ class Contract:
     def __init__(
         self,
         w3_provider,
-        agent				= None,		# The Ethereum account of the agent accessing the Contract
+        agent				= None,		# The Ethereum account of the agent accessing the Contract (if Gas required)
         agent_prvkey: Optional[bytes]	= None,		# Can only query public data, view methods without
         source: Optional[Path]		= None,
         version: Optional[str]		= None,
@@ -981,3 +983,390 @@ class Contract:
         log.warning( f"Waited {timer()-beg:.2f}s for block {block_number} to be mined, vs. Contract block: {cons_receipt.blockNumber}" )
 
         self._update()
+
+
+offchainoracle_address		= '0x07D91f5fb9Bf7798734C3f606dB065549F6893bb'
+offchainoracle_abi		= [{"inputs":[{"internalType":"contract MultiWrapper","name":"_multiWrapper","type":"address"},{"internalType":"contract IOracle[]","name":"existingOracles","type":"address[]"},{"internalType":"enum OffchainOracle.OracleType[]","name":"oracleTypes","type":"uint8[]"},{"internalType":"contract IERC20[]","name":"existingConnectors","type":"address[]"},{"internalType":"contract IERC20","name":"wBase","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":False,"inputs":[{"indexed":False,"internalType":"contract IERC20","name":"connector","type":"address"}],"name":"ConnectorAdded","type":"event"},{"anonymous":False,"inputs":[{"indexed":False,"internalType":"contract IERC20","name":"connector","type":"address"}],"name":"ConnectorRemoved","type":"event"},{"anonymous":False,"inputs":[{"indexed":False,"internalType":"contract MultiWrapper","name":"multiWrapper","type":"address"}],"name":"MultiWrapperUpdated","type":"event"},{"anonymous":False,"inputs":[{"indexed":False,"internalType":"contract IOracle","name":"oracle","type":"address"},{"indexed":False,"internalType":"enum OffchainOracle.OracleType","name":"oracleType","type":"uint8"}],"name":"OracleAdded","type":"event"},{"anonymous":False,"inputs":[{"indexed":False,"internalType":"contract IOracle","name":"oracle","type":"address"},{"indexed":False,"internalType":"enum OffchainOracle.OracleType","name":"oracleType","type":"uint8"}],"name":"OracleRemoved","type":"event"},{"anonymous":False,"inputs":[{"indexed":True,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":True,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"inputs":[{"internalType":"contract IERC20","name":"connector","type":"address"}],"name":"addConnector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"contract IOracle","name":"oracle","type":"address"},{"internalType":"enum OffchainOracle.OracleType","name":"oracleKind","type":"uint8"}],"name":"addOracle","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"connectors","outputs":[{"internalType":"contract IERC20[]","name":"allConnectors","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"contract IERC20","name":"srcToken","type":"address"},{"internalType":"contract IERC20","name":"dstToken","type":"address"},{"internalType":"bool","name":"useWrappers","type":"bool"}],"name":"getRate","outputs":[{"internalType":"uint256","name":"weightedRate","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"contract IERC20","name":"srcToken","type":"address"},{"internalType":"bool","name":"useSrcWrappers","type":"bool"}],"name":"getRateToEth","outputs":[{"internalType":"uint256","name":"weightedRate","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"multiWrapper","outputs":[{"internalType":"contract MultiWrapper","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"oracles","outputs":[{"internalType":"contract IOracle[]","name":"allOracles","type":"address[]"},{"internalType":"enum OffchainOracle.OracleType[]","name":"oracleTypes","type":"uint8[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"contract IERC20","name":"connector","type":"address"}],"name":"removeConnector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"contract IOracle","name":"oracle","type":"address"},{"internalType":"enum OffchainOracle.OracleType","name":"oracleKind","type":"uint8"}],"name":"removeOracle","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"contract MultiWrapper","name":"_multiWrapper","type":"address"}],"name":"setMultiWrapper","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}]  # noqa: E501
+
+ierc20metadata_abi		= [
+    {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "Approval",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "Transfer",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "spender",
+                "type": "address"
+            }
+        ],
+        "name": "allowance",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "approve",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "balanceOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "internalType": "uint8",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "name",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "totalSupply",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "transferFrom",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
+
+#
+# Some tokens such as Maker(MKR) implement ERC-20 w/o the standard, optional symbols/name; they use
+# bytes32 (and uint256 for digits), eg.:
+#
+#    https://etherscan.io/address/0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2#code
+#
+ierc20bytes32_abi		= [
+    {"constant":True,"inputs":[],"name":"name",    "outputs":[{"name":"","type":"bytes32"}],"payable":False,"stateMutability":"view","type":"function"},
+    {"constant":True,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint256"}],"payable":False,"stateMutability":"view","type":"function"},
+    {"constant":True,"inputs":[],"name":"symbol",  "outputs":[{"name":"","type":"bytes32"}],"payable":False,"stateMutability":"view","type":"function"},
+]
+
+
+#
+# An example of one way to cache Web3 connections
+#
+# WARNING:
+# - Not thread-safe.  These cached providers need to be used by a single thread
+# - Caches results w/ differing use_provider=, for the same w3_url
+# - We do not normalize addresses; use Ethereum addresses that have corect checksums
+#
+@memoize( maxage=None, maxsize=None, log_at=logging.INFO )
+def w3_provider( w3_url, use_provider ):
+    """Return a Web3.*Provider associated with the specified URL, optionally using the specified
+    provider."""
+    if use_provider is None:
+        use_provider		= dict(
+            wss		= Web3.WebsocketProvider,
+            http	= Web3.HTTPProvider,
+            https	= Web3.HTTPProvider,
+        )[w3_url.split( ':', 1 )[0].lower()]
+    return use_provider( w3_url )
+
+
+@memoize( maxage=None, maxsize=None, log_at=logging.INFO )
+def tokeninfo( w3_url, token, use_provider=None ):
+    w3				= Web3( w3_provider( w3_url, use_provider ))
+    token_ierc20metadata	= w3.eth.contract( address=token, abi=ierc20metadata_abi )
+    try:
+        decimals		= token_ierc20metadata.functions.decimals().call()
+        symbol			= token_ierc20metadata.functions.symbol().call()
+        name			= token_ierc20metadata.functions.name().call(),
+    except Exception:
+        # Hmm.  Some top-100 tokens fail to respond correctly to this API.
+        token_ierc20bytes32	= w3.eth.contract( address=token, abi=ierc20bytes32_abi )
+        decimals		= token_ierc20bytes32.functions.decimals().call()
+        symbol			= token_ierc20bytes32.functions.symbol().call().strip( b'\0' ).decode( 'utf-8' )
+        name			= token_ierc20bytes32.functions.name().call().strip( b'\0' ).decode( 'utf-8' )
+
+    return dict(
+        address		= token,
+        name		= name,
+        symbol		= symbol,
+        decimals	= decimals,
+    )
+
+
+@memoize( maxage=TOKPRICES_MEMO_MAXAGE, maxsize=TOKPRICES_MEMO_MAXSIZE, log_at=logging.INFO )
+def tokenprice( w3_url, token, base, use_wrappers=True, use_provider=None ):
+    """Return memoized token address prices, in terms of a base token address.  The resultant Fraction
+    is the ratio token/base (if token is greater in value than base, the ratio will be > 1).  If
+    None supplied for base, uses Ethereum.
+
+    Queries and returns the tokens' details dict( address=, decimals=, symbol= ), and the price
+    ratio as a Fraction.
+
+    """
+    w3				= Web3( w3_provider( w3_url, use_provider ))
+
+    token_info			= tokeninfo( w3_url, token, use_provider=use_provider )
+
+    offchainoracle_contract	= w3.eth.contract( address=offchainoracle_address, abi=offchainoracle_abi)
+    if base is None:
+        base_info		= dict(
+            address	= None,
+            name	= "Ethereum",
+            symbol	= "ETH",
+            decimals	= 18,
+        )
+        token_price		= offchainoracle_contract.functions.getRateToEth( token_info['address'], use_wrappers ).call()
+    else:
+        base_info		= tokeninfo( w3_url, base )
+        token_price		= offchainoracle_contract.functions.getRate( token_info['address'], base_info['address'], use_wrappers ).call()
+
+    return token_info, base_info, Fraction( token_price, 10**18 ) * Fraction( 1, 10**base_info['decimals'] ) / Fraction( 1, 10**token_info['decimals'] )
+
+
+#
+# Public APIs for token{infos,prices,ratio}
+#
+# Defaults to Alchemy API, searches/normalizes token addresses (from ./ERC20s.json).
+#
+def tokenaddress( token ):
+    """Lookup any ~top-100 ERC-20 token by symbol or full name (if known in ./ERC20s.json).  Otherwise,
+    just normalize the address.  Passes through a None supplied, so can be used for optoinal token
+    name/address.
+
+    """
+    if token is None:
+        return None
+    try:
+        return Web3.to_checksum_address( token )
+    except ValueError:
+        pass
+    # OK, could be a token name.  Look it up, case-insenstively by symbol or full name, loading the
+    # ./ERC20.json if necessary.
+    if tokenaddress.ERC20 is None:
+        here_json		= Path( __file__ ).resolve().parent / 'ERC20s.json'
+        assert here_json.exists(), \
+            f"Failed to load {here_json} for known ERC-20 tokens"
+        tokenaddress.ERC20_info = {
+            info['address']: info
+            for info in json.loads( open( here_json, 'r' ).read() )
+        }
+        tokenaddress.ERC20	= {}
+        for info in tokenaddress.ERC20_info.values():
+            symb_l		= info['symbol'].lower()
+            name_l		= info['name'].lower()
+            assert symb_l not in tokenaddress.ERC20, \
+                f"Duplicate ERC-20 symbol {info['symbol']!r}"
+            assert name_l not in tokenaddress.ERC20, \
+                f"Duplicate ERC-20 name {info['name']!r}"
+            tokenaddress.ERC20[symb_l] = info
+            tokenaddress.ERC20[name_l] = info
+
+    info			= tokenaddress.ERC20.get( token.lower() )
+    assert info is not None, \
+        f"Failed to find match for ERC-20 token {token!r}"
+    return info['address']
+tokenaddress.ERC20		= None  # noqa: E305; { 'name': <info>, 'symbol': info, ... }
+tokenaddress.ERC20_info		= None  # { 'address': <info>, ... }
+
+
+def tokeninfos( *token, chain=None, w3_url=None ):
+    if w3_url is None:
+        w3_url			= alchemy_url( chain or Chain.Ethereum )
+    for t in token:
+        yield tokeninfo( w3_url, tokenaddress( t ))
+
+
+def tokenprices( *token, chain=None, w3_url=None, base=None, use_wrappers=True, use_provider=None ):
+    """Return a sequence of token prices as a Fraction, optionally in terms of a base token (ETH is
+    default).  Will default to use the Ethereum blockchain via the Alchemy API.
+
+    """
+    if w3_url is None:
+        w3_url			= alchemy_url( chain or Chain.Ethereum )
+    for t in token:
+        yield tokenprice( w3_url, tokenaddress( t ), tokenaddress( base ), use_wrappers=use_wrappers, use_provider=use_provider )
+
+
+def tokenratio( t1, t2, **kwds):
+    """Find the price ratio tok1/tok2, optionally relative to a certain base token.
+
+    """
+    (t1_i,_,t1_p),(t2_i,_,t2_p)	= tokenprices( tokenaddress( t1 ), tokenaddress( t2 ), **kwds )
+    return t1_i,t2_i,t1_p/t2_p

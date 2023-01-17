@@ -58,7 +58,6 @@ except ImportError as exc:
     scrypt			= None
     message			= f"Unable to support Paper Wallet output: {exc}"
     warnings.warn( message, ImportWarning )
-    log.warning( message )
     if log.isEnabledFor( logging.DEBUG ):
         log.exception( message )
     paper_wallet_issues.append( message )
@@ -69,7 +68,6 @@ except ImportError as exc:
     eth_account			= None
     message			= f"Unable to support Paper Wallet output: {exc}"
     warnings.warn( message, ImportWarning )
-    log.warning( message )
     if log.isEnabledFor( logging.DEBUG ):
         log.exception( message )
     paper_wallet_issues.append( message )

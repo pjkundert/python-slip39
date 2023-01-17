@@ -1730,6 +1730,20 @@ sets of 20 words is difficult, error-prone and time consuming.
   the many intermediary banking industry and government parties involved in any traditional
   financial transaction, even if you are not convicted of a crime.
 
+  Even if such payments are allowed, and none of the counterparties are actively hostile to you, the
+  complexity and expense of quoting a price, signing a client, invoicing for payment, confirming the
+  validity of the invoice and making the payment, monitoring for incoming payments and associating
+  them with the correct invoices, conforming amounts paid are correct, issuing a receipt,
+  book-keeping the incoming payment, converting currencies, retaining the correct taxes for each
+  counterparty jurisdiction, reconciling books, and finally preparing and filing taxes, and then
+  (perhaps years later) defending your accounting decisions against a hostile tax inspector with
+  infinite funds to prosecute -- all this makes it virtually impossible for a small business to
+  survive.  Furthermore, you must accomplish all this, *without error*, while attempting to defend
+  yourself against business adversaries with preferential tax treatment, office-towers full of
+  lawyers and accountants, for whom the total percentage of gross revenues paid to accomplish
+  compliance is less than 1%, while the small business is likely to spend 10% to 25% of
+  their entire gross revenue *just* to financial and regulatory compliance overheads.
+
   Fortunately, DeFi (Decentralized Finance) provides you with the capability to receive payments,
   quickly and efficiently, from anyone on the planet who wishes to pay you for your services.
 
@@ -1804,53 +1818,62 @@ sets of 20 words is difficult, error-prone and time consuming.
    storing an immutable value associated with the "salt" value from which the "Forwarder" account
    address is derived.
 
-*** Client "Forwarder" Contract
+*** The Client "Forwarder" Contract
 
     Once the product's =MultiPayoutERC20= "Fee Distribution" contract address is identified, the act
     of obtaining a unique client payee "Forwarder" address is simple.
 
     1) A "salt" value unique to the client is deduced, usually consisting of "something they know"
-       (eg. a Public Key) plus "something they have" (eg. a Machine ID).
+       (eg. a Public Key) plus "something they have" (eg. a Machine ID, or a User Name).
     2) The salt is used to deduce the client's unique "Forwarder" address
 
-    Here's an example (using the Ethereum "Goerli" testnet):
+**** The Product Owner's MultiPayoutERC20 Contract
 
-    #+LATEX: {\scriptsize
-    #+BEGIN_SRC ipython :session :exports both :results output raw drawer
+     The creation of a =MultiPayoutERC20= is simple.
 
-    # Provide yourself with a Goerli testnet account under your control;
-    # provide an "xpub..." key for it, or the BIP-39 Mnemonic phrase to
-    # derive its HD wallet.  Use the https://goerlifaucet.com to fund the
-    # account with some Goerli test Ethereum; requires you to set up an
-    # https://alchemy.com account, and put your API token in the
-    # ALCHEMY_API_TOKEN environment variable.
-    goerli_xprvkey		= os.getenv( 'GOERLI_XPRVKEY' )
-    if not goerli_xprvkey:
-    	  goerli_seed		= os.getenv( 'GOERLI_SEED' )
-    	  if goerli_seed:
-    	      try:
-    		  # why m/44'/1'/... instead of m/44'/60'/...?  Dunno;
-    		  # That's the derivation path that Trezor Suite uses for
-    		  # Goerli testnet wallets...
-    		  goerli_xprvkey = slip39.account(
-    		      goerli_seed, crypto="ETH", path="m/44'/1'/0'"
-    		  ).xprvkey
-    	      except Exception:
-    		  pass
-    if goerli_xprvkey:
-    	  # the Account.address/.prvkey
-    	  goerli_src		= slip39.account(
-    	      goerli_xprvkey, crypto='ETH', path="m/0/0"
-        )
+     The product owner must know the Ethereum addresses of the payees, and each payee's proportion
+     of the product revenue.  A payee may be another MultiPayoutERC20 contract (eg. for a product
+     module sub-license), which may in turn have its own payees.
 
-    from slip39.invoice import MultiPayoutERC20
+     An Ethereum account containing sufficient funds to establish the MultiPayoutERC20 contract must
+     be available.  Here's an example (using the Ethereum "Goerli" testnet):
 
-    mp				= MultiPayoutERC20(
-    	agent		= goerli_src.address,
-    	agent_prvkey	= goerli_src.prvkey,
-    	address		= "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8",
-    )
-    salt			
+     #+LATEX: {\scriptsize
+     #+BEGIN_SRC ipython :session :exports both :results output raw drawer
+  
+     # Provide yourself with a Goerli testnet account under your control;
+     # provide an "xpub..." key for it, or the BIP-39 Mnemonic phrase to
+     # derive its HD wallet.  Use the https://goerlifaucet.com to fund the
+     # account with some Goerli test Ethereum; requires you to set up an
+     # https://alchemy.com account, and put your API token in the
+     # ALCHEMY_API_TOKEN environment variable.
+     goerli_xprvkey		= os.getenv( 'GOERLI_XPRVKEY' )
+     if not goerli_xprvkey:
+     	  goerli_seed		= os.getenv( 'GOERLI_SEED' )
+     	  if goerli_seed:
+     	      try:
+     		  # why m/44'/1'/... instead of m/44'/60'/...?  Dunno;
+     		  # That's the derivation path that Trezor Suite uses for
+     		  # Goerli testnet wallets...
+     		  goerli_xprvkey = slip39.account(
+     		      goerli_seed, crypto="ETH", path="m/44'/1'/0'"
+     		  ).xprvkey
+     	      except Exception:
+     		  pass
+     if goerli_xprvkey:
+     	  # the Account.address/.prvkey
+     	  goerli_src		= slip39.account(
+     	      goerli_xprvkey, crypto='ETH', path="m/0/0"
+         )
+  
+     from slip39.invoice import MultiPayoutERC20
+  
+     mp				= MultiPayoutERC20(
+     	agent		= goerli_src.address,
+     	agent_prvkey	= goerli_src.prvkey,
+     	address		= "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8",
+     )
+     salt			
 
     #+END_SRC
     #+LATEX: }
@@ -1863,8 +1886,8 @@ sets of 20 words is difficult, error-prone and time consuming.
     payments to a plain Account (for which you hold the private key) may not be acceptable to all
     parties involved.  A product owner providing a licensee the capability to sub-licensing their
     product may, for example, charge a much better fee, if the licensee can prove that payments will
-    *automatically* flow back to the licensor, every time the licensee sells their product which
-    contains the sub-license.
+    *automatically* flow back to the license owner, every time the licensee sells their product
+    which contains the sub-license.
 
     There are ways to ensure that each client payment *must* be distributed to each payee, as agreed,
     using cryptocurrencies which implement Smart Contracts.

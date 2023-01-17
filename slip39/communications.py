@@ -610,7 +610,8 @@ def autoresponder( address, from_addr, to_addrs, server, port, reinject ):
 
     Install python-slip39 (no extras required for just slip39.communications)
 
-      # python3.10 -m pip install https://github.com/pjkundert/python-slip39/archive/feature-invoice.zip#egg=slip39
+      # rm -rf ~/.cache/pip
+      # python3.10 -m pip install --upgrade https://github.com/pjkundert/python-slip39/archive/feature-invoice.zip#egg=slip39
 
     Configure Postfix system roughly as per: https://github.com/innovara/autoreply,
     to run our slip39.communications autoresponder
@@ -622,7 +623,7 @@ def autoresponder( address, from_addr, to_addrs, server, port, reinject ):
 
         # autoresponder pipe
         autoreply unix  -       n       n       -       -       pipe
-         flags= user=autoreply null_sender=
+         flags= user=nobody null_sender=
          argv=/usr/local/bin/python3.10 -m slip39.communications autoresponder licensing@dominionrnd.com ${sender} ${recipient}
 
     - Create /etc/postfix/autoreply w/ lines like (and postmap /etc/postfix/autoreply):

@@ -28,12 +28,12 @@ else:
     # No local key (the usual case, unless you're Dominion R&D!)
     dkim_selector		= '20221230'
     dkim_msg			= message_from_string( """\
+Content-Type: multipart/alternative; boundary================1903566236404015660==
 MIME-Version: 1.0
 From: no-reply@licensing.dominionrnd.com
 To: licensing@dominionrnd.com
 Reply-To: perry@kundert.ca
 Subject: Hello, world!
-Content-Type: multipart/alternative; boundary================1903566236404015660==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=licensing.dominionrnd.com; i=@licensing.dominionrnd.com; q=dns/txt; s=20221230; t=1673405994; h=from : to;\
  bh=RkF6KP4Q94MVDBEv7pluaWdzw0z0GNQxK72rU02XNcE=; b=Tao30CJGcqyX86f37pSrSFLSDvA8VkzQW0jiMf+aFg5D99LsUYmUZxSgnDhW2ZEzjwu6bzjkEEyvSEv8LxfDUW+AZZG3enbq/mnnUZw3PXp4l\
 MaZGN9whvTIUy4/QUlMGKuf+7Vzi+8eKKjh4CWKN/UEyX6YoU7V5eyjTTA7q1jIjEl8jiM4LXYEFQ9LaKUmqqmRh2OkxBVf1QG+fEYTYUed+oS05m/d1SyVLjxv8ldeXT/mGgm1CrGk1qfRTzfcksX4qNAluTfJTa\
@@ -71,19 +71,22 @@ def test_communications_matchaddr():
 
 
 def test_communications_dkim():
-    msg				= dkim_msg if not dkim_key else dkim_message(
-        sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
-        to_email	= SMTP_TO,			# See https://dkimvalidator.com to test!
-        reply_to_email	= "perry@kundert.ca",
-        subject		= "Hello, world!",
-        message_text	= "Testing 123",
-        message_html	= "<em>Testing 123</em>",
-        dkim_private_key_path = dkim_key,
-        dkim_selector	= dkim_selector,
-        headers		= ['From', 'To'],
-    )
+    if dkim_key:
+        msg			= dkim_message(
+            sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
+            to_email		= SMTP_TO,			# See https://dkimvalidator.com to test!
+            reply_to_email	= "perry@kundert.ca",
+            subject		= "Hello, world!",
+            message_text	= "Testing 123",
+            message_html	= "<em>Testing 123</em>",
+            dkim_private_key_path = dkim_key,
+            dkim_selector	= dkim_selector,
+            headers		= ['From', 'To'],
+        )
+    else:
+        msg			= dkim_msg
 
-    log.info( f"DKIM Message: {msg}" )
+    log.info( f"DKIM {'signed' if dkim_key else 'canned'} Message:\n{msg}" )
 
     sig			= msg['DKIM-Signature']
     sig_kvs		= sig.split( ';' )
@@ -136,17 +139,20 @@ def test_communications_autoresponder( monkeypatch ):
     the auto-forwarded message(s).
 
     """
-    msg				= dkim_msg if not dkim_key else dkim_message(
-        sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
-        to_email	= SMTP_TO,			# See https://dkimvalidator.com to test!
-        reply_to_email	= "perry@kundert.ca",
-        subject		= "Hello, world!",
-        message_text	= "Testing 123",
-        message_html	= "<em>Testing 123</em>",
-        dkim_private_key_path = dkim_key,
-        dkim_selector	= dkim_selector,
-        headers		= ['From', 'To'],
-    )
+    if dkim_key:
+        msg			= dkim_message(
+            sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
+            to_email		= SMTP_TO,			# See https://dkimvalidator.com to test!
+            reply_to_email	= "perry@kundert.ca",
+            subject		= "Hello, world!",
+            message_text	= "Testing 123",
+            message_html	= "<em>Testing 123</em>",
+            dkim_private_key_path = dkim_key,
+            dkim_selector	= dkim_selector,
+            headers		= ['From', 'To'],
+        )
+    else:
+        msg			= dkim_msg
 
     envelopes		= []
 
