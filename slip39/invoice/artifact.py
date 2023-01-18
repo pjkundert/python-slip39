@@ -22,7 +22,7 @@ from dataclasses	import dataclass
 from collections	import namedtuple
 from typing		import Dict, Union, Any
 
-from .ethereum		import tokenaddress, tokenratio
+from .ethereum		import tokeninfo, tokenratio
 
 
 """
@@ -120,10 +120,12 @@ class Total:
     def iter( self ):
         """Iterate of lines, computing totals"""
         # Get all the eg. BTC / USDC ratios for the Line-item currency, vs. the Total currency
-        self_curr_addr		= tokenaddress( self.currency )
+        self_curr_info		= tokeninfo( self.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+        self_curr_addr		= self_curr_info['address']
         currencies		= {}
         for line in self.lines:
-            line_curr_addr	= tokenaddress( line.currency )
+            line_curr_info	= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_curr_addr	= line_curr_info['address']
             if line_curr_addr not in currencies:
                 currencies[line_curr_addr] = tokenratio( line_curr_addr, self_curr_addr )[2]
 
@@ -131,8 +133,10 @@ class Total:
         for i,line in enumerate( self.lines ):
             amount,taxes,taxinf	= line.amounts()
             amount_curr		= amount
-            if line.currency != self.currency:
-                amount_curr    *= currencies[tokenaddress( line.currency )]
+            line_curr_info	= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_curr_addr	= line_curr_info['address']
+            if line_curr_addr != self_curr_addr:
+                amount_curr    *= currencies[line_curr_addr]
             total	       += float( amount_curr )
             yield i, line.description, line.units, line.price, line.currency, taxinf, amount, taxes, total
 
