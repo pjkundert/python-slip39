@@ -22,8 +22,10 @@ from dataclasses	import dataclass
 from collections	import namedtuple
 from typing		import Dict, Union, Any
 
-from .ethereum		import tokeninfo, tokenratio
+from tabulate		import tabulate
 
+from .ethereum		import tokeninfo, tokenratio
+from ..util		import uniq
 
 """
 Invoice artifacts:
@@ -80,7 +82,7 @@ class Line( Item ):
                 taxes		= amount - amount / self.tax
                 amount	       -= taxes
 
-        return amount, taxes, taxinf  # denominated in self.currency
+        return amount, taxes, taxinf  # denominated in self.currencies
 
 
 class Total:
@@ -94,14 +96,26 @@ class Total:
     """
     def __init__(
         self, lines,
-        currency		= None,
+        currencies		= None,
         w3_url			= None,
         use_provider		= None,
     ):
         self.lines		= list( lines )
-        self.currency		= currency or "USDC"
         self.w3_url		= w3_url
         self.use_provider	= use_provider
+        if currencies:
+            currencies		= [ currencies ] if isinstance( currencies, str ) else list( currencies )
+        if not currencies:
+            currencies    	= [ "USDC" ]
+        # Get currencies unique/sorted by token symbol
+        self.currencies		= sorted(
+            uniq(
+                (
+                    tokeninfo( currency, w3_url=self.w3_url, use_provider=self.use_provider )
+                    for currency in currencies
+                ), key=lambda i: i['symbol'],
+            ), key=lambda c: c['symbol']
+        )
 
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator"""
@@ -109,36 +123,69 @@ class Total:
             'Line',
             'Description',
             'Units',
+            'Currency',
             'Price',
-            'Tax',
-            'Tax %',
             'Amount',
+            'Tax #',
+            'Tax %',
             'Taxes',
-            f"Total {self.currency}"
+        ] + [
+            f"Total {currency['symbol']}"
+            for currency in self.currencies
+        ] + [
+            f"Taxes {currency['symbol']}"
+            for currency in self.currencies
         ]
 
-    def iter( self ):
-        """Iterate of lines, computing totals"""
-        # Get all the eg. BTC / USDC ratios for the Line-item currency, vs. the Total currency
-        self_curr_info		= tokeninfo( self.currency, w3_url=self.w3_url, use_provider=self.use_provider )
-        self_curr_addr		= self_curr_info['address']
+    def __iter__( self ):
+        """Iterate of lines, computing totals in each Total.currencies"""
+        # Get all the eg. BTC / USDC ratios for the Line-item currency, vs. each Total currency at
+        # once, in case the iterator takes considerable time; we don't want to "refresh" the token
+        # values while generating the invoice!
         currencies		= {}
         for line in self.lines:
-            line_curr_info	= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
-            line_curr_addr	= line_curr_info['address']
-            if line_curr_addr not in currencies:
-                currencies[line_curr_addr] = tokenratio( line_curr_addr, self_curr_addr )[2]
+            line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            for self_curr in self.currencies:
+                if (line_curr['address'],self_curr['address']) not in currencies:
+                    currencies[line_curr['address'],self_curr['address']] = tokenratio( line_curr['address'], self_curr['address'] )[2]
 
-        total			= 0.
+        tot			= {
+            self_curr['symbol']: 0.
+            for self_curr in self.currencies
+        }
+        tax			= {
+            self_curr['symbol']: 0.
+            for self_curr in self.currencies
+        }
+
         for i,line in enumerate( self.lines ):
             amount,taxes,taxinf	= line.amounts()
-            amount_curr		= amount
-            line_curr_info	= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
-            line_curr_addr	= line_curr_info['address']
-            if line_curr_addr != self_curr_addr:
-                amount_curr    *= currencies[line_curr_addr]
-            total	       += float( amount_curr )
-            yield i, line.description, line.units, line.price, line.currency, taxinf, amount, taxes, total
+            line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            for self_curr in self.currencies:
+                if line_curr['address'] == self_curr['address']:
+                    tot[self_curr['symbol']] += amount
+                    tax[self_curr['symbol']] += taxes
+                else:
+                    tot[self_curr['symbol']] += amount * currencies[line_curr['address'],self_curr['address']]
+                    tax[self_curr['symbol']] += taxes  * currencies[line_curr['address'],self_curr['address']]
+
+            yield (
+                i,
+                line.description,
+                line.units,
+                line.price,
+                line_curr['symbol'],
+                line.tax,
+                taxinf,
+                amount,
+                taxes,
+            ) + tuple(
+                tot[self_curr['symbol']]
+                for self_curr in self.currencies
+            ) + tuple(
+                tax[self_curr['symbol']]
+                for self_curr in self.currencies
+            )
 
     def pages( self, page = None, rows = 10 ):
         """Yields a sequence of lists containing rows, paginated into 'rows' chunks."""
@@ -152,6 +199,14 @@ class Total:
         if page_l:
             if page is None or page == page_i:
                 yield page_l
+
+    def tables( self, *args, tablefmt=None, **kwds ):
+        for page in self.pages( *args, **kwds ):
+            yield tabulate(
+                page,
+                headers		= self.headers(),
+                tablefmt	= tablefmt or 'orgtbl',
+            )
 
 
 #

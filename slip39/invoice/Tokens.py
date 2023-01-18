@@ -34,7 +34,7 @@ def scrapetokens( htmlfile ):
             f"Failed: {response.text}"
         response_text		= response.text
     # support anything with a link to [goerli.]etherscan.io/{token,address}/0x...
-    for token_m in re.finditer( r'(?:img src="([^"]+)".{0,100})?https://(?:[a-z]+.)?etherscan.io/(?:token|address)/(0x[0-9a-fA-F]+)', response_text ):
+    for token_m in re.finditer( r'(?:img src="([^"]+)".{0,100})?https://(?:[a-z]+.)?etherscan.io/token/(0x[0-9a-fA-F]+)', response_text ):
         yield token_m.groups()
 
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     try:
         erc20s_list             = sorted( list( erc20s_t.values() ), key=lambda i: i['name'] )
     except Exception as exc:
-        print( json.dumps( list( erc20s_t.values()), indent=4 ))
+        print( json.dumps( list( erc20s_t.values()), indent=4, sort_keys=True ))
         log.error( f"Failed to sort: ERC-20s list may be incorrect: {exc}" )
     else:
-        print( json.dumps( erc20s_list, indent=4 ))
+        print( json.dumps( erc20s_list, indent=4, sort_keys=True ))

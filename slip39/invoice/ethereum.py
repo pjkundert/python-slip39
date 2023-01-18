@@ -1306,7 +1306,11 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
                     for loaded,info in enumerate( json.loads( json_f.read() )):
                         if icon := info.get( 'icon' ):
                             icon_p	= here / icon
-                            info['icon'] = icon_p.resolve() if icon_p.exists() else None
+                            if icon_p.exists():
+                                info['icon'] = icon_p.resolve()
+                            else:
+                                info['icon'] = None
+                                log.warning( f"ERC-20 token {info['symbol']} references non-existent icon {icon_p}" )
                         aliasinfo( info )
         except Exception as exc:
             log.warning( f"Failed to load known ERC-20 tokens for {chain} from {here_json}: {exc}" )
