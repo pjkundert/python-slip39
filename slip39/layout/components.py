@@ -235,11 +235,11 @@ def layout_card(
     #   tan(β) = b / a, so
     #   β = arctan(b / a)
     #
-    a			= card_interior.h
-    b			= card_interior.w
-    c			= math.sqrt( a * a + b * b )
-    β			= math.atan( b / a )
-    rotate		= 90 - math.degrees( β )
+    a				= card_interior.h
+    b				= card_interior.w
+    c				= math.sqrt( a * a + b * b )
+    β				= math.atan( b / a )
+    rotate			= 90 - math.degrees( β )
 
     for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
         card_interior.add_region_proportional( Text(
@@ -257,8 +257,8 @@ def layout_card(
 
     # Rotation is downward around upper-left corner; so, lower-left corner will shift 1 height
     # leftward and upward; so start 1 height right and down.
-    link_length		= card_interior.h
-    link_height		= link_length * 6/32
+    link_length			= card_interior.h
+    link_height			= link_length * 6/32
     card_interior.add_region(
         Text(
             'card-link',
@@ -305,7 +305,7 @@ def layout_card(
 
     assert num_mnemonics in MNEM_ROWS_COLS, \
         f"Invalid SLIP-39 mnemonic word count: {num_mnemonics}"
-    rows,cols		= MNEM_ROWS_COLS[num_mnemonics]
+    rows,cols			= MNEM_ROWS_COLS[num_mnemonics]
     for r in range( rows ):
         for c in range( cols ):
             card_mnemonics.add_region_proportional(

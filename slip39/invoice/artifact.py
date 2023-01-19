@@ -17,6 +17,7 @@
 from __future__          import annotations
 
 import logging
+import math
 
 from dataclasses	import dataclass
 from collections	import namedtuple
@@ -24,8 +25,9 @@ from typing		import Dict, Union, Any
 
 from tabulate		import tabulate
 
+from ..util		import uniq, commas, is_listlike
+from ..layout		import Region, Text, Image, Box, Coordinate
 from .ethereum		import tokeninfo, tokenratio
-from ..util		import uniq
 
 """
 Invoice artifacts:
@@ -63,35 +65,37 @@ class Item:
     price: Any					# 1.98 eg. $USDC, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
     units: Union[int,float]	= 1		# 198, 1.5
     tax: Any			= None		# 0.05, Fraction( 5, 100 ) eg. GST, added to amount, 1.05 GST, included in amount
-    decimals: int		= 2   	 	# Number of decimals to display computed amounts, eg. 2.
+    decimals: int		= None		# Number of decimals to display computed amounts, eg. 2.; default is 1/3 of token decimals
     currency: str		= "USDC"
 
 
-class Line( Item ):
-    def amounts( self ):
-        """Computes the total amount, and taxes for the Line"""
+class LineItem( Item ):
+    def net( self ):
+        """Computes the LineItem total 'amount', the 'taxes', and info on tax charged."""
         amount			= self.units * self.price
         taxes			= 0
         taxinf			= 'no tax'
         if self.tax:
             if self.tax < 1:
-                taxinf		= f"{float( self.tax * 100 ):.2f}% added"
+                taxinf		= f"{round( float( self.tax * 100 ), 2):g}% added"
                 taxes		= amount * self.tax
+                amount	       += taxes
             elif self.tax > 1:
-                taxinf		= f"{float(( self.tax - 1 ) * 100 ):.2f}% incl."
+                taxinf		= f"{round( float(( self.tax - 1 ) * 100 ), 2):g}% incl."
                 taxes		= amount - amount / self.tax
-                amount	       -= taxes
-
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
 class Total:
-    """The totals for some invoice line items.
+    """The totals for some invoice line items, in terms of some Crypto-currencies.
 
     Can emit the line items in groups with summary sub-totals and a final total.
 
-    Reframes the price of each line in terms of the Total's currency (default: USDC).
+    Reframes the price of each line in terms of the Total's currencies (default: USDC), providing
+    "Total <SYMBOL>" and "Taxes <SYMBOL>" for each Cryptocurrency symbols.
 
+    Now that we have Web3 details, we can query tokeninfos and hence format currency decimals
+    correctly.
 
     """
     def __init__(
@@ -124,24 +128,33 @@ class Total:
             'Description',
             'Units',
             'Currency',
-            'Price',
+            'Price #',		# Price value
+            'Price',		# Price (formatted)
+            'Amount #',
             'Amount',
             'Tax #',
             'Tax %',
+            'Taxes #',
             'Taxes',
         ] + [
-            f"Total {currency['symbol']}"
+            f"Total # {currency['symbol']}"
             for currency in self.currencies
         ] + [
-            f"Taxes {currency['symbol']}"
+            f"Taxes # {currency['symbol']}"
             for currency in self.currencies
         ]
 
     def __iter__( self ):
-        """Iterate of lines, computing totals in each Total.currencies"""
-        # Get all the eg. BTC / USDC ratios for the Line-item currency, vs. each Total currency at
-        # once, in case the iterator takes considerable time; we don't want to "refresh" the token
-        # values while generating the invoice!
+        """Iterate of lines, computing totals in each Total.currencies
+
+        Get all the eg. wBTC / USDC ratios for the Line-item currency, vs. each Total currency at
+        once, in case the iterator takes considerable time; we don't want to "refresh" the token
+        values while generating the invoice!
+
+        Note that numeric values may be int, float or Fraction, and these are retained through
+        normal mathematical operations.
+
+        """
         currencies		= {}
         for line in self.lines:
             line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
@@ -159,26 +172,29 @@ class Total:
         }
 
         for i,line in enumerate( self.lines ):
-            amount,taxes,taxinf	= line.amounts()
+            line_amount,line_taxes,line_taxinf = line.net()
             line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_decimals	= line_curr['decimals'] // 3 if line.decimals is None else line.decimals
             for self_curr in self.currencies:
-                if line_curr['address'] == self_curr['address']:
-                    tot[self_curr['symbol']] += amount
-                    tax[self_curr['symbol']] += taxes
+                if line_curr == self_curr:
+                    tot[self_curr['symbol']] += line_amount
+                    tax[self_curr['symbol']] += line_taxes
                 else:
-                    tot[self_curr['symbol']] += amount * currencies[line_curr['address'],self_curr['address']]
-                    tax[self_curr['symbol']] += taxes  * currencies[line_curr['address'],self_curr['address']]
-
+                    tot[self_curr['symbol']] += line_amount * currencies[line_curr['address'],self_curr['address']]
+                    tax[self_curr['symbol']] += line_taxes  * currencies[line_curr['address'],self_curr['address']]
             yield (
                 i,
                 line.description,
                 line.units,
-                line.price,
                 line_curr['symbol'],
+                line.price,
+                f"{float(line.price):.0{line_decimals}f}",
+                line_amount,
+                f"{float(line_amount):.0{line_decimals}f}",
                 line.tax,
-                taxinf,
-                amount,
-                taxes,
+                line_taxinf,
+                line_taxes,
+                f"{float(line_taxes):.0{line_decimals}f}",
             ) + tuple(
                 tot[self_curr['symbol']]
                 for self_curr in self.currencies
@@ -187,8 +203,14 @@ class Total:
                 for self_curr in self.currencies
             )
 
-    def pages( self, page = None, rows = 10 ):
-        """Yields a sequence of lists containing rows, paginated into 'rows' chunks."""
+    def pages(
+        self,
+        page		= None,
+        rows		= 10,
+    ):
+        """Yields a sequence of lists containing rows, paginated into 'rows' chunks.
+
+        """
         page_i,page_l		= 0, []
         for row in iter( self ):
             page_l.append( row )
@@ -200,35 +222,135 @@ class Total:
             if page is None or page == page_i:
                 yield page_l
 
-    def tables( self, *args, tablefmt=None, **kwds ):
+    def tables(
+        self, *args,
+        tablefmt	= None,
+        columns		= None,		# list (ordered) set/predicate (unordered)
+        **kwds				# page, rows, ...
+    ):
+        """Tabulate columns in a textual table.
+
+        The 'columns' is a filter (a set/list/tuple or a predicate) that selects the columns desired.
+
+        """
+        headers			= self.headers()
+        columns_select		= list( range( len( headers )))
+        if columns:
+            if is_listlike( columns ):
+                columns_select	= [headers.index( h ) for h in columns]
+                assert not any( i < 0 for i in columns_select ), \
+                    f"Columns not found: {commas( h for h in headers if h not in columns )}"
+                headers		= [headers[i] for i in columns_select]
+            elif hasattr( columns, '__contains__' ):
+                columns_select	= [i for i,h in enumerate( headers ) if h in columns]
+                assert columns_select, \
+                    "No columns matched"
+                headers		= [headers[i] for i in columns_select]
+            else:
+                columns_select	= [i for i,h in enumerate( headers ) if columns( h )]
         for page in self.pages( *args, **kwds ):
             yield tabulate(
-                page,
-                headers		= self.headers(),
+                [[line[i] for i in columns_select ] for line in page],
+                headers		= headers,
                 tablefmt	= tablefmt or 'orgtbl',
             )
 
 
-#
-# Prices
-#
-# Beware:
-#     https://samczsun.com/so-you-want-to-use-a-price-oracle/
-#
-# We use a time-weighted average oracle provided by 1inch to avoid some of these issues:
-#     https://docs.1inch.io/docs/spot-price-aggregator/introduction
-#
-class Prices:
-    """Retrieve current Crypto prices, using a time-weighted oracle API.
+def layout_invoice(
+    inv_size: Coordinate,
+    inv_margin: int,
+    num_lines: int		= 10,
+):
+    """Layout an Invoice, in portrait format.
 
+     Rotate the  watermark, etc. so its angle is from the lower-left to the upper-right.
+
+                 b
+          +--------------+        +--------------+
+          |             .         |I.. (img)  Na.|
+          |           D.          |--------------|
+          |          .            |# D.. u.u.    |
+          |        I.             |...           |
+          |       .               |         ---- |
+          |     A. c              |    BTC  #.## |
+          |    .                  |    ETH  #.## |
+        a |  P.                   | (terms)      |
+          |β.                     | (tax #, ..)  |
+          + 90-β                  +--------------+
+
+       tan(β) = b / a, so
+       β = arctan(b / a)
+
+    Sets priority:
+      -3     : Hindmost backgrounds
+      -2     : Things atop background, but beneath contrast-enhancement
+      -1     : Contrast-enhancing partially transparent images
+       0     : Text, etc. (the default)
     """
-    pass
+    prio_backing		= -3
+    prio_normal			= -2  # noqa: F841
+    prio_contrast		= -1
+
+    inv				= Box( 'invoice', 0, 0, inv_size.x, inv_size.y )
+    inv_interior		= inv.add_region_relative(
+        Region( 'inv-interior', x1=+inv_margin, y1=+inv_margin, x2=-inv_margin, y2=-inv_margin )
+    )
+
+    a				= inv_interior.h
+    b				= inv_interior.w
+    c				= math.sqrt( a * a + b * b )
+    β				= math.atan( b / a )      # noqa: F841
+    rotate			= 90 - math.degrees( β )  # noqa: F841
+
+    inv_top			= inv_interior.add_region_proportional(
+        Region( 'inv-top', x1=0, y1=0, x2=1, y2=1/6 )
+    ).add_region_proportional(
+        Image(
+            'inv-top-bg',
+            priority	= prio_backing,
+        ),
+    )
+
+    inv_top.add_region_proportional(
+        Image(
+            'inv-label-bg',
+            x1		= 0,
+            y1		= 5/8,
+            x2		= 1/4,
+            y2		= 7/8,
+            priority	= prio_contrast,
+        )
+    ).add_region(
+        Text(
+            'inv-label',
+            font	= 'mono',
+            text	= "Invoice",
+        )
+    )
+    inv_body			= inv_interior.add_region_proportional(
+        Region( 'inv-body', x1=0, y1=1/6, x2=1, y2=1 )
+    )
+
+    rows			= 15
+    for r in range( rows ):
+        inv_body.add_region_proportional(
+            Text(
+                f"line-{c}",
+                x1	= 0,
+                y1	= r/rows,
+                x2	= 1,
+                y2	= (r+1)/rows,
+                font	= 'mono',
+                bold	= True,
+                size_ratio = 9/16,
+            )
+        )
 
 
-def produce_pdf(
+def produce_invoice(
     client: Dict[str,str],      	# Client's identifying info (eg. Name, Attn, Address)
     vendor: Dict[str,str],		# Vendor's identifying info
-    number: str,			# eg. "INV-20230930"
+    invoice_number: str,		# eg. "INV-20230930"
     terms: str,    			# eg. "Payable on receipt in $USDC, $ETH, $BTC"
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
