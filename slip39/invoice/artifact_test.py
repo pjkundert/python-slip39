@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from .artifact		import LineItem, Total
+from .artifact		import LineItem, Invoice
 
 line_amounts			= [
     [
@@ -13,8 +13,7 @@ line_amounts			= [
             units	= 198,
             price	= 2.01,
             tax		= Fraction( 5, 100 ),  # exclusive
-            decimals	= 2,
-            currency	= 'USDC',
+            currency	= 'US Dollar',
         ),
         ( 417.879, 19.899, "5% added" ),
     ], [
@@ -23,8 +22,7 @@ line_amounts			= [
             units	= 2500,
             price	= Fraction( 201, 1000 ),
             tax		= Fraction( 5, 100 ),  # exclusive
-            decimals	= 2,
-            currency	= 'wETH',
+            currency	= 'ETH',
         ),
         ( 527.625, 25.125, "5% added" ),
     ], [
@@ -33,12 +31,24 @@ line_amounts			= [
             units	= 100,
             price	= Fraction( 201, 10000 ),
             tax		= Fraction( 105, 100 ),  # inclusive
-            decimals	= 2,
-            currency	= 'wBTC',
+            decimals	= 8,
+            currency	= 'Bitcoin',
         ),
         ( 2.01, 0.09571, "5% incl." ),
     ], [
-        LineItem( "Simple", 12345.6789 ),
+        LineItem(
+            description	= "Buy some Holo hosting",
+            units	= 12,
+            price	= 10000,
+            tax		= Fraction( 5, 100 ),  # inclusive
+            currency	= 'HoloToken',
+        ),
+        ( 126000, 6000, "5% added" ),
+    ], [
+        LineItem( "Worthless", 12345.6789, currency='ZEENUS' ),
+        ( 12345.6789, 0, "no tax"),
+    ], [
+        LineItem( "Simple", 12345.6789 ),  # currency default None ==> USD
         ( 12345.6789, 0, "no tax" ),
     ],
 ]
@@ -54,14 +64,11 @@ def test_LineItem( line, amounts ):
     )
 
 
-WETH				= "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-
-
-def test_Total():
-    total			= Total( [
+def test_tabulate():
+    total			= Invoice( [
         line
         for line,_ in line_amounts
-    ], currencies=["HOT",WETH,"USDC"] )
+    ], currencies=["HOT", "ETH", "BTC", "USD"] )
 
     print( json.dumps( list( total.pages() ), indent=4, default=str ))
 
@@ -72,7 +79,33 @@ def test_Total():
     # Can't test until we can fake up fixed token values
 
     tables			= list( total.tables(
-        columns=('Description', 'Units', 'Price', 'Tax %', 'Taxes', 'Amount'),
+        columns=('Description', 'Units', 'Currency', 'Symbol', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
     ))
     for t in tables:
         print( t )
+
+    # Get the default formatting for line's w/ currencies w/ 0 decimals, 0 value
+    worthless = '\n\n'.join( Invoice( [
+        line
+        for line,_ in line_amounts
+        if line.currency in ("ZEENUS", )
+    ], currencies=["HOT", "ETH", "BTC", "USD"] ).tables() )
+    print( worthless )
+    assert worthless == """\
+|   Line | Description   |   Units |   Price |   Amount | Tax %   |   Taxes | Currency   | Symbol   |   Total HOT |   Total USDC |   Total WBTC |   Total WETH |   Taxes HOT |   Taxes USDC |   Taxes WBTC |   Taxes WETH |
+|--------+---------------+---------+---------+----------+---------+---------+------------+----------+-------------+--------------+--------------+--------------+-------------+--------------+--------------+--------------|
+|      0 | Worthless     |       1 |  12,346 |   12,346 | no tax  |       0 | ZEENUS     | ZEENUS   |           0 |            0 |            0 |            0 |           0 |            0 |            0 |            0 |"""
+
+    # No conversions of non-0 values; default Invoice currency is USD.  Longest digits should be 2
+    shorter = '\n\n'.join( Invoice( [
+        line
+        for line,_ in line_amounts
+        if line.currency in ("ZEENUS", None) or line.currency.upper().startswith( 'US' )
+    ] ).tables() )
+    print( shorter )
+    assert shorter == """\
+|   Line | Description           |   Units |     Price |    Amount | Tax %    |   Taxes | Currency   | Symbol   |   Total USDC |   Taxes USDC |
+|--------+-----------------------+---------+-----------+-----------+----------+---------+------------+----------+--------------+--------------|
+|      0 | Widgets for the Thing |     198 |      2.01 |    417.88 | 5% added |   19.90 | US Dollar  | USDC     |       417.88 |        19.90 |
+|      1 | Worthless             |       1 | 12,345.68 | 12,345.68 | no tax   |    0.00 | ZEENUS     | ZEENUS   |       417.88 |        19.90 |
+|      2 | Simple                |       1 | 12,345.68 | 12,345.68 | no tax   |    0.00 | USD        | USDC     |    12,763.56 |        19.90 |"""

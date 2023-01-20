@@ -21,11 +21,13 @@ import math
 
 from dataclasses	import dataclass
 from collections	import namedtuple
-from typing		import Dict, Union, Any
+from typing		import Dict, Union, Optional
+from fractions		import Fraction
 
 from tabulate		import tabulate
 
 from ..util		import uniq, commas, is_listlike
+from ..defaults		import INVOICE_CURRENCY
 from ..layout		import Region, Text, Image, Box, Coordinate
 from .ethereum		import tokeninfo, tokenratio
 
@@ -52,26 +54,30 @@ log				= logging.getLogger( "customer" )
 Item				= namedtuple( 'Item', [
     'description',			# "Widgets for The Thing"
     'units',				# 198
-    'price',				# 1.98 eg. $USDC, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
+    'price',				# 1.98 eg. $USD, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
     'tax',				# 0.05, Fraction( 5, 100 ) eg. GST, added to amount, 1.05 GST, included in amount
-    'decimals',				# Number of decimals to display computed amounts, eg. 2.
-    'currency'				# USDC
+    'decimals',				# Number of decimals to display computed amounts, eg. 2.  Default: currency's decimals//3
+    'currency'				# USD
 ] )
 
 
 @dataclass
 class Item:
     description: str				# "Widgets for The Thing"
-    price: Any					# 1.98 eg. $USDC, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
+    price: Union[int,float,Fraction]		# 1.98 eg. $USDC, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
     units: Union[int,float]	= 1		# 198, 1.5
-    tax: Any			= None		# 0.05, Fraction( 5, 100 ) eg. GST, added to amount, 1.05 GST, included in amount
-    decimals: int		= None		# Number of decimals to display computed amounts, eg. 2.; default is 1/3 of token decimals
-    currency: str		= "USDC"
+    tax: Optional[float,Fraction] = None        # 0.05, Fraction( 5, 100 ) eg. GST, added to amount, 1.05 GST, included in amount
+    decimals: Optional[int]	= None		# Number of decimals to display computed amounts, eg. 2.; default is 1/3 of token decimals
+    currency: Optional[str]	= None		# Default: $USD (value proxy is USDC)
 
 
 class LineItem( Item ):
     def net( self ):
-        """Computes the LineItem total 'amount', the 'taxes', and info on tax charged."""
+        """Computes the LineItem total 'amount', the 'taxes', and info on tax charged.
+
+        Uses the default Invoice Currency if none specified.
+
+        """
         amount			= self.units * self.price
         taxes			= 0
         taxinf			= 'no tax'
@@ -86,12 +92,15 @@ class LineItem( Item ):
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
-class Total:
-    """The totals for some invoice line items, in terms of some Crypto-currencies.
+class Invoice:
+    """The totals for some invoice line items, in terms of some cryptocurrencies.  Currencies may be
+    supplied by ERC-20 token contract address or by symbol or full name (for known cryptocurrencies
+    eg. "BTC", "ETH", or some known ERC-20 tokens (~top 100).  Presently, we only support invoice cryptocurrencies that
+    have a highly-liquid Ethereum ERC-20 "proxy", eg. ETH/wETH, BTC/wBTC
 
     Can emit the line items in groups with summary sub-totals and a final total.
 
-    Reframes the price of each line in terms of the Total's currencies (default: USDC), providing
+    Reframes the price of each line in terms of the Invoice's currencies (default: USDC), providing
     "Total <SYMBOL>" and "Taxes <SYMBOL>" for each Cryptocurrency symbols.
 
     Now that we have Web3 details, we can query tokeninfos and hence format currency decimals
@@ -110,54 +119,58 @@ class Total:
         if currencies:
             currencies		= [ currencies ] if isinstance( currencies, str ) else list( currencies )
         if not currencies:
-            currencies    	= [ "USDC" ]
-        # Get currencies unique/sorted by token symbol
+            currencies    	= [ INVOICE_CURRENCY ]
+        # Get all Invoice currencies' tokeninfo unique/sorted by token symbol.  This is where we
+        # must convert any proxied fiat/crypto-currencies (USD, BTC) into available ERC-20 tokens.
         self.currencies		= sorted(
             uniq(
                 (
                     tokeninfo( currency, w3_url=self.w3_url, use_provider=self.use_provider )
                     for currency in currencies
-                ), key=lambda i: i['symbol'],
+                ), key=lambda c: c['symbol'],
             ), key=lambda c: c['symbol']
         )
 
     def headers( self ):
-        """Output the headers to use in tabular formatting of iterator"""
-        return [
+        """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
+        with an _ prefix."""
+        return (
             'Line',
             'Description',
             'Units',
-            'Currency',
-            'Price #',		# Price value
-            'Price',		# Price (formatted)
-            'Amount #',
+            'Price',
             'Amount',
-            'Tax #',
+            '_Tax',
             'Tax %',
-            'Taxes #',
             'Taxes',
-        ] + [
-            f"Total # {currency['symbol']}"
+            'Currency',
+            'Symbol',
+            '_Decimals',
+            '_Token',
+        ) + tuple(
+            f"Total {currency['symbol']}"
             for currency in self.currencies
-        ] + [
-            f"Taxes # {currency['symbol']}"
+        ) + tuple(
+            f"Taxes {currency['symbol']}"
             for currency in self.currencies
-        ]
+        )
 
     def __iter__( self ):
-        """Iterate of lines, computing totals in each Total.currencies
-
-        Get all the eg. wBTC / USDC ratios for the Line-item currency, vs. each Total currency at
-        once, in case the iterator takes considerable time; we don't want to "refresh" the token
-        values while generating the invoice!
+        """Iterate of lines, computing totals in each Invoice.currencies
 
         Note that numeric values may be int, float or Fraction, and these are retained through
         normal mathematical operations.
 
         """
+
+        # Get all the eg. wBTC / USDC value ratios for the Line-item currency, vs. each Invoice
+        # currency at once, in case the iterator takes considerable time; we don't want to risk that
+        # memoization "refresh" the token values while generating the invoice!
+
         currencies		= {}
         for line in self.lines:
-            line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_currency	= line.currency or INVOICE_CURRENCY
+            line_curr		= tokeninfo( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
             for self_curr in self.currencies:
                 if (line_curr['address'],self_curr['address']) not in currencies:
                     currencies[line_curr['address'],self_curr['address']] = tokenratio( line_curr['address'], self_curr['address'] )[2]
@@ -172,8 +185,10 @@ class Total:
         }
 
         for i,line in enumerate( self.lines ):
+            line_currency	= line.currency or INVOICE_CURRENCY
             line_amount,line_taxes,line_taxinf = line.net()
-            line_curr		= tokeninfo( line.currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_curr		= tokeninfo( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            line_symbol		= line_curr['symbol']
             line_decimals	= line_curr['decimals'] // 3 if line.decimals is None else line.decimals
             for self_curr in self.currencies:
                 if line_curr == self_curr:
@@ -183,18 +198,18 @@ class Total:
                     tot[self_curr['symbol']] += line_amount * currencies[line_curr['address'],self_curr['address']]
                     tax[self_curr['symbol']] += line_taxes  * currencies[line_curr['address'],self_curr['address']]
             yield (
-                i,
+                i,			# The LineItem #, and...
                 line.description,
                 line.units,
-                line_curr['symbol'],
                 line.price,
-                f"{float(line.price):.0{line_decimals}f}",
                 line_amount,
-                f"{float(line_amount):.0{line_decimals}f}",
                 line.tax,
                 line_taxinf,
                 line_taxes,
-                f"{float(line_taxes):.0{line_decimals}f}",
+                line_currency,		# the line's currency
+                line_symbol,		# and Token symbol
+                line_decimals,		# the desired number of decimals
+                line_curr,		# and the associated tokeninfo
             ) + tuple(
                 tot[self_curr['symbol']]
                 for self_curr in self.currencies
@@ -234,24 +249,35 @@ class Total:
 
         """
         headers			= self.headers()
-        columns_select		= list( range( len( headers )))
         if columns:
             if is_listlike( columns ):
-                columns_select	= [headers.index( h ) for h in columns]
-                assert not any( i < 0 for i in columns_select ), \
+                selected	= tuple( self.headers().index( h ) for h in columns )
+                assert not any( i < 0 for i in selected ), \
                     f"Columns not found: {commas( h for h in headers if h not in columns )}"
-                headers		= [headers[i] for i in columns_select]
             elif hasattr( columns, '__contains__' ):
-                columns_select	= [i for i,h in enumerate( headers ) if h in columns]
-                assert columns_select, \
+                selected	= tuple( i for i,h in enumerate( headers ) if h in columns )
+                assert selected, \
                     "No columns matched"
-                headers		= [headers[i] for i in columns_select]
             else:
-                columns_select	= [i for i,h in enumerate( headers ) if columns( h )]
-        for page in self.pages( *args, **kwds ):
+                selected	= tuple( i for i,h in enumerate( headers ) if columns( h ) )
+        else:
+            # Default; just ignore _... columns
+            selected		= tuple( i for i,h in enumerate( headers ) if not h.startswith( '_' ) )
+        headers_selected	= tuple( headers[i] for i in selected )
+        log.info( f"Tabulating indices {commas(selected, final='and')}: {commas( headers_selected, final='and' )}" )
+        pages			= list( self.pages( *args, **kwds ))
+        decimals_i		= headers.index( '_Decimals' )
+        decimals		= max( line[decimals_i] for page in pages for line in page )
+        assert decimals < 32, \
+            f"Invalid decimals: {decimals}"
+        floatfmt		= f",.{decimals}f"
+        intfmt			= ","
+        for page in pages:
             yield tabulate(
-                [[line[i] for i in columns_select ] for line in page],
-                headers		= headers,
+                [[line[i] for i in selected] for line in page],
+                headers		= headers_selected,
+                intfmt		= intfmt,
+                floatfmt	= floatfmt,
                 tablefmt	= tablefmt or 'orgtbl',
             )
 

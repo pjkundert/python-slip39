@@ -40,7 +40,11 @@ from web3		import Web3
 from web3.middleware	import construct_sign_and_send_raw_middleware
 
 from ..util		import memoize, retry, commas, into_bytes, timer
-from ..defaults		import ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE, TOKPRICES_MEMO_MAXAGE, TOKPRICES_MEMO_MAXSIZE
+from ..defaults		import (
+    ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE,
+    TOKPRICES_MEMO_MAXAGE, TOKPRICES_MEMO_MAXSIZE,
+    INVOICE_PROXIES,
+)
 
 
 __author__                      = "Perry Kundert"
@@ -1271,7 +1275,7 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         token			= Web3.to_checksum_address( token )
     except ValueError:
         pass
-    if chain and isinstance( chain, str ):
+    if chain and isinstance( chain, str ):  # The blockchain; eg. "Ethereum", "Goerli"
         chain,			= ( c for c in Chain if c.name.lower() == chain.lower() )
     assert isinstance( chain, (Chain, type(None)) )
     if chain is None:
@@ -1294,7 +1298,7 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         tokeninfo.ERC20s[chain][name] = info
         return info
 
-    # If token is known in ./ERC20s.json, return it.  Iff the stated icon file exists,
+    # If token is known in ./Tokens-<chain>.json, return it.  Iff the stated icon file exists,
     # include its Path, else None.  Defaults to an empty dict for each chain.
     if not tokeninfo.ERC20s.setdefault( chain, {} ):
         here			= Path( __file__ ).resolve().parent
@@ -1319,12 +1323,12 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
 
     # Either the address w/ checksum, symbol (upper-case) or name (lower-case) may be present in the
     # chain's cache.
-    for t in (token, token.upper(), token.lower()):
+    for t in (token, token.upper(), token.lower(), INVOICE_PROXIES.get( token.upper() ), INVOICE_PROXIES.get( token.lower() )):
         if info := tokeninfo.ERC20s[chain].get( t ):
             return info
 
-    # Not (yet) a known token for chain; we'll have to query the blockchain for this token's data.  Must be
-    # a normalized address.
+    # Not (yet) a known token for chain; we'll have to query the blockchain for this token's data.
+    # It must, therefore, be a normalized address.
     assert Web3.is_checksum_address( token ), \
         f"Cannot query ERC-20 token address: {token}; must be valid address w/checksum"
     w3				= Web3( w3_provider( w3_url, use_provider ))
@@ -1340,6 +1344,7 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         symbol			= token_ierc20bytes32.functions.symbol().call().strip( b'\0' ).decode( 'utf-8' )
         name			= token_ierc20bytes32.functions.name().call().strip( b'\0' ).decode( 'utf-8' )
 
+    # Remember this token; this will fail if it collides w/ a "known" token.
     return aliasinfo( dict(
         address		= token,
         name		= name,

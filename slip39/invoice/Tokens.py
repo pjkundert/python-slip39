@@ -9,6 +9,7 @@ from pathlib		import Path
 from web3		import Web3
 
 from .ethereum		import Chain, tokeninfos
+from ..util		import commas
 
 log				= logging.getLogger( "Tokens" )
 
@@ -76,15 +77,17 @@ if __name__ == "__main__":
                 log.warning( f"Failed to query {token}: {exc}; {traceback.format_exc()}" )
                 continue
 
-            # See if we've already got its image; otherwise, collect it
+            # See if we've already got its image; otherwise, collect it.
             info		= erc20s.get( t, erc20s_n.get( t ))
             symbol		= info['symbol']
             if here_icon.exists() and image:
                 log.warning( f"Found image: {image}" )
                 found_icon	= htmlpath.resolve().parent / Path( image )
-                found_suff	= re.match( r".*(_\d+[.].*)$", image )
+                found_suff	= re.match( r".*((?:\d+)?[.].*)$", image )
                 if found_suff:
                     found_suff	= found_suff.group( 1 )
+                    if not found_suff.startswith( '.' ):
+                        found_suff = '_'+found_suff  # w/ a size eg. 28.webp, use _28.webp
                 log.warning( f"Found suffix: {found_suff}" )
                 if found_icon.exists() and found_suff:
                     saved_icon	= here_icon / f"{symbol}{found_suff}"
@@ -96,6 +99,18 @@ if __name__ == "__main__":
 
     erc20s_t                    = erc20s | erc20s_n
     log.warning( f"Summed {len(erc20s_t)} ERC-20 tokens" )
+
+    # Kick out any without Ascii symbol names
+    erc20s_eject		= []
+    for a,i in erc20s_t.items():
+        if not all( 32 < ord( c ) < 128 for c in i['symbol'] ):
+            erc20s_eject.append( a )
+    if erc20s_eject:
+        log.warning( f"Ejecting {len(erc20s_eject)} tokens w/ bad symbols: {commas( erc20s_t[a]['name'] for a in erc20s_eject )}" )
+        for a in erc20s_eject:
+            del erc20s_t[a]
+        log.warning( f"Left w/{len(erc20s_t)} ERC-20 tokens" )
+
     try:
         erc20s_list             = sorted( list( erc20s_t.values() ), key=lambda i: i['name'] )
     except Exception as exc:
