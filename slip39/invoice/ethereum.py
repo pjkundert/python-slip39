@@ -23,12 +23,13 @@ import os
 import traceback
 import time
 
+from dataclasses	import dataclass
 from datetime		import datetime
 from enum		import Enum
 from fractions		import Fraction
 from hashlib		import sha256
 from pathlib		import Path
-from typing		import Dict, Optional, Tuple
+from typing		import Dict, Optional, Union, Tuple
 
 import requests
 import eth_account
@@ -449,6 +450,7 @@ class Etherscan( GasOracle ):
             chain,		= ( c for c in Chain if c.name.lower() == chain.lower() )
         assert isinstance( chain, (Chain, type(None)) )
         self._chain		= chain or Chain.Ethereum
+        assert self._chain in ( Chain.Ethereum, Chain.Goerli )
 
         if speed and isinstance( speed, str ):
             speed,		= ( s for s in Speed if s.name.lower() == speed.lower() )
@@ -1251,21 +1253,31 @@ def w3_provider( w3_url, use_provider ):
     return use_provider( w3_url )
 
 
+@dataclass( eq=True, frozen=True )      # Makes it hashable
+class TokenInfo:
+    """Represents a Crypto-currency or on-chain Token (eg. ERC-20)"""
+    name: str
+    symbol: str
+    decimals: int
+    contract: Optional[str] = None      # If not an ERC-20 token contract, no contract address
+    icon: Optional[Union[str,Path]] = None
+
+
 def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
     """Lookup or query the specified token for the specified chain w/ the specified API w3_url, by
     symbol, name, un-normalized or normalized (w/ valid checksum) address.  The first time a Token
-    is looked up, its address must be used; subsequently, a case-insensitive symbol (upper-case) or
-    name (lower-case) may be used.  Tokens with names/symbols identical except for case are
-    disambiguated by upper/lower case correction.  Thus, two tokens may have a 'name' identical to
-    another's 'symbol', yet not collide.
+    is looked up, its contract address must be used; subsequently, a case-insensitive symbol
+    (upper-case) or name (lower-case) may be used.  Tokens with names/symbols identical except for
+    case are disambiguated by upper/lower case correction.  Thus, two tokens may have a 'name'
+    identical to another's 'symbol', yet not collide.
 
     Loads the known (top few hundred) Tokens for the chain on first call, to:
     - Avoid needing to reach out to the Ethereum blockchain for well-known tokens
     - To check for "trojan" tokens trying to impersonate well-known tokens on a chain
 
     This is subtle; since we can look up tokens on various blockchains, and the "same" token
-    (eg. USDC, WEENUS) can appear on various blockchains with different addresses, we don't want to
-    have collisions.  So, each chain must have its own cache of address/symbol/names.
+    (eg. USDC, WEENUS) can appear on various blockchains with different contract addresses, we don't
+    want to have collisions.  So, each chain must have its own cache of contract/symbol/names.
 
     Since we are already caching here, we don't use memoize; any w3_url targeting the same chain is
     considered identical.
@@ -1284,16 +1296,16 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         w3_url			= alchemy_url( chain  )
 
     def aliasinfo( info ):
-        addr			= info['address']
-        assert addr not in tokeninfo.ERC20s[chain], \
-            f"Duplicate ERC-20 address {info['address']!r} on {chain}"
-        symb			= info['symbol'].upper()
+        cont			= info.contract
+        assert cont not in tokeninfo.ERC20s[chain], \
+            f"Duplicate ERC-20 contract address {info.contract!r} on {chain}"
+        symb			= info.symbol.upper()
         assert symb not in tokeninfo.ERC20s[chain], \
-            f"Duplicate ERC-20 symbol {info['symbol']!r} on {chain}"
-        name			= info['name'].lower()
+            f"Duplicate ERC-20 symbol {info.symbol!r} on {chain}"
+        name			= info.name.lower()
         assert name not in tokeninfo.ERC20s[chain], \
-            f"Duplicate ERC-20 name {info['name']!r} on {chain}"
-        tokeninfo.ERC20s[chain][addr] = info
+            f"Duplicate ERC-20 name {info.name!r} on {chain}"
+        tokeninfo.ERC20s[chain][cont] = info
         tokeninfo.ERC20s[chain][symb] = info
         tokeninfo.ERC20s[chain][name] = info
         return info
@@ -1315,22 +1327,22 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
                             else:
                                 info['icon'] = None
                                 log.warning( f"ERC-20 token {info['symbol']} references non-existent icon {icon_p}" )
-                        aliasinfo( info )
+                        aliasinfo( TokenInfo( **info ))
         except Exception as exc:
             log.warning( f"Failed to load known ERC-20 tokens for {chain} from {here_json}: {exc}" )
         else:
             log.warning( f"Loaded {loaded+1} known ERC-20 tokens for {chain} from {here_json}" )
 
-    # Either the address w/ checksum, symbol (upper-case) or name (lower-case) may be present in the
-    # chain's cache.
+    # Either the contract address w/ checksum, symbol (upper-case) or name (lower-case) may be
+    # present in the chain's cache.
     for t in (token, token.upper(), token.lower(), INVOICE_PROXIES.get( token.upper() ), INVOICE_PROXIES.get( token.lower() )):
         if info := tokeninfo.ERC20s[chain].get( t ):
             return info
 
     # Not (yet) a known token for chain; we'll have to query the blockchain for this token's data.
-    # It must, therefore, be a normalized address.
+    # It must, therefore, be a normalized contract address.
     assert Web3.is_checksum_address( token ), \
-        f"Cannot query ERC-20 token address: {token}; must be valid address w/checksum"
+        f"Cannot query ERC-20 token contract address: {token}; must be valid address w/checksum"
     w3				= Web3( w3_provider( w3_url, use_provider ))
     token_ierc20metadata	= w3.eth.contract( address=token, abi=ierc20metadata_abi )
     try:
@@ -1339,52 +1351,53 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         name			= token_ierc20metadata.functions.name().call()
     except Exception:
         # Hmm.  Some top-100 tokens fail to respond correctly to the standard IERC20MetaData API.
+        # Try another commonly used API.  If this raises an Exception, let it through.
         token_ierc20bytes32	= w3.eth.contract( address=token, abi=ierc20bytes32_abi )
         decimals		= token_ierc20bytes32.functions.decimals().call()
         symbol			= token_ierc20bytes32.functions.symbol().call().strip( b'\0' ).decode( 'utf-8' )
         name			= token_ierc20bytes32.functions.name().call().strip( b'\0' ).decode( 'utf-8' )
 
     # Remember this token; this will fail if it collides w/ a "known" token.
-    return aliasinfo( dict(
-        address		= token,
+    return aliasinfo( TokenInfo(
         name		= name,
         symbol		= symbol,
         decimals	= decimals,
+        contract	= token,
         icon		= None,
     ))
-tokeninfo.ERC20s		= {}  # noqa: E305; { <chain>: {'address': <info>, 'name': <info>, 'symbol': info, ... }}
+tokeninfo.ERC20s		= {}  # noqa: E305; { <chain>: {'contract': <info>, 'name': <info>, 'symbol': info, ... }}
 
 
 @memoize( maxage=TOKPRICES_MEMO_MAXAGE, maxsize=TOKPRICES_MEMO_MAXSIZE, log_at=logging.INFO )
-def tokenprice( w3_url, chain, token, base, use_wrappers=True, use_provider=None ):
+def tokenprice( w3_url, chain, token, base, use_wrappers=None, use_provider=None ):
     """Return memoized token address prices, in terms of a base token address.  The resultant Fraction
     is the ratio token/base (if token is greater in value than base, the ratio will be > 1).  If
     None supplied for base, uses Ethereum.
 
-    Queries and returns the tokens' details dict( address=, decimals=, symbol= ), and the price
-    ratio as a Fraction.
+    Queries and returns the tokens' TokenInfo and the price ratio as a Fraction.
 
     """
     w3				= Web3( w3_provider( w3_url, use_provider ))
+    if use_wrappers is None:
+        use_wrappers		= True
 
     token_info			= tokeninfo( token, w3_url=w3_url, chain=chain, use_provider=use_provider )
 
     offchainoracle_contract	= w3.eth.contract( address=offchainoracle_address, abi=offchainoracle_abi)
     if base is None:
-        base_info		= dict(
-            address	= None,
+        base_info		= TokenInfo(
             name	= "Ethereum",
             symbol	= "ETH",
             decimals	= 18,
         )
-        token_price		= offchainoracle_contract.functions.getRateToEth( token_info['address'], use_wrappers ).call()
+        token_price		= offchainoracle_contract.functions.getRateToEth( token_info.contract, use_wrappers ).call()
     else:
         base_info		= tokeninfo( base, w3_url=w3_url, chain=chain, use_provider=use_provider )
-        token_price		= offchainoracle_contract.functions.getRate( token_info['address'], base_info['address'], use_wrappers ).call()
+        token_price		= offchainoracle_contract.functions.getRate(
+            token_info.contract, base_info.contract, use_wrappers,
+        ).call()
     price			= Fraction( token_price, 10 ** 18 )
-    # price		       *= Fraction( 1, 10 ** base_info['decimals'] )
-    # price		       /= Fraction( 1, 10 ** token_info['decimals'] )
-    price		       *= Fraction( 10 ** token_info['decimals'], 10 ** base_info['decimals'] )
+    price		       *= Fraction( 10 ** token_info.decimals, 10 ** base_info.decimals )
     return token_info, base_info, price
 
 
@@ -1403,6 +1416,9 @@ def tokenprices( *tokens, chain=None, w3_url=None, base=None, use_provider=None,
     """Return a sequence of token prices as a Fraction, optionally in terms of a base token (ETH is
     default).  Will default to use the Ethereum blockchain via the Alchemy API.
 
+    TODO: should use MultiCallContract.multicall to aggregate several getRate... calls into one
+    invocation: https://github.com/1inch/spot-price-aggregator/blob/master/examples/multiple-prices.js
+
     """
     if chain and isinstance( chain, str ):
         chain,			= ( c for c in Chain if c.name.lower() == chain.lower() )
@@ -1412,10 +1428,10 @@ def tokenprices( *tokens, chain=None, w3_url=None, base=None, use_provider=None,
     if w3_url is None:
         w3_url			= alchemy_url( chain )
     for token in tokens:
-        token_addr		= tokeninfo( token, w3_url=w3_url, chain=chain, use_provider=use_provider )['address']
+        token_addr		= tokeninfo( token, w3_url=w3_url, chain=chain, use_provider=use_provider ).contract
         base_addr		= None
         if base:
-            base_addr		= tokeninfo( base,  w3_url=w3_url, chain=chain, use_provider=use_provider )['address']
+            base_addr		= tokeninfo( base,  w3_url=w3_url, chain=chain, use_provider=use_provider ).contract
         yield tokenprice( w3_url, chain, token_addr, base_addr, use_wrappers=use_wrappers, use_provider=use_provider )
 
 

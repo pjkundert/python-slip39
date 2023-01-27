@@ -388,7 +388,7 @@ class Account:
 
     @classmethod
     def supported( cls, crypto ):
-        """Validates that the specified cryptocurrency is supported and returns the normalized short name
+        """Validates that the specified cryptocurrency is supported and returns the normalized "symbol"
         for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
 
         """
@@ -614,8 +614,13 @@ class Account:
         return self.hdwallet.p2wpkh_address()
 
     @property
-    def crypto( self ):
+    def name( self ):
+        return self.hdwallet._cryptocurrency.NAME
+
+    @property
+    def symbol( self ):
         return self.hdwallet._cryptocurrency.SYMBOL
+    crypto		= symbol
 
     @property
     def path( self ) -> str:

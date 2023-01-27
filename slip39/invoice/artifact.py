@@ -21,15 +21,16 @@ import math
 
 from dataclasses	import dataclass
 from collections	import namedtuple
-from typing		import Dict, Union, Optional
+from typing		import Dict, Union, Optional, Sequence
 from fractions		import Fraction
 
 from tabulate		import tabulate
 
-from ..util		import uniq, commas, is_listlike
+from ..api		import Account
+from ..util		import commas, is_listlike
 from ..defaults		import INVOICE_CURRENCY
 from ..layout		import Region, Text, Image, Box, Coordinate
-from .ethereum		import tokeninfo, tokenratio
+from .ethereum		import tokeninfo, tokenprices  # , tokenratio
 
 """
 Invoice artifacts:
@@ -92,15 +93,136 @@ class LineItem( Item ):
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
+def conversions_table( conversions, symbols=None ):
+    if symbols is None:
+        symbols			= sorted( set( sum( conversions.keys(), () )))
+    symbols			= list( symbols )
+
+    # The columns are typed according to the least generic type that *all* rows are convertible
+    # into.  So, if any row is a string, it'll cause the entire column to be formatted as strings.
+    return tabulate(
+        [
+            [ r ] + list(
+                1 if r == c else '' if (r,c) not in conversions else conversions.get( (r,c) )
+                for c in symbols
+            )
+            for r in symbols
+        ],
+        headers		= [ 'Symbol' ] + list( symbols ),
+        floatfmt	= ",.6g",
+        intfmt		= ",",
+        missingval	= "?",
+        tablefmt	= 'orgtbl',
+    )
+
+
+def conversions_remaining( conversions, verify=None ):
+    """Complete the graph of conversion ratios, if we have a path from one pair to another.  Returns
+    falsey if no additional conversion ratios were computable; truthy if some *might* be possible.
+    Each run looks for single-hop conversions available.
+
+    Put any desired conversions (eg. DOGE/USD) into conversions w/ None as value.
+
+    For example, if ETH/USD: 1234.56 and BTC/USD: 23456.78, then we can deduce BTC/ETH:
+    19.0001134007 and ETH/BTC: 0.05263126482.  Then, on the next call, we could compute DOGE/USD ==
+    0.090308 if we provide BTC/DOGE: 3.85e-6
+
+    Updates the supplied { ('a','b'): <ratio>, ...} dict, in-place.
+
+    If NO None values remain after all computable ratios are deduced, returns False, meaning "no remaining unresolved conversions".
+
+    Otherwise, return None iff we couldn't deduce any more conversion ratios, but there remain some
+    unresolved { (a,b): None, ...} in conversions.
+
+    """
+    updated			= False
+    # First, take care of any directly available one-hop conversions.
+    for (a,b),r in list( conversions.items() ):
+        if r and conversions.get( (b,a) ) is None:
+            conversions[b,a]	= 1/r
+            log.info( f"Deduced {b:>6}/{a:<6} = {float( 1/r ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} == {r}" )
+            updated		= True
+        if r is None:
+            continue
+        for (a2,b2),r2 in list( conversions.items() ):
+            if r2 is None:
+                continue
+            if b == a2 and a != b2 and conversions.get( (a,b2) ) is None:
+                # Eg. USD/BTC=25000/1 * BTC/DOGE=1/275000 --> USD/DOGE=1/4
+                conversions[a,b2] = r * r2
+                log.info( f"Invert  {a:>6}/{b2:<6} = {float( conversions[a,b2] ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} and {a2:>6}/{b2:<6} == {float( r2 ):13.6f}" )
+                updated		= True
+    if updated:
+        return True
+    # OK, got all available a/b --> b/a and a/b * c/b --> a/c.  See if we can find any routes
+    # between the desired a/b pairs.
+    for (a,b),r in conversions.items():
+        if r is not None:
+            continue
+        for c2,r2 in conversions.items():
+            if r2 and a in c2:
+                for c3,r3 in conversions.items():
+                    if c2 != c3 and r3 and b in c3 and ( x_s := set( c2 ).intersection( set( c3 ))):
+                        # We want a/b and we have found a/x or x/a, and b/x or x/b.  Assume their
+                        # inverse is in conversions, and is (also) non-zero.
+                        log.warning( f"Found intersection between {c2!r} and {c3!r}: {x_s!r}" )
+                        x,	= x_s
+                        conversions[a,b] = conversions[a,x] * conversions[b,x]
+                        log.info( f"Compute {a:>6}/{b2:<6} = {float( conversions[a,b] )} from {a:>6}/{x:<6} == {float( conversions[a,x] ):13.6f} and {b:>6}/{x:<6} == {float( conversions[b,x] ):13.6f}" )
+                        conversions[b,a] = 1 / conversions[a,b]
+                        return True
+
+    # No more currency pairs are deducible from our present data; If no more are desired (contain
+    # None), then we can return falsey (we're done), otherwise, raise an Exception or return truthy:
+    # a description of what pairs remain undefined.
+    remains			= commas( sorted( f'{a}/{b}' for (a,b),r in conversions.items() if r is None ), final='and' )
+    if not remains:
+        return False
+    resolved			= commas( sorted( f'{a}/{b}' for (a,b),r in conversions.items() if r and r > 1 ), final='and' )
+    msg				= f"Failed to find ratio(s) for {remains} via {resolved}"
+    if verify:
+        raise RuntimeError( msg )
+    log.warning( msg )
+    return msg
+
+
+def cryptocurrency_symbol( name, chain=None, w3_url=None, use_provider=None ):
+    try:
+        return Account.supported( name )
+    except ValueError as exc:
+        log.info( f"Failed to identify currency {name!r} as an supported Cryptocurrency: {exc}" )
+    # Not a known core Cryptocurrency; a Token?
+    try:
+        return tokeninfo( name, w3_url=w3_url, use_provider=use_provider ).symbol
+    except Exception as exc:
+        log.warning( f"Failed to identify currency {name!r} as an ERC-20 Token: {exc}" )
+        raise
+
+
 class Invoice:
-    """The totals for some invoice line items, in terms of some cryptocurrencies.  Currencies may be
-    supplied by ERC-20 token contract address or by symbol or full name (for known cryptocurrencies
-    eg. "BTC", "ETH", or some known ERC-20 tokens (~top 100).  Presently, we only support invoice cryptocurrencies that
-    have a highly-liquid Ethereum ERC-20 "proxy", eg. ETH/wETH, BTC/wBTC
+    """The totals for some invoice line items, in terms of some currencies, payable into some
+    Cryptocurrency accounts.
+
+    - Each account's native cryptocurrency symbol (at least) is reflected in computed invoice totals.
+      - Eg. if ETH, BTC, XRP and DOGE Accounts are provided, we'll totalize into all 4.
+    - Each currency must correspond to one cryptocurrency account (eg. Ethereum ERC-20s --> ETH account)
+      - Eg. "US Dollar" (USDC) or "Wrapper Bitcoin" (WBTC) --> ETH, "Bitcoin" or BTC --> BTC
+    - Each currency can either be supplied a ratio in conversions, or have a "Proxy" Token for an Oracle
+      - Eg. "BTC" --> WBTC Token, "XRP" --> conversions[('XRP','BTC'): 0.00001797
+
+    Currencies may be supplied as a recognized slip39.Account.supported( <name> ); full lower-case
+    names in Account.CRYPTO_NAMES.keys(), upper-case symbols in Account.CRYPTO_NAMES.values().  For
+    all other than BTC and ETH, a conversion ratio to some common currency (eg. USD) must be
+    supplied in conversions.
+
+    Otherwise, a ERC-20 token contract address or a token's symbol or full name (for known
+    cryptocurrencies eg. "BTC", "ETH", or some known ERC-20 tokens (~top 100).  Presently, we only
+    support obtaining price ratios for invoice cryptocurrencies that have a highly-liquid Ethereum
+    ERC-20 "proxy", eg. ETH(WETH), BTC(WBTC).
 
     Can emit the line items in groups with summary sub-totals and a final total.
 
-    Reframes the price of each line in terms of the Invoice's currencies (default: USDC), providing
+    Reframes the price of each line in terms of the Invoice's currencies (default: USD), providing
     "Total <SYMBOL>" and "Taxes <SYMBOL>" for each Cryptocurrency symbols.
 
     Now that we have Web3 details, we can query tokeninfos and hence format currency decimals
@@ -109,27 +231,126 @@ class Invoice:
     """
     def __init__(
         self, lines,
-        currencies		= None,
+        accounts: Sequence[Account],		# [ <Account>, ... ]   .crypto is symbol, eg. BTC, ETH, XRP
+        currencies		= None,		# "USD" | [ "USD", "BTC" ] (first-most currencies/accounts is conversion "reference" currency)
+        conversions		= None,		# { ("USD","ETH"): 1234.56, ("USD","BTC"): 23456.78, ...}
         w3_url			= None,
         use_provider		= None,
     ):
         self.lines		= list( lines )
         self.w3_url		= w3_url
         self.use_provider	= use_provider
-        if currencies:
-            currencies		= [ currencies ] if isinstance( currencies, str ) else list( currencies )
+
+        # Collect all desired Invoice currencies; named, and those associated with supplied
+        # accounts.  These are symbols, names, or ERC-20 token addresses.  Some may translate into
+        # things we can get prices for via an off-chain Oracle via the Ethereum blockchain, but some
+        # may not -- these must be supplied w/ a ratio in conversions, to at least one token we *do*
+        # have the ability to get the value of.  This requires the caller to have some kind of price
+        # feed or oracle of their own; it is recommended to use the 1inch OffchainOracle instead, by
+        # sticking to the main Cryptocurrencies for which we have real-time price proxies,
+        # eg. USD(USDC), BTC(WBTC), ETH(WETH).
+        if isinstance( currencies, str ):
+            currencies		= [ currencies ]
         if not currencies:
-            currencies    	= [ INVOICE_CURRENCY ]
-        # Get all Invoice currencies' tokeninfo unique/sorted by token symbol.  This is where we
-        # must convert any proxied fiat/crypto-currencies (USD, BTC) into available ERC-20 tokens.
-        self.currencies		= sorted(
-            uniq(
-                (
-                    tokeninfo( currency, w3_url=self.w3_url, use_provider=self.use_provider )
-                    for currency in currencies
-                ), key=lambda c: c['symbol'],
-            ), key=lambda c: c['symbol']
+            currencies		= [ INVOICE_CURRENCY ]
+        currencies		= set( currencies )
+        log.info( f"Given {len( currencies )} Invoice currencies: {commas( currencies, final='and')}" )
+
+        # Convert all known Crypto-currencies or Tokens to symbols (all upper-case).  Any
+        # unrecognized as known Cryptos or Tokens will raise an Exception.  This effectively de-dups
+        # all accounts/currencies, but doesn't substitute know "proxy" tokens (eg. BTC <-> WBTC)
+        currencies		= set(
+            cryptocurrency_symbol( c, w3_url=w3_url, use_provider=use_provider )
+            for c in currencies
         )
+        log.info( f"Found {len( currencies )} Invoice currency symbols: {commas( currencies, final='and')}" )
+
+        # Associate any Crypto accounts provided w/ their core cryptos (adding any new ones from
+        # accounts, to self.currencies).  After this every Invoice currency symbol is in
+        # currencies_account.keys(), and every one with a provided account address is in
+        # currencies_account[symbol]
+        currencies_account	= { c: None for c in currencies }
+        if accounts:
+            for a in accounts:
+                assert currencies_account.get( a.symbol ) is None, \
+                    f"Duplicate accounts given for {a.symbol}: {a.address} vs. {currencies_account[a.symbol]}"
+                currencies_account[a.symbol] = a
+        currencies		= set( currencies_account )
+        log.info( f"Found {len( currencies )} Invoice currency symbols + accounts: {commas( currencies, final='and')}" )
+
+        # Associate any Crypto/Tokens w/ available ERC-20 proxies (eg. BTC -> WBTC), and any ERC-20s
+        # w/ any supplied ETH account (eg.USDC, WBTC --> <ETH account>) Thus, if BTC was selected
+        # and an Ethereum account provided, the buyer can pay in BTC to the Bitcoin account, or in
+        # ETH or WBTC to the Ethereum account.  This will add the symbols for all Crypto proxies to
+        # currencies_account.
+        currencies_proxy	= {}
+        for c in currencies:
+            try:
+                currencies_proxy[c] = tokeninfo( c, w3_url=w3_url, use_provider=use_provider )
+            except Exception as exc:
+                log.info( f"Failed to find proxy for Invoice currency {c}: {exc}" )
+            else:
+                # Yup; a proxy for a Crypto Eg. BTC -> WBTC was found, or a native ERC-20 eg. USDC
+                # was found; associate it with any ETH account provided.
+                if eth := currencies_account.get( 'ETH' ):
+                    currencies_account[currencies_proxy[c].symbol] = eth
+        log.info( f"Found {len( currencies_proxy )} Invoice currency proxies: {commas( ( f'{c}: {p.symbol}' for c,p in currencies_proxy.items() ), final='and')}" )
+        log.info( f"Added {len( set( currencies_account ) - currencies )} proxies: {commas( set( currencies_account ) - currencies, final='and' )}" )
+        currencies		= set( currencies_account )
+
+        # Find all LineItem.currency -> Invoice.currencies conversions required.  This establishes
+        # the baseline conversions ratio requirements to convert LineItems to each Invoice currency.
+        # No prices are yet found.
+        if conversions is None:
+            conversions		= {}
+        line_symbols		= set(
+            cryptocurrency_symbol( line.currency or INVOICE_CURRENCY )
+            for line in self.lines
+        )
+        log.info( f"Found {len( line_symbols )} Line-Item currencies: {commas( line_symbols, final='and')}" )
+        for c in currencies:
+            for ls in line_symbols:
+                if ls != c:
+                    conversions.setdefault( (ls,c), None )  # eg. ('USDC','BTC'): None
+
+        # Resolve all resolvable conversions (ie. from any supplied), see what's left
+        while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
+            print( f"Working: \n{conversions_table( conversions )}" )
+        log.warning( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+
+        while remaining:
+            # There are unresolved LineItem -> Invoice currencies.  We need to get a price ratio between
+            # the LineItem currency, and at least one of the main Invoice currencies.  Since we know we're dealing
+            # in Ethereum ERC-20 proxies, we'll keep getting ratios between currencies and ETH (the
+            # default from tokenprices).
+            candidates		= filter(
+                lambda c: c != 'ETH',
+                sum( ( pair for pair,ratio in conversions.items() if ratio is None ), () )
+            )
+            for c in candidates:
+                try:
+                    (one,two,ratio),	= tokenprices( c, w3_url=w3_url, use_provider=use_provider )
+                except Exception as exc:
+                    log.warning( f"Ignoring {c}: {exc}" )
+                    continue
+                if conversions.get( (c,two.symbol) ) is None or conversions.get( (one.symbol,two.symbol) ) is None:
+                    log.info( f"Updating {c:>6}/{two.symbol:<6} = {conversions.get( (c,two.symbol) )}"
+                              f" and {one.symbol:>6}/{two.symbol:<6} = {conversions.get( (one.symbol,two.symbol) )},"
+                              f" to: {ratio}" )
+                    conversions[c,two.symbol] = ratio
+                    if c != one.symbol:
+                        conversions[one.symbol,two.symbol] = ratio
+                    break
+            else:
+                raise RuntimeError( f"Failed to resolve {remaining}, using candidates {commas( candidates, final='and' )}" )
+            while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
+                print( f"Working: \n{conversions_table( conversions )}" )
+            log.warning( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+
+        self.currencies		= currencies		# { "USDC", "BTC", ... }
+        self.currencies_account	= currencies_account    # { "USDC": "0xaBc...12D", "BTC": "bc1...", ... }
+        self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( ... ), ... }
+        self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
 
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
@@ -139,20 +360,21 @@ class Invoice:
             'Description',
             'Units',
             'Price',
-            'Amount',
             '_Tax',
             'Tax %',
             'Taxes',
+            'Net',
+            'Amount',
             'Currency',
             'Symbol',
             '_Decimals',
             '_Token',
         ) + tuple(
-            f"Total {currency['symbol']}"
-            for currency in self.currencies
+            f"Total {currency}"
+            for currency in sorted( self.currencies )
         ) + tuple(
-            f"Taxes {currency['symbol']}"
-            for currency in self.currencies
+            f"Taxes {currency}"
+            for currency in sorted( self.currencies )
         )
 
     def __iter__( self ):
@@ -161,61 +383,61 @@ class Invoice:
         Note that numeric values may be int, float or Fraction, and these are retained through
         normal mathematical operations.
 
+        The number of decimals desired for each line is provided in "_Decimals".  The native number
+        of decimals must be respected in this line's calculations.  For example, if eg.  a
+        0-decimals Token is used, the Net, Tax and Amount are rounded to 0 decimals.  The sums in
+        various currencies converted from each line are not rounded; the currency ratio and hence
+        sum is full precision, and is only rounded at the final use.
+
         """
 
         # Get all the eg. wBTC / USDC value ratios for the Line-item currency, vs. each Invoice
         # currency at once, in case the iterator takes considerable time; we don't want to risk that
         # memoization "refresh" the token values while generating the invoice!
-
-        currencies		= {}
-        for line in self.lines:
-            line_currency	= line.currency or INVOICE_CURRENCY
-            line_curr		= tokeninfo( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
-            for self_curr in self.currencies:
-                if (line_curr['address'],self_curr['address']) not in currencies:
-                    currencies[line_curr['address'],self_curr['address']] = tokenratio( line_curr['address'], self_curr['address'] )[2]
-
         tot			= {
-            self_curr['symbol']: 0.
-            for self_curr in self.currencies
+            c: 0. for c in self.currencies
         }
         tax			= {
-            self_curr['symbol']: 0.
-            for self_curr in self.currencies
+            c: 0. for c in self.currencies
         }
 
         for i,line in enumerate( self.lines ):
             line_currency	= line.currency or INVOICE_CURRENCY
             line_amount,line_taxes,line_taxinf = line.net()
+
             line_curr		= tokeninfo( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
-            line_symbol		= line_curr['symbol']
-            line_decimals	= line_curr['decimals'] // 3 if line.decimals is None else line.decimals
-            for self_curr in self.currencies:
-                if line_curr == self_curr:
-                    tot[self_curr['symbol']] += line_amount
-                    tax[self_curr['symbol']] += line_taxes
+            line_symbol		= line_curr.symbol
+            line_decimals	= line_curr.decimals // 3 if line.decimals is None else line.decimals
+
+            line_amount		= round( line_amount, line_decimals )
+            line_taxes		= round( line_taxes, line_decimals )
+            line_net		= line_amount - line_taxes
+
+            for c in self.currencies:
+                if line_curr.symbol == c:
+                    tot[c]     += line_amount
+                    tax[c]     += line_taxes
                 else:
-                    tot[self_curr['symbol']] += line_amount * currencies[line_curr['address'],self_curr['address']]
-                    tax[self_curr['symbol']] += line_taxes  * currencies[line_curr['address'],self_curr['address']]
+                    tot[c]     += line_amount * self.conversions[line_curr.symbol,c]
+                    tax[c]     += line_taxes  * self.conversions[line_curr.symbol,c]
             yield (
                 i,			# The LineItem #, and...
                 line.description,
                 line.units,
                 line.price,
-                line_amount,
                 line.tax,
                 line_taxinf,
                 line_taxes,
+                line_net,
+                line_amount,
                 line_currency,		# the line's currency
                 line_symbol,		# and Token symbol
                 line_decimals,		# the desired number of decimals
                 line_curr,		# and the associated tokeninfo
             ) + tuple(
-                tot[self_curr['symbol']]
-                for self_curr in self.currencies
+                tot[c] for c in sorted( self.currencies )
             ) + tuple(
-                tax[self_curr['symbol']]
-                for self_curr in self.currencies
+                tax[c] for c in sorted( self.currencies )
             )
 
     def pages(
@@ -225,27 +447,40 @@ class Invoice:
     ):
         """Yields a sequence of lists containing rows, paginated into 'rows' chunks.
 
+        if page (zero-basis) specified, only yields matching pages.
         """
-        page_i,page_l		= 0, []
+        def page_match( i ):
+            if page is None:
+                return True
+            if hasattr( page, '__contains__' ):
+                return i in page
+            return i == page
+
+        page_i,page_l		= 0,[]
         for row in iter( self ):
             page_l.append( row )
             if len( page_l ) >= rows:
-                if page is None or page == page_i:
+                if page_match( page_i ):
                     yield page_l
                 page_i,page_l	= page_i+1,[]
-        if page_l:
-            if page is None or page == page_i:
-                yield page_l
+        if page_l and page_match( page_i ):
+            yield page_l
 
     def tables(
         self, *args,
         tablefmt	= None,
         columns		= None,		# list (ordered) set/predicate (unordered)
+        totalfmt	= None,
         **kwds				# page, rows, ...
     ):
-        """Tabulate columns in a textual table.
+        """Tabulate columns into textual tables.  Each page yields 3 items:
 
-        The 'columns' is a filter (a set/list/tuple or a predicate) that selects the columns desired.
+            <page>,<line-items>,<sub-totals>,''|<total>
+
+        Each interior page includes a subtotals table; the final page also includes the full totals.
+
+        The 'columns' is a filter (a set/list/tuple or a predicate) that selects the columns
+        desired; by default, elides any columns having names starting with '_'.
 
         """
         headers			= self.headers()
@@ -264,22 +499,61 @@ class Invoice:
             # Default; just ignore _... columns
             selected		= tuple( i for i,h in enumerate( headers ) if not h.startswith( '_' ) )
         headers_selected	= tuple( headers[i] for i in selected )
+
         log.info( f"Tabulating indices {commas(selected, final='and')}: {commas( headers_selected, final='and' )}" )
         pages			= list( self.pages( *args, **kwds ))
+        # Overall formatted decimals for entire invoice; use the greatest desired decimals of any
+        # token/line.  Individual line items may have been rounded to lower decimals.
         decimals_i		= headers.index( '_Decimals' )
         decimals		= max( line[decimals_i] for page in pages for line in page )
-        assert decimals < 32, \
-            f"Invalid decimals: {decimals}"
         floatfmt		= f",.{decimals}f"
         intfmt			= ","
-        for page in pages:
-            yield tabulate(
+        page_prev		= None
+        for p,page in enumerate( pages ):
+            table		= tabulate(
+                # Tabulate the line items
                 [[line[i] for i in selected] for line in page],
                 headers		= headers_selected,
                 intfmt		= intfmt,
                 floatfmt	= floatfmt,
                 tablefmt	= tablefmt or 'orgtbl',
             )
+            first		= page_prev is None
+            subtotal		= tabulate(
+                # And the per-currency Sub-totals (for each page)
+                [
+                    [self.currencies_account[c], c]
+                    + [
+                        page[-1][headers.index( f"Total {c}" )],
+                        page[-1][headers.index( f"Taxes {c}" )],
+                    ] if first else [
+                        page[-1][headers.index( f"Total {c}" )] - page_prev[-1][headers.index( f"Total {c}" )],
+                        page[-1][headers.index( f"Taxes {c}" )] - page_prev[-1][headers.index( f"Taxes {c}" )],
+                    ]
+                    for c in sorted( self.currencies )
+                ],
+                headers		= ( "Account", "Cryptocurrency", f"Subtotal {p}", f"Subtotal {p} Taxes" ),
+                intfmt		= intfmt,
+                floatfmt	= floatfmt,
+                tablefmt	= tablefmt or 'orgtbl',
+            )
+            total		= tabulate(
+                # And the per-currency Totals (up to current page)
+                [
+                    [self.currencies_account[c], c]
+                    + [
+                        page[-1][headers.index( f"Total {c}" )],
+                        page[-1][headers.index( f"Taxes {c}" )],
+                    ]
+                    for c in sorted( self.currencies )
+                ],
+                headers		= ( "Account", "Cryptocurrency", f"Total {p}", f"Total {p} Taxes" ),
+                intfmt		= intfmt,
+                floatfmt	= floatfmt,
+                tablefmt	= tablefmt or 'orgtbl',
+            )
+
+            yield page, table, subtotal, total
 
 
 def layout_invoice(

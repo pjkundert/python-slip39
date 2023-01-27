@@ -175,7 +175,7 @@ SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
 # contract to get current market values.  This prevents us from needing to "trust" anyone to obtain
 # current prices for cryptocurrencies -- if you have access to an Ethereum blockchain (either
 # locally or via an HTTPS API like Alchemy), then we can securely and reliably get current prices.
-# To avoid conflicts, we upper-case symbols, lower-case full names.
+# To avoid conflicts, by convention we upper-case symbols, lower-case full names.
 INVOICE_CURRENCY		= "USD"
 INVOICE_PROXIES			= {
     "USD":		"USDC",
