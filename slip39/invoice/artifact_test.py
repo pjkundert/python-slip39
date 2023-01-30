@@ -202,25 +202,25 @@ def test_tabulate():
 |--------+---------------+---------+---------+---------+---------+--------+----------+------------+----------+-------------+-------------+-------------+--------------+--------------+--------------+-------------+-------------+-------------+-------------+--------------+--------------+--------------+-------------|
 |      0 | Worthless     |       1 |  12,346 | no tax  |       0 | 12,346 |   12,346 | ZEENUS     | ZEENUS   |           0 |           0 |           0 |            0 |            0 |            0 |           0 |           0 |           0 |           0 |            0 |            0 |            0 |           0 |
 
-| Account                                         | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
-|-------------------------------------------------+----------+---------------+----------------+----------------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Wrapped BTC   |              0 |                    0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Wrapped Ether |              0 |                    0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |              0 |                    0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |              0 |                    0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |              0 |                    0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |              0 |                    0 |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | XRP           |              0 |                    0 |
+| Account                                    | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
+|--------------------------------------------+----------+---------------+----------------+----------------------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |              0 |                    0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |              0 |                    0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |              0 |                    0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |              0 |                    0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |              0 |                    0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |              0 |                    0 |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |              0 |                    0 |
 
-| Account                                         | Crypto   | Currency      |   Total 1/1 |   Total 1/1 Taxes |
-|-------------------------------------------------+----------+---------------+-------------+-------------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Wrapped BTC   |           0 |                 0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Wrapped Ether |           0 |                 0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |           0 |                 0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |           0 |                 0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |           0 |                 0 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |           0 |                 0 |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | XRP           |           0 |                 0 |"""  # noqa: E501
+| Account                                    | Crypto   | Currency      |   Total 1/1 |   Total 1/1 Taxes |
+|--------------------------------------------+----------+---------------+-------------+-------------------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |           0 |                 0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |           0 |                 0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |           0 |                 0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |           0 |                 0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |           0 |                 0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |           0 |                 0 |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |           0 |                 0 |"""  # noqa: E501
 
     # No conversions of non-0 values; default Invoice currency is USD.  Longest digits should be 2
     # Instead of querying BTC, ETH prices, provide a conversion (so our invoice pricing is static)
@@ -250,14 +250,14 @@ def test_tabulate():
 |      1 | Worthless             |       1 | 12,345.68 | no tax   |    0.00 | 12,346.00 | 12,346.00 | ZEENUS     | ZEENUS   |        0.28 |       417.88 |         0.28 |        0.01 |        19.90 |         0.01 |
 |      2 | Simple                |       1 | 12,345.68 | no tax   |    0.00 | 12,345.68 | 12,345.68 | USD        | USDC     |        8.51 |    12,763.56 |         8.51 |        0.01 |        19.90 |         0.01 |
 
-| Account                                         | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
-|-------------------------------------------------+----------+---------------+----------------+----------------------|
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Wrapped Ether |        8.50904 |             0.013267 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |   12,763.6     |            19.9      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |        8.50904 |             0.013267 |
+| Account                                    | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
+|--------------------------------------------+----------+---------------+----------------+----------------------|
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |        8.50904 |             0.013267 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |   12,763.6     |            19.9      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |        8.50904 |             0.013267 |
 
-| Account                                         | Crypto   | Currency      |    Total 1/1 |   Total 1/1 Taxes |
-|-------------------------------------------------+----------+---------------+--------------+-------------------|
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Wrapped Ether |      8.50904 |          0.013267 |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     |         19.9      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |          0.013267 |"""  # noqa: E501
+| Account                                    | Crypto   | Currency      |    Total 1/1 |   Total 1/1 Taxes |
+|--------------------------------------------+----------+---------------+--------------+-------------------|
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |          0.013267 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     |         19.9      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |          0.013267 |"""  # noqa: E501

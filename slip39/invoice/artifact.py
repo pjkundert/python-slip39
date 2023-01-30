@@ -574,7 +574,9 @@ class Invoice:
                 # And the per-currency Sub-totals (for each page)
                 [
                     [
-                        self.currencies_account[c], c, self.currencies_proxy[c].name,
+                        self.currencies_account[c].address,
+                        c,
+                        self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
                     ] + [
                         round( page[-1][toti( c )], deci( c )),
                         round( page[-1][taxi( c )], deci( c )),
@@ -593,7 +595,9 @@ class Invoice:
                 # And the per-currency Totals (up to current page)
                 [
                     [
-                        self.currencies_account[c], c, self.currencies_proxy[c].name,
+                        self.currencies_account[c].address,
+                        c,
+                        self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
                         round( page[-1][toti( c )], deci( c )),
                         round( page[-1][taxi( c )], deci( c )),
                     ]
