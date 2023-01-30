@@ -23,6 +23,7 @@ from dataclasses	import dataclass
 from collections	import namedtuple
 from typing		import Dict, Union, Optional, Sequence
 from fractions		import Fraction
+from pathlib		import Path
 
 from tabulate		import tabulate
 
@@ -30,7 +31,7 @@ from ..api		import Account
 from ..util		import commas, is_listlike
 from ..defaults		import INVOICE_CURRENCY
 from ..layout		import Region, Text, Image, Box, Coordinate
-from .ethereum		import tokeninfo, tokenprices  # , tokenratio
+from .ethereum		import tokeninfo, tokenprices, TokenInfo  # , tokenratio
 
 """
 Invoice artifacts:
@@ -190,13 +191,36 @@ def cryptocurrency_symbol( name, chain=None, w3_url=None, use_provider=None ):
     try:
         return Account.supported( name )
     except ValueError as exc:
-        log.info( f"Failed to identify currency {name!r} as an supported Cryptocurrency: {exc}" )
+        log.info( f"Could not identify currency {name!r} as a supported Cryptocurrency: {exc}" )
     # Not a known core Cryptocurrency; a Token?
     try:
         return tokeninfo( name, w3_url=w3_url, use_provider=use_provider ).symbol
     except Exception as exc:
         log.warning( f"Failed to identify currency {name!r} as an ERC-20 Token: {exc}" )
         raise
+
+
+def cryptocurrency_proxy( name, decimals=None, chain=None, w3_url=None, use_provider=None ):
+    """Return the named ERC-20 Token (or a known "Proxy" token, eg. BTC -> WBTC).  Otherwise, if it is
+    a recognized core supported Cryptocurrency, return a TokenInfo useful for formatting.
+
+    """
+    try:
+        return tokeninfo( name, w3_url=w3_url, use_provider=use_provider )
+    except Exception as exc:
+        log.info( f"Could not identify currency {name!r} as an ERC-20 Token: {exc}" )
+    # Not a known Token; a core known Cryptocurrency?
+    try:
+        symbol			= Account.supported( name )
+    except ValueError as exc:
+        log.info( f"Failed to identify currency {name!r} as a supported Cryptocurrency: {exc}" )
+        raise
+    return TokenInfo(
+        name		= name,
+        symbol		= symbol,
+        decimals	= 18 if decimals is None else decimals,
+        icon		= next( ( Path( __file__ ).resolve().parent / "Cryptos" ).glob( symbol + '*.*' ), None ),
+    )
 
 
 class Invoice:
@@ -300,18 +324,35 @@ class Invoice:
 
         # Find all LineItem.currency -> Invoice.currencies conversions required.  This establishes
         # the baseline conversions ratio requirements to convert LineItems to each Invoice currency.
-        # No prices are yet found.
+        # No prices are yet found.  After this, currencies_proxy will contain all Invoice and LineItem
+        # Crypto proxies
         if conversions is None:
             conversions		= {}
-        line_symbols		= set(
-            cryptocurrency_symbol( line.currency or INVOICE_CURRENCY )
+        line_currencies		= set(
+            line.currency or INVOICE_CURRENCY
             for line in self.lines
         )
-        log.info( f"Found {len( line_symbols )} Line-Item currencies: {commas( line_symbols, final='and')}" )
-        for c in currencies:
-            for ls in line_symbols:
+        line_symbols		= set(
+            cryptocurrency_symbol( lc )
+            for lc in line_currencies
+        )
+        log.info( f"Found {len( line_symbols )} LineItem currencies: {commas( line_symbols, final='and')}" )
+        for ls in line_symbols:
+            for c in currencies:
                 if ls != c:
                     conversions.setdefault( (ls,c), None )  # eg. ('USDC','BTC'): None
+
+        # Finally, add all remaining Invoice and LineItem cryptocurrencies to currencies_proxy, by
+        # their original names, symbols and names.  Now, every Invoice and LineItem currency (by
+        # name and alias) is represented in currencies_proxy.
+        for lc in line_currencies | currencies:
+            proxy		= cryptocurrency_proxy( lc, w3_url=w3_url, use_provider=use_provider )
+            for alias in set( (lc, proxy.name, proxy.symbol) ):
+                if alias in currencies_proxy:
+                    assert currencies_proxy[alias] == proxy, \
+                        f"Incompatible LineItem.currency {lc!r} w/ currency {alias!r}: \n{proxy} != {currencies_proxy[alias]}"
+                currencies_proxy[alias] = proxy
+        log.info( f"Found {len( currencies_proxy )} Invoice and LineItem currencies: {commas( ( f'{n}: {p.symbol}' for n,p in currencies_proxy.items() ), final='and')}" )
 
         # Resolve all resolvable conversions (ie. from any supplied), see what's left
         while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
@@ -519,37 +560,48 @@ class Invoice:
                 tablefmt	= tablefmt or 'orgtbl',
             )
             first		= page_prev is None
+
+            def deci( c ):
+                return self.currencies_proxy[c].decimals // 3
+
+            def toti( c ):
+                return headers.index( f'Total {c}' )
+
+            def taxi( c ):
+                return headers.index( f'Taxes {c}' )
+
             subtotal		= tabulate(
                 # And the per-currency Sub-totals (for each page)
                 [
-                    [self.currencies_account[c], c]
-                    + [
-                        page[-1][headers.index( f"Total {c}" )],
-                        page[-1][headers.index( f"Taxes {c}" )],
+                    [
+                        self.currencies_account[c], c, self.currencies_proxy[c].name,
+                    ] + [
+                        round( page[-1][toti( c )], deci( c )),
+                        round( page[-1][taxi( c )], deci( c )),
                     ] if first else [
-                        page[-1][headers.index( f"Total {c}" )] - page_prev[-1][headers.index( f"Total {c}" )],
-                        page[-1][headers.index( f"Taxes {c}" )] - page_prev[-1][headers.index( f"Taxes {c}" )],
+                        round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
+                        round( page[-1][taxi( c )] - page_prev[-1][taxi( c )], deci( c )),
                     ]
                     for c in sorted( self.currencies )
                 ],
-                headers		= ( "Account", "Cryptocurrency", f"Subtotal {p}", f"Subtotal {p} Taxes" ),
-                intfmt		= intfmt,
-                floatfmt	= floatfmt,
+                headers		= ( "Account", "Crypto", "Currency", f"Subtotal {p+1}/{len( pages )}", f"Subtotal {p+1}/{len( pages )} Taxes" ),
+                intfmt		= ",",
+                floatfmt	= ",g",
                 tablefmt	= tablefmt or 'orgtbl',
             )
             total		= tabulate(
                 # And the per-currency Totals (up to current page)
                 [
-                    [self.currencies_account[c], c]
-                    + [
-                        page[-1][headers.index( f"Total {c}" )],
-                        page[-1][headers.index( f"Taxes {c}" )],
+                    [
+                        self.currencies_account[c], c, self.currencies_proxy[c].name,
+                        round( page[-1][toti( c )], deci( c )),
+                        round( page[-1][taxi( c )], deci( c )),
                     ]
                     for c in sorted( self.currencies )
                 ],
-                headers		= ( "Account", "Cryptocurrency", f"Total {p}", f"Total {p} Taxes" ),
-                intfmt		= intfmt,
-                floatfmt	= floatfmt,
+                headers		= ( "Account", "Crypto", "Currency", f"Total {p+1}/{len( pages )}", f"Total {p+1}/{len( pages )} Taxes" ),
+                intfmt		= ",",
+                floatfmt	= ",g",
                 tablefmt	= tablefmt or 'orgtbl',
             )
 
