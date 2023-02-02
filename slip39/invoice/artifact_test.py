@@ -258,20 +258,20 @@ def test_tabulate( tmp_path ):
 | Account                                    | Crypto   | Currency      |       Taxes |      Subtotal |
 |--------------------------------------------+----------+---------------+-------------+---------------|
 | bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |  0.00088444 |      0.567269 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.0132667  |      8.50904  |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.013267   |      8.50904  |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 19.9        | 12,763.6      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0          |      0.57     |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0.00088444 |      0.567269 |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |  0.013267   |      8.50904  |
-| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.0667     | 34,036.2      |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.07       | 34,036.2      |
 
 | Account                                    | Crypto   | Currency      |       Taxes |         Total |
 |--------------------------------------------+----------+---------------+-------------+---------------|
 | bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |  0.00088444 |      0.567269 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.0132667  |      8.50904  |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.013267   |      8.50904  |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 19.9        | 12,763.6      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0          |      0.57     |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0.00088444 |      0.567269 |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |  0.013267   |      8.50904  |
-| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.0667     | 34,036.2      |"""  # noqa: E501
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.07       | 34,036.2      |"""  # noqa: E501
 
     this			= Path( __file__ ).resolve()
     test			= this.with_suffix( '' )

@@ -299,6 +299,23 @@ class Account:
         BNB		= 'Binance',
         XRP		= 'Ripple',
     )
+    CRYPTO_DECIMALS		= dict(
+        # Ethereum-related Cryptocurrencies are denominated 10^18, typically default 6 decimals
+        # precision.  Bitcoin-related cryptocurrencies are typically 8 decimals precision (1 Sat is
+        # 1/10^8 Bitcoin).  For XRP 1 Drop = 1/10^6 Ripple: https://xrpl.org/currency-formats.html
+        # For formatting, we'll typically default to decimals//3, which works out fairly well for
+        # most Cryptocurrencies and ERC-20 Tokens.  The exception are eg. WBTC (8 decimals) vs. BTC
+        # (24 decimals); using the default 8 // 3 = 2 for WBTC would be dramatically too few
+        # decimals of precision for practical use.  So, we recommend defaulting to the underlying
+        # known cryptocurrency, when a proxy Token is used for price calculations.
+        ETH		= 18,
+        BTC		= 24,
+        LTC		= 24,
+        DOGE		= 24,
+        CRO		= 18,
+        BNB		= 18,
+        XRP		= 6,
+    )
     CRYPTO_NAMES		= dict(
         # Currently supported (in order of visibility), and conversion of known Names to Symbol.  By
         # convention, Cryptocurrency names are lower-cased to avoid collisions with symbols.

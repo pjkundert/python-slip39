@@ -40,6 +40,7 @@ from rlp		import encode as rlp_encode
 from web3		import Web3
 from web3.middleware	import construct_sign_and_send_raw_middleware
 
+from ..api		import Account
 from ..util		import memoize, retry, commas, into_bytes, timer
 from ..defaults		import (
     ETHERSCAN_MEMO_MAXAGE, ETHERSCAN_MEMO_MAXSIZE,
@@ -1256,8 +1257,8 @@ def w3_provider( w3_url, use_provider ):
 @dataclass( eq=True, frozen=True )      # Makes it hashable
 class TokenInfo:
     """Represents a Crypto-currency or on-chain Token (eg. ERC-20)"""
-    name: str
     symbol: str
+    name: str
     decimals: int
     contract: Optional[str] = None      # If not an ERC-20 token contract, no contract address
     icon: Optional[Union[str,Path]] = None
@@ -1366,6 +1367,27 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         icon		= None,
     ))
 tokeninfo.ERC20s		= {}  # noqa: E305; { <chain>: {'contract': <info>, 'name': <info>, 'symbol': info, ... }}
+
+
+def tokenknown( name, decimals=None ):
+    """If name is a recognized core supported Cryptocurrency, return a TokenInfo useful for formatting.
+
+    Since Bitcoin (and other similar cryptocurrencies) are typically assumed to have 8 decimal
+    places (a Sat(oshi) is 1/10^8 of a Bitcoin), we'll make the default decimals//3 precision work
+    out to 8).
+
+    """
+    try:
+        symbol			= Account.supported( name )
+    except ValueError as exc:
+        log.info( f"Failed to identify currency {name!r} as a supported Cryptocurrency: {exc}" )
+        raise
+    return TokenInfo(
+        symbol		= symbol,
+        name		= Account.CRYPTO_SYMBOLS[symbol],
+        decimals	= Account.CRYPTO_DECIMALS[symbol] if decimals is None else decimals,
+        icon		= next( ( Path( __file__ ).resolve().parent / "Cryptos" ).glob( symbol + '*.*' ), None ),
+    )
 
 
 @memoize( maxage=TOKPRICES_MEMO_MAXAGE, maxsize=TOKPRICES_MEMO_MAXSIZE, log_at=logging.INFO )

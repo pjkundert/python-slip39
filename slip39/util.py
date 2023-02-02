@@ -97,6 +97,20 @@ def log_level( adjust ):
     ]
 
 
+def log_apis( func ):
+    """Decorator for logging function args, kwds, and results"""
+    @wraps( func )
+    def wrapper( *args, **kwds ):
+        try:
+            result = func(*args, **kwds)
+        except Exception as exc:
+            log.warning( f"{func.__name__}( {args!r} {kwds!r} ): {exc}" )
+        else:
+            log.info( f"{func.__name__}( {args!r} {kwds!r} ) == {result}" )
+        return result
+    return wrapper
+
+
 #
 # util.is_...		-- Test for various object capabilities
 #

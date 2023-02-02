@@ -37,7 +37,7 @@ from ..api		import Account
 from ..util		import commas, is_listlike, is_mapping
 from ..defaults		import INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, MM_IN, FILENAME_FORMAT
 from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
-from .ethereum		import tokeninfo, tokenprices, TokenInfo  # , tokenratio
+from .ethereum		import tokeninfo, tokenprices, tokenknown
 
 """
 Invoice artifacts:
@@ -215,27 +215,7 @@ def cryptocurrency_proxy( name, decimals=None, chain=None, w3_url=None, use_prov
     except Exception as exc:
         log.info( f"Could not identify currency {name!r} as an ERC-20 Token: {exc}" )
     # Not a known Token; a core known Cryptocurrency?
-    return cryptocurrency_known( name, decimals=decimals )
-
-
-def cryptocurrency_known( name, decimals=None ):
-    """If it is a recognized core supported Cryptocurrency, return a TokenInfo useful for formatting.
-    Since Bitcoin (and other similar cryptocurrencies) are typically assumed to have 8 decimal
-    places (the Sat(oshi) is 1/10^8 of a Bitcoin), we'll make the default decimals//3 precision work
-    out to 8).
-
-    """
-    try:
-        symbol			= Account.supported( name )
-    except ValueError as exc:
-        log.info( f"Failed to identify currency {name!r} as a supported Cryptocurrency: {exc}" )
-        raise
-    return TokenInfo(
-        name		= Account.CRYPTO_SYMBOLS[symbol],
-        symbol		= symbol,
-        decimals	= 24 if decimals is None else decimals,
-        icon		= next( ( Path( __file__ ).resolve().parent / "Cryptos" ).glob( symbol + '*.*' ), None ),
-    )
+    return tokenknown( name, decimals=decimals )
 
 
 class Invoice:
@@ -323,19 +303,31 @@ class Invoice:
         # and an Ethereum account provided, the buyer can pay in BTC to the Bitcoin account, or in
         # ETH or WBTC to the Ethereum account.  This will add the symbols for all Crypto proxies to
         # currencies_account.
-        currencies_proxy	= {}
+        currencies_alias	= {}  # eg. { "WBTC": TokenInfo( "BTC", ... ), ... }
+        currencies_proxy	= {}  # eg. { "BTC": TokenInfo( "WBTC", ... ), ... }
         for c in currencies:
             try:
-                currencies_proxy[c] = tokeninfo( c, w3_url=w3_url, use_provider=use_provider )
+                currencies_proxy[c] = alias = tokeninfo( c, w3_url=w3_url, use_provider=use_provider )
             except Exception as exc:
-                log.info( f"Failed to find proxy for Invoice currency {c}: {exc}" )
+                # May fail later, if no conversions provided for this currency
+                log.warning( f"Failed to find proxy for Invoice currency {c}: {exc}" )
             else:
-                # Yup; a proxy for a Crypto Eg. BTC -> WBTC was found, or a native ERC-20 eg. USDC
+                # Yup; a proxy for a Crypto eg. BTC -> WBTC was found, or a native ERC-20 eg. USDC
                 # was found; associate it with any ETH account provided.
                 if eth := currencies_account.get( 'ETH' ):
                     currencies_account[currencies_proxy[c].symbol] = eth
+                try:
+                    known	= tokenknown( c )
+                except Exception:
+                    pass
+                else:
+                    # Aliases; of course, the native symbol is included in known aliases
+                    currencies_alias[alias.symbol] = known
+                    currencies_alias[known.symbol] = known
+                    log.info( f"Currency {c}'s Proxy Symbol {alias.symbol} is an alias for {known.symbol}" )
         log.info( f"Found {len( currencies_proxy )} Invoice currency proxies: {commas( ( f'{c}: {p.symbol}' for c,p in currencies_proxy.items() ), final='and')}" )
         log.info( f"Added {len( set( currencies_account ) - currencies )} proxies: {commas( set( currencies_account ) - currencies, final='and' )}" )
+        log.info( f"Alias {len( currencies_alias )} symbols to their native Crytocurrencies: {commas( ( f'{a}: {c.symbol}' for a,c in currencies_alias.items() ), final='and')}" )
         currencies		= set( currencies_account )
 
         # Find all LineItem.currency -> Invoice.currencies conversions required.  This establishes
@@ -406,7 +398,8 @@ class Invoice:
 
         self.currencies		= currencies		# { "USDC", "BTC", ... }
         self.currencies_account	= currencies_account    # { "USDC": "0xaBc...12D", "BTC": "bc1...", ... }
-        self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( ... ), ... }
+        self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( "WBTC", ... ), ... }
+        self.currencies_alias	= currencies_alias      # { "WBTC": TokenInfo( "BTC", ... ), ... }
         self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
 
     def headers( self ):
@@ -597,12 +590,17 @@ class Invoice:
             # {Sub}total for payment cryptocurrrencies are rounded to the individual
             # Cryptocurrency's designated decimals // 3.  For typical ERC-20 tokens, this is
             # eg. USDC: 6 // 3 == 2, WBTC: 18 // 3 == 6.  For known Cryptocurrencies, eg. BTC: 24 //
-            # 3 == 8.  TODO: There should be a more sensible / less brittle way to do this.
+            # 3 == 8.
+            #
+            # If a symbol is a "proxy" token for some upstream known cryptocurrency, then the
+            # upstream native cryptocurrency's decimals should be used, so that all lines match.  We
+            # keep track of each cryptocurrency_alias[<proxy-symbol>] -> <original-symbol>
+            #
+            # TODO: There should be a more sensible / less brittle way to do this.
             def deci( c ):
-                try:
-                    return cryptocurrency_known( c ).decimals // 3
-                except Exception:
-                    return self.currencies_proxy[c].decimals // 3
+                if c in self.currencies_alias:
+                    return self.currencies_alias[c].decimals // 3
+                return self.currencies_proxy[c].decimals // 3
 
             def toti( c ):
                 return headers_can.index( can( f'_Total {c}' ))
