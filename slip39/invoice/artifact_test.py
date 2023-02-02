@@ -180,7 +180,7 @@ def test_tabulate( tmp_path ):
     # Can't test until we can fake up fixed token values
 
     tables			= list( total.tables(
-        columns=('Description', 'Units', 'Currency', 'Symbol', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
+        columns=('#', 'Description', 'Units', 'Currency', 'Symbol', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
     ))
     for t in tables:
         print( t )
@@ -201,29 +201,29 @@ def test_tabulate( tmp_path ):
     )
     print( worthless )
     assert worthless == """\
-|   Line | Description   |   Units |   Price | Tax %   |   Taxes |    Net |   Amount | Currency   | Symbol   |   Total BTC |   Total ETH |   Total HOT |   Total USDC |   Total WBTC |   Total WETH |   Total XRP |   Taxes BTC |   Taxes ETH |   Taxes HOT |   Taxes USDC |   Taxes WBTC |   Taxes WETH |   Taxes XRP |
-|--------+---------------+---------+---------+---------+---------+--------+----------+------------+----------+-------------+-------------+-------------+--------------+--------------+--------------+-------------+-------------+-------------+-------------+--------------+--------------+--------------+-------------|
-|      0 | Worthless     |       1 |  12,346 | no tax  |       0 | 12,346 |   12,346 | ZEENUS     | ZEENUS   |           0 |           0 |           0 |            0 |            0 |            0 |           0 |           0 |           0 |           0 |            0 |            0 |            0 |           0 |
+| Description   |   Units |   Price | Tax %   |   Taxes |    Net |   Amount | Currency   |
+|---------------+---------+---------+---------+---------+--------+----------+------------|
+| Worthless     |       1 |  12,346 | no tax  |       0 | 12,346 |   12,346 | ZEENUS     |
 
-| Account                                    | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
-|--------------------------------------------+----------+---------------+----------------+----------------------|
-| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |              0 |                    0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |              0 |                    0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |              0 |                    0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |              0 |                    0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |              0 |                    0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |              0 |                    0 |
-| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |              0 |                    0 |
+| Account                                    | Crypto   | Currency      |   Subtotal |   Taxes |
+|--------------------------------------------+----------+---------------+------------+---------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |          0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |          0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |          0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |          0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |          0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |          0 |       0 |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |          0 |       0 |
 
-| Account                                    | Crypto   | Currency      |   Total 1/1 |   Total 1/1 Taxes |
-|--------------------------------------------+----------+---------------+-------------+-------------------|
-| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |           0 |                 0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |           0 |                 0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |           0 |                 0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |           0 |                 0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |           0 |                 0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |           0 |                 0 |
-| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |           0 |                 0 |"""  # noqa: E501
+| Account                                    | Crypto   | Currency      |   Total |   Taxes |
+|--------------------------------------------+----------+---------------+---------+---------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |       0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |       0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |       0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |       0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |       0 |       0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |       0 |       0 |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |       0 |       0 |"""  # noqa: E501
 
     # No conversions of non-0 values; default Invoice currency is USD.  Longest digits should be 2
     # Instead of querying BTC, ETH prices, provide a conversion (so our invoice pricing is static)
@@ -242,29 +242,32 @@ def test_tabulate( tmp_path ):
             (btc,eth): 15 for eth in ("ETH","WETH") for btc in ("BTC","WBTC")
         },
     )
+    # Include some selected columns
     shorter = '\n\n====\n\n'.join(
         f"{table}\n\n{sub}\n\n{tot}"
-        for _,table,sub,tot in shorter_invoice.tables()
+        for _,table,sub,tot in shorter_invoice.tables(
+            columns=('#', 'Description', 'Units', 'Currency', 'Symbol', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
+        )
     )
     print( shorter )
     assert shorter == """\
-|   Line | Description           |   Units |     Price | Tax %    |   Taxes |       Net |    Amount | Currency   | Symbol   |   Total ETH |   Total USDC |   Total WETH |   Taxes ETH |   Taxes USDC |   Taxes WETH |
-|--------+-----------------------+---------+-----------+----------+---------+-----------+-----------+------------+----------+-------------+--------------+--------------+-------------+--------------+--------------|
-|      0 | Widgets for the Thing |     198 |      2.01 | 5% added |   19.90 |    397.98 |    417.88 | US Dollar  | USDC     |        0.28 |       417.88 |         0.28 |        0.01 |        19.90 |         0.01 |
-|      1 | Worthless             |       1 | 12,345.68 | no tax   |    0.00 | 12,346.00 | 12,346.00 | ZEENUS     | ZEENUS   |        0.28 |       417.88 |         0.28 |        0.01 |        19.90 |         0.01 |
-|      2 | Simple                |       1 | 12,345.68 | no tax   |    0.00 | 12,345.68 | 12,345.68 | USD        | USDC     |        8.51 |    12,763.56 |         8.51 |        0.01 |        19.90 |         0.01 |
+|   # | Description           |   Units | Currency   | Symbol   |     Price | Tax %    |   Taxes |    Amount |   Total USDC |
+|-----+-----------------------+---------+------------+----------+-----------+----------+---------+-----------+--------------|
+|   0 | Widgets for the Thing |     198 | US Dollar  | USDC     |      2.01 | 5% added |   19.90 |    417.88 |       417.88 |
+|   1 | Worthless             |       1 | ZEENUS     | ZEENUS   | 12,345.68 | no tax   |    0.00 | 12,346.00 |       417.88 |
+|   2 | Simple                |       1 | USD        | USDC     | 12,345.68 | no tax   |    0.00 | 12,345.68 |    12,763.56 |
 
-| Account                                    | Crypto   | Currency      |   Subtotal 1/1 |   Subtotal 1/1 Taxes |
-|--------------------------------------------+----------+---------------+----------------+----------------------|
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |        8.50904 |             0.013267 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |   12,763.6     |            19.9      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |        8.50904 |             0.013267 |
+| Account                                    | Crypto   | Currency      |     Subtotal |     Taxes |
+|--------------------------------------------+----------+---------------+--------------+-----------|
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |  0.013267 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     | 19.9      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |  0.013267 |
 
-| Account                                    | Crypto   | Currency      |    Total 1/1 |   Total 1/1 Taxes |
-|--------------------------------------------+----------+---------------+--------------+-------------------|
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |          0.013267 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     |         19.9      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |          0.013267 |"""  # noqa: E501
+| Account                                    | Crypto   | Currency      |        Total |     Taxes |
+|--------------------------------------------+----------+---------------+--------------+-----------|
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |  0.013267 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     | 19.9      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |  0.013267 |"""  # noqa: E501
 
     this			= Path( __file__ ).resolve()
     test			= this.with_suffix( '' )

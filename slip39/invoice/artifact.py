@@ -403,7 +403,7 @@ class Invoice:
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
         with an _ prefix."""
         return (
-            'Line',
+            '_#',
             'Description',
             'Units',
             'Price',
@@ -413,14 +413,14 @@ class Invoice:
             'Net',
             'Amount',
             'Currency',
-            'Symbol',
+            '_Symbol',
             '_Decimals',
             '_Token',
         ) + tuple(
-            f"Total {currency}"
+            f"_Total {currency}"
             for currency in sorted( self.currencies )
         ) + tuple(
-            f"Taxes {currency}"
+            f"_Taxes {currency}"
             for currency in sorted( self.currencies )
         )
 
@@ -530,20 +530,31 @@ class Invoice:
         Each interior page includes a subtotals table; the final page also includes the full totals.
 
         The 'columns' is a filter (a set/list/tuple or a predicate) that selects the columns
-        desired; by default, elides any columns having names starting with '_'.
+        desired; by default, elides any columns having names starting with '_'.  We will accept
+        matches case-insensively, and ignoring any leading/trailing '_'.
+
+        If any columns w/ leading '_' *are* selection, we trim the '_' for display.
 
         """
         headers			= self.headers()
+
+        def can( c ):
+            """Canonicalize a header/column name for comparison"""
+            return c.strip( '_' ).lower()
+
+        headers_can		= [ can( h ) for h in headers ]
         if columns:
             if is_listlike( columns ):
-                selected	= tuple( self.headers().index( h ) for h in columns )
-                assert not any( i < 0 for i in selected ), \
-                    f"Columns not found: {commas( h for h in headers if h not in columns )}"
+                try:
+                    selected	= tuple( headers_can.index( can( c )) for c in columns )
+                except ValueError as exc:
+                    raise ValueError( f"Columns not found: {commas( c for c in columns if can( c ) not in headers_can )}" ) from exc
             elif hasattr( columns, '__contains__' ):
-                selected	= tuple( i for i,h in enumerate( headers ) if h in columns )
+                selected	= tuple( i for i,h in enumerate( headers ) if can( h ) in [ can( c ) for c in columns ] )
                 assert selected, \
                     "No columns matched"
             else:
+                # User-provided column predicate; do not canonicalize
                 selected	= tuple( i for i,h in enumerate( headers ) if columns( h ) )
         else:
             # Default; just ignore _... columns
@@ -554,30 +565,31 @@ class Invoice:
         pages			= list( self.pages( *args, **kwds ))
         # Overall formatted decimals for entire invoice; use the greatest desired decimals of any
         # token/line.  Individual line items may have been rounded to lower decimals.
-        decimals_i		= headers.index( '_Decimals' )
+        decimals_i		= headers_can.index( can( '_Decimals' ))
         decimals		= max( line[decimals_i] for page in pages for line in page )
-        floatfmt		= f",.{decimals}f"
-        intfmt			= ","
+        floatfmt		= f',.{decimals}f'
+        intfmt			= ','
         page_prev		= None
         for p,page in enumerate( pages ):
             table		= tabulate(
                 # Tabulate the line items
                 [[line[i] for i in selected] for line in page],
-                headers		= headers_selected,
+                headers		= [ h.strip('_') for h in headers_selected ],
                 intfmt		= intfmt,
                 floatfmt	= floatfmt,
                 tablefmt	= tablefmt or 'orgtbl',
             )
             first		= page_prev is None
+            final		= p + 1 == len( pages )
 
             def deci( c ):
                 return self.currencies_proxy[c].decimals // 3
 
             def toti( c ):
-                return headers.index( f'Total {c}' )
+                return headers_can.index( can( f'_Total {c}' ))
 
             def taxi( c ):
-                return headers.index( f'Taxes {c}' )
+                return headers_can.index( can( f'_Taxes {c}' ))
 
             subtotal		= tabulate(
                 # And the per-currency Sub-totals (for each page)
@@ -595,9 +607,15 @@ class Invoice:
                     ]
                     for c in sorted( self.currencies )
                 ],
-                headers		= ( "Account", "Crypto", "Currency", f"Subtotal {p+1}/{len( pages )}", f"Subtotal {p+1}/{len( pages )} Taxes" ),
-                intfmt		= ",",
-                floatfmt	= ",g",
+                headers		= (
+                    'Account',
+                    'Crypto',
+                    'Currency',
+                    'Subtotal' if final else f'Subtotal {p+1}/{len( pages )}',
+                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}'
+                ),
+                intfmt		= ',',
+                floatfmt	= ',g',
                 tablefmt	= tablefmt or 'orgtbl',
             )
             total		= tabulate(
@@ -612,9 +630,15 @@ class Invoice:
                     ]
                     for c in sorted( self.currencies )
                 ],
-                headers		= ( "Account", "Crypto", "Currency", f"Total {p+1}/{len( pages )}", f"Total {p+1}/{len( pages )} Taxes" ),
-                intfmt		= ",",
-                floatfmt	= ",g",
+                headers		= (
+                    'Account',
+                    'Crypto',
+                    'Currency',
+                    'Total' if final else f'Total {p+1}/{len( pages )}',
+                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}'
+                ),
+                intfmt		= ',',
+                floatfmt	= ',g',
                 tablefmt	= tablefmt or 'orgtbl',
             )
 
@@ -622,8 +646,8 @@ class Invoice:
 
 
 def layout_invoice(
-    inv_dim: Coordinate,
-    inv_margin: Optional[int],
+    inv_dim: Coordinate,			# Printable invoice dimensions, in inches (net page margins).
+    inv_margin: int,				# Additional margin around invoice
     rows: int,
 ):
     """Layout an Invoice, in portrait format.
@@ -783,7 +807,6 @@ def produce_invoice(
     rows: Optional[int]		= None,
     paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
     orientation: Optional[str]	= None,		# available orientations; default portrait, landscape
-    inv_margin: Optional[int]	= None,
     inv_image: Optional[Union[Path,str]] = None,  # A custom background image (Path or name relative to directory/'.'
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
@@ -794,12 +817,14 @@ def produce_invoice(
     if isinstance( directory, (str,type(None))):
         directory			= Path( directory or '.' )
     assert isinstance( directory, (Path,type(None)))
+    log.info( f"Dir.:  {directory}" )
 
     if isinstance( inv_image, (str,type(None))):
         inv_image		= directory / ( inv_image or 'inv-image.*' )
         if not inv_image.exists():
             inv_image		= None
     assert isinstance( inv_image, (Path,type(None)))
+    log.info( f"Image: {inv_image}" )
 
     # Any datetime WITHOUT a timezone designation is re-interpreted as the local timezone of the
     # invoice issuer, or UTC.
@@ -812,7 +837,7 @@ def produce_invoice(
             inv_zone		= timezone.utc
         inv_date		= inv_date.astimezone( inv_zone )
 
-    log.info( f"Date: {inv_date.strftime( INVOICE_STRFTIME )}" )
+    log.info( f"Date:  {inv_date.strftime( INVOICE_STRFTIME )}" )
     if not isinstance( inv_due, datetime ):
         if not inv_due:
             inv_due		= INVOICE_DUE
@@ -824,7 +849,7 @@ def produce_invoice(
             inv_due		= inv_date + inv_due
         else:
             raise ValueError( f"Unsupported Invoice due date: {inv_due!r}" )
-    log.info( f"Due:  {inv_due.strftime( INVOICE_STRFTIME )}" )
+    log.info( f"Due:   {inv_due.strftime( INVOICE_STRFTIME )}" )
     if inv_number is None:
         cli			= client.name.split()[0].upper()[:3] if client else 'INV'
         ymd			= inv_date.strftime( '%Y%m%d' )
@@ -832,7 +857,7 @@ def produce_invoice(
         produce_invoice.inv_count[key] += 1
         num			= produce_invoice.inv_count[key]
         inv_number		= f"{cli}-{ymd}-{num:04d}"
-    log.info( f"Num.: {inv_number}" )
+    log.info( f"Num.:  {inv_number}" )
 
     metadata			= InvoiceMetadata(
         vendor		= vendor,
@@ -846,17 +871,20 @@ def produce_invoice(
     if conversions is None:
         conversions		= {}
 
-    # Default to full page, given the desired paper and orientation
-    invs_pp,orientation,page_xy,pdf,inv_dim = layout_pdf(
+    # Default to full page, given the desired paper and orientation.  All PDF dimensions are mm.
+    invs_pp,orientation,page_xy,pdf,comp_dim = layout_pdf(
         paper_format	= paper_format,
         orientation	= orientation,
     )
-    log.info( f'Dim.: {inv_dim.x / MM_IN:6.3f}" x {inv_dim.y / MM_IN:6.3f}"' )
+    log.info( f'Dim.: {comp_dim.x / MM_IN:6.3f}" x {comp_dim.y / MM_IN:6.3f}"' )
 
     # TODO: compute rows based on line lengths; the longer the line, the smaller the lines required
     if rows is None:
         rows			= INVOICE_ROWS
-    inv				= layout_invoice( inv_dim=inv_dim, inv_margin=inv_margin, rows=rows )
+
+    # Compute the Invoice layout on the page.  All page layouts are specified in inches.
+    inv_dim			= Coordinate( comp_dim.x / MM_IN, comp_dim.y / MM_IN )
+    inv				= layout_invoice( inv_dim=inv_dim, inv_margin=0, rows=rows )
 
     inv_elements		= list( inv.elements() )
     if log.isEnabledFor( logging.DEBUG ):

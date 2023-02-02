@@ -151,7 +151,7 @@ def layout_pdf(
     pages of the PDF.
 
     Returns the details required to start rendering components to the FPDF, including the
-    component dimensions, 'comp_dim'.
+    component dimensions, 'comp_dim' in mm.
 
     """
     pdf				= FPDF_Autoload_Fonts(
@@ -160,15 +160,22 @@ def layout_pdf(
     )
     pdf.set_margin( 0 )
 
+    # Establish page dimensions, net margins; if no component dimension, default to page dimensions
+    if page_margin_mm is None:
+        page_margin_mm	= PAGE_MARGIN * MM_IN
+    page_dim		= page_dimensions( pdf, page_margin_mm=page_margin_mm )
     if comp_dim is None:
         # Default to 1 component per page (the user must limit themselves to the page size)
-        comp_dim	= page_dimensions( pdf )
+        comp_dim	= page_dim
 
+    # Lay out components on page, computing the number of components that will fit
     comps_pp,page_xy	= layout_components(
         pdf,
-        comp_dim		= comp_dim,
-        page_margin_mm	= page_margin_mm or PAGE_MARGIN * MM_IN
+        comp_dim	= comp_dim,
+        page_margin_mm	= page_margin_mm
     )
+    log.info( f'PDF Layout: {comps_pp} components of {comp_dim.x / MM_IN:7.3f}" x {comp_dim.y / MM_IN:7.3f}"'
+              f' on an {page_dimensions( pdf ).x / MM_IN:7.3f}" x {page_dimensions( pdf ).y / MM_IN:7.3f}" {orientation or ORIENTATION} page' )
     return LayoutPDF( comps_pp, orientation, page_xy, pdf, comp_dim )
 
 
@@ -204,7 +211,8 @@ def produce_pdf(
         paper_format		= PAPER
     if orientations is None:
         orientations		= ('portrait', 'landscape')
-    # Deduce the card size
+
+    # Deduce the card size.  All papers sizes are specified in inches.
     try:
         (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
     except KeyError:
@@ -214,9 +222,9 @@ def produce_pdf(
     # Compute how many cards per page.  Flip page portrait/landscape to match the cards'.  Use the length
     # of the first Group's first Mnemonic to determine the number of mnemonics on each card.
     num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
-    card			= layout_card(  # converts to mm
+    card			= layout_card(  # layouts are computed in inches.
         card_size, card_margin, num_mnemonics=num_mnemonics )
-    card_dim			= card.mm()
+    card_dim			= card.mm()     # converts to mm for PDF
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
     # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
