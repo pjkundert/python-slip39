@@ -21,13 +21,13 @@ import logging
 import math
 
 from collections	import namedtuple
-from typing		import Tuple, Callable, Type
+from typing		import Tuple, Callable, Type, Optional
 
 from fpdf		import FPDF
 
 from ..util		import ordinal
 from ..defaults		import (
-    FONTS, MNEM_ROWS_COLS, MM_IN, PT_IN, COLOR,
+    FONTS, MNEM_ROWS_COLS, MM_IN, PT_IN, COLOR, PAGE_MARGIN,
 )
 
 log				= logging.getLogger( __package__ )
@@ -535,18 +535,39 @@ def layout_wallet(
     return wallet
 
 
+def page_dimensions(
+    pdf: FPDF,
+    page_margin_mm: Optional[float] = None,   # eg. 1/4" in mm.
+) -> Type[Coordinate]:
+    """Compute the working page dimensions.  FPDF().epw/.eph incl. orienation, excl. margins.
+
+    """
+    if page_margin_mm is None:
+        page_margin_mm		= PAGE_MARGIN * MM_IN
+    return Coordinate(
+        x	= pdf.epw - page_margin_mm * 2,
+        y	= pdf.eph - page_margin_mm * 2
+    )
+
+
 def layout_components(
     pdf: FPDF,
     comp_dim: Coordinate,
-    page_margin_mm: float	= .25 * MM_IN,   # 1/4" in mm.
+    page_margin_mm: Optional[float] = None,     # eg. 1/4" in mm.
+    bleed: Optional[float]	= None,	        # eg. 5%
 ) -> Tuple[int, Callable[[int],Tuple[int, Type[Coordinate]]]]:
-    """Compute the number of components per pdf page, and a function returning the page # and
-    component (x,y) for the num'th component."""
+    """Compute the number of components per pdf page, and a function returning the page # and component
+    (x,y) for the num'th component.
 
-    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    """
+    if page_margin_mm is None:
+        page_margin_mm		= PAGE_MARGIN * MM_IN
     # Allow 5% bleed over into page margins (to allow for slight error in paper vs. comp sizes)
-    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // comp_dim.x )
-    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // comp_dim.y )
+    if bleed is None:
+        bleed			= 5/100
+    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.x )
+    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.y )
     comps_pp			= comp_rows * comp_cols
 
     def page_xy( num: int ) -> Tuple[int, Coordinate]:

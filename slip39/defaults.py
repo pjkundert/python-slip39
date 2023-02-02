@@ -89,6 +89,8 @@ PAPER_FORMATS			= dict(
     Photo	= (int( 4 * MM_IN ), int( 6 * MM_IN )),
 )
 
+ORIENTATION			= 'portrait'
+
 # The available GUI controls Layout Options
 LAYOUT				= 'Backup'
 LAYOUT_OPTIONS			= [
@@ -176,6 +178,7 @@ SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
 # current prices for cryptocurrencies -- if you have access to an Ethereum blockchain (either
 # locally or via an HTTPS API like Alchemy), then we can securely and reliably get current prices.
 # To avoid conflicts, by convention we upper-case symbols, lower-case full names.
+INVOICE_ROWS			= 15
 INVOICE_CURRENCY		= "USD"
 INVOICE_PROXIES			= {
     "USD":		"USDC",
@@ -185,3 +188,7 @@ INVOICE_PROXIES			= {
     "BTC":		"WBTC",
     "bitcoin":		"WBTC",
 }
+
+# Invoice times; very explicit about timezones, b/c short zone names are non-deterministic
+INVOICE_DUE			= dict( months=1 )      # Default terms are Net 1 month (~30 days)
+INVOICE_STRFTIME		= "%c %z %Z"            # Eg. "Wed Aug 16 21:30:00 1988 +0000 UTC"

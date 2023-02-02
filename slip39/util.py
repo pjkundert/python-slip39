@@ -26,6 +26,7 @@ from typing		import Union
 from fractions		import Fraction
 from functools		import wraps
 
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
 __copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."

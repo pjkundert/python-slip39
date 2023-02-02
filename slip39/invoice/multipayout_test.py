@@ -902,14 +902,14 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutETH events: {}".format(
         testnet,
         json.dumps(
-            MultiPayoutERC20_instance.events['PayoutETH']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
+            MultiPayoutERC20_instance.events['PayoutETH']().process_receipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))
     print( "{:10}: Web3 Tester payout MultiPayoutERC20 PayoutERC20 events: {}".format(
         testnet,
         json.dumps(
-            MultiPayoutERC20_instance.events['PayoutERC20']().processReceipt( mc_payo_receipt, errors=web3_logs.WARN ),
+            MultiPayoutERC20_instance.events['PayoutERC20']().process_receipt( mc_payo_receipt, errors=web3_logs.WARN ),
             indent=4, default=str,
         )
     ))

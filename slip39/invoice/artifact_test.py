@@ -1,13 +1,16 @@
 import json
 
 from fractions		import Fraction
+from pathlib		import Path
 
 import pytest
 
 import tabulate
 
+from crypto_licensing.misc import parse_datetime
+
 from ..api		import account
-from .artifact		import LineItem, Invoice, conversions_remaining, conversions_table
+from .artifact		import LineItem, Invoice, conversions_remaining, conversions_table, Contact, produce_invoice
 
 SEED_ZOOS			= 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
 
@@ -148,7 +151,7 @@ def test_LineItem( line, amounts ):
     )
 
 
-def test_tabulate():
+def test_tabulate( tmp_path ):
     accounts			= [
         account( SEED_ZOOS, crypto='Ripple' ),
         account( SEED_ZOOS, crypto='Ethereum' ),
@@ -224,23 +227,24 @@ def test_tabulate():
 
     # No conversions of non-0 values; default Invoice currency is USD.  Longest digits should be 2
     # Instead of querying BTC, ETH prices, provide a conversion (so our invoice pricing is static)
+    shorter_invoice		= Invoice(
+        [
+            line
+            for line,_ in line_amounts
+            if line.currency in ("ZEENUS", None) or line.currency.upper().startswith( 'US' )
+        ],
+        accounts	= [
+            account( SEED_ZOOS, crypto='Ethereum' ),
+        ],
+        conversions	= dict( conversions ) | {
+            (eth,usd): 1500 for eth in ("ETH","WETH") for usd in ("USDC",)
+        } | {
+            (btc,eth): 15 for eth in ("ETH","WETH") for btc in ("BTC","WBTC")
+        },
+    )
     shorter = '\n\n====\n\n'.join(
         f"{table}\n\n{sub}\n\n{tot}"
-        for _,table,sub,tot in Invoice(
-            [
-                line
-                for line,_ in line_amounts
-                if line.currency in ("ZEENUS", None) or line.currency.upper().startswith( 'US' )
-            ],
-            accounts	= [
-                account( SEED_ZOOS, crypto='Ethereum' ),
-            ],
-            conversions	= dict( conversions ) | {
-                (eth,usd): 1500 for eth in ("ETH","WETH") for usd in ("USDC",)
-            } | {
-                (btc,eth): 15 for eth in ("ETH","WETH") for btc in ("BTC","WBTC")
-            },
-        ).tables()
+        for _,table,sub,tot in shorter_invoice.tables()
     )
     print( shorter )
     assert shorter == """\
@@ -261,3 +265,41 @@ def test_tabulate():
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |          0.013267 |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     |         19.9      |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |          0.013267 |"""  # noqa: E501
+
+    this			= Path( __file__ ).resolve()
+    test			= this.with_suffix( '' )
+    # here			= this.parent
+
+    inv_date			= parse_datetime( "2021-01-01 00:00:00.1 Canada/Pacific" )
+
+    (paper_format,orientation),pdf,metadata = produce_invoice(
+        invoice		= shorter_invoice,
+        inv_date	= inv_date,
+        vendor		= Contact(
+            name	= "Dominion Research & Development Corp.",
+            contact	= "Perry Kundert <perry@dominionrnd.com>",
+            address	= """\
+RR#3, Site 1, Box 13
+275040 HWY 604
+Lacombe, AB  T4L 2N3
+CANADA
+"""
+        ),
+        client		= Contact(
+            name	= "Awesome, Inc.",
+            contact	= "Great Guy <perry+awesome@dominionrnd.com>",
+            address	= """\
+123 Awesome Ave.
+Schenectady, NY  12345
+USA
+"""
+        ),
+        directory	= test,
+        inv_image	= 'dominion-invoice.png',
+    )
+
+    print( f"Invoice metadata: {metadata}" )
+    temp		= Path( tmp_path )
+    path		= temp / 'invoice.pdf'
+    pdf.output( path )
+    print( f"Invoice saved: {path}" )

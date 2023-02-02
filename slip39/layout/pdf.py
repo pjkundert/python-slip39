@@ -25,6 +25,7 @@ import os
 import warnings
 
 from datetime		import datetime
+from collections	import namedtuple
 from collections.abc	import Callable
 from pathlib		import Path
 from typing		import Dict, List, Tuple, Optional, Sequence, Any
@@ -36,14 +37,14 @@ from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, grou
 from ..util		import chunker
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
-    FONTS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
+    FONTS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
 )
 from .components	import (
     Coordinate, Region, Box, Image, Text,
-    layout_components, layout_card, layout_wallet,
+    page_dimensions, layout_components, layout_card, layout_wallet,
 )
 from .printer		import (
     printer_output,
@@ -133,26 +134,42 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
         return super().set_font( family=family, style=style, size=size )
 
 
+LayoutPDF			= namedtuple( 'LayoutPDF', [
+    'comps_pp', 'orientation', 'page_xy', 'pdf', 'comp_dim',
+] )
+
+
 def layout_pdf(
-        card_dim: Coordinate,                   # mm.
-        page_margin_mm: float	= .25 * MM_IN,  # 1/4" in mm.
-        orientation: str	= 'portrait',
-        paper_format: Any	= PAPER,        # Can be a paper name (Letter) or (x, y) dimensions in mm.
-        font_dir: Optional[Path] = None,
-) -> Tuple[int, str, Callable[[int],[int, Coordinate]], fpdf.FPDF]:
-    """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
-    cards per page, the FPDF, and a function useful for laying out templates on the pages of the
-    PDF."""
+    comp_dim: Optional[Coordinate] = None,      # In mm.; Default: full working page size
+    page_margin_mm: Optional[float] = None,     # Default: 1/4" in mm.
+    orientation: Optional[str]	= None,		# Default: portrait
+    paper_format: Optional[Any]	= None,         # Can be a paper name (Letter) or (x, y) dimensions in mm.
+    font_dir: Optional[Path]	= None,
+) -> Tuple[int, str, Callable[[int],[int, Coordinate]], fpdf.FPDF, Coordinate]:
+    """Find the ideal orientation for the most components of dimensions 'comp_dim'.  Returns the
+    number of components per page, the FPDF, and a function useful for laying out templates on the
+    pages of the PDF.
+
+    Returns the details required to start rendering components to the FPDF, including the
+    component dimensions, 'comp_dim'.
+
+    """
     pdf				= FPDF_Autoload_Fonts(
-        orientation	= orientation,
-        format		= paper_format,
+        orientation	= orientation or ORIENTATION,
+        format		= paper_format or PAPER,
     )
     pdf.set_margin( 0 )
 
-    cards_pp,page_xy		= layout_components(
-        pdf, comp_dim=card_dim, page_margin_mm=page_margin_mm
+    if comp_dim is None:
+        # Default to 1 component per page (the user must limit themselves to the page size)
+        comp_dim	= page_dimensions( pdf )
+
+    comps_pp,page_xy	= layout_components(
+        pdf,
+        comp_dim		= comp_dim,
+        page_margin_mm	= page_margin_mm or PAGE_MARGIN * MM_IN
     )
-    return cards_pp, orientation, page_xy, pdf
+    return LayoutPDF( comps_pp, orientation, page_xy, pdf, comp_dim )
 
 
 def output_pdf( *args, **kwds ):
@@ -204,7 +221,7 @@ def produce_pdf(
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
     # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
     page_margin_mm		= PAGE_MARGIN * MM_IN
-    cards_pp,orientation,page_xy,pdf = max(
+    cards_pp,orientation,page_xy,pdf,_ = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in orientations
     )

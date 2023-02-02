@@ -18,19 +18,25 @@ from __future__          import annotations
 
 import logging
 import math
+import json
 
 from dataclasses	import dataclass
-from collections	import namedtuple
-from typing		import Dict, Union, Optional, Sequence
+from collections	import namedtuple, defaultdict
+from typing		import Dict, Union, Optional, Sequence, List, Any
 from fractions		import Fraction
 from pathlib		import Path
+from datetime		import datetime, timedelta, timezone
+from calendar		import monthrange
+
+import fpdf
 
 from tabulate		import tabulate
+from crypto_licensing.misc import get_localzone
 
 from ..api		import Account
-from ..util		import commas, is_listlike
-from ..defaults		import INVOICE_CURRENCY
-from ..layout		import Region, Text, Image, Box, Coordinate
+from ..util		import commas, is_listlike, is_mapping
+from ..defaults		import INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, MM_IN, FILENAME_FORMAT
+from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
 from .ethereum		import tokeninfo, tokenprices, TokenInfo  # , tokenratio
 
 """
@@ -255,9 +261,9 @@ class Invoice:
     """
     def __init__(
         self, lines,
-        accounts: Sequence[Account],		# [ <Account>, ... ]   .crypto is symbol, eg. BTC, ETH, XRP
-        currencies		= None,		# "USD" | [ "USD", "BTC" ] (first-most currencies/accounts is conversion "reference" currency)
-        conversions		= None,		# { ("USD","ETH"): 1234.56, ("USD","BTC"): 23456.78, ...}
+        accounts: Sequence[Account],		 # [ <Account>, ... ]   .crypto is symbol, eg. BTC, ETH, XRP
+        currencies: Optional[List]	= None,	 # "USD" | [ "USD", "BTC" ] (first-most currencies/accounts is conversion "reference" currency)
+        conversions: Optional[Dict]	= None,  # { ("USD","ETH"): 1234.56, ("USD","BTC"): 23456.78, ...}
         w3_url			= None,
         use_provider		= None,
     ):
@@ -484,12 +490,15 @@ class Invoice:
     def pages(
         self,
         page		= None,
-        rows		= 10,
+        rows		= None,
     ):
         """Yields a sequence of lists containing rows, paginated into 'rows' chunks.
 
         if page (zero-basis) specified, only yields matching pages.
         """
+        if rows is None:
+            rows		= INVOICE_ROWS
+
         def page_match( i ):
             if page is None:
                 return True
@@ -613,9 +622,9 @@ class Invoice:
 
 
 def layout_invoice(
-    inv_size: Coordinate,
-    inv_margin: int,
-    num_lines: int		= 10,
+    inv_dim: Coordinate,
+    inv_margin: Optional[int],
+    rows: int,
 ):
     """Layout an Invoice, in portrait format.
 
@@ -642,21 +651,33 @@ def layout_invoice(
       -2     : Things atop background, but beneath contrast-enhancement
       -1     : Contrast-enhancing partially transparent images
        0     : Text, etc. (the default)
+
+    All sizes in mm.
+
     """
     prio_backing		= -3
     prio_normal			= -2  # noqa: F841
     prio_contrast		= -1
 
-    inv				= Box( 'invoice', 0, 0, inv_size.x, inv_size.y )
+    if inv_margin is None:
+        inv_margin		= 0		# Default; no additional margin (besides page margins)
+
+    inv				= Box( 'invoice', 0, 0, inv_dim.x, inv_dim.y )
     inv_interior		= inv.add_region_relative(
         Region( 'inv-interior', x1=+inv_margin, y1=+inv_margin, x2=-inv_margin, y2=-inv_margin )
+    ).add_region_proportional(
+        # inv-background	-- A full background image, out to the margins
+        Image(
+            'inv-image',
+            priority	= prio_backing,
+        )
     )
 
     a				= inv_interior.h
     b				= inv_interior.w
-    c				= math.sqrt( a * a + b * b )
-    β				= math.atan( b / a )      # noqa: F841
-    rotate			= 90 - math.degrees( β )  # noqa: F841
+    c				= math.sqrt( a * a + b * b )    # noqa: F841
+    β				= math.atan( b / a )		# noqa: F841
+    rotate			= 90 - math.degrees( β )        # noqa: F841
 
     inv_top			= inv_interior.add_region_proportional(
         Region( 'inv-top', x1=0, y1=0, x2=1, y2=1/6 )
@@ -687,31 +708,221 @@ def layout_invoice(
         Region( 'inv-body', x1=0, y1=1/6, x2=1, y2=1 )
     )
 
-    rows			= 15
-    for r in range( rows ):
-        inv_body.add_region_proportional(
-            Text(
-                f"line-{c}",
-                x1	= 0,
-                y1	= r/rows,
-                x2	= 1,
-                y2	= (r+1)/rows,
-                font	= 'mono',
-                bold	= True,
-                size_ratio = 9/16,
-            )
+    inv_body.add_region_proportional(
+        Text(
+            'inv-table',
+            y2		= 1/rows,
+            font	= 'mono',
+            bold	= True,
+            size_ratio	= 9/16,
+            multiline	= True,
         )
+    )
+    return inv
+
+
+def datetime_advance( dt, years=None, months=None, days=None, hours=None, minutes=None, seconds=None ):
+    """Advance a datetime the specified amount.  Differs from timedelta, in that A) months are supported
+    (so we must compute the target month, and clamp the day number appropriately).  Otherwise, uses
+    timedelta.
+
+    """
+    if years or months:
+        yr,mo,dy		= dt.year,dt.month,dt.day
+        yr		       += years or 0
+        mo		       += months or 0
+        if mo > 12:
+            yr		       += ( mo - 1 ) // 12
+            mo			= ( mo - 1 ) % 12 + 1
+            assert 1 <= mo <= 12
+        _,dy_max		= monthrange( yr, mo )
+        if dy > dy_max:
+            dy			= dy_max
+        dt			= dt.replace( day=1 ).replace( year=yr ).replace( month=mo ).replace( day=dy )
+    if days or hours or minutes or seconds:
+        dt		       += timedelta( days=days or 0, hours=hours or 0, minutes=minutes or 0, seconds=seconds or 0 )
+    return dt
+
+
+@dataclass
+class Contact:
+    name: str					# Company or Individual eg. "Dominion Research and Development Corp."
+    contact: str				# client/vendor authority eg. "Perry Kundert <perry@dominionrnd.com>"
+    address: Optional[str]	= None		# multi-line mailing/delivery address
+
+
+@dataclass
+class InvoiceMetadata:
+    """Collected Invoice metadata, required to generate an Invoice"""
+    vendor: Contact
+    client: Contact
+    date: datetime
+    due: datetime
+    number: str					# eg. INV-20230131-0001
+    directory: Path				# Location of assets (and invoices)
+
+
+@dataclass
+class InvoiceOutput:
+    invoice: Invoice
+    metadata: InvoiceMetadata
+    pdf: fpdf.FPDF
+    path: Optional[Path]
 
 
 def produce_invoice(
-    client: Dict[str,str],      	# Client's identifying info (eg. Name, Attn, Address)
-    vendor: Dict[str,str],		# Vendor's identifying info
-    invoice_number: str,		# eg. "INV-20230930"
-    terms: str,    			# eg. "Payable on receipt in $USDC, $ETH, $BTC"
+    invoice: Invoice,				# Invoice LineItems, Cryptocurrency Account data
+    client: Contact,    	  		# Client's identifying info (eg. Name, Attn, Address)
+    vendor: Contact,				# Vendor's identifying info
+    directory: Optional[Union[Path,str]] = None,  # Look here for files (eg. image assets), invoices
+    inv_number: Optional[Union[str,int]] = None,  # eg. "CLIENT-20230930-0001" (default: <client>-<date>-<num>)
+    inv_date: Optional[datetime] = None,
+    inv_due: Optional[Any]	= None, 	# another datetime, or args/kwds for datetime_advance
+    terms: Optional[str]	= None, 	# eg. "Payable on receipt in $USDC, $ETH, $BTC"
+    conversions: Optional[Dict]	= None,
+    rows: Optional[int]		= None,
+    paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
+    orientation: Optional[str]	= None,		# available orientations; default portrait, landscape
+    inv_margin: Optional[int]	= None,
+    inv_image: Optional[Union[Path,str]] = None,  # A custom background image (Path or name relative to directory/'.'
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
 
 
 
     """
-    pass
+    if isinstance( directory, (str,type(None))):
+        directory			= Path( directory or '.' )
+    assert isinstance( directory, (Path,type(None)))
+
+    if isinstance( inv_image, (str,type(None))):
+        inv_image		= directory / ( inv_image or 'inv-image.*' )
+        if not inv_image.exists():
+            inv_image		= None
+    assert isinstance( inv_image, (Path,type(None)))
+
+    # Any datetime WITHOUT a timezone designation is re-interpreted as the local timezone of the
+    # invoice issuer, or UTC.
+    if inv_date is None:
+        inv_date		= datetime.utcnow().astimezone( timezone.utc )
+    if inv_date.tzname() is None:
+        try:
+            inv_zone		= get_localzone()
+        except Exception:
+            inv_zone		= timezone.utc
+        inv_date		= inv_date.astimezone( inv_zone )
+
+    log.info( f"Date: {inv_date.strftime( INVOICE_STRFTIME )}" )
+    if not isinstance( inv_due, datetime ):
+        if not inv_due:
+            inv_due		= INVOICE_DUE
+        if is_mapping( inv_due ):
+            inv_due		= datetime_advance( inv_date, **dict( inv_due ))
+        elif is_listlike( inv_due ):
+            inv_due		= datetime_advance( inv_date, *tuple( inv_due ))
+        elif isinstance( inv_due, timedelta ):
+            inv_due		= inv_date + inv_due
+        else:
+            raise ValueError( f"Unsupported Invoice due date: {inv_due!r}" )
+    log.info( f"Due:  {inv_due.strftime( INVOICE_STRFTIME )}" )
+    if inv_number is None:
+        cli			= client.name.split()[0].upper()[:3] if client else 'INV'
+        ymd			= inv_date.strftime( '%Y%m%d' )
+        key			= f"{cli}-{ymd}"
+        produce_invoice.inv_count[key] += 1
+        num			= produce_invoice.inv_count[key]
+        inv_number		= f"{cli}-{ymd}-{num:04d}"
+    log.info( f"Num.: {inv_number}" )
+
+    metadata			= InvoiceMetadata(
+        vendor		= vendor,
+        client		= client,
+        date		= inv_date,
+        due		= inv_due,
+        number		= inv_number,
+        directory	= directory,
+    )
+
+    if conversions is None:
+        conversions		= {}
+
+    # Default to full page, given the desired paper and orientation
+    invs_pp,orientation,page_xy,pdf,inv_dim = layout_pdf(
+        paper_format	= paper_format,
+        orientation	= orientation,
+    )
+    log.info( f'Dim.: {inv_dim.x / MM_IN:6.3f}" x {inv_dim.y / MM_IN:6.3f}"' )
+
+    # TODO: compute rows based on line lengths; the longer the line, the smaller the lines required
+    if rows is None:
+        rows			= INVOICE_ROWS
+    inv				= layout_invoice( inv_dim=inv_dim, inv_margin=inv_margin, rows=rows )
+
+    inv_elements		= list( inv.elements() )
+    if log.isEnabledFor( logging.DEBUG ):
+        log.debug( f"Invoice elements: {json.dumps( inv_elements, indent=4)}" )
+    inv_tpl			= fpdf.FlexTemplate( pdf, inv_elements )
+
+    p_cur			= None
+    details			= list( invoice.tables() )
+    for i,(page,tbl,sub,tot) in enumerate( details ):
+        p,(offsetx,offsety)		= page_xy( i )
+        if p != p_cur:
+            pdf.add_page()
+
+        here			= Path( __file__ ).resolve().parent
+        layout			= here.parent / 'layout'
+        #crypto			= here / 'Crypto'
+
+        last			= i + 1 == len( details )
+        inv_tpl['inv-image']	= inv_image
+        inv_tpl['inv-table']	= f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
+        inv_tpl['inv-top-bg']	= layout / '1x1-ffffff54.png'
+
+        inv_tpl.render( offsetx=offsetx, offsety=offsety )
+    # Caller already has the Invoice; return the PDF and computed InvoiceMetadata
+    return (paper_format,orientation),pdf,metadata
+produce_invoice.inv_count	= defaultdict( int )  # noqa: E305
+
+
+def write_invoices(
+    invoices,				# sequence of [ Invoice, ... ] or { "<name>": Invoice, ... }
+    filename		= True,		# A file name/Path, if PDF output to file is desired; ''/True implies default., False no file
+    **kwds
+):
+    """Create unique cryptocurrency account(s) for each client invoice, generate the invoice, and
+    (optionally) write them to files.  Yields a sequence of the generate invoice PDF names and
+    details.
+
+    """
+    if filename is None:
+        filename		= True
+    for invoice in invoices:
+        _,pdf,metadata		= produce_invoice(
+            invoice,
+            **kwds
+        )
+
+        accounts		= invoice.accounts
+        assert accounts, \
+            "At least one Cryptocurrency account must be specified"
+        for account in accounts:
+            log.warning( f"{account.crypto:6} {account.path:20}: {account.address}" )
+
+        pdf_name		= (( '' if filename is True else filename ) or FILENAME_FORMAT ).format(
+            name	= metadata.number,
+            date	= datetime.strftime( metadata.date, '%Y-%m-%d' ),
+            time	= datetime.strftime( metadata.date, '%H.%M.%S'),
+            crypto	= accounts[0].crypto,
+            address	= accounts[0].address,
+        )
+        if not pdf_name.lower().endswith( '.pdf' ):
+            pdf_name	       += '.pdf'
+
+        path			= None
+        if filename is not False:
+            path		= invoice.directory.resolve() / pdf_name
+            log.warning( f"Writing Invoice {metadata.number!r} to: {path}" )
+            pdf.output( path )
+
+        yield pdf_name, InvoiceOutput( invoice=invoice, metadata=metadata, pdf=pdf, path=path )
