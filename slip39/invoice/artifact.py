@@ -207,8 +207,7 @@ def cryptocurrency_symbol( name, chain=None, w3_url=None, use_provider=None ):
 
 
 def cryptocurrency_proxy( name, decimals=None, chain=None, w3_url=None, use_provider=None ):
-    """Return the named ERC-20 Token (or a known "Proxy" token, eg. BTC -> WBTC).  Otherwise, if it is
-    a recognized core supported Cryptocurrency, return a TokenInfo useful for formatting.
+    """Return the named ERC-20 Token (or a known "Proxy" token, eg. BTC -> WBTC).
 
     """
     try:
@@ -216,15 +215,25 @@ def cryptocurrency_proxy( name, decimals=None, chain=None, w3_url=None, use_prov
     except Exception as exc:
         log.info( f"Could not identify currency {name!r} as an ERC-20 Token: {exc}" )
     # Not a known Token; a core known Cryptocurrency?
+    return cryptocurrency_known( name, decimals=decimals )
+
+
+def cryptocurrency_known( name, decimals=None ):
+    """If it is a recognized core supported Cryptocurrency, return a TokenInfo useful for formatting.
+    Since Bitcoin (and other similar cryptocurrencies) are typically assumed to have 8 decimal
+    places (the Sat(oshi) is 1/10^8 of a Bitcoin), we'll make the default decimals//3 precision work
+    out to 8).
+
+    """
     try:
         symbol			= Account.supported( name )
     except ValueError as exc:
         log.info( f"Failed to identify currency {name!r} as a supported Cryptocurrency: {exc}" )
         raise
     return TokenInfo(
-        name		= name,
+        name		= Account.CRYPTO_SYMBOLS[symbol],
         symbol		= symbol,
-        decimals	= 18 if decimals is None else decimals,
+        decimals	= 24 if decimals is None else decimals,
         icon		= next( ( Path( __file__ ).resolve().parent / "Cryptos" ).glob( symbol + '*.*' ), None ),
     )
 
@@ -253,7 +262,8 @@ class Invoice:
     Can emit the line items in groups with summary sub-totals and a final total.
 
     Reframes the price of each line in terms of the Invoice's currencies (default: USD), providing
-    "Total <SYMBOL>" and "Taxes <SYMBOL>" for each Cryptocurrency symbols.
+    "Total <SYMBOL>" and "Taxes <SYMBOL>" for each Cryptocurrency symbols.  NOTE: These are a
+    *running* Total; the LineItem Amount is each line's total, in terms of that line's currency.
 
     Now that we have Web3 details, we can query tokeninfos and hence format currency decimals
     correctly.
@@ -381,7 +391,7 @@ class Invoice:
                     log.warning( f"Ignoring {c}: {exc}" )
                     continue
                 if conversions.get( (c,two.symbol) ) is None or conversions.get( (one.symbol,two.symbol) ) is None:
-                    log.info( f"Updating {c:>6}/{two.symbol:<6} = {conversions.get( (c,two.symbol) )}"
+                    log.info( f"Updated {c:>6}/{two.symbol:<6} = {conversions.get( (c,two.symbol) )}"
                               f" and {one.symbol:>6}/{two.symbol:<6} = {conversions.get( (one.symbol,two.symbol) )},"
                               f" to: {ratio}" )
                     conversions[c,two.symbol] = ratio
@@ -563,8 +573,10 @@ class Invoice:
 
         log.info( f"Tabulating indices {commas(selected, final='and')}: {commas( headers_selected, final='and' )}" )
         pages			= list( self.pages( *args, **kwds ))
-        # Overall formatted decimals for entire invoice; use the greatest desired decimals of any
-        # token/line.  Individual line items may have been rounded to lower decimals.
+
+        # Overall formatted decimals for the entire invoice; use the greatest desired decimals of
+        # any token/line, based on Cryptocurrency proxies.  Individual line items may have been
+        # rounded to lower decimals.
         decimals_i		= headers_can.index( can( '_Decimals' ))
         decimals		= max( line[decimals_i] for page in pages for line in page )
         floatfmt		= f',.{decimals}f'
@@ -582,8 +594,15 @@ class Invoice:
             first		= page_prev is None
             final		= p + 1 == len( pages )
 
+            # {Sub}total for payment cryptocurrrencies are rounded to the individual
+            # Cryptocurrency's designated decimals // 3.  For typical ERC-20 tokens, this is
+            # eg. USDC: 6 // 3 == 2, WBTC: 18 // 3 == 6.  For known Cryptocurrencies, eg. BTC: 24 //
+            # 3 == 8.  TODO: There should be a more sensible / less brittle way to do this.
             def deci( c ):
-                return self.currencies_proxy[c].decimals // 3
+                try:
+                    return cryptocurrency_known( c ).decimals // 3
+                except Exception:
+                    return self.currencies_proxy[c].decimals // 3
 
             def toti( c ):
                 return headers_can.index( can( f'_Total {c}' ))
@@ -599,11 +618,11 @@ class Invoice:
                         c,
                         self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
                     ] + [
-                        round( page[-1][toti( c )], deci( c )),
                         round( page[-1][taxi( c )], deci( c )),
+                        round( page[-1][toti( c )], deci( c )),
                     ] if first else [
-                        round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
                         round( page[-1][taxi( c )] - page_prev[-1][taxi( c )], deci( c )),
+                        round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
                     ]
                     for c in sorted( self.currencies )
                 ],
@@ -611,8 +630,8 @@ class Invoice:
                     'Account',
                     'Crypto',
                     'Currency',
+                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
                     'Subtotal' if final else f'Subtotal {p+1}/{len( pages )}',
-                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}'
                 ),
                 intfmt		= ',',
                 floatfmt	= ',g',
@@ -625,8 +644,8 @@ class Invoice:
                         self.currencies_account[c].address,
                         c,
                         self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
-                        round( page[-1][toti( c )], deci( c )),
                         round( page[-1][taxi( c )], deci( c )),
+                        round( page[-1][toti( c )], deci( c )),
                     ]
                     for c in sorted( self.currencies )
                 ],
@@ -634,8 +653,8 @@ class Invoice:
                     'Account',
                     'Crypto',
                     'Currency',
+                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
                     'Total' if final else f'Total {p+1}/{len( pages )}',
-                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}'
                 ),
                 intfmt		= ',',
                 floatfmt	= ',g',
@@ -680,7 +699,7 @@ def layout_invoice(
 
     """
     prio_backing		= -3
-    prio_normal			= -2  # noqa: F841
+    prio_normal			= -2
     prio_contrast		= -1
 
     if inv_margin is None:
@@ -690,7 +709,7 @@ def layout_invoice(
     inv_interior		= inv.add_region_relative(
         Region( 'inv-interior', x1=+inv_margin, y1=+inv_margin, x2=-inv_margin, y2=-inv_margin )
     ).add_region_proportional(
-        # inv-background	-- A full background image, out to the margins
+        # inv-image	-- A full background image, out to the margins; bottom-most in stack
         Image(
             'inv-image',
             priority	= prio_backing,
@@ -703,16 +722,20 @@ def layout_invoice(
     β				= math.atan( b / a )		# noqa: F841
     rotate			= 90 - math.degrees( β )        # noqa: F841
 
-    inv_top			= inv_interior.add_region_proportional(
-        Region( 'inv-top', x1=0, y1=0, x2=1, y2=1/6 )
-    ).add_region_proportional(
+    head			= 25/100		# 25% header, 70% body
+    foot			= 95/100		# 5% footer
+
+    # inv-head: Image for header of Invoice (if no inv-image)
+    inv_head			= inv_interior.add_region_proportional(
         Image(
-            'inv-top-bg',
-            priority	= prio_backing,
+            'inv-head',
+            y2		= head,
+            priority	= prio_normal,
         ),
     )
 
-    inv_top.add_region_proportional(
+    # inv-label: Label "Invoice"
+    inv_head.add_region_proportional(
         Image(
             'inv-label-bg',
             x1		= 0,
@@ -728,20 +751,40 @@ def layout_invoice(
             text	= "Invoice",
         )
     )
-    inv_body			= inv_interior.add_region_proportional(
-        Region( 'inv-body', x1=0, y1=1/6, x2=1, y2=1 )
-    )
 
-    inv_body.add_region_proportional(
+    # inv-body, ...: Image for Body of Invoice;
+    # inv-table: Main Invoice text area
+    inv_interior.add_region_proportional(
+        Image(
+            'inv-body',
+            y1		= head,
+            y2		= foot,
+            priority	= prio_normal,
+        )
+    ).add_region_proportional(
+        Image(
+            'inv-table-bg',
+            priority	= prio_contrast,
+        ),
+    ).add_region_proportional(
         Text(
             'inv-table',
             y2		= 1/rows,
             font	= 'mono',
-            bold	= True,
             size_ratio	= 9/16,
             multiline	= True,
         )
     )
+
+    # inv-foot: Image for bottom of Invoice (if no inv-image)
+    inv_interior.add_region_proportional(
+        Image(
+            'inv-foot',
+            y1		= foot,
+            priority	= prio_normal,
+        ),
+    )
+
     return inv
 
 
@@ -905,7 +948,8 @@ def produce_invoice(
         last			= i + 1 == len( details )
         inv_tpl['inv-image']	= inv_image
         inv_tpl['inv-table']	= f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
-        inv_tpl['inv-top-bg']	= layout / '1x1-ffffff54.png'
+        inv_tpl['inv-label-bg']	= layout / '1x1-ffffffbf.png'
+        inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )
     # Caller already has the Invoice; return the PDF and computed InvoiceMetadata

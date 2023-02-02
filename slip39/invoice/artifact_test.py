@@ -158,7 +158,7 @@ def test_tabulate( tmp_path ):
         account( SEED_ZOOS, crypto='Bitcoin' ),
     ]
     conversions			= {
-        ("XRP","BTC"): 60000,
+        ("BTC","XRP"): 60000,
     }
 
     total			= Invoice(
@@ -205,17 +205,17 @@ def test_tabulate( tmp_path ):
 |---------------+---------+---------+---------+---------+--------+----------+------------|
 | Worthless     |       1 |  12,346 | no tax  |       0 | 12,346 |   12,346 | ZEENUS     |
 
-| Account                                    | Crypto   | Currency      |   Subtotal |   Taxes |
-|--------------------------------------------+----------+---------------+------------+---------|
-| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |          0 |       0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |          0 |       0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |          0 |       0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |          0 |       0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |          0 |       0 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |          0 |       0 |
-| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |          0 |       0 |
+| Account                                    | Crypto   | Currency      |   Taxes |   Subtotal |
+|--------------------------------------------+----------+---------------+---------+------------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |       0 |          0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |       0 |          0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | HOT      | HoloToken     |       0 |          0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      |       0 |          0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |       0 |          0 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |       0 |          0 |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        |       0 |          0 |
 
-| Account                                    | Crypto   | Currency      |   Total |   Taxes |
+| Account                                    | Crypto   | Currency      |   Taxes |   Total |
 |--------------------------------------------+----------+---------------+---------+---------|
 | bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |       0 |       0 |
 | 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |       0 |       0 |
@@ -233,9 +233,7 @@ def test_tabulate( tmp_path ):
             for line,_ in line_amounts
             if line.currency in ("ZEENUS", None) or line.currency.upper().startswith( 'US' )
         ],
-        accounts	= [
-            account( SEED_ZOOS, crypto='Ethereum' ),
-        ],
+        accounts	= accounts,
         conversions	= dict( conversions ) | {
             (eth,usd): 1500 for eth in ("ETH","WETH") for usd in ("USDC",)
         } | {
@@ -257,17 +255,23 @@ def test_tabulate( tmp_path ):
 |   1 | Worthless             |       1 | ZEENUS     | ZEENUS   | 12,345.68 | no tax   |    0.00 | 12,346.00 |       417.88 |
 |   2 | Simple                |       1 | USD        | USDC     | 12,345.68 | no tax   |    0.00 | 12,345.68 |    12,763.56 |
 
-| Account                                    | Crypto   | Currency      |     Subtotal |     Taxes |
-|--------------------------------------------+----------+---------------+--------------+-----------|
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |  0.013267 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     | 19.9      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |  0.013267 |
+| Account                                    | Crypto   | Currency      |       Taxes |      Subtotal |
+|--------------------------------------------+----------+---------------+-------------+---------------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |  0.00088444 |      0.567269 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.0132667  |      8.50904  |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 19.9        | 12,763.6      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0          |      0.57     |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |  0.013267   |      8.50904  |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.0667     | 34,036.2      |
 
-| Account                                    | Crypto   | Currency      |        Total |     Taxes |
-|--------------------------------------------+----------+---------------+--------------+-----------|
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |      8.50904 |  0.013267 |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 12,763.6     | 19.9      |
-| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |      8.50904 |  0.013267 |"""  # noqa: E501
+| Account                                    | Crypto   | Currency      |       Taxes |         Total |
+|--------------------------------------------+----------+---------------+-------------+---------------|
+| bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 | BTC      | Bitcoin       |  0.00088444 |      0.567269 |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | ETH      | Ethereum      |  0.0132667  |      8.50904  |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | USDC     | USD Coin      | 19.9        | 12,763.6      |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WBTC     | Wrapped BTC   |  0          |      0.57     |
+| 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | WETH     | Wrapped Ether |  0.013267   |      8.50904  |
+| rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | XRP      | Ripple        | 53.0667     | 34,036.2      |"""  # noqa: E501
 
     this			= Path( __file__ ).resolve()
     test			= this.with_suffix( '' )
@@ -298,7 +302,7 @@ USA
 """
         ),
         directory	= test,
-        inv_image	= 'dominion-invoice.png',
+        inv_image	= 'dominionrnd-invoice.png',  # Full page background image
     )
 
     print( f"Invoice metadata: {metadata}" )

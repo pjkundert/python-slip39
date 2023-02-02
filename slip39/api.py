@@ -288,7 +288,20 @@ class Account:
     | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
 
     """
-    CRYPTO_NAMES		= dict(  # Currently supported (in order of visibility)
+    CRYPTO_SYMBOLS		= dict(
+        # Convert known Symbols to official Cryptocurrency Name.  By convention, Symbols are
+        # capitalized to avoid collisions with names
+        ETH		= 'Ethereum',
+        BTC		= 'Bitcoin',
+        LTC		= 'Litecoin',
+        DOGE		= 'Dogecoin',
+        CRO		= 'Cronos',
+        BNB		= 'Binance',
+        XRP		= 'Ripple',
+    )
+    CRYPTO_NAMES		= dict(
+        # Currently supported (in order of visibility), and conversion of known Names to Symbol.  By
+        # convention, Cryptocurrency names are lower-cased to avoid collisions with symbols.
         ethereum	= 'ETH',
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
@@ -388,13 +401,13 @@ class Account:
 
     @classmethod
     def supported( cls, crypto ):
-        """Validates that the specified cryptocurrency is supported and returns the normalized "symbol"
-        for it, or raises an a ValueError.  Eg. "Ethereum" --> "ETH"
+        """Validates that the specified cryptocurrency is supported and returns the normalized "SYMBOL"
+        for it, or raises an a ValueError.  Eg. "ETH"/"Ethereum" --> "ETH"
 
         """
         validated		= cls.CRYPTO_NAMES.get(
             crypto.lower(),
-            crypto.upper() if crypto.upper() in cls.CRYPTOCURRENCIES else None
+            crypto.upper() if crypto.upper() in cls.CRYPTO_SYMBOLS else None
         )
         if validated:
             return validated
