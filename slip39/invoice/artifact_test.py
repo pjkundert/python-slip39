@@ -32,11 +32,11 @@ def test_conversions():
     c1_tbl			= conversions_table( c1 )
     print( '\n' + c1_tbl )
     assert c1_tbl == """\
-| Coin   |   BTC |   ETH |       USD |
-|--------+-------+-------+-----------|
-| BTC    |     1 |     ? | 23,456.8  |
-| ETH    |       |     1 |  1,234.56 |
-| USD    |       |       |      1    |"""
+| Coin   | in BTC   | in ETH   |    in USD |
+|--------+----------+----------+-----------|
+| BTC    |          | ?        | 23,456.78 |
+| ETH    |          |          |  1,234.56 |
+| USD    |          |          |           |"""
 
     c_simple			= dict( c1 )
     c_simple_i			= 0
@@ -46,11 +46,11 @@ def test_conversions():
     c_simple_tbl		= conversions_table( c_simple )
     print( c_simple_tbl )
     assert c_simple_tbl == """\
-| Coin   |         BTC |          ETH |       USD |
-|--------+-------------+--------------+-----------|
-| BTC    | 1           | 19.0001      | 23,456.8  |
-| ETH    | 0.0526313   |  1           |  1,234.56 |
-| USD    | 4.26316e-05 |  0.000810005 |      1    |"""
+| Coin   |      in BTC |    in ETH |    in USD |
+|--------+-------------+-----------+-----------|
+| BTC    |             | 19.000113 | 23,456.78 |
+| ETH    | 0.052631265 |           |  1,234.56 |
+| USD    |             |           |           |"""
 
     c_w_doge			= dict( c1, ) | { ('DOGE','BTC'): .00000385, ('DOGE','USD'): None }
     c_w_doge_i			= 0
@@ -74,12 +74,22 @@ def test_conversions():
     c_w_doge_tbl		= conversions_table( c_w_doge )
     print( c_w_doge_tbl )
     assert c_w_doge_tbl == """\
-| Coin   |         BTC |         DOGE |          ETH |            USD |
-|--------+-------------+--------------+--------------+----------------|
-| BTC    | 1           | 259,740      | 19.0001      | 23,456.8       |
-| DOGE   | 3.85e-06    |       1      |  7.31504e-05 |      0.0903086 |
-| ETH    | 0.0526313   |  13,670.5    |  1           |  1,234.56      |
-| USD    | 4.26316e-05 |      11.0731 |  0.000810005 |      1         |"""
+| Coin   | in BTC   |        in DOGE |    in ETH |    in USD |
+|--------+----------+----------------+-----------+-----------|
+| BTC    |          | 259,740.26     | 19.000113 | 23,456.78 |
+| DOGE   |          |                |           |           |
+| ETH    |          |  13,670.458    |           |  1,234.56 |
+| USD    |          |      11.073142 |           |           |"""
+
+    c_w_doge_all		= conversions_table( c_w_doge, greater=False )
+    print( c_w_doge_all )
+    assert c_w_doge_all == """\
+| Coin   |        in BTC |        in DOGE |         in ETH |           in USD |
+|--------+---------------+----------------+----------------+------------------|
+| BTC    |               | 259,740.26     | 19.000113      | 23,456.78        |
+| DOGE   | 3.85e-06      |                |  7.3150437e-05 |      0.090308603 |
+| ETH    | 0.052631265   |  13,670.458    |                |  1,234.56        |
+| USD    | 4.2631597e-05 |      11.073142 |  0.00081000518 |                  |"""
 
     c_bad			= dict( c1, ) | { ('DOGE','USD'): None }
     with pytest.raises( Exception ) as c_bad_exc:
@@ -107,7 +117,7 @@ line_amounts			= [
         LineItem(
             description	= "More Widgets",
             units	= 2500,
-            price	= Fraction( 201, 1000 ),
+            price	= Fraction( 201, 100000 ),
             tax		= Fraction( 5, 100 ),  # exclusive
             currency	= 'ETH',
         ),
@@ -116,7 +126,7 @@ line_amounts			= [
         LineItem(
             description	= "Something else, very detailed and elaborate to explain",
             units	= 100,
-            price	= Fraction( 201, 10000 ),
+            price	= Fraction( 201, 100000 ),
             tax		= Fraction( 105, 100 ),  # inclusive
             decimals	= 8,
             currency	= 'Bitcoin',
@@ -126,7 +136,7 @@ line_amounts			= [
         LineItem(
             description	= "Buy some Holo hosting",
             units	= 12,
-            price	= 10000,
+            price	= 12345.6,
             tax		= Fraction( 5, 100 ),  # inclusive
             currency	= 'HoloToken',
         ),
@@ -294,41 +304,74 @@ def test_tabulate( tmp_path ):
 
     inv_date			= parse_datetime( "2021-01-01 00:00:00.1 Canada/Pacific" )
 
-    (paper_format,orientation),pdf,metadata = produce_invoice(
-        invoice		= shorter_invoice,
-        inv_date	= inv_date,
-        vendor		= Contact(
-            name	= "Dominion Research & Development Corp.",
-            contact	= "Perry Kundert <perry@dominionrnd.com>",
-            phone	= "+1-780-970-8148",
-            address	= """\
+    vendor			= Contact(
+        name	= "Dominion Research & Development Corp.",
+        contact	= "Perry Kundert <perry@dominionrnd.com>",
+        phone	= "+1-780-970-8148",
+        address	= """\
 275040 HWY 604
 Lacombe, AB  T4L 2N3
 CANADA
 """,
-            billing	= """\
+        billing	= """\
 RR#3, Site 1, Box 13
 Lacombe, AB  T4L 2N3
 CANADA
 """,
-        ),
-        client		= Contact(
-            name	= "Awesome, Inc.",
-            contact	= "Great Guy <perry+awesome@dominionrnd.com>",
-            address	= """\
+    )
+    client			= Contact(
+        name	= "Awesome, Inc.",
+        contact	= "Great Guy <perry+awesome@dominionrnd.com>",
+        address	= """\
 123 Awesome Ave.
 Schenectady, NY  12345
 USA
 """,
-        ),
+    )
+
+    (paper_format,orientation),pdf,metadata = produce_invoice(
+        invoice		= shorter_invoice,
+        inv_date	= inv_date,
+        vendor		= vendor,
+        client		= client,
         directory	= test,
-        inv_image	= 'dominionrnd-invoice.png',    # Full page background image
+        #inv_image	= 'dominionrnd-invoice.png',    # Full page background image
         inv_logo	= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
         inv_label	= 'Quote',
     )
 
     print( f"Invoice metadata: {metadata}" )
     temp		= Path( tmp_path )
-    path		= temp / 'invoice.pdf'
+    path		= temp / 'invoice-shorter.pdf'
+    pdf.output( path )
+    print( f"Invoice saved: {path}" )
+
+    # Finally, generate invoice with all rows, and all conversions from blockchain Oracle (except
+    # XRP, for which we do not have an oracle, so must provide an estimate from another source...)
+    complete_invoice		= Invoice(
+        [
+            line
+            for line,_ in line_amounts
+        ],
+        currencies	= ["HOT", "ETH", "BTC", "USD"],
+        accounts	= accounts,
+        conversions	= {
+            ("BTC","XRP"): 60000,
+        }
+    )
+
+    (paper_format,orientation),pdf,metadata = produce_invoice(
+        invoice		= complete_invoice,
+        inv_date	= inv_date,
+        vendor		= vendor,
+        client		= client,
+        directory	= test,
+        #inv_image	= 'dominionrnd-invoice.png',    # Full page background image
+        inv_logo	= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
+    )
+
+    print( f"Invoice metadata: {metadata}" )
+    temp		= Path( tmp_path )
+    path		= temp / 'invoice-complete.pdf'
     pdf.output( path )
     print( f"Invoice saved: {path}" )

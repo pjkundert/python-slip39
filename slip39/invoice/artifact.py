@@ -99,9 +99,12 @@ class LineItem( Item ):
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
-def conversions_table( conversions, symbols=None ):
+def conversions_table( conversions, symbols=None, greater=None ):
     if symbols is None:
         symbols			= sorted( set( sum( conversions.keys(), () )))
+    if greater is None:
+        greater			= .001
+
     symbols			= list( symbols )
 
     # The columns are typed according to the least generic type that *all* rows are convertible
@@ -109,13 +112,16 @@ def conversions_table( conversions, symbols=None ):
     return tabulate(
         [
             [ r ] + list(
-                1 if r == c else '' if (r,c) not in conversions else conversions.get( (r,c) )
+                ( '' if r == c or (r,c) not in conversions
+                  else '' if ( greater and conversions.get( (r,c) ) and conversions.get( (c,r) )
+                               and ( conversions[r,c] < ( greater if isinstance( greater, (float,int) ) else conversions[c,r] )))
+                  else conversions[(r,c)] )
                 for c in symbols
             )
             for r in symbols
         ],
-        headers		= [ 'Coin' ] + list( symbols ),
-        floatfmt	= ',.6g',
+        headers		= [ 'Coin' ] + [ f"in {s}" for s in symbols ],
+        floatfmt	= ',.7g',
         intfmt		= ',',
         missingval	= '?',
         tablefmt	= 'orgtbl',
@@ -524,6 +530,7 @@ class Invoice:
         columns		= None,		# list (ordered) set/predicate (unordered)
         totalfmt	= None,
         totalize	= None,		# Final page includes totalization
+        description_max	= None,		# Default to some reasonable max
         **kwds				# page, rows, ...
     ):
         """Tabulate columns into textual tables.  Each page yields 3 items:
@@ -659,7 +666,8 @@ class Invoice:
                     return round( val, deci( coin ))  # f"{float( val ):,.{deci( coin )}f}"  # rounds to designated decimal places, inserts comma
                 return val
 
-            # Produce the page line-items.  TODO: This may now include per-Coin totals on the final page.
+            # Produce the page line-items.  We must round each line-item's numeric price values
+            # according to the target coin.
             table_rows		= [
                 [
                     fmt( line[i], h, line[headers_can.index( can( 'Coin' ))] )
@@ -695,12 +703,25 @@ class Invoice:
                             row.append( None )
                     table_rows.append( row )
 
+            # Presently, the Description column is the only one likely to have a width issue...
+            maxcolwidths		= None
+            if description_max is None:
+                description_max		= 48
+            if description_max:
+                desc_i			= headers_can.index( can( "Description" ))
+                maxcolwidths	= [
+                    description_max if i == desc_i else None
+                    for i in selected
+                ]
+                log.info( f"Maximum col widths {commas( ( f'{h}: {w}' for h,w in zip( table_headers, maxcolwidths ) ), final='and' )}" )
+
             table		= tabulate(
                 table_rows,
                 headers		= table_headers,
                 intfmt		= ',',   # intfmt,
                 floatfmt	= ',g',  # floatfmt,
                 tablefmt	= tablefmt or 'orgtbl',
+                maxcolwidths	= maxcolwidths,
             )
 
             yield page, table, subtotal, total
@@ -1108,13 +1129,15 @@ def produce_invoice(
         inv_tpl['inv-client-info'] = '\n'.join( client.info )
         inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
 
-        det			= tabulate( [
+        dets			= tabulate( [
             [ 'Invoice #', metadata.number ],
             [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
             [ 'Due:', metadata.date.strftime( INVOICE_STRFTIME ) ],
         ], colalign=( 'right', 'left' ), tablefmt='plain' )
 
-        inv_tpl['inv-table']	= '\n\n'.join( (det, tbl ) )  # f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
+        exch			= conversions_table( invoice.conversions )
+
+        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"Conversion ratios used:\n{exch}" ) )  # f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
         inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )
