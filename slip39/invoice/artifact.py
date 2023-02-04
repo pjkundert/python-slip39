@@ -34,7 +34,10 @@ from crypto_licensing.misc import get_localzone
 
 from ..api		import Account
 from ..util		import commas, is_listlike, is_mapping
-from ..defaults		import INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, MM_IN, FILENAME_FORMAT
+from ..defaults		import (
+    INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, INVOICE_DESCRIPTION_MAX,
+    MM_IN, FILENAME_FORMAT,
+)
 from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
 from .ethereum		import tokeninfo, tokenprices, tokenknown
 
@@ -44,7 +47,6 @@ Invoice artifacts:
     Invoice/Quote	-- States deliverables, prices/taxes, and totals in various currencies
 
     Receipt		-- The Invoice, marked "PAID"
-
 
 """
 log				= logging.getLogger( "customer" )
@@ -109,19 +111,40 @@ def conversions_table( conversions, symbols=None, greater=None ):
 
     # The columns are typed according to the least generic type that *all* rows are convertible
     # into.  So, if any row is a string, it'll cause the entire column to be formatted as strings.
-    return tabulate(
-        [
-            [ r ] + list(
-                ( '' if r == c or (r,c) not in conversions
-                  else '' if ( greater and conversions.get( (r,c) ) and conversions.get( (c,r) )
-                               and ( conversions[r,c] < ( greater if isinstance( greater, (float,int) ) else conversions[c,r] )))
-                  else conversions[(r,c)] )
-                for c in symbols
+    def fmt( v, d ):
+        if v:
+            return round( v, d )
+        return v
+
+    convers_raw			= [
+        [ r ] + list(
+            (
+                '' if r == c or (r,c) not in conversions
+                else '' if ( greater and conversions.get( (r,c) ) and conversions.get( (c,r) )
+                             and ( conversions[r,c] < ( greater if isinstance( greater, (float,int) ) else conversions[c,r] )))
+                else fmt( conversions[r,c], 8 )   # ie. to the Sat (1/10^8 Bitcoin)
             )
-            for r in symbols
-        ],
-        headers		= [ 'Coin' ] + [ f"in {s}" for s in symbols ],
-        floatfmt	= ',.7g',
+            for c in symbols
+        )
+        for r in symbols
+    ]
+    # Now, remove any column that are completely blank ('', not None).  This will take place for
+    # worthless (or very low valued) currencies, esp. w/ a small 'greater'.  Transpose the
+    # conversions (so each column is a row), and elide any w/ empty conversions rows.  Finally,
+    # re-transpose back to columns.
+    headers_raw			= [ 'Coin' ] + [ f"in {s}" for s in symbols ]
+    convers_txp			= list( zip( *convers_raw ))
+    headers_use,convers_use_txp	= zip( *[
+        (hdr,col)
+        for hdr,col in zip( headers_raw, convers_txp )
+        if any( c != '' for c in col )
+    ])
+    convers_use			= list( zip( *convers_use_txp ))
+
+    return tabulate(
+        convers_use,
+        headers		= headers_use,
+        floatfmt	= ',.15g',
         intfmt		= ',',
         missingval	= '?',
         tablefmt	= 'orgtbl',
@@ -406,6 +429,7 @@ class Invoice:
         self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( "WBTC", ... ), ... }
         self.currencies_alias	= currencies_alias      # { "WBTC": TokenInfo( "BTC", ... ), ... }
         self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
+        self.created		= datetime.utcnow().astimezone( timezone.utc )
 
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
@@ -615,7 +639,7 @@ class Invoice:
                 # And the per-currency Sub-totals (for each page)
                 [
                     [
-                        self.currencies_account[c].address,
+                        str( self.currencies_account[c] ),
                         round( page[-1][taxi( c )], deci( c )) if first else round( page[-1][taxi( c )] - page_prev[-1][taxi( c )], deci( c )),
                         round( page[-1][toti( c )], deci( c )) if first else round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
                         c,
@@ -631,14 +655,14 @@ class Invoice:
                     'Currency',
                 ),
                 intfmt		= ',',
-                floatfmt	= ',g',
+                floatfmt	= ',.15g',
                 tablefmt	= totalfmt or 'orgtbl',
             )
 
             # And the per-currency Totals (up to current page)
             total_rows		= [
                 [
-                    self.currencies_account[c].address,
+                    str( self.currencies_account[c] ),
                     round( page[-1][taxi( c )], deci( c )),
                     round( page[-1][toti( c )], deci( c )),
                     c,
@@ -657,13 +681,13 @@ class Invoice:
                 total_rows,
                 headers		= total_headers,
                 intfmt		= ',',
-                floatfmt	= ',g',
+                floatfmt	= ',.15g',
                 tablefmt	= totalfmt or 'orgtbl',
             )
 
             def fmt( val, hdr, coin  ):
                 if can( hdr ) in ( 'price', 'taxes', 'amount' ):
-                    return round( val, deci( coin ))  # f"{float( val ):,.{deci( coin )}f}"  # rounds to designated decimal places, inserts comma
+                    return round( val, deci( coin ))
                 return val
 
             # Produce the page line-items.  We must round each line-item's numeric price values
@@ -706,7 +730,7 @@ class Invoice:
             # Presently, the Description column is the only one likely to have a width issue...
             maxcolwidths		= None
             if description_max is None:
-                description_max		= 48
+                description_max		= INVOICE_DESCRIPTION_MAX
             if description_max:
                 desc_i			= headers_can.index( can( "Description" ))
                 maxcolwidths	= [
@@ -718,8 +742,8 @@ class Invoice:
             table		= tabulate(
                 table_rows,
                 headers		= table_headers,
-                intfmt		= ',',   # intfmt,
-                floatfmt	= ',g',  # floatfmt,
+                intfmt		= ',',
+                floatfmt	= ',.15g',
                 tablefmt	= tablefmt or 'orgtbl',
                 maxcolwidths	= maxcolwidths,
             )
@@ -1009,7 +1033,6 @@ def produce_invoice(
     inv_date: Optional[datetime] = None,
     inv_due: Optional[Any]	= None, 	# another datetime, or args/kwds for datetime_advance
     terms: Optional[str]	= None, 	# eg. "Payable on receipt in $USDC, $ETH, $BTC"
-    conversions: Optional[Dict]	= None,
     rows: Optional[int]		= None,
     paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
     orientation: Optional[str]	= None,		# available orientations; default portrait, landscape
@@ -1042,7 +1065,7 @@ def produce_invoice(
     # Any datetime WITHOUT a timezone designation is re-interpreted as the local timezone of the
     # invoice issuer, or UTC.
     if inv_date is None:
-        inv_date		= datetime.utcnow().astimezone( timezone.utc )
+        inv_date		= invoice.created
     if inv_date.tzname() is None:
         try:
             inv_zone		= get_localzone()
@@ -1054,6 +1077,7 @@ def produce_invoice(
     if not isinstance( inv_due, datetime ):
         if not inv_due:
             inv_due		= INVOICE_DUE
+        log.info( f"Due w/ {inv_due!r}" )
         if is_mapping( inv_due ):
             inv_due		= datetime_advance( inv_date, **dict( inv_due ))
         elif is_listlike( inv_due ):
@@ -1080,9 +1104,6 @@ def produce_invoice(
         number		= inv_number,
         directory	= directory,
     )
-
-    if conversions is None:
-        conversions		= {}
 
     # Default to full page, given the desired paper and orientation.  All PDF dimensions are mm.
     invs_pp,orientation,page_xy,pdf,comp_dim = layout_pdf(
@@ -1130,14 +1151,15 @@ def produce_invoice(
         inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
 
         dets			= tabulate( [
-            [ 'Invoice #', metadata.number ],
+            [ 'Invoice #:', metadata.number ],
             [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
-            [ 'Due:', metadata.date.strftime( INVOICE_STRFTIME ) ],
+            [ 'Due:', metadata.due.strftime( INVOICE_STRFTIME ) ],
         ], colalign=( 'right', 'left' ), tablefmt='plain' )
 
         exch			= conversions_table( invoice.conversions )
+        exch_date		= invoice.created.strftime( INVOICE_STRFTIME )
 
-        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"Conversion ratios used:\n{exch}" ) )  # f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
+        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"Conversion ratios used (est. {exch_date}):\n{exch}" ) )
         inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )
