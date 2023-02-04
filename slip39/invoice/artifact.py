@@ -18,7 +18,6 @@ from __future__          import annotations
 
 import logging
 import math
-import json
 
 from dataclasses	import dataclass
 from collections	import namedtuple, defaultdict
@@ -30,7 +29,7 @@ from calendar		import monthrange
 
 import fpdf
 
-from tabulate		import tabulate
+from tabulate		import tabulate, SEPARATING_LINE
 from crypto_licensing.misc import get_localzone
 
 from ..api		import Account
@@ -52,7 +51,7 @@ log				= logging.getLogger( "customer" )
 
 
 # An invoice line-Item contains the details of a component of a transaction.  It is priced in a
-# currency, with a number of 'units', and a 'price' per unit.
+# currency, with a number of units 'qty', and a 'price' per unit.
 #
 # The 'tax' is a proportion of the computed total amount allocated to taxation; if <1 (eg. 0.05 or
 # 5%), then it is added to the total amount; if > 1 (eg. 1.05 or 5%), then the prices is assumed to
@@ -115,10 +114,10 @@ def conversions_table( conversions, symbols=None ):
             )
             for r in symbols
         ],
-        headers		= [ 'Symbol' ] + list( symbols ),
-        floatfmt	= ",.6g",
-        intfmt		= ",",
-        missingval	= "?",
+        headers		= [ 'Coin' ] + list( symbols ),
+        floatfmt	= ',.6g',
+        intfmt		= ',',
+        missingval	= '?',
         tablefmt	= 'orgtbl',
     )
 
@@ -404,19 +403,19 @@ class Invoice:
 
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
-        with an _ prefix."""
+        with an _ prefix (this is the default)."""
         return (
             '_#',
             'Description',
-            'Units',
+            'Qty',
             'Price',
             '_Tax',
             'Tax %',
             'Taxes',
-            'Net',
+            '_Net',
             'Amount',
-            'Currency',
-            '_Symbol',
+            '_Currency',
+            'Coin',
             '_Decimals',
             '_Token',
         ) + tuple(
@@ -524,13 +523,15 @@ class Invoice:
         tablefmt	= None,
         columns		= None,		# list (ordered) set/predicate (unordered)
         totalfmt	= None,
+        totalize	= None,		# Final page includes totalization
         **kwds				# page, rows, ...
     ):
         """Tabulate columns into textual tables.  Each page yields 3 items:
 
-            <page>,<line-items>,<sub-totals>,''|<total>
+            <page>,<line-items>,<sub-totals>,<totals>
 
-        Each interior page includes a subtotals table; the final page also includes the full totals.
+        The sub-totals are per-page; the totals are running totals of all pages produced thus far;
+        hence the last page's totals are the full invoice totals.
 
         The 'columns' is a filter (a set/list/tuple or a predicate) that selects the columns
         desired; by default, elides any columns having names starting with '_'.  We will accept
@@ -539,6 +540,9 @@ class Invoice:
         If any columns w/ leading '_' *are* selection, we trim the '_' for display.
 
         """
+        if totalize is None:
+            totalize		= True
+
         headers			= self.headers()
 
         def can( c ):
@@ -570,20 +574,12 @@ class Invoice:
         # Overall formatted decimals for the entire invoice; use the greatest desired decimals of
         # any token/line, based on Cryptocurrency proxies.  Individual line items may have been
         # rounded to lower decimals.
-        decimals_i		= headers_can.index( can( '_Decimals' ))
-        decimals		= max( line[decimals_i] for page in pages for line in page )
-        floatfmt		= f',.{decimals}f'
-        intfmt			= ','
+        #decimals_i		= headers_can.index( can( '_Decimals' ))
+        #decimals		= max( line[decimals_i] for page in pages for line in page )
+        #floatfmt		= ',f'  # f',.{decimals}f'
+        #intfmt			= ','
         page_prev		= None
         for p,page in enumerate( pages ):
-            table		= tabulate(
-                # Tabulate the line items
-                [[line[i] for i in selected] for line in page],
-                headers		= [ h.strip('_') for h in headers_selected ],
-                intfmt		= intfmt,
-                floatfmt	= floatfmt,
-                tablefmt	= tablefmt or 'orgtbl',
-            )
             first		= page_prev is None
             final		= p + 1 == len( pages )
 
@@ -613,49 +609,97 @@ class Invoice:
                 [
                     [
                         self.currencies_account[c].address,
+                        round( page[-1][taxi( c )], deci( c )) if first else round( page[-1][taxi( c )] - page_prev[-1][taxi( c )], deci( c )),
+                        round( page[-1][toti( c )], deci( c )) if first else round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
                         c,
                         self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
-                    ] + [
-                        round( page[-1][taxi( c )], deci( c )),
-                        round( page[-1][toti( c )], deci( c )),
-                    ] if first else [
-                        round( page[-1][taxi( c )] - page_prev[-1][taxi( c )], deci( c )),
-                        round( page[-1][toti( c )] - page_prev[-1][toti( c )], deci( c )),
                     ]
                     for c in sorted( self.currencies )
                 ],
                 headers		= (
                     'Account',
-                    'Crypto',
-                    'Currency',
                     'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
                     'Subtotal' if final else f'Subtotal {p+1}/{len( pages )}',
+                    'Coin',
+                    'Currency',
                 ),
                 intfmt		= ',',
                 floatfmt	= ',g',
-                tablefmt	= tablefmt or 'orgtbl',
+                tablefmt	= totalfmt or 'orgtbl',
+            )
+
+            # And the per-currency Totals (up to current page)
+            total_rows		= [
+                [
+                    self.currencies_account[c].address,
+                    round( page[-1][taxi( c )], deci( c )),
+                    round( page[-1][toti( c )], deci( c )),
+                    c,
+                    self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
+                ]
+                for c in sorted( self.currencies )
+            ]
+            total_headers	= (
+                'Account',
+                'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
+                'Total' if final else f'Total {p+1}/{len( pages )}',
+                'Coin',
+                'Currency',
             )
             total		= tabulate(
-                # And the per-currency Totals (up to current page)
-                [
-                    [
-                        self.currencies_account[c].address,
-                        c,
-                        self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
-                        round( page[-1][taxi( c )], deci( c )),
-                        round( page[-1][toti( c )], deci( c )),
-                    ]
-                    for c in sorted( self.currencies )
-                ],
-                headers		= (
-                    'Account',
-                    'Crypto',
-                    'Currency',
-                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
-                    'Total' if final else f'Total {p+1}/{len( pages )}',
-                ),
+                total_rows,
+                headers		= total_headers,
                 intfmt		= ',',
                 floatfmt	= ',g',
+                tablefmt	= totalfmt or 'orgtbl',
+            )
+
+            def fmt( val, hdr, coin  ):
+                if can( hdr ) in ( 'price', 'taxes', 'amount' ):
+                    return round( val, deci( coin ))  # f"{float( val ):,.{deci( coin )}f}"  # rounds to designated decimal places, inserts comma
+                return val
+
+            # Produce the page line-items.  TODO: This may now include per-Coin totals on the final page.
+            table_rows		= [
+                [
+                    fmt( line[i], h, line[headers_can.index( can( 'Coin' ))] )
+                    for i,h in zip( selected, headers_selected )
+                ]
+                for line in page
+            ]
+            table_headers	= [ h.strip('_') for h in headers_selected ]
+
+            if final and totalize:
+                # Include a separator, followed by each cryptocurrency's totalization.  Map
+                # total_rows columns:
+                #
+                #   Account  -> Description
+                #   Total    -> Amount
+                #   Coin     -> Coin
+                #   Currency -> Currency
+                table_rows.append( SEPARATING_LINE )
+                for acc,tax,tot,coin,curr in total_rows:
+                    row		= []
+                    for h in headers_selected:
+                        if can( h ) == can( 'Description' ):
+                            row.append( acc )
+                        elif can( h ) == can( 'Amount' ):
+                            row.append( tot )
+                        elif can( h ) == can( 'Taxes' ):
+                            row.append( tax )
+                        elif can( h ) == can( 'Coin' ):
+                            row.append( coin )
+                        elif can( h ) == can( 'Currency' ):
+                            row.append( curr )
+                        else:
+                            row.append( None )
+                    table_rows.append( row )
+
+            table		= tabulate(
+                table_rows,
+                headers		= table_headers,
+                intfmt		= ',',   # intfmt,
+                floatfmt	= ',g',  # floatfmt,
                 tablefmt	= tablefmt or 'orgtbl',
             )
 
@@ -665,11 +709,13 @@ class Invoice:
 def layout_invoice(
     inv_dim: Coordinate,			# Printable invoice dimensions, in inches (net page margins).
     inv_margin: int,				# Additional margin around invoice
-    rows: int,
+    rows: int,					# Compute rows, from the number of columns
 ):
-    """Layout an Invoice, in portrait format.
+    """Layout an Invoice, in portrait format.  Assumes that we are laying out an invoice in the
+    printable area of a page (ie. net of non-printable page margins, eg. on a 8" x 10.5"/13.5"
+    viewport onto a 8.5" x 11"/14" Letter/Legal page.
 
-     Rotate the  watermark, etc. so its angle is from the lower-left to the upper-right.
+    Rotates the watermark, etc. so its angle is from the lower-left to the upper-right.
 
                  b
           +--------------+        +--------------+
@@ -704,7 +750,7 @@ def layout_invoice(
         inv_margin		= 0		# Default; no additional margin (besides page margins)
 
     inv				= Box( 'invoice', 0, 0, inv_dim.x, inv_dim.y )
-    inv_interior		= inv.add_region_relative(
+    inv_int			= inv.add_region_relative(
         Region( 'inv-interior', x1=+inv_margin, y1=+inv_margin, x2=-inv_margin, y2=-inv_margin )
     ).add_region_proportional(
         # inv-image	-- A full background image, out to the margins; bottom-most in stack
@@ -714,17 +760,29 @@ def layout_invoice(
         )
     )
 
-    a				= inv_interior.h
-    b				= inv_interior.w
+    a				= inv_int.h
+    b				= inv_int.w
     c				= math.sqrt( a * a + b * b )    # noqa: F841
     β				= math.atan( b / a )		# noqa: F841
     rotate			= 90 - math.degrees( β )        # noqa: F841
 
-    head			= 25/100		# 25% header, 70% body
-    foot			= 95/100		# 5% footer
+    # Header: Vendor name & contact on left, Invoice/Quote/Receipt and logo on right
+    #           8"
+    #     +-------------------------------------------------------------------------------+
+    #     | Dominion R&D Corp                                                      INVOICE|
+    #     | (vendor info)                                               //////////////////|
+    # 2"  | Bill To:                  Invoice No: CLI-20231201-0001     ///16x9 LOGO//////|
+    #     | Client Name             Invoice Date: ...                   //////////////////|
+    #     | (client info)                    Due: ...                   //////////////////|
+    #     + ...                                                         //////////////////+
 
-    # inv-head: Image for header of Invoice (if no inv-image)
-    inv_head			= inv_interior.add_region_proportional(
+    # inv-head: Header Image 2"x8" header of Invoice (if no full-page inv-image).  Since our length
+    # may be variable for Letter/Legal, compute the length of the header as a fraction of its width.
+
+    head			= inv_int.w * 1/4  / inv_int.h  # eg.   2" x 8"
+    foot		    = 1 - inv_int.w * 1/16 / inv_int.h  # eg. 0.5" x 8"
+
+    inv_head			= inv_int.add_region_proportional(
         Image(
             'inv-head',
             y2		= head,
@@ -732,27 +790,98 @@ def layout_invoice(
         ),
     )
 
-    # inv-label: Label "Invoice"
+    # inv-vendor: Vendor name and Invoice label, top of invoice in large font.  The remaining
+    # vertical portion of the header contains the 16/9 format Logo, positioned in the LR corner.
+    logo			= 1/6				# 1/3" of 2" header for vendor/label
+    logo_v_frac			= 1 - logo
+    logo_h_frac			= 1 - inv_head.h * logo_v_frac * 16/9 / inv_head.w
+    inv_head.add_region_proportional(
+        Image(
+            'inv-vendor-bg',
+            x2		= logo_h_frac,
+            y2		= logo,
+            priority	= prio_contrast,
+        )
+    ).add_region(
+        Text(
+            'inv-vendor',
+            align	= 'L',
+        )
+    )
+    inv_head.add_region_proportional(
+        Image(
+            'inv-vendor-info-bg',
+            y1		= logo,
+            x2		= logo_h_frac,
+            y2		= 1/2,
+            priority	= prio_contrast,
+        )
+    ).add_region_proportional(
+        Text(
+            'inv-vendor-info',
+            y2		= 1/4,   # 3 lines in remaining upper half (2/6) of header
+            multiline	= True,
+        )
+    )
+
+    # inv-client[-info] In lower 1/2 of LHS of header
+    inv_head.add_region_proportional(
+        Image(
+            'inv-client-bg',
+            y1		= 1/2,
+            y2		= 1/2 + logo,
+            x2		= logo_h_frac,
+            priority	= prio_contrast,
+        )
+    ).add_region(
+        Text(
+            'inv-client',
+            align	= 'L',
+            italic	= True,
+        )
+    )
+    inv_head.add_region_proportional(
+        Image(
+            'inv-client-info-bg',
+            y1		= 1/2 + logo,
+            x2		= logo_h_frac,
+            priority	= prio_contrast,
+        )
+    ).add_region_proportional(
+        Text(
+            'inv-client-info',
+            y2		= 1/4,   # 4 lines in remaining lower half (2/6) of header
+            multiline	= True,
+            italic	= True,
+        )
+    )
+
+    # inv-label, inv-logo: Label "Invoice" and 16/9 logo in LR corner
     inv_head.add_region_proportional(
         Image(
             'inv-label-bg',
-            x1		= 0,
-            y1		= 5/8,
-            x2		= 1/4,
-            y2		= 7/8,
+            x1		= logo_h_frac,
+            y2		= logo,
             priority	= prio_contrast,
         )
     ).add_region(
         Text(
             'inv-label',
-            font	= 'mono',
-            text	= "Invoice",
+            align	= 'R'
         )
+    )
+    inv_head.add_region_proportional(
+        Image(
+            'inv-logo',
+            x1		= logo_h_frac,
+            y1		= logo,
+            priority	= prio_normal,
+        ),
     )
 
     # inv-body, ...: Image for Body of Invoice;
     # inv-table: Main Invoice text area
-    inv_interior.add_region_proportional(
+    inv_int.add_region_proportional(
         Image(
             'inv-body',
             y1		= head,
@@ -769,13 +898,14 @@ def layout_invoice(
             'inv-table',
             y2		= 1/rows,
             font	= 'mono',
-            size_ratio	= 9/16,
+            #size_ratio	= 9/16,
             multiline	= True,
+            bold	= True,
         )
     )
 
     # inv-foot: Image for bottom of Invoice (if no inv-image)
-    inv_interior.add_region_proportional(
+    inv_int.add_region_proportional(
         Image(
             'inv-foot',
             y1		= foot,
@@ -813,7 +943,20 @@ def datetime_advance( dt, years=None, months=None, days=None, hours=None, minute
 class Contact:
     name: str					# Company or Individual eg. "Dominion Research and Development Corp."
     contact: str				# client/vendor authority eg. "Perry Kundert <perry@dominionrnd.com>"
+    phone: Optional[str]	= None
     address: Optional[str]	= None		# multi-line mailing/delivery address
+    billing: Optional[str]	= None		# and billing address, if different
+
+    @property
+    def info( self ):
+        if self.contact:
+            yield self.contact
+        if self.phone:
+            yield self.phone
+        if self.address:
+            yield ', '.join( filter( None, self.address.split( '\n' )))
+        if self.billing:
+            yield "Billing: " + ', '.join( filter( None, self.billing.split( '\n' )))
 
 
 @dataclass
@@ -840,6 +983,7 @@ def produce_invoice(
     client: Contact,    	  		# Client's identifying info (eg. Name, Attn, Address)
     vendor: Contact,				# Vendor's identifying info
     directory: Optional[Union[Path,str]] = None,  # Look here for files (eg. image assets), invoices
+    inv_label: Optional[str]	= None,
     inv_number: Optional[Union[str,int]] = None,  # eg. "CLIENT-20230930-0001" (default: <client>-<date>-<num>)
     inv_date: Optional[datetime] = None,
     inv_due: Optional[Any]	= None, 	# another datetime, or args/kwds for datetime_advance
@@ -848,10 +992,10 @@ def produce_invoice(
     rows: Optional[int]		= None,
     paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
     orientation: Optional[str]	= None,		# available orientations; default portrait, landscape
-    inv_image: Optional[Union[Path,str]] = None,  # A custom background image (Path or name relative to directory/'.'
+    inv_image: Optional[Union[Path,str]] = None,  # A custom 8"/10.5" full background image (Path/name relative to directory/'.'
+    inv_logo: Optional[Union[Path,str]] = None,  # A custom 16/9 logo image (Path or name relative to directory/'.'
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
-
 
 
     """
@@ -861,11 +1005,18 @@ def produce_invoice(
     log.info( f"Dir.:  {directory}" )
 
     if isinstance( inv_image, (str,type(None))):
-        inv_image		= directory / ( inv_image or 'inv-image.*' )
+        inv_image		= directory / ( inv_image or 'inv-image.png' )
         if not inv_image.exists():
             inv_image		= None
     assert isinstance( inv_image, (Path,type(None)))
     log.info( f"Image: {inv_image}" )
+
+    if isinstance( inv_logo, (str,type(None))):
+        inv_logo		= directory / ( inv_logo or 'inv-logo.png' )
+        if not inv_logo.exists():
+            inv_logo		= None
+    assert isinstance( inv_logo, (Path,type(None)))
+    log.info( f"Logo:  {inv_logo}" )
 
     # Any datetime WITHOUT a timezone designation is re-interpreted as the local timezone of the
     # invoice issuer, or UTC.
@@ -925,11 +1076,9 @@ def produce_invoice(
 
     # Compute the Invoice layout on the page.  All page layouts are specified in inches.
     inv_dim			= Coordinate( comp_dim.x / MM_IN, comp_dim.y / MM_IN )
-    inv				= layout_invoice( inv_dim=inv_dim, inv_margin=0, rows=rows )
 
+    inv				= layout_invoice( inv_dim=inv_dim, inv_margin=0, rows=rows )
     inv_elements		= list( inv.elements() )
-    if log.isEnabledFor( logging.DEBUG ):
-        log.debug( f"Invoice elements: {json.dumps( inv_elements, indent=4)}" )
     inv_tpl			= fpdf.FlexTemplate( pdf, inv_elements )
 
     p_cur			= None
@@ -943,10 +1092,29 @@ def produce_invoice(
         layout			= here.parent / 'layout'
         #crypto			= here / 'Crypto'
 
-        last			= i + 1 == len( details )
+        #last			= i + 1 == len( details )
         inv_tpl['inv-image']	= inv_image
-        inv_tpl['inv-table']	= f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
+        inv_tpl['inv-logo']	= inv_logo
+        inv_tpl['inv-label']	= f"{'Invoice' if inv_label is None else inv_label} (page {p+1}/{len( details )})"
         inv_tpl['inv-label-bg']	= layout / '1x1-ffffffbf.png'
+
+        inv_tpl['inv-vendor']	= vendor.name
+        inv_tpl['inv-vendor-bg'] = layout / '1x1-ffffffbf.png'
+        inv_tpl['inv-vendor-info'] = '\n'.join( vendor.info )
+        inv_tpl['inv-vendor-info-bg'] = layout / '1x1-ffffffbf.png'
+
+        inv_tpl['inv-client']	= "Bill To: " + client.name
+        inv_tpl['inv-client-bg'] = layout / '1x1-ffffffbf.png'
+        inv_tpl['inv-client-info'] = '\n'.join( client.info )
+        inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
+
+        det			= tabulate( [
+            [ 'Invoice #', metadata.number ],
+            [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
+            [ 'Due:', metadata.date.strftime( INVOICE_STRFTIME ) ],
+        ], colalign=( 'right', 'left' ), tablefmt='plain' )
+
+        inv_tpl['inv-table']	= '\n\n'.join( (det, tbl ) )  # f"{tbl}\n\n{80 * ( '=' if last else '-' )}\n{tot if last else sub}"
         inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )
