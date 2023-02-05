@@ -29,14 +29,16 @@ from calendar		import monthrange
 
 import fpdf
 
-from tabulate		import tabulate, SEPARATING_LINE
-from crypto_licensing.misc import get_localzone
+from tabulate		import (
+    tabulate, SEPARATING_LINE, multiline_formats, _table_formats, TableFormat, Line, DataRow
+)
+from crypto_licensing.misc import get_localzone, Duration
 
 from ..api		import Account
 from ..util		import commas, is_listlike, is_mapping
 from ..defaults		import (
     INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, INVOICE_DESCRIPTION_MAX,
-    MM_IN, FILENAME_FORMAT,
+    INVOICE_FORMAT, MM_IN, FILENAME_FORMAT,
 )
 from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
 from .ethereum		import tokeninfo, tokenprices, tokenknown
@@ -51,6 +53,18 @@ Invoice artifacts:
 """
 log				= logging.getLogger( "customer" )
 
+# Custom tabulate format that provides "====" SEPARATING_LINE between line-items and totals
+_table_formats["totalize"]	= TableFormat(
+    lineabove		= Line("", "-", "  ", ""),
+    linebelowheader	= Line("", "-", "  ", ""),
+    linebetweenrows	= Line("", "=", "  ", ""),
+    linebelow		= Line("", "-", "  ", ""),
+    headerrow		= DataRow("", "  ", ""),
+    datarow		= DataRow("", "  ", ""),
+    padding		= 0,
+    with_header_hide	= ["lineabove", "linebelow", "linebetweenrows"],
+)
+multiline_formats["totalize"]	= "totalize"
 
 # An invoice line-Item contains the details of a component of a transaction.  It is priced in a
 # currency, with a number of units 'qty', and a 'price' per unit.
@@ -92,16 +106,16 @@ class LineItem( Item ):
         taxinf			= 'no tax'
         if self.tax:
             if self.tax < 1:
-                taxinf		= f"{round( float( self.tax * 100 ), 2):g}% added"
+                taxinf		= f"{round( float( self.tax * 100 ), 2):g}% add"
                 taxes		= amount * self.tax
                 amount	       += taxes
             elif self.tax > 1:
-                taxinf		= f"{round( float(( self.tax - 1 ) * 100 ), 2):g}% incl."
+                taxinf		= f"{round( float(( self.tax - 1 ) * 100 ), 2):g}% inc"
                 taxes		= amount - amount / self.tax
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
-def conversions_table( conversions, symbols=None, greater=None ):
+def conversions_table( conversions, symbols=None, greater=None, tablefmt=None ):
     if symbols is None:
         symbols			= sorted( set( sum( conversions.keys(), () )))
     if greater is None:
@@ -147,7 +161,7 @@ def conversions_table( conversions, symbols=None, greater=None ):
         floatfmt	= ',.15g',
         intfmt		= ',',
         missingval	= '?',
-        tablefmt	= 'orgtbl',
+        tablefmt	= tablefmt or INVOICE_FORMAT,
     )
 
 
@@ -392,8 +406,9 @@ class Invoice:
 
         # Resolve all resolvable conversions (ie. from any supplied), see what's left
         while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
-            print( f"Working: \n{conversions_table( conversions )}" )
-        log.warning( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+            if log.isEnabledFor( logging.DEBUG ):
+                log.debug( f"Working: \n{conversions_table( conversions )}" )
+        log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
 
         while remaining:
             # There are unresolved LineItem -> Invoice currencies.  We need to get a price ratio between
@@ -421,8 +436,9 @@ class Invoice:
             else:
                 raise RuntimeError( f"Failed to resolve {remaining}, using candidates {commas( candidates, final='and' )}" )
             while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
-                print( f"Working: \n{conversions_table( conversions )}" )
-            log.warning( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+                if log.isEnabledFor( logging.DEBUG ):
+                    log.debug( f"Working: \n{conversions_table( conversions )}" )
+            log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
 
         self.currencies		= currencies		# { "USDC", "BTC", ... }
         self.currencies_account	= currencies_account    # { "USDC": "0xaBc...12D", "BTC": "bc1...", ... }
@@ -656,7 +672,7 @@ class Invoice:
                 ),
                 intfmt		= ',',
                 floatfmt	= ',.15g',
-                tablefmt	= totalfmt or 'orgtbl',
+                tablefmt	= tablefmt or INVOICE_FORMAT,
             )
 
             # And the per-currency Totals (up to current page)
@@ -682,7 +698,7 @@ class Invoice:
                 headers		= total_headers,
                 intfmt		= ',',
                 floatfmt	= ',.15g',
-                tablefmt	= totalfmt or 'orgtbl',
+                tablefmt	= tablefmt or INVOICE_FORMAT,
             )
 
             def fmt( val, hdr, coin  ):
@@ -744,7 +760,7 @@ class Invoice:
                 headers		= table_headers,
                 intfmt		= ',',
                 floatfmt	= ',.15g',
-                tablefmt	= tablefmt or 'orgtbl',
+                tablefmt	= tablefmt or INVOICE_FORMAT,
                 maxcolwidths	= maxcolwidths,
             )
 
@@ -1031,7 +1047,7 @@ def produce_invoice(
     inv_label: Optional[str]	= None,
     inv_number: Optional[Union[str,int]] = None,  # eg. "CLIENT-20230930-0001" (default: <client>-<date>-<num>)
     inv_date: Optional[datetime] = None,
-    inv_due: Optional[Any]	= None, 	# another datetime, or args/kwds for datetime_advance
+    inv_due: Optional[Any]	= None, 	# another datetime, timedelta, or args/kwds for datetime_advance
     terms: Optional[str]	= None, 	# eg. "Payable on receipt in $USDC, $ETH, $BTC"
     rows: Optional[int]		= None,
     paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
@@ -1041,8 +1057,9 @@ def produce_invoice(
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
 
-
     """
+    if inv_label is None:
+        inv_label		= 'Invoice'
     if isinstance( directory, (str,type(None))):
         directory			= Path( directory or '.' )
     assert isinstance( directory, (Path,type(None)))
@@ -1087,6 +1104,10 @@ def produce_invoice(
         else:
             raise ValueError( f"Unsupported Invoice due date: {inv_due!r}" )
     log.info( f"Due:   {inv_due.strftime( INVOICE_STRFTIME )}" )
+    if terms is None:
+        terms			= f"Net {Duration( inv_due - inv_date )!r}"
+    log.info( f"Terms: {terms}" )
+
     if inv_number is None:
         cli			= client.name.split()[0].upper()[:3] if client else 'INV'
         ymd			= inv_date.strftime( '%Y%m%d' )
@@ -1137,7 +1158,7 @@ def produce_invoice(
         #last			= i + 1 == len( details )
         inv_tpl['inv-image']	= inv_image
         inv_tpl['inv-logo']	= inv_logo
-        inv_tpl['inv-label']	= f"{'Invoice' if inv_label is None else inv_label} (page {p+1}/{len( details )})"
+        inv_tpl['inv-label']	= f"{inv_label} (page {p+1}/{len( details )})"
         inv_tpl['inv-label-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl['inv-vendor']	= vendor.name
@@ -1150,16 +1171,20 @@ def produce_invoice(
         inv_tpl['inv-client-info'] = '\n'.join( client.info )
         inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
 
-        dets			= tabulate( [
-            [ 'Invoice #:', metadata.number ],
-            [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
-            [ 'Due:', metadata.due.strftime( INVOICE_STRFTIME ) ],
-        ], colalign=( 'right', 'left' ), tablefmt='plain' )
+        dets			= tabulate(
+            [
+                [ f'{inv_label} #:', metadata.number ],
+                [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
+                [ 'Due:', metadata.due.strftime( INVOICE_STRFTIME ) ],
+                [ 'Terms:', terms ]
+            ],
+            colalign=( 'right', 'left' ), tablefmt='plain'
+        )
 
-        exch			= conversions_table( invoice.conversions )
+        exch			= conversions_table( invoice.conversions, greater=1 )
         exch_date		= invoice.created.strftime( INVOICE_STRFTIME )
 
-        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"Conversion ratios used (est. {exch_date}):\n{exch}" ) )
+        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"CONVERSION RATIOS (est. {exch_date}):\n{exch}" ) )
         inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )

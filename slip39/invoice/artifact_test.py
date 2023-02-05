@@ -29,7 +29,7 @@ def test_conversions():
         ('BTC','USD'):	23456.78,
         ('BTC','ETH'): None,
     }
-    c1_tbl			= conversions_table( c1 )
+    c1_tbl			= conversions_table( c1, tablefmt='orgtbl' )
     print( '\n' + c1_tbl )
     assert c1_tbl == """\
 | Coin   | in ETH   |    in USD |
@@ -43,7 +43,7 @@ def test_conversions():
     while ( conversions_remaining( c_simple )):
         c_simple_i	       += 1
     assert c_simple_i == 2
-    c_simple_tbl		= conversions_table( c_simple )
+    c_simple_tbl		= conversions_table( c_simple, tablefmt='orgtbl' )
     print( c_simple_tbl )
     assert c_simple_tbl == """\
 | Coin   |     in BTC |     in ETH |    in USD |
@@ -71,7 +71,7 @@ def test_conversions():
         ('ETH', 'DOGE'): pytest.approx( 13670.45839, rel=1/1000 ),
         ('USD', 'DOGE'): pytest.approx( 11.07314216, rel=1/1000 ),
     }
-    c_w_doge_tbl		= conversions_table( c_w_doge )
+    c_w_doge_tbl		= conversions_table( c_w_doge, tablefmt='orgtbl' )
     print( c_w_doge_tbl )
     assert c_w_doge_tbl == """\
 | Coin   |     in BTC |          in DOGE |     in ETH |         in USD |
@@ -81,7 +81,7 @@ def test_conversions():
 | ETH    | 0.05263126 |  13,670.45839476 |            |  1,234.56      |
 | USD    |            |      11.07314217 |            |                |"""
 
-    c_w_doge_all		= conversions_table( c_w_doge, greater=False )
+    c_w_doge_all		= conversions_table( c_w_doge, greater=False, tablefmt='orgtbl' )
     print( c_w_doge_all )
     assert c_w_doge_all == """\
 | Coin   |     in BTC |          in DOGE |      in ETH |         in USD |
@@ -206,41 +206,43 @@ def test_tabulate( tmp_path ):
             currencies	= ["HOT", "ETH", "BTC", "USD"],
             accounts	= accounts,
             conversions	= dict( conversions ),
-        ).tables()
+        ).tables(
+            tablefmt	= 'presto',
+        )
     )
     print( worthless )
     assert worthless == """\
-| Description                                     |   Qty |   Price | Tax %   |   Taxes |   Amount | Coin   |
-|-------------------------------------------------+-------+---------+---------+---------+----------+--------|
-| Worthless                                       |     1 |  12,346 | no tax  |       0 |   12,346 | ZEENUS |
-|-------------------------------------------------+-------+---------+---------+---------+----------+--------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       |         |         |       0 |        0 | BTC    |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | ETH    |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | HOT    |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | USDC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | WBTC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | WETH   |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       |         |         |       0 |        0 | XRP    |
+ Description                                     |   Qty |   Price | Tax %   |   Taxes |   Amount | Coin
+-------------------------------------------------+-------+---------+---------+---------+----------+--------
+ Worthless                                       |     1 |  12,346 | no tax  |       0 |   12,346 | ZEENUS
+-------------------------------------------------+-------+---------+---------+---------+----------+--------
+ BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       |         |         |       0 |        0 | BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | ETH
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | HOT
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | USDC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | WBTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       |         |         |       0 |        0 | WETH
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       |         |         |       0 |        0 | XRP
 
-| Account                                         |   Taxes |   Subtotal | Coin   | Currency      |
-|-------------------------------------------------+---------+------------+--------+---------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       0 |          0 | BTC    | Bitcoin       |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | ETH    | Ethereum      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | HOT    | HoloToken     |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | USDC   | USD Coin      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | WBTC   | Wrapped BTC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | WETH   | Wrapped Ether |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       0 |          0 | XRP    | Ripple        |
+ Account                                         |   Taxes |   Subtotal | Coin   | Currency
+-------------------------------------------------+---------+------------+--------+---------------
+ BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       0 |          0 | BTC    | Bitcoin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | ETH    | Ethereum
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | HOT    | HoloToken
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | USDC   | USD Coin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | WBTC   | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |          0 | WETH   | Wrapped Ether
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       0 |          0 | XRP    | Ripple
 
-| Account                                         |   Taxes |   Total | Coin   | Currency      |
-|-------------------------------------------------+---------+---------+--------+---------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       0 |       0 | BTC    | Bitcoin       |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | ETH    | Ethereum      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | HOT    | HoloToken     |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | USDC   | USD Coin      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | WBTC   | Wrapped BTC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | WETH   | Wrapped Ether |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       0 |       0 | XRP    | Ripple        |"""  # noqa: E501
+ Account                                         |   Taxes |   Total | Coin   | Currency
+-------------------------------------------------+---------+---------+--------+---------------
+ BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       0 |       0 | BTC    | Bitcoin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | ETH    | Ethereum
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | HOT    | HoloToken
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | USDC   | USD Coin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | WBTC   | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       0 |       0 | WETH   | Wrapped Ether
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       0 |       0 | XRP    | Ripple"""  # noqa: E501
 
     # No conversions of non-0 values; default Invoice currency is USD.  Longest digits should be 2
     # Instead of querying BTC, ETH prices, provide a conversion (so our invoice pricing is static)
@@ -261,41 +263,42 @@ def test_tabulate( tmp_path ):
     shorter = '\n\n====\n\n'.join(
         f"{table}\n\n{sub}\n\n{tot}"
         for _,table,sub,tot in shorter_invoice.tables(
-            columns=('#', 'Description', 'Qty', 'Currency', 'Coin', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
+            columns	= ('#', 'Description', 'Qty', 'Currency', 'Coin', 'Price', 'Tax %', 'Taxes', 'Amount', 'Total USDC'),
+            tablefmt	= 'presto',
         )
     )
     print( shorter )
     assert shorter == """\
-|   # | Description                                     |   Qty | Currency      | Coin   |     Price | Tax %    |       Taxes |          Amount |   Total USDC |
-|-----+-------------------------------------------------+-------+---------------+--------+-----------+----------+-------------+-----------------+--------------|
-|   0 | Widgets for the Thing                           |   198 | US Dollar     | USDC   |      2.01 | 5% added | 19.9        |    417.88       |       417.88 |
-|   1 | Worthless                                       |     1 | ZEENUS        | ZEENUS | 12,346    | no tax   |  0          | 12,346          |       417.88 |
-|   2 | Simple                                          |     1 | USD           | USDC   | 12,345.68 | no tax   |  0          | 12,345.68       |    12,763.56 |
-|-----+-------------------------------------------------+-------+---------------+--------+-----------+----------+-------------+-----------------+--------------|
-|     | BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       | Bitcoin       | BTC    |           |          |  0.00088444 |      0.56726933 |              |
-|     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Ethereum      | ETH    |           |          |  0.013267   |      8.50904    |              |
-|     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | USD Coin      | USDC   |           |          | 19.9        | 12,763.56       |              |
-|     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Wrapped BTC   | WBTC   |           |          |  0.00088444 |      0.56726933 |              |
-|     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Wrapped Ether | WETH   |           |          |  0.013267   |      8.50904    |              |
-|     | XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       | Ripple        | XRP    |           |          | 53.07       | 34,036.16       |              |
+   # | Description                                     |   Qty | Currency      | Coin   |     Price | Tax %   |       Taxes |          Amount |   Total USDC
+-----+-------------------------------------------------+-------+---------------+--------+-----------+---------+-------------+-----------------+--------------
+   0 | Widgets for the Thing                           |   198 | US Dollar     | USDC   |      2.01 | 5% add  | 19.9        |    417.88       |       417.88
+   1 | Worthless                                       |     1 | ZEENUS        | ZEENUS | 12,346    | no tax  |  0          | 12,346          |       417.88
+   2 | Simple                                          |     1 | USD           | USDC   | 12,345.68 | no tax  |  0          | 12,345.68       |    12,763.56
+-----+-------------------------------------------------+-------+---------------+--------+-----------+---------+-------------+-----------------+--------------
+     | BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |       | Bitcoin       | BTC    |           |         |  0.00088444 |      0.56726933 |
+     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Ethereum      | ETH    |           |         |  0.013267   |      8.50904    |
+     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | USD Coin      | USDC   |           |         | 19.9        | 12,763.56       |
+     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Wrapped BTC   | WBTC   |           |         |  0.00088444 |      0.56726933 |
+     | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |       | Wrapped Ether | WETH   |           |         |  0.013267   |      8.50904    |
+     | XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |       | Ripple        | XRP    |           |         | 53.07       | 34,036.16       |
 
-| Account                                         |       Taxes |        Subtotal | Coin   | Currency      |
-|-------------------------------------------------+-------------+-----------------+--------+---------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.00088444 |      0.56726933 | BTC    | Bitcoin       |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | ETH    | Ethereum      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9        | 12,763.56       | USDC   | USD Coin      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.00088444 |      0.56726933 | WBTC   | Wrapped BTC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | WETH   | Wrapped Ether |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.07       | 34,036.16       | XRP    | Ripple        |
+ Account                                         |       Taxes |        Subtotal | Coin   | Currency
+-------------------------------------------------+-------------+-----------------+--------+---------------
+ BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.00088444 |      0.56726933 | BTC    | Bitcoin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | ETH    | Ethereum
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9        | 12,763.56       | USDC   | USD Coin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.00088444 |      0.56726933 | WBTC   | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | WETH   | Wrapped Ether
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.07       | 34,036.16       | XRP    | Ripple
 
-| Account                                         |       Taxes |           Total | Coin   | Currency      |
-|-------------------------------------------------+-------------+-----------------+--------+---------------|
-| BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.00088444 |      0.56726933 | BTC    | Bitcoin       |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | ETH    | Ethereum      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9        | 12,763.56       | USDC   | USD Coin      |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.00088444 |      0.56726933 | WBTC   | Wrapped BTC   |
-| ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | WETH   | Wrapped Ether |
-| XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.07       | 34,036.16       | XRP    | Ripple        |"""  # noqa: E501
+ Account                                         |       Taxes |           Total | Coin   | Currency
+-------------------------------------------------+-------------+-----------------+--------+---------------
+ BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.00088444 |      0.56726933 | BTC    | Bitcoin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | ETH    | Ethereum
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9        | 12,763.56       | USDC   | USD Coin
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.00088444 |      0.56726933 | WBTC   | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013267   |      8.50904    | WETH   | Wrapped Ether
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.07       | 34,036.16       | XRP    | Ripple"""  # noqa: E501
 
     this			= Path( __file__ ).resolve()
     test			= this.with_suffix( '' )
