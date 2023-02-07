@@ -181,7 +181,7 @@ SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
 # get current prices.  To avoid conflicts, by convention we upper-case symbols, lower-case full
 # names.
 INVOICE_FORMAT			= 'totalize'  # 'presto'  # 'orgtbl'
-INVOICE_ROWS			= 60
+INVOICE_ROWS			= 60  # rows on invoice; each page, about 1/2 that number of line-items
 INVOICE_DESCRIPTION_MAX		= 56
 INVOICE_CURRENCY		= "USD"
 INVOICE_PROXIES			= {

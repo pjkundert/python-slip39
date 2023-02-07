@@ -1,4 +1,7 @@
 import json
+import random
+import math
+import logging
 
 from fractions		import Fraction
 from pathlib		import Path
@@ -9,8 +12,14 @@ import tabulate
 
 from crypto_licensing.misc import parse_datetime
 
-from ..api		import account
-from .artifact		import LineItem, Invoice, conversions_remaining, conversions_table, Contact, produce_invoice
+from ..util		import ordinal, commas
+from ..api		import account, accounts
+from .artifact		import (
+    LineItem, Invoice, InvoiceMetadata, conversions_remaining, conversions_table, Contact,
+    produce_invoice, write_invoices,
+)
+
+log				= logging.getLogger( "artifact_test" )
 
 SEED_ZOOS			= 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
 
@@ -42,15 +51,15 @@ def test_conversions():
     c_simple_i			= 0
     while ( conversions_remaining( c_simple )):
         c_simple_i	       += 1
-    assert c_simple_i == 2
+    assert c_simple_i == 1
     c_simple_tbl		= conversions_table( c_simple, tablefmt='orgtbl' )
     print( c_simple_tbl )
     assert c_simple_tbl == """\
-| Coin   |     in BTC |     in ETH |    in USD |
-|--------+------------+------------+-----------|
-| BTC    |            | 19.0001134 | 23,456.78 |
-| ETH    | 0.05263126 |            |  1,234.56 |
-| USD    |            |            |           |"""
+| Coin   |     in BTC |    in ETH |    in USD |
+|--------+------------+-----------+-----------|
+| BTC    |            | 19.000113 | 23,456.78 |
+| ETH    | 0.05263126 |           |  1,234.56 |
+| USD    |            |           |           |"""
 
     c_w_doge			= dict( c1, ) | { ('DOGE','BTC'): .00000385, ('DOGE','USD'): None }
     c_w_doge_i			= 0
@@ -74,22 +83,22 @@ def test_conversions():
     c_w_doge_tbl		= conversions_table( c_w_doge, tablefmt='orgtbl' )
     print( c_w_doge_tbl )
     assert c_w_doge_tbl == """\
-| Coin   |     in BTC |          in DOGE |     in ETH |         in USD |
-|--------+------------+------------------+------------+----------------|
-| BTC    |            | 259,740.25974026 | 19.0001134 | 23,456.78      |
-| DOGE   |            |                  |            |      0.0903086 |
-| ETH    | 0.05263126 |  13,670.45839476 |            |  1,234.56      |
-| USD    |            |      11.07314217 |            |                |"""
+| Coin   |     in BTC |        in DOGE |    in ETH |         in USD |
+|--------+------------+----------------+-----------+----------------|
+| BTC    |            | 259,740.26     | 19.000113 | 23,456.78      |
+| DOGE   |            |                |           |      0.0903086 |
+| ETH    | 0.05263126 |  13,670.458    |           |  1,234.56      |
+| USD    |            |      11.073142 |           |                |"""
 
     c_w_doge_all		= conversions_table( c_w_doge, greater=False, tablefmt='orgtbl' )
     print( c_w_doge_all )
     assert c_w_doge_all == """\
-| Coin   |     in BTC |          in DOGE |      in ETH |         in USD |
-|--------+------------+------------------+-------------+----------------|
-| BTC    |            | 259,740.25974026 | 19.0001134  | 23,456.78      |
-| DOGE   | 3.85e-06   |                  |  7.315e-05  |      0.0903086 |
-| ETH    | 0.05263126 |  13,670.45839476 |             |  1,234.56      |
-| USD    | 4.263e-05  |      11.07314217 |  0.00081001 |                |"""
+| Coin   |     in BTC |        in DOGE |      in ETH |         in USD |
+|--------+------------+----------------+-------------+----------------|
+| BTC    |            | 259,740.26     | 19.000113   | 23,456.78      |
+| DOGE   | 3.85e-06   |                |  7.315e-05  |      0.0903086 |
+| ETH    | 0.05263126 |  13,670.458    |             |  1,234.56      |
+| USD    | 4.263e-05  |      11.073142 |  0.00081001 |                |"""
 
     c_bad			= dict( c1, ) | { ('DOGE','USD'): None }
     with pytest.raises( Exception ) as c_bad_exc:
@@ -98,9 +107,42 @@ def test_conversions():
             c_bad_i	       += 1
         assert done is None
     assert 'Failed to find ratio(s) for DOGE/USD via BTC/ETH, BTC/USD and ETH/USD' in str( c_bad_exc )
-    assert c_bad_i == 2
+    assert c_bad_i == 1
 
     assert conversions_remaining( c_bad ) == "Failed to find ratio(s) for DOGE/USD via BTC/ETH, BTC/USD and ETH/USD"
+
+    # Ensure we can handle zero-valued tokens
+    c_zero			= dict( c1, ) | {('WEENUS','ETH'): 0, ('ZEENUS','ETH'): 0, ('ZEENUS','WEENUS'): None }
+    c_zero_i			= 0
+    while ( conversions_remaining( c_zero, verify=True )):
+        c_zero_i	       += 1
+    assert c_zero_i == 1
+    assert c_zero == {
+        ('BTC', 'ETH'): pytest.approx( 19.00011, rel=1/1000 ),
+        ('BTC', 'USD'): pytest.approx( 23456.78, rel=1/1000 ),
+        ('ETH', 'BTC'): pytest.approx( 0.052631, rel=1/1000 ),
+        ('ETH', 'USD'): pytest.approx( 1234.56,  rel=1/1000 ),
+        ('USD', 'BTC'): pytest.approx( 4.263159e-05, rel=1/1000 ),
+        ('USD', 'ETH'): pytest.approx( 8.100051e-04, rel=1/1000 ),
+        ('WEENUS', 'BTC'): 0.0,
+        ('WEENUS', 'ETH'): 0,
+        ('WEENUS', 'USD'): 0.0,
+        ('WEENUS', 'ZEENUS'): 1,
+        ('ZEENUS', 'BTC'): 0.0,
+        ('ZEENUS', 'ETH'): 0,
+        ('ZEENUS', 'USD'): 0.0,
+        ('ZEENUS', 'WEENUS'): 1,
+    }
+    c_zero_tbl			= conversions_table( c_zero, tablefmt='orgtbl' )
+    print( c_zero_tbl )
+    assert c_zero_tbl == """\
+| Coin   |     in BTC |    in ETH |    in USD |   in WEENUS |   in ZEENUS |
+|--------+------------+-----------+-----------+-------------+-------------|
+| BTC    |            | 19.000113 | 23,456.78 |             |             |
+| ETH    | 0.05263126 |           |  1,234.56 |             |             |
+| USD    |            |           |           |             |             |
+| WEENUS | 0          |  0        |      0    |             |           1 |
+| ZEENUS | 0          |  0        |      0    |           1 |             |"""
 
 
 line_amounts			= [
@@ -112,7 +154,7 @@ line_amounts			= [
             tax		= Fraction( 5, 100 ),  # exclusive
             currency	= 'US Dollar',
         ),
-        ( 417.879, 19.899, "5% added" ),
+        ( 417.879, 19.899, "5% add" ),
     ], [
         LineItem(
             description	= "More Widgets",
@@ -121,7 +163,7 @@ line_amounts			= [
             tax		= Fraction( 5, 100 ),  # exclusive
             currency	= 'ETH',
         ),
-        ( 5.27625, .25125, "5% added" ),
+        ( 5.27625, .25125, "5% add" ),
     ], [
         LineItem(
             description	= "Something else, very detailed and elaborate to explain in few words, so more elaboration is required",
@@ -130,7 +172,7 @@ line_amounts			= [
             tax		= Fraction( 105, 100 ),  # inclusive
             currency	= 'Bitcoin',
         ),
-        ( .201, .009571, "5% incl." ),
+        ( .201, .009571, "5% inc" ),
     ], [
         LineItem(
             description	= "Buy some Holo hosting",
@@ -139,7 +181,7 @@ line_amounts			= [
             tax		= Fraction( 5, 100 ),  # inclusive
             currency	= 'HoloToken',
         ),
-        ( 127273.107805, 6060.624181, "5% added" ),
+        ( 127273.107805, 6060.624181, "5% add" ),
     ], [
         LineItem( "Worthless", 12345.67890123, currency='ZEENUS' ),
         ( 12345.6789, 0, "no tax"),
@@ -158,6 +200,33 @@ def test_LineItem( line, amounts ):
         pytest.approx( taxes,  abs=10 ** -3 ),
         taxinf
     )
+
+
+vendor				= Contact(
+    name	= "Dominion Research & Development Corp.",
+    contact	= "Perry Kundert <perry@dominionrnd.com>",
+    phone	= "+1-780-970-8148",
+    address	= """\
+275040 HWY 604
+Lacombe, AB  T4L 2N3
+CANADA
+""",
+    billing	= """\
+RR#3, Site 1, Box 13
+Lacombe, AB  T4L 2N3
+CANADA
+""",
+)
+
+client				= Contact(
+    name	= "Awesome, Inc.",
+    contact	= "Great Guy <perry+awesome@dominionrnd.com>",
+    address	= """\
+123 Awesome Ave.
+Schenectady, NY  12345
+USA
+""",
+)
 
 
 def test_tabulate( tmp_path ):
@@ -302,44 +371,20 @@ def test_tabulate( tmp_path ):
 
     this			= Path( __file__ ).resolve()
     test			= this.with_suffix( '' )
-    # here			= this.parent
 
-    inv_date			= parse_datetime( "2021-01-01 00:00:00.1 Canada/Pacific" )
-
-    vendor			= Contact(
-        name	= "Dominion Research & Development Corp.",
-        contact	= "Perry Kundert <perry@dominionrnd.com>",
-        phone	= "+1-780-970-8148",
-        address	= """\
-275040 HWY 604
-Lacombe, AB  T4L 2N3
-CANADA
-""",
-        billing	= """\
-RR#3, Site 1, Box 13
-Lacombe, AB  T4L 2N3
-CANADA
-""",
-    )
-    client			= Contact(
-        name	= "Awesome, Inc.",
-        contact	= "Great Guy <perry+awesome@dominionrnd.com>",
-        address	= """\
-123 Awesome Ave.
-Schenectady, NY  12345
-USA
-""",
-    )
+    date			= parse_datetime( "2021-01-01 00:00:00.1 Canada/Pacific" )
 
     (paper_format,orientation),pdf,metadata = produce_invoice(
         invoice		= shorter_invoice,
-        inv_date	= inv_date,
-        vendor		= vendor,
-        client		= client,
-        directory	= test,
+        metadata	= InvoiceMetadata(
+            vendor	= vendor,
+            client	= client,
+            directory	= test,
+            date	= date,
+            label	= 'Quote',
+        ),
         #inv_image	= 'dominionrnd-invoice.png',    # Full page background image
-        inv_logo	= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
-        inv_label	= 'Quote',
+        logo		= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
     )
 
     print( f"Invoice metadata: {metadata}" )
@@ -350,7 +395,7 @@ USA
 
     # Finally, generate invoice with all rows, and all conversions from blockchain Oracle (except
     # XRP, for which we do not have an oracle, so must provide an estimate from another source...)
-    complete_invoice		= Invoice(
+    invoice			= Invoice(
         [
             line
             for line,_ in line_amounts
@@ -361,13 +406,15 @@ USA
             ("BTC","XRP"): 60000,
         }
     )
-
-    (paper_format,orientation),pdf,metadata = produce_invoice(
-        invoice		= complete_invoice,
+    metadata			= InvoiceMetadata(
         vendor		= vendor,
         client		= client,
         directory	= test,
-        inv_logo	= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
+    )
+    (paper_format,orientation),pdf,metadata = produce_invoice(
+        invoice		= invoice,
+        metadata	= metadata,
+        logo		= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
     )
 
     print( f"Invoice metadata: {metadata}" )
@@ -375,3 +422,136 @@ USA
     path		= temp / 'invoice-complete.pdf'
     pdf.output( path )
     print( f"Invoice saved: {path}" )
+
+
+# Generate a sequence of Invoices w/ unique accounts
+with open( '/usr/share/dict/words', 'r' ) as words_f:
+    words		= list(
+        w.strip() for w in words_f.readlines()
+    )
+
+
+line_currencies		= [
+    "Bitcoin",
+    "BTC",
+    "Ethereum",
+    "ETH",
+    "DAI",
+    None,
+    "USDC",
+    "USDT",
+    "US Dollar",
+    "XRP",
+    "HOT",
+    "Shiba Inu",
+    "ZEENUS",  # Worthless; will cause Invoice to fail if chosen as one of payment 'currencies'
+]
+
+
+def line( i, most=None, seen=None ):
+    # Sorted from least to most valuable, so c_offset reduces price of items w/ higher-valued currencies
+    c_i				= random.randint( 0, len( line_currencies ) - 1 )  # Index eg. [0,12]
+    currency			= line_currencies[c_i]
+    if most and seen is not None:
+        if len( seen ) < most:
+            seen.add( currency )
+            log.info( f"Invoice line-items contain only currencies {commas( seen, final='and' )}" )
+        else:
+            currency		= random.choice( tuple( seen ))
+            c_i			= line_currencies.index( currency )
+
+    c_offset			= int( round( math.sqrt( c_i )))		# [0,4]
+
+    return LineItem(
+        description	= ' '.join(
+            random.choice( words )
+            for _ in range( random.randint( 1, 5 ))
+        ).capitalize(),
+        units		= random.randint( 0, 100 ),
+        price		= round( random.random(), random.randint( 0, 6 )) * 10 ** ( c_offset - random.randint( 0, 5 )),
+        currency	= currency,
+        tax		= random.choice( [0, 1] ) + random.randint( 0, 20 ) / 100,
+    )
+
+
+def items( n, most=None, seen=None ):
+    if most and seen is None:
+        seen			= set()
+    for i in range( n ):
+        yield line( i, most=most, seen=seen )
+
+
+conversions			= {
+    ("BTC","XRP"): 60000,
+}
+
+desired			= 10
+paths			= f"../-{desired - 1}"
+
+invoices_to_write		= [
+    [
+        # - No obvious route between line-item currencies, and invoice currency:
+        #
+        # Only XRP LineItems, want USDC in 'currencies' payable (as well as 'BTC', 'ETH' and
+        # 'XRP' accounts) -- but only {('XRP','BTC'): <ratio>} conversion provided.  Must deduce
+        # a common currency for computing remaining conversions ratios, but must include
+        # ('BTC',<something>).
+        Invoice(
+            items( random.randint( 1, 100 ), most=1, seen=set( ('XRP', ) )),
+            accounts	= [
+                account( SEED_ZOOS, crypto='Ethereum' ),
+                account( SEED_ZOOS, crypto='Bitcoin' ),
+                account( SEED_ZOOS, crypto='Ripple' ),
+            ],
+            currencies	= ['USDC'],
+            conversions	= dict( conversions ) #  | {('BTC','ETH'): None}, # now automatic
+        )
+    ],
+    (
+        # - Random combinations of LineItem / Invoice currencies
+        #
+        # A sequence (generator) of Invoices w/ random LineItems, over a sequence of 'desired'
+        # accounts Only 1-3 different cryptos on line-items, 1-3 other invoice currencies each
+        # invoice, and 3 Crypto accounts (only 9 cryptocurrencies will typically fit in the
+        # conversions table).
+        Invoice(
+            items( random.randint( 1, 100 ), most=random.randint( 1, 3 )),
+            accounts	= a,
+            currencies	= list( random.choice( line_currencies ) for _ in range( random.randint( 0, 2 ))) or None,
+            conversions	= dict( conversions ),
+        )
+        for a in zip(
+            accounts( SEED_ZOOS, crypto='Ethereum', paths=paths ),
+            accounts( SEED_ZOOS, crypto='Bitcoin', paths=paths ),
+            accounts( SEED_ZOOS, crypto='Ripple', paths=paths ),
+        )
+    ),
+]
+
+
+@pytest.mark.parametrize( "invoices", invoices_to_write )
+def test_write_invoices( tmp_path, invoices ):
+    directory		= Path( tmp_path )
+    print( f"Invoice Output path: {directory}" )
+
+    metadata		= InvoiceMetadata(
+        client		= client,
+        vendor		= vendor,
+        directory	= directory,
+    )
+
+    i				= None
+    try:
+        for i,(name, output) in enumerate( write_invoices(
+            ( (invoice,metadata) for invoice in invoices )
+        )):
+            print( f"{ordinal( i )} Invoice {name}: {output}" )
+    except Exception as exc:
+        # Only certain failures are allowed/expected:
+        # - Selecting a zero-value Cryptocurrency as a payment currency
+        exc_str			= str( exc )
+        if "Failed to resolve conversion ratios" in exc_str:
+            assert 'EENUS' in exc_str
+            log.warning( "Stopped due to selecting zero-valued crypto as payment currency" )
+        else:
+            raise

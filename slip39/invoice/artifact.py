@@ -21,7 +21,7 @@ import math
 
 from dataclasses	import dataclass
 from collections	import namedtuple, defaultdict
-from typing		import Dict, Union, Optional, Sequence, List, Any
+from typing		import Dict, Union, Optional, Sequence, List, Any, Tuple
 from fractions		import Fraction
 from pathlib		import Path
 from datetime		import datetime, timedelta, timezone
@@ -51,9 +51,9 @@ Invoice artifacts:
     Receipt		-- The Invoice, marked "PAID"
 
 """
-log				= logging.getLogger( "customer" )
+log				= logging.getLogger( "artifact" )
 
-# Custom tabulate format that provides "====" SEPARATING_LINE between line-items and totals
+# Custom tabula1te format that provides "====" SEPARATING_LINE between line-items and totals
 _table_formats["totalize"]	= TableFormat(
     lineabove		= Line("", "-", "  ", ""),
     linebelowheader	= Line("", "-", "  ", ""),
@@ -115,12 +115,17 @@ class LineItem( Item ):
         return amount, taxes, taxinf  # denominated in self.currencies
 
 
-def conversions_table( conversions, symbols=None, greater=None, tablefmt=None ):
+def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, precision=None ):
+    """Output a tabulation of conversion ratios, optionally >= a value (or of a pair of ratios), to
+    the specified precision (default, 8 decimal points).
+
+    """
     if symbols is None:
         symbols			= sorted( set( sum( conversions.keys(), () )))
     if greater is None:
         greater			= .001
-
+    if precision is None:
+        precision		= 8
     symbols			= list( symbols )
 
     # The columns are typed according to the least generic type that *all* rows are convertible
@@ -158,7 +163,7 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None ):
     return tabulate(
         convers_use,
         headers		= headers_use,
-        floatfmt	= ',.15g',
+        floatfmt	= f',.{precision}g',
         intfmt		= ',',
         missingval	= '?',
         tablefmt	= tablefmt or INVOICE_FORMAT,
@@ -178,7 +183,8 @@ def conversions_remaining( conversions, verify=None ):
 
     Updates the supplied { ('a','b'): <ratio>, ...} dict, in-place.
 
-    If NO None values remain after all computable ratios are deduced, returns False, meaning "no remaining unresolved conversions".
+    If NO None values remain after all computable ratios are deduced, returns False, meaning "no
+    remaining unresolved conversions".
 
     Otherwise, return None iff we couldn't deduce any more conversion ratios, but there remain some
     unresolved { (a,b): None, ...} in conversions.
@@ -189,22 +195,34 @@ def conversions_remaining( conversions, verify=None ):
     for (a,b),r in list( conversions.items() ):
         if r and conversions.get( (b,a) ) is None:
             conversions[b,a]	= 1/r
-            log.info( f"Deduced {b:>6}/{a:<6} = {float( 1/r ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} == {r}" )
+            log.info( f"Deduced  {b:>6}/{a:<6} = {float( 1/r ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} == {r}" )
             updated		= True
         if r is None:
             continue
         for (a2,b2),r2 in list( conversions.items() ):
             if r2 is None:
                 continue
+            if b == b2 and a != a2 and conversions.get( (a,a2) ) is None:
+                if r == r2:
+                    # A special case for zero-valued (or other identically valued) tokens: the ratio is 1
+                    # Eg. ZEENUS/ETH=0/1 / WEENUS/ETH=0/1 --> ZEENUS/WEENUS=1/1
+                    conversions[a,a2] = 1
+                    log.info( f"Unity    {a:>6}/{a2:<6} = {float( conversions[a,a2] ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} / {a2:>6}/{b2:<6} == {float( r2 ):13.6f}" )
+                    updated	= True
+                elif r2:
+                    # Eg. USD/BTC=25000/1 / DOGE/BTC=275000/1 --> USD/DOGE=1/4
+                    conversions[a,a2] = r / r2
+                    log.info( f"Divide   {a:>6}/{a2:<6} = {float( conversions[a,a2] ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} / {a2:>6}/{b2:<6} == {float( r2 ):13.6f}" )
+                    updated	= True
             if b == a2 and a != b2 and conversions.get( (a,b2) ) is None:
                 # Eg. USD/BTC=25000/1 * BTC/DOGE=1/275000 --> USD/DOGE=1/4
                 conversions[a,b2] = r * r2
-                log.info( f"Invert  {a:>6}/{b2:<6} = {float( conversions[a,b2] ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} and {a2:>6}/{b2:<6} == {float( r2 ):13.6f}" )
+                log.info( f"Multiply {a:>6}/{b2:<6} = {float( conversions[a,b2] ):13.6f} from {a:>6}/{b:<6} == {float( r ):13.6f} x {a2:>6}/{b2:<6} == {float( r2 ):13.6f}" )
                 updated		= True
     if updated:
         return True
-    # OK, got all available a/b --> b/a and a/b * c/b --> a/c.  See if we can find any routes
-    # between the desired a/b pairs.
+    # OK, got all available a/b --> b/a and a/b * b/c --> a/c and a/b / c/b --> a/c.  See if we
+    # can find any routes between the desired a/b pairs.
     for (a,b),r in conversions.items():
         if r is not None:
             continue
@@ -217,7 +235,7 @@ def conversions_remaining( conversions, verify=None ):
                         log.warning( f"Found intersection between {c2!r} and {c3!r}: {x_s!r}" )
                         x,	= x_s
                         conversions[a,b] = conversions[a,x] * conversions[b,x]
-                        log.info( f"Compute {a:>6}/{b2:<6} = {float( conversions[a,b] )} from {a:>6}/{x:<6} == {float( conversions[a,x] ):13.6f} and {b:>6}/{x:<6} == {float( conversions[b,x] ):13.6f}" )
+                        log.info( f"Compute  {a:>6}/{b2:<6} = {float( conversions[a,b] )} from {a:>6}/{x:<6} == {float( conversions[a,x] ):13.6f} and {b:>6}/{x:<6} == {float( conversions[b,x] ):13.6f}" )
                         conversions[b,a] = 1 / conversions[a,b]
                         return True
 
@@ -249,7 +267,10 @@ def cryptocurrency_symbol( name, chain=None, w3_url=None, use_provider=None ):
 
 
 def cryptocurrency_proxy( name, decimals=None, chain=None, w3_url=None, use_provider=None ):
-    """Return the named ERC-20 Token (or a known "Proxy" token, eg. BTC -> WBTC).
+    """Return the named ERC-20 Token (or a known "Proxy" token, eg. BTC -> WBTC).  If not a
+    Token/Proxy, then return any known Cryptocurrency matching the name.  In this case, the
+    caller must (typically) already be informed of the currency value of such a Cryptocurrency by
+    other means.
 
     """
     try:
@@ -304,19 +325,21 @@ class Invoice:
         self.use_provider	= use_provider
 
         # Collect all desired Invoice currencies; named, and those associated with supplied
-        # accounts.  These are symbols, names, or ERC-20 token addresses.  Some may translate into
-        # things we can get prices for via an off-chain Oracle via the Ethereum blockchain, but some
-        # may not -- these must be supplied w/ a ratio in conversions, to at least one token we *do*
-        # have the ability to get the value of.  This requires the caller to have some kind of price
-        # feed or oracle of their own; it is recommended to use the 1inch OffchainOracle instead, by
-        # sticking to the main Cryptocurrencies for which we have real-time price proxies,
-        # eg. USD(USDC), BTC(WBTC), ETH(WETH).
-        if isinstance( currencies, str ):
+        # accounts.  These are symbols, names, or ERC-20 token addresses.  Some may translate
+        # into things we can get prices for via an off-chain Oracle via the Ethereum blockchain,
+        # but some may not -- these must be supplied w/ a ratio in conversions, to at least one
+        # token we *do* have the ability to get the value of.  This requires the caller to have
+        # some kind of price feed or oracle of their own; it is recommended to use the 1inch
+        # OffchainOracle instead, by sticking to the main Cryptocurrencies for which we have
+        # real-time price proxies, eg. USD(USDC), BTC(WBTC), ETH(WETH).  If None (supplied or in
+        # sequence), replace with default INVOICE_CURRENCY.
+        if isinstance( currencies, (str, type(None)) ):
             currencies		= [ currencies ]
-        if not currencies:
-            currencies		= [ INVOICE_CURRENCY ]
         currencies		= set( currencies )
-        log.info( f"Given {len( currencies )} Invoice currencies: {commas( currencies, final='and')}" )
+        if None in currencies:
+            currencies.remove( None )
+            currencies.add( INVOICE_CURRENCY )
+        log.info( f"Found {len( currencies )} Invoice currencies: {commas( currencies, final='and')}" )
 
         # Convert all known Crypto-currencies or Tokens to symbols (all upper-case).  Any
         # unrecognized as known Cryptos or Tokens will raise an Exception.  This effectively de-dups
@@ -372,10 +395,15 @@ class Invoice:
         log.info( f"Alias {len( currencies_alias )} symbols to their native Crytocurrencies: {commas( ( f'{a}: {c.symbol}' for a,c in currencies_alias.items() ), final='and')}" )
         currencies		= set( currencies_account )
 
-        # Find all LineItem.currency -> Invoice.currencies conversions required.  This establishes
-        # the baseline conversions ratio requirements to convert LineItems to each Invoice currency.
-        # No prices are yet found.  After this, currencies_proxy will contain all Invoice and LineItem
-        # Crypto proxies
+        # Find all LineItem.currency -> Invoice.currencies conversions required.  This
+        # establishes the baseline conversions ratio requirements to convert LineItems to each
+        # Invoice currency.  No prices are yet found.  Also, ensure that there is a route to
+        # deduce the price of every provided cryptocurrency conversion.  For example, if the
+        # invoice payment currency is XRP, and we have been provided the {('XRP','BTC'):
+        # <ratio>}, how do we convert from every other currency to XRP?  It must occur via BTC.
+        # Therefore, we must require a conversion from each currency found to a core currency; in
+        # our case, ETH (since it is the default conversion ratio currency for our Ethereum
+        # Oracle).
         if conversions is None:
             conversions		= {}
         line_currencies		= set(
@@ -392,6 +420,17 @@ class Invoice:
                 if ls != c:
                     conversions.setdefault( (ls,c), None )  # eg. ('USDC','BTC'): None
 
+        def conversions_candidates():
+            return set( filter(
+                lambda c: c != 'ETH',
+                sum( ( pair for pair,ratio in conversions.items() if ratio is None ), () )
+            ))
+
+        for c in conversions_candidates():
+            if (c,'ETH') not in conversions:
+                log.info( f"Require {c:>6}/ETH conversion ratio" )
+                conversions[c,'ETH'] = None
+
         # Finally, add all remaining Invoice and LineItem cryptocurrencies to currencies_proxy, by
         # their original names, symbols and names.  Now, every Invoice and LineItem currency (by
         # name and alias) is represented in currencies_proxy.
@@ -407,39 +446,43 @@ class Invoice:
         # Resolve all resolvable conversions (ie. from any supplied), see what's left
         while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
             if log.isEnabledFor( logging.DEBUG ):
-                log.debug( f"Working: \n{conversions_table( conversions )}" )
-        log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+                log.debug( f"Working: \n{conversions_table( conversions, greater=False )}" )
+        log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
 
         while remaining:
             # There are unresolved LineItem -> Invoice currencies.  We need to get a price ratio between
             # the LineItem currency, and at least one of the main Invoice currencies.  Since we know we're dealing
             # in Ethereum ERC-20 proxies, we'll keep getting ratios between currencies and ETH (the
             # default from tokenprices).
-            candidates		= filter(
-                lambda c: c != 'ETH',
-                sum( ( pair for pair,ratio in conversions.items() if ratio is None ), () )
-            )
+            candidates		= conversions_candidates()
             for c in candidates:
                 try:
                     (one,two,ratio),	= tokenprices( c, w3_url=w3_url, use_provider=use_provider )
                 except Exception as exc:
-                    log.warning( f"Ignoring {c}: {exc}" )
+                    log.warning( f"Ignoring candidate {c} for price deduction: {exc}" )
                     continue
                 if conversions.get( (c,two.symbol) ) is None or conversions.get( (one.symbol,two.symbol) ) is None:
-                    log.info( f"Updated {c:>6}/{two.symbol:<6} = {conversions.get( (c,two.symbol) )}"
-                              f" and {one.symbol:>6}/{two.symbol:<6} = {conversions.get( (one.symbol,two.symbol) )},"
-                              f" to: {ratio}" )
-                    conversions[c,two.symbol] = ratio
-                    if c != one.symbol:
+                    if conversions.get( (c,two.symbol) ) is None:
+                        log.info( f"Updated  {c:>6}/{two.symbol:<6} to: {ratio}" )
+                        conversions[c,two.symbol] = ratio
+                    if conversions.get( (one.symbol,two.symbol) ) is None:
+                        log.info( f"Updated  {one.symbol:>6}/{two.symbol:<6} to: {ratio}" )
                         conversions[one.symbol,two.symbol] = ratio
                     break
             else:
-                raise RuntimeError( f"Failed to resolve {remaining}, using candidates {commas( candidates, final='and' )}" )
+                # We must reject any zero-valued Cryptocurrencies from target currencies!  If the
+                # caller selects eg. WEENUS as a payment currency, and we allow it, it might result
+                # in an "infinite" payment in a zero-valued currency as a payment option.  We can
+                # detect this, right here, because we won't be able to compute any conversion
+                # ratio between a valuable cryptocurrency, and a zero-valued cryptocurrency.
+                # Instead failing, remove it as a payment option!
+                raise RuntimeError( f"Failed to resolve conversion ratios {remaining}, using {len( candidates )} remaining candidates {commas( candidates, final='and' )}" )
             while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
                 if log.isEnabledFor( logging.DEBUG ):
-                    log.debug( f"Working: \n{conversions_table( conversions )}" )
-            log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions )}\n{f'==> {remaining}' if remaining else ''}" )
+                    log.debug( f"Working: \n{conversions_table( conversions, greater=False )}" )
+            log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
 
+        self.accounts		= accounts
         self.currencies		= currencies		# { "USDC", "BTC", ... }
         self.currencies_account	= currencies_account    # { "USDC": "0xaBc...12D", "BTC": "bc1...", ... }
         self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( "WBTC", ... ), ... }
@@ -499,8 +542,9 @@ class Invoice:
         for i,line in enumerate( self.lines ):
             line_currency	= line.currency or INVOICE_CURRENCY
             line_amount,line_taxes,line_taxinf = line.net()
-
-            line_curr		= tokeninfo( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
+            # The line's ERC-20 Token (or a known proxy for the named Cryptocurrency), or a
+            # TokenInfo for the specified known Cryptocurrency.
+            line_curr		= cryptocurrency_proxy( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
             line_symbol		= line_curr.symbol
             line_decimals	= line_curr.decimals // 3 if line.decimals is None else line.decimals
 
@@ -542,10 +586,14 @@ class Invoice:
     ):
         """Yields a sequence of lists containing rows, paginated into 'rows' chunks.
 
-        if page (zero-basis) specified, only yields matching pages.
+        If page (zero-basis) specified, only yields matching pages.
+
+        By default, we'll assume we need about 1/2 the rows for non-line-item invoice details
+        (metadata, totals, conversions, ...)
+
         """
         if rows is None:
-            rows		= INVOICE_ROWS
+            rows		= INVOICE_ROWS // 2
 
         def page_match( i ):
             if page is None:
@@ -1022,13 +1070,19 @@ class Contact:
 
 @dataclass
 class InvoiceMetadata:
-    """Collected Invoice metadata, required to generate an Invoice"""
-    vendor: Contact
-    client: Contact
-    date: datetime
-    due: datetime
-    number: str					# eg. INV-20230131-0001
-    directory: Path				# Location of assets (and invoices)
+    """Collected Invoice metadata, required to generate an Invoice.  An identical Invoice can be
+    issued with multiple different InvoiceMetadata, eg. to different clients (optionally may be
+    absent, indicating a generic invoice to an anonymous client).
+
+    """
+    vendor: Contact				# Vendor's identifying info
+    client: Optional[Contact] = None  		# Client's identifying info (eg. Name, Attn, Address)
+    number: Optional[Union[str,int]] = None     # eg. "CLI-20230930-0001" (default: <client>-<date>-<num>)
+    date: Optional[datetime] = None		# default: now
+    due: Optional[datetime] = None		# default: 1 month
+    terms: Optional[str] = None			# default: Net Duration(due - date)
+    directory: Optional[Union[str,Path]] = None  # Location of assets (and invoices) (./)
+    label: Optional[str] = None			# eg. Invoice
 
 
 @dataclass
@@ -1036,94 +1090,90 @@ class InvoiceOutput:
     invoice: Invoice
     metadata: InvoiceMetadata
     pdf: fpdf.FPDF
-    path: Optional[Path]
+    path: Optional[Path] = None			# optionally written to path
 
 
 def produce_invoice(
     invoice: Invoice,				# Invoice LineItems, Cryptocurrency Account data
-    client: Contact,    	  		# Client's identifying info (eg. Name, Attn, Address)
-    vendor: Contact,				# Vendor's identifying info
-    directory: Optional[Union[Path,str]] = None,  # Look here for files (eg. image assets), invoices
-    inv_label: Optional[str]	= None,
-    inv_number: Optional[Union[str,int]] = None,  # eg. "CLIENT-20230930-0001" (default: <client>-<date>-<num>)
-    inv_date: Optional[datetime] = None,
-    inv_due: Optional[Any]	= None, 	# another datetime, timedelta, or args/kwds for datetime_advance
-    terms: Optional[str]	= None, 	# eg. "Payable on receipt in $USDC, $ETH, $BTC"
+    metadata: InvoiceMetadata,			# vendor, client, number, etc.
     rows: Optional[int]		= None,
     paper_format: Any		= None, 	# 'Letter', 'Legal', 'A4', (x,y) dimensions in mm.
     orientation: Optional[str]	= None,		# available orientations; default portrait, landscape
-    inv_image: Optional[Union[Path,str]] = None,  # A custom 8"/10.5" full background image (Path/name relative to directory/'.'
-    inv_logo: Optional[Union[Path,str]] = None,  # A custom 16/9 logo image (Path or name relative to directory/'.'
+    image: Optional[Union[Path,str]] = None,  # A custom 8"/10.5" full background image (Path/name relative to directory/'.'
+    logo: Optional[Union[Path,str]] = None,  # A custom 16/9 logo image (Path or name relative to directory/'.'
 ):
     """Produces a PDF containing the supplied Invoice details, optionally with a PAID watermark.
 
     """
-    if inv_label is None:
-        inv_label		= 'Invoice'
-    if isinstance( directory, (str,type(None))):
-        directory			= Path( directory or '.' )
+    if ( label := metadata.label ) is None:
+        label			= 'Invoice'
+    if isinstance( directory := metadata.directory, (str,type(None))):
+        directory		= Path( directory or '.' )
     assert isinstance( directory, (Path,type(None)))
     log.info( f"Dir.:  {directory}" )
 
-    if isinstance( inv_image, (str,type(None))):
-        inv_image		= directory / ( inv_image or 'inv-image.png' )
-        if not inv_image.exists():
-            inv_image		= None
-    assert isinstance( inv_image, (Path,type(None)))
-    log.info( f"Image: {inv_image}" )
+    if isinstance( image, (str,type(None))):
+        image			= directory / ( image or 'inv-image.png' )
+        if not image.exists():
+            image		= None
+    assert isinstance( image, (Path,type(None)))
+    log.info( f"Image: {image}" )
 
-    if isinstance( inv_logo, (str,type(None))):
-        inv_logo		= directory / ( inv_logo or 'inv-logo.png' )
-        if not inv_logo.exists():
-            inv_logo		= None
-    assert isinstance( inv_logo, (Path,type(None)))
-    log.info( f"Logo:  {inv_logo}" )
+    if isinstance( logo, (str,type(None))):
+        logo			= directory / ( logo or 'inv-logo.png' )
+        if not logo.exists():
+            logo		= None
+    assert isinstance( logo, (Path,type(None)))
+    log.info( f"Logo:  {logo}" )
 
     # Any datetime WITHOUT a timezone designation is re-interpreted as the local timezone of the
     # invoice issuer, or UTC.
-    if inv_date is None:
-        inv_date		= invoice.created
-    if inv_date.tzname() is None:
+    if ( date := metadata.date ) is None:
+        date			= invoice.created
+    if date.tzname() is None:
         try:
-            inv_zone		= get_localzone()
+            zone		= get_localzone()
         except Exception:
-            inv_zone		= timezone.utc
-        inv_date		= inv_date.astimezone( inv_zone )
+            zone		= timezone.utc
+        date			= date.astimezone( zone )
 
-    log.info( f"Date:  {inv_date.strftime( INVOICE_STRFTIME )}" )
-    if not isinstance( inv_due, datetime ):
-        if not inv_due:
-            inv_due		= INVOICE_DUE
-        log.info( f"Due w/ {inv_due!r}" )
-        if is_mapping( inv_due ):
-            inv_due		= datetime_advance( inv_date, **dict( inv_due ))
-        elif is_listlike( inv_due ):
-            inv_due		= datetime_advance( inv_date, *tuple( inv_due ))
-        elif isinstance( inv_due, timedelta ):
-            inv_due		= inv_date + inv_due
+    log.info( f"Date:  {date.strftime( INVOICE_STRFTIME )}" )
+    if not isinstance( due := metadata.due, datetime ):
+        if not due:
+            due			= INVOICE_DUE
+        log.info( f"Due w/ {due!r}" )
+        if is_mapping( due ):
+            due			= datetime_advance( date, **dict( due ))
+        elif is_listlike( due ):
+            due			= datetime_advance( date, *tuple( due ))
+        elif isinstance( due, timedelta ):
+            due			= date + due
         else:
-            raise ValueError( f"Unsupported Invoice due date: {inv_due!r}" )
-    log.info( f"Due:   {inv_due.strftime( INVOICE_STRFTIME )}" )
-    if terms is None:
-        terms			= f"Net {Duration( inv_due - inv_date )!r}"
+            raise ValueError( f"Unsupported Invoice due date: {due!r}" )
+    log.info( f"Due:   {due.strftime( INVOICE_STRFTIME )}" )
+    if ( terms := metadata.terms ) is None:
+        terms			= f"Net {Duration( due - date )!r}"
     log.info( f"Terms: {terms}" )
 
-    if inv_number is None:
-        cli			= client.name.split()[0].upper()[:3] if client else 'INV'
-        ymd			= inv_date.strftime( '%Y%m%d' )
+    if ( number := metadata.number ) is None:
+        cli			= metadata.client.name.split()[0].upper()[:3] if metadata.client else 'INV'
+        ymd			= date.strftime( '%Y%m%d' )
         key			= f"{cli}-{ymd}"
         produce_invoice.inv_count[key] += 1
         num			= produce_invoice.inv_count[key]
-        inv_number		= f"{cli}-{ymd}-{num:04d}"
-    log.info( f"Num.:  {inv_number}" )
+        number			= f"{cli}-{ymd}-{num:04d}"
+    log.info( f"Num.:  {number}" )
 
+    # We can now capture the actual metadata used for this specific invoice
     metadata			= InvoiceMetadata(
-        vendor		= vendor,
-        client		= client,
-        date		= inv_date,
-        due		= inv_due,
-        number		= inv_number,
+        vendor		= metadata.vendor,
+        client		= metadata.client,
+        number		= number,
+        date		= date,
+        due		= due,
+        terms		= terms,
         directory	= directory,
+        label		= label,
     )
 
     # Default to full page, given the desired paper and orientation.  All PDF dimensions are mm.
@@ -1133,7 +1183,9 @@ def produce_invoice(
     )
     log.info( f'Dim.: {comp_dim.x / MM_IN:6.3f}" x {comp_dim.y / MM_IN:6.3f}"' )
 
-    # TODO: compute rows based on line lengths; the longer the line, the smaller the lines required
+    # TODO: compute rows based on line lengths; the longer the line, the smaller the lines
+    # required In the mean time, assume we can only fit about 1/2 the number of line-item rows,
+    # as the invoice has total lines, due to the details, totals and currency conversion ratios.
     if rows is None:
         rows			= INVOICE_ROWS
 
@@ -1155,36 +1207,39 @@ def produce_invoice(
         layout			= here.parent / 'layout'
         #crypto			= here / 'Crypto'
 
-        #last			= i + 1 == len( details )
-        inv_tpl['inv-image']	= inv_image
-        inv_tpl['inv-logo']	= inv_logo
-        inv_tpl['inv-label']	= f"{inv_label} (page {p+1}/{len( details )})"
+        final			= i + 1 == len( details )
+        inv_tpl['inv-image']	= image
+        inv_tpl['inv-logo']	= logo
+        inv_tpl['inv-label']	= f"{metadata.label} (page {p+1}/{len( details )})"
         inv_tpl['inv-label-bg']	= layout / '1x1-ffffffbf.png'
 
-        inv_tpl['inv-vendor']	= vendor.name
+        inv_tpl['inv-vendor']	= metadata.vendor.name
         inv_tpl['inv-vendor-bg'] = layout / '1x1-ffffffbf.png'
-        inv_tpl['inv-vendor-info'] = '\n'.join( vendor.info )
+        inv_tpl['inv-vendor-info'] = '\n'.join( metadata.vendor.info )
         inv_tpl['inv-vendor-info-bg'] = layout / '1x1-ffffffbf.png'
 
-        inv_tpl['inv-client']	= "Bill To: " + client.name
-        inv_tpl['inv-client-bg'] = layout / '1x1-ffffffbf.png'
-        inv_tpl['inv-client-info'] = '\n'.join( client.info )
-        inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
+        if metadata.client:
+            inv_tpl['inv-client'] = "Bill To: " + metadata.client.name
+            inv_tpl['inv-client-bg'] = layout / '1x1-ffffffbf.png'
+            inv_tpl['inv-client-info'] = '\n'.join( metadata.client.info )
+            inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
 
         dets			= tabulate(
             [
-                [ f'{inv_label} #:', metadata.number ],
+                [ f'{metadata.label} #:', metadata.number ],
                 [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
                 [ 'Due:', metadata.due.strftime( INVOICE_STRFTIME ) ],
-                [ 'Terms:', terms ]
+                [ 'Terms:', metadata.terms ]
             ],
             colalign=( 'right', 'left' ), tablefmt='plain'
         )
 
         exch			= conversions_table( invoice.conversions, greater=1 )
         exch_date		= invoice.created.strftime( INVOICE_STRFTIME )
-
-        inv_tpl['inv-table']	= '\n\n'.join( (dets, tbl, f"CONVERSION RATIOS (est. {exch_date}):\n{exch}" ) )
+        inv_table		= (dets, tbl,)
+        if final:
+            inv_table	       += ( f"CONVERSION RATIOS (est. {exch_date}):\n{exch}", )
+        inv_tpl['inv-table']	= '\n\n'.join( inv_table )
         inv_tpl['inv-table-bg']	= layout / '1x1-ffffffbf.png'
 
         inv_tpl.render( offsetx=offsetx, offsety=offsety )
@@ -1194,28 +1249,28 @@ produce_invoice.inv_count	= defaultdict( int )  # noqa: E305
 
 
 def write_invoices(
-    invoices,				# sequence of [ Invoice, ... ] or { "<name>": Invoice, ... }
+    invoices: Sequence[Tuple[Invoice,InvoiceMetadata]],  # sequence of [ (Invoice, InvoiceMetadata), ... ] or { "<name>": Invoice, ... }
     filename		= True,		# A file name/Path, if PDF output to file is desired; ''/True implies default., False no file
     **kwds
 ):
-    """Create unique cryptocurrency account(s) for each client invoice, generate the invoice, and
-    (optionally) write them to files.  Yields a sequence of the generate invoice PDF names and
-    details.
+    """Generate unique cryptocurrency account(s) for each client invoice, generate the invoice,
+    and (optionally) write them to files.  Yields a sequence of the generated invoice PDF names
+    and details.
 
     """
     if filename is None:
         filename		= True
-    for invoice in invoices:
+    for invoice,metadata in invoices:
+        # Provides the supplied invoice,metadata, and receives the transformed (specialized) metadata.
         _,pdf,metadata		= produce_invoice(
-            invoice,
+            invoice	= invoice,
+            metadata	= metadata,
             **kwds
         )
 
         accounts		= invoice.accounts
         assert accounts, \
             "At least one Cryptocurrency account must be specified"
-        for account in accounts:
-            log.warning( f"{account.crypto:6} {account.path:20}: {account.address}" )
 
         pdf_name		= (( '' if filename is True else filename ) or FILENAME_FORMAT ).format(
             name	= metadata.number,
@@ -1226,11 +1281,18 @@ def write_invoices(
         )
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
+        log.warning( f"Invoice {metadata.number}: {pdf_name}" )
 
         path			= None
         if filename is not False:
-            path		= invoice.directory.resolve() / pdf_name
+            path		= metadata.directory.resolve() / pdf_name
             log.warning( f"Writing Invoice {metadata.number!r} to: {path}" )
             pdf.output( path )
 
-        yield pdf_name, InvoiceOutput( invoice=invoice, metadata=metadata, pdf=pdf, path=path )
+        invoice_output		= InvoiceOutput(
+            invoice	= invoice,
+            metadata	= metadata,
+            pdf		= pdf,
+            path	= path,
+        )
+        yield pdf_name, invoice_output

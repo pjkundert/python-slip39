@@ -95,7 +95,7 @@ def test_tokenprice():
         print( json.dumps( prices_eth, indent=4, default=str ))
 
         for t,b,f in prices_eth:
-            print( f"{t['symbol']:>6}/{b['symbol']:<6}: {float( f ):13.4f} =~= {str(f)}" )
+            print( f"{t.symbol:>6}/{b.symbol:<6}: {float( f ):13.4f} =~= {str(f)}" )
 
         # WETH in terms of ETH should be close to 1.0 (ignore for any other base currency)
         assert base is not None or float( prices_eth[-1][2] ) == pytest.approx( 1.0 ), \
