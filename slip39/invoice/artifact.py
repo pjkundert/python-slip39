@@ -490,6 +490,12 @@ class Invoice:
         self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
         self.created		= datetime.utcnow().astimezone( timezone.utc )
 
+    def decimals( self, currency ):
+        info			= self.currencies_proxy[currency]
+        if info.symbol in self.currencies_alias:
+            info		= self.currencies_alias[info.symbol]
+        return info.decimals
+
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
         with an _ prefix (this is the default)."""
@@ -519,19 +525,19 @@ class Invoice:
         """Iterate of lines, computing totals in each Invoice.currencies
 
         Note that numeric values may be int, float or Fraction, and these are retained through
-        normal mathematical operations.
+        normal mathematical operations, at full available precision (even if this is beyond the
+        "decimals" precision of the underlying cryptocurrency).
 
-        The number of decimals desired for each line is provided in "_Decimals".  The native number
-        of decimals must be respected in this line's calculations.  For example, if eg.  a
-        0-decimals Token is used, the Net, Tax and Amount are rounded to 0 decimals.  The sums in
-        various currencies converted from each line are not rounded; the currency ratio and hence
-        sum is full precision, and is only rounded at the final use.
+        The number of decimals desired for each line is provided in "_Decimals".  The native
+        number of decimals must be respected in this line's calculations.  For example, if eg.  a
+        0-decimals Token is used, the Net, Tax and Amount are rounded to 0 decimals.  All
+        rounding/display decimals should be performed at the final display of the data.
+
+        The sums in various currencies converted from each line are not rounded; the currency
+        ratio and hence sum is full precision, and is only rounded at the final use.
 
         """
 
-        # Get all the eg. wBTC / USDC value ratios for the Line-item currency, vs. each Invoice
-        # currency at once, in case the iterator takes considerable time; we don't want to risk that
-        # memoization "refresh" the token values while generating the invoice!
         tot			= {
             c: 0. for c in self.currencies
         }
@@ -540,17 +546,22 @@ class Invoice:
         }
 
         for i,line in enumerate( self.lines ):
-            line_currency	= line.currency or INVOICE_CURRENCY
             line_amount,line_taxes,line_taxinf = line.net()
-            # The line's ERC-20 Token (or a known proxy for the named Cryptocurrency), or a
-            # TokenInfo for the specified known Cryptocurrency.
-            line_curr		= cryptocurrency_proxy( line_currency, w3_url=self.w3_url, use_provider=self.use_provider )
-            line_symbol		= line_curr.symbol
-            line_decimals	= line_curr.decimals // 3 if line.decimals is None else line.decimals
-
-            line_amount		= round( line_amount, line_decimals )
-            line_taxes		= round( line_taxes, line_decimals )
             line_net		= line_amount - line_taxes
+            # The line's ERC-20 Token (or a known proxy for the named Cryptocurrency), or a
+            # TokenInfo for the specified known Cryptocurrency.  Always displays the underlying
+            # native Cryptocurrency symbol (if known), even if a "Proxy" is specified, or used
+            # for pricing.
+            line_currency	= line.currency or INVOICE_CURRENCY  # Eg. "Bitcoin", "WBTC", "BTC"
+            line_curr		= self.currencies_proxy[line_currency]
+            log.info( f"Line currency {line_currency} has proxy {line_curr.symbol:6}: decimals: {line_curr.decimals}" )
+            if line_curr.symbol in self.currencies_alias:
+                line_curr	= self.currencies_alias[line_curr.symbol]
+                log.info( f"Line currency {line_currency} alias for {line_curr.symbol:6}: decimals: {line_curr.decimals}" )
+            line_symbol		= line_curr.symbol
+            line_decimals	= line.decimals
+            if line_decimals is None:
+                line_decimals	= line_curr.decimals // 3
 
             for c in self.currencies:
                 if line_curr.symbol == c:
@@ -689,9 +700,7 @@ class Invoice:
             #
             # TODO: There should be a more sensible / less brittle way to do this.
             def deci( c ):
-                if c in self.currencies_alias:
-                    return self.currencies_alias[c].decimals // 3
-                return self.currencies_proxy[c].decimals // 3
+                return self.decimals( c ) // 3
 
             def toti( c ):
                 return headers_can.index( can( f'_Total {c}' ))
@@ -750,8 +759,18 @@ class Invoice:
             )
 
             def fmt( val, hdr, coin  ):
-                if can( hdr ) in ( 'price', 'taxes', 'amount' ):
+                hdr_can		= can( hdr )
+                if hdr_can in ( 'price', 'taxes', 'amount', 'net' ):
+                    # It's a Price, or a computed Taxes/Amount/Net; use the line's cryptocurrency to round
                     return round( val, deci( coin ))
+                try:
+                    t,t_coin	= hdr.split()
+                except Exception:
+                    pass
+                else:
+                    if can( t ) in ('total', 'taxes'):
+                        # It's a 'Total/Taxes COIN' column; use the specified coin's decimals for rounding
+                        return round( val, deci( t_coin ))
                 return val
 
             # Produce the page line-items.  We must round each line-item's numeric price values
@@ -1252,47 +1271,54 @@ def write_invoices(
     invoices: Sequence[Tuple[Invoice,InvoiceMetadata]],  # sequence of [ (Invoice, InvoiceMetadata), ... ] or { "<name>": Invoice, ... }
     filename		= True,		# A file name/Path, if PDF output to file is desired; ''/True implies default., False no file
     **kwds
-):
+) -> Union[InvoiceOutput, Exception]:
     """Generate unique cryptocurrency account(s) for each client invoice, generate the invoice,
     and (optionally) write them to files.  Yields a sequence of the generated invoice PDF names
     and details.
+
+    If an Exception is raised during Invoice generation, a (None, <Exception>) is generated,
+    instead of a ("name", <InvoiceOutput).
 
     """
     if filename is None:
         filename		= True
     for invoice,metadata in invoices:
-        # Provides the supplied invoice,metadata, and receives the transformed (specialized) metadata.
-        _,pdf,metadata		= produce_invoice(
-            invoice	= invoice,
-            metadata	= metadata,
-            **kwds
-        )
+        try:
+            # Provides the supplied invoice,metadata, and receives the transformed (specialized) metadata.
+            _,pdf,metadata		= produce_invoice(
+                invoice	= invoice,
+                metadata	= metadata,
+                **kwds
+            )
 
-        accounts		= invoice.accounts
-        assert accounts, \
-            "At least one Cryptocurrency account must be specified"
+            accounts		= invoice.accounts
+            assert accounts, \
+                "At least one Cryptocurrency account must be specified"
 
-        pdf_name		= (( '' if filename is True else filename ) or FILENAME_FORMAT ).format(
-            name	= metadata.number,
-            date	= datetime.strftime( metadata.date, '%Y-%m-%d' ),
-            time	= datetime.strftime( metadata.date, '%H.%M.%S'),
-            crypto	= accounts[0].crypto,
-            address	= accounts[0].address,
-        )
-        if not pdf_name.lower().endswith( '.pdf' ):
-            pdf_name	       += '.pdf'
-        log.warning( f"Invoice {metadata.number}: {pdf_name}" )
+            name		= (( '' if filename is True else filename ) or FILENAME_FORMAT ).format(
+                name	= metadata.number,
+                date	= datetime.strftime( metadata.date, '%Y-%m-%d' ),
+                time	= datetime.strftime( metadata.date, '%H.%M.%S'),
+                crypto	= accounts[0].crypto,
+                address	= accounts[0].address,
+            )
+            if not name.lower().endswith( '.pdf' ):
+                name		       += '.pdf'
+            log.warning( f"Invoice {metadata.number}: {name}" )
 
-        path			= None
-        if filename is not False:
-            path		= metadata.directory.resolve() / pdf_name
-            log.warning( f"Writing Invoice {metadata.number!r} to: {path}" )
-            pdf.output( path )
+            path			= None
+            if filename is not False:
+                path		= metadata.directory.resolve() / name
+                log.warning( f"Writing Invoice {metadata.number!r} to: {path}" )
+                pdf.output( path )
 
-        invoice_output		= InvoiceOutput(
-            invoice	= invoice,
-            metadata	= metadata,
-            pdf		= pdf,
-            path	= path,
-        )
-        yield pdf_name, invoice_output
+            output		= InvoiceOutput(
+                invoice	= invoice,
+                metadata = metadata,
+                pdf	= pdf,
+                path	= path,
+            )
+        except Exception as exc:
+            name, output	= None, exc
+
+        yield name, output
