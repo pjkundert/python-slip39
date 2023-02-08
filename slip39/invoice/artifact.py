@@ -36,7 +36,7 @@ from ..api		import Account
 from ..util		import commas, is_listlike, is_mapping
 from ..defaults		import (
     INVOICE_CURRENCY, INVOICE_ROWS, INVOICE_STRFTIME, INVOICE_DUE, INVOICE_DESCRIPTION_MAX,
-    INVOICE_FORMAT, MM_IN, FILENAME_FORMAT,
+    INVOICE_FORMAT, MM_IN, FILENAME_FORMAT, COLOR,
 )
 from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
 from .ethereum		import tokeninfo, tokenprices, tokenknown
@@ -165,7 +165,6 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
     # conversions (so each column is a row), and elide any w/ empty conversions rows.  Finally,
     # re-transpose back to columns.
     convers_txp			= list( zip( *convers_raw ))
-    import json
     headers_use,convers_use_txp	= zip( *sorted(
         [
             (hdr,col)
@@ -945,9 +944,9 @@ def layout_invoice(
 
     a				= inv_int.h
     b				= inv_int.w
-    c				= math.sqrt( a * a + b * b )    # noqa: F841
-    β				= math.atan( b / a )		# noqa: F841
-    rotate			= 90 - math.degrees( β )        # noqa: F841
+    c				= math.sqrt( a * a + b * b )
+    β				= math.atan( b / a )
+    rotate			= 90 - math.degrees( β )
 
     # Header: Vendor name & contact on left, Invoice/Quote/Receipt and logo on right
     #           8"
@@ -1064,14 +1063,16 @@ def layout_invoice(
 
     # inv-body, ...: Image for Body of Invoice;
     # inv-table: Main Invoice text area
-    inv_int.add_region_proportional(
+    inv_body			= inv_int.add_region_proportional(
         Image(
             'inv-body',
             y1		= head,
             y2		= foot,
             priority	= prio_normal,
         )
-    ).add_region_proportional(
+    )
+
+    inv_body.add_region_proportional(
         Image(
             'inv-table-bg',
             priority	= prio_contrast,
@@ -1094,6 +1095,24 @@ def layout_invoice(
             y1		= foot,
             priority	= prio_normal,
         ),
+    )
+
+    # Finally, in front of all other "contrast" images, put the watermark
+    inv_int.add_region_proportional(
+        Text(
+            'inv-watermark',
+            x1		= c/b * 10/100,
+            y1		= +0/32,
+            x2		= c/b * 90/100,
+            y2		= +8/32,
+            foreground	= int( COLOR[-2], 16 ),  # med grey
+            rotate	= -rotate,
+            bold	= True,
+            italic	= True,
+            align	= 'C',
+            priority	= prio_contrast,
+            text	= "- Sample -",
+        )
     )
 
     return inv
