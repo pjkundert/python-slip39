@@ -758,19 +758,29 @@ class Invoice:
                 tablefmt	= tablefmt or INVOICE_FORMAT,
             )
 
-            def fmt( val, hdr, coin  ):
+            def fmt( val, hdr, coin ):
                 hdr_can		= can( hdr )
+                rnd_dec		= None  # Decimals to round to
                 if hdr_can in ( 'price', 'taxes', 'amount', 'net' ):
-                    # It's a Price, or a computed Taxes/Amount/Net; use the line's cryptocurrency to round
-                    return round( val, deci( coin ))
-                try:
-                    t,t_coin	= hdr.split()
-                except Exception:
-                    pass
+                    rnd_dec	= deci( coin )
                 else:
-                    if can( t ) in ('total', 'taxes'):
-                        # It's a 'Total/Taxes COIN' column; use the specified coin's decimals for rounding
-                        return round( val, deci( t_coin ))
+                    try:
+                        t,t_c	= hdr.split()
+                    except Exception:
+                        pass
+                    else:
+                        if can( t ) in ('total', 'taxes'):
+                            # It's a 'Total/Taxes COIN' column; use the specified coin's decimals for rounding
+                            rnd_dec = deci( t_c )
+                if rnd_dec is not None:
+                    # It's a Price, or a computed Taxes/Amount/Net; use line cryptocurrency's
+                    # decimals to round.  If the result is a fractional value, format w/ f
+                    # instead of g, eg. 0.000023 instead of 2.3e-5.
+                    rnd		= round( val, rnd_dec )
+                    if rnd and -1 < rnd < 1:
+                        rnd	= f"{float( rnd ):.{rnd_dec}f}".rstrip( '0' )
+                    log.info( f"Formatted {hdr:20} to {rnd!r:20} from {float(val)!r:20} <== {val!r}" )
+                    val		= rnd
                 return val
 
             # Produce the page line-items.  We must round each line-item's numeric price values
