@@ -182,7 +182,7 @@ SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
 # names.
 INVOICE_FORMAT			= 'totalize'  # 'presto'  # 'orgtbl'
 INVOICE_ROWS			= 60  # rows on invoice; each page, about 1/2 that number of line-items
-INVOICE_DESCRIPTION_MAX		= 56
+INVOICE_DESCRIPTION_MAX		= 48  # This may seem low; full-precision Prices, 8-dec. Cryptos need room
 INVOICE_CURRENCY		= "USD"
 INVOICE_PROXIES			= {
     "USD":		"USDC",

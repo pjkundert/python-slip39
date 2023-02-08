@@ -28,10 +28,8 @@ from datetime		import datetime, timedelta, timezone
 from calendar		import monthrange
 
 import fpdf
+import tabulate
 
-from tabulate		import (
-    tabulate, SEPARATING_LINE, multiline_formats, _table_formats, TableFormat, Line, DataRow
-)
 from crypto_licensing.misc import get_localzone, Duration
 
 from ..api		import Account
@@ -54,20 +52,31 @@ Invoice artifacts:
 log				= logging.getLogger( "artifact" )
 
 # Custom tabula1te format that provides "====" SEPARATING_LINE between line-items and totals
-_table_formats["totalize"]	= TableFormat(
-    lineabove		= Line("", "-", "  ", ""),
-    linebelowheader	= Line("", "-", "  ", ""),
-    linebetweenrows	= Line("", "=", "  ", ""),
-    linebelow		= Line("", "-", "  ", ""),
-    headerrow		= DataRow("", "  ", ""),
-    datarow		= DataRow("", "  ", ""),
+tabulate._table_formats["totalize"] = tabulate.TableFormat(
+    lineabove		= tabulate.Line("", "-", "  ", ""),
+    linebelowheader	= tabulate.Line("", "-", "  ", ""),
+    linebetweenrows	= tabulate.Line("", "=", "  ", ""),
+    linebelow		= tabulate.Line("", "-", "  ", ""),
+    headerrow		= tabulate.DataRow("", "  ", ""),
+    datarow		= tabulate.DataRow("", "  ", ""),
     padding		= 0,
     with_header_hide	= ["lineabove", "linebelow", "linebetweenrows"],
 )
-multiline_formats["totalize"]	= "totalize"
+tabulate.multiline_formats["totalize"]	= "totalize"
+
+
+def tabulate_nopad( *args, **kwds ):
+    """Removes the default 2-character tabulate.MIN_PADDING from around column headers."""
+    try:
+        min_padding	= tabulate.MIN_PADDING
+        tabulate.MIN_PADDING = 0
+        return tabulate.tabulate( *args, **kwds )
+    finally:
+        tabulate.MIN_PADDING = min_padding
+
 
 # An invoice line-Item contains the details of a component of a transaction.  It is priced in a
-# currency, with a number of units 'qty', and a 'price' per unit.
+# currency, with a number of 'units', and a 'price' per unit.
 #
 # The 'tax' is a proportion of the computed total amount allocated to taxation; if <1 (eg. 0.05 or
 # 5%), then it is added to the total amount; if > 1 (eg. 1.05 or 5%), then the prices is assumed to
@@ -96,7 +105,8 @@ class Item:
 
 class LineItem( Item ):
     def net( self ):
-        """Computes the LineItem total 'amount', the 'taxes', and info on tax charged.
+        """Computes the LineItem total 'amount', the 'taxes', and info on tax charged.  Use the
+        full-precision percentage, to support fractional tax percentages.
 
         Uses the default Invoice Currency if none specified.
 
@@ -106,11 +116,11 @@ class LineItem( Item ):
         taxinf			= 'no tax'
         if self.tax:
             if self.tax < 1:
-                taxinf		= f"{round( float( self.tax * 100 ), 2):g}% add"
+                taxinf		= f"{float( self.tax * 100 ):g}% add"
                 taxes		= amount * self.tax
                 amount	       += taxes
             elif self.tax > 1:
-                taxinf		= f"{round( float(( self.tax - 1 ) * 100 ), 2):g}% inc"
+                taxinf		= f"{float(( self.tax - 1 ) * 100 ):g}% inc"
                 taxes		= amount - amount / self.tax
         return amount, taxes, taxinf  # denominated in self.currencies
 
@@ -160,7 +170,7 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
     ])
     convers_use			= list( zip( *convers_use_txp ))
 
-    return tabulate(
+    return tabulate_nopad(
         convers_use,
         headers		= headers_use,
         floatfmt	= f',.{precision}g',
@@ -168,6 +178,10 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
         missingval	= '?',
         tablefmt	= tablefmt or INVOICE_FORMAT,
     )
+
+
+class ConversionError( Exception ):
+    pass
 
 
 def conversions_remaining( conversions, verify=None ):
@@ -248,7 +262,7 @@ def conversions_remaining( conversions, verify=None ):
     resolved			= commas( sorted( f'{a}/{b}' for (a,b),r in conversions.items() if r and r > 1 ), final='and' )
     msg				= f"Failed to find ratio(s) for {remains} via {resolved}"
     if verify:
-        raise RuntimeError( msg )
+        raise ConversionError( msg )
     log.warning( msg )
     return msg
 
@@ -404,33 +418,10 @@ class Invoice:
         # Therefore, we must require a conversion from each currency found to a core currency; in
         # our case, ETH (since it is the default conversion ratio currency for our Ethereum
         # Oracle).
-        if conversions is None:
-            conversions		= {}
         line_currencies		= set(
             line.currency or INVOICE_CURRENCY
             for line in self.lines
         )
-        line_symbols		= set(
-            cryptocurrency_symbol( lc )
-            for lc in line_currencies
-        )
-        log.info( f"Found {len( line_symbols )} LineItem currencies: {commas( line_symbols, final='and')}" )
-        for ls in line_symbols:
-            for c in currencies:
-                if ls != c:
-                    conversions.setdefault( (ls,c), None )  # eg. ('USDC','BTC'): None
-
-        def conversions_candidates():
-            return set( filter(
-                lambda c: c != 'ETH',
-                sum( ( pair for pair,ratio in conversions.items() if ratio is None ), () )
-            ))
-
-        for c in conversions_candidates():
-            if (c,'ETH') not in conversions:
-                log.info( f"Require {c:>6}/ETH conversion ratio" )
-                conversions[c,'ETH'] = None
-
         # Finally, add all remaining Invoice and LineItem cryptocurrencies to currencies_proxy, by
         # their original names, symbols and names.  Now, every Invoice and LineItem currency (by
         # name and alias) is represented in currencies_proxy.
@@ -443,44 +434,21 @@ class Invoice:
                 currencies_proxy[alias] = proxy
         log.info( f"Found {len( currencies_proxy )} Invoice and LineItem currencies: {commas( ( f'{n}: {p.symbol}' for n,p in currencies_proxy.items() ), final='and')}" )
 
-        # Resolve all resolvable conversions (ie. from any supplied), see what's left
-        while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
-            if log.isEnabledFor( logging.DEBUG ):
-                log.debug( f"Working: \n{conversions_table( conversions, greater=False )}" )
-        log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
+        line_symbols		= set(
+            cryptocurrency_symbol( lc )
+            for lc in line_currencies
+        )
+        log.info( f"Found {len( line_symbols )} LineItem currencies: {commas( line_symbols, final='and')}" )
 
-        while remaining:
-            # There are unresolved LineItem -> Invoice currencies.  We need to get a price ratio between
-            # the LineItem currency, and at least one of the main Invoice currencies.  Since we know we're dealing
-            # in Ethereum ERC-20 proxies, we'll keep getting ratios between currencies and ETH (the
-            # default from tokenprices).
-            candidates		= conversions_candidates()
-            for c in candidates:
-                try:
-                    (one,two,ratio),	= tokenprices( c, w3_url=w3_url, use_provider=use_provider )
-                except Exception as exc:
-                    log.warning( f"Ignoring candidate {c} for price deduction: {exc}" )
-                    continue
-                if conversions.get( (c,two.symbol) ) is None or conversions.get( (one.symbol,two.symbol) ) is None:
-                    if conversions.get( (c,two.symbol) ) is None:
-                        log.info( f"Updated  {c:>6}/{two.symbol:<6} to: {ratio}" )
-                        conversions[c,two.symbol] = ratio
-                    if conversions.get( (one.symbol,two.symbol) ) is None:
-                        log.info( f"Updated  {one.symbol:>6}/{two.symbol:<6} to: {ratio}" )
-                        conversions[one.symbol,two.symbol] = ratio
-                    break
-            else:
-                # We must reject any zero-valued Cryptocurrencies from target currencies!  If the
-                # caller selects eg. WEENUS as a payment currency, and we allow it, it might result
-                # in an "infinite" payment in a zero-valued currency as a payment option.  We can
-                # detect this, right here, because we won't be able to compute any conversion
-                # ratio between a valuable cryptocurrency, and a zero-valued cryptocurrency.
-                # Instead failing, remove it as a payment option!
-                raise RuntimeError( f"Failed to resolve conversion ratios {remaining}, using {len( candidates )} remaining candidates {commas( candidates, final='and' )}" )
-            while ( remaining := conversions_remaining( conversions ) ) and not isinstance( remaining, str ):
-                if log.isEnabledFor( logging.DEBUG ):
-                    log.debug( f"Working: \n{conversions_table( conversions, greater=False )}" )
-            log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
+        # Now that we have all line-item, invoice and account Cryptocurrency symbols, we can
+        # identify all the conversion we require to satisfy the Invoice.  Every LineItem
+        # Cryptocurrency symbol must be convertible to each Invoice Cryptocurrency symbol.
+        if conversions is None:
+            conversions		= {}
+        for ls in line_symbols:
+            for c in currencies:
+                if ls != c:
+                    conversions.setdefault( (ls,c), None )  # eg. ('USDC','BTC'): None
 
         self.accounts		= accounts
         self.currencies		= currencies		# { "USDC", "BTC", ... }
@@ -489,6 +457,69 @@ class Invoice:
         self.currencies_alias	= currencies_alias      # { "WBTC": TokenInfo( "BTC", ... ), ... }
         self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
         self.created		= datetime.utcnow().astimezone( timezone.utc )
+        self.resolved		= self.created
+
+    def unsatisfied( self ):
+        return set(
+            sum(
+                (
+                    pair
+                    for pair,ratio in self.conversions.items()
+                    if ratio is None
+                ),
+                ()
+            )
+        ) - { 'ETH' }
+
+    def resolve( self ):
+        unsatisfied		= self.unsatisfied()
+        if not unsatisfied:
+            return
+
+        for c in unsatisfied:
+            if (c,'ETH') not in self.conversions:
+                log.info( f"Require {c:>6}/ETH conversion ratio" )
+                self.conversions[c,'ETH'] = None
+
+        # Resolve all resolvable conversions (ie. from any supplied), see what's left
+        while ( remaining := conversions_remaining( self.conversions ) ) and not isinstance( remaining, str ):
+            if log.isEnabledFor( logging.DEBUG ):
+                log.debug( f"Working: \n{conversions_table( self.conversions, greater=False )}" )
+        log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( self.conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
+
+        while remaining:
+            # There are unresolved LineItem -> Invoice currencies.  We need to get a price ratio between
+            # the LineItem currency, and at least one of the main Invoice currencies.  Since we know we're dealing
+            # in Ethereum ERC-20 proxies, we'll keep getting ratios between currencies and ETH (the
+            # default from tokenprices).
+            candidates		= self.unsatisfied()
+            for c in candidates:
+                try:
+                    (one,two,ratio), = tokenprices( c, w3_url=self.w3_url, use_provider=self.use_provider )
+                except Exception as exc:
+                    log.warning( f"Ignoring candidate {c} for price deduction: {exc}" )
+                    continue
+                if self.conversions.get( (c,two.symbol) ) is None or self.conversions.get( (one.symbol,two.symbol) ) is None:
+                    if self.conversions.get( (c,two.symbol) ) is None:
+                        log.info( f"Updated  {c:>6}/{two.symbol:<6} to: {ratio}" )
+                        self.conversions[c,two.symbol] = ratio
+                    if self.conversions.get( (one.symbol,two.symbol) ) is None:
+                        log.info( f"Updated  {one.symbol:>6}/{two.symbol:<6} to: {ratio}" )
+                        self.conversions[one.symbol,two.symbol] = ratio
+                    break
+            else:
+                # We must reject any zero-valued Cryptocurrencies from target currencies!  If the
+                # caller selects eg. WEENUS as a payment currency, and we allow it, it might result
+                # in an "infinite" payment in a zero-valued currency as a payment option.  We can
+                # detect this, right here, because we won't be able to compute any conversion
+                # ratio between a valuable cryptocurrency, and a zero-valued cryptocurrency.
+                # Instead failing, remove it as a payment option!
+                raise ConversionError( f"Failed to resolve conversion ratios {remaining}, using {len( candidates )} remaining candidates {commas( candidates, final='and' )}" )
+            while ( remaining := conversions_remaining( self.conversions ) ) and not isinstance( remaining, str ):
+                if log.isEnabledFor( logging.DEBUG ):
+                    log.debug( f"Working: \n{conversions_table( self.conversions, greater=False )}" )
+            log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( self.conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
+        self.resolved		= datetime.utcnow().astimezone( timezone.utc )
 
     def decimals( self, currency ):
         info			= self.currencies_proxy[currency]
@@ -498,14 +529,19 @@ class Invoice:
 
     def headers( self ):
         """Output the headers to use in tabular formatting of iterator.  By default, we'd recommend hiding any starting
-        with an _ prefix (this is the default)."""
+        with an _ prefix (this is the default).
+
+        Beware of making column labels w/ spaces; the 2nd half of some column labels is assumed to
+        be a Cryptocurrency symbol for formatting purposes.
+
+        """
         return (
             '_#',
             'Description',
             'Qty',
             'Price',
             '_Tax',
-            'Tax %',
+            'Tax%',
             'Taxes',
             '_Net',
             'Amount',
@@ -537,6 +573,8 @@ class Invoice:
         ratio and hence sum is full precision, and is only rounded at the final use.
 
         """
+
+        self.resolve()  # Resolve any yet unresolved conversions.  May raise Exception, if unresolvable.
 
         tot			= {
             c: 0. for c in self.currencies
@@ -708,7 +746,7 @@ class Invoice:
             def taxi( c ):
                 return headers_can.index( can( f'_Taxes {c}' ))
 
-            subtotal		= tabulate(
+            subtotal		= tabulate_nopad(
                 # And the per-currency Sub-totals (for each page)
                 [
                     [
@@ -750,7 +788,7 @@ class Invoice:
                 'Coin',
                 'Currency',
             )
-            total		= tabulate(
+            total		= tabulate_nopad(
                 total_rows,
                 headers		= total_headers,
                 intfmt		= ',',
@@ -759,18 +797,14 @@ class Invoice:
             )
 
             def fmt( val, hdr, coin  ):
-                hdr_can		= can( hdr )
-                if hdr_can in ( 'price', 'taxes', 'amount', 'net' ):
-                    # It's a Price, or a computed Taxes/Amount/Net; use the line's cryptocurrency to round
-                    return round( val, deci( coin ))
-                try:
-                    t,t_coin	= hdr.split()
-                except Exception:
-                    pass
-                else:
-                    if can( t ) in ('total', 'taxes'):
-                        # It's a 'Total/Taxes COIN' column; use the specified coin's decimals for rounding
-                        return round( val, deci( t_coin ))
+                hdr_split	= hdr.split()  # Eg. "Total USDC" --> ["Total","USDC"]
+                if can( hdr_split[0] ) in ( 'total', 'taxes', 'amount', 'net' ):
+                    # It's a computed Total/Taxes/Amount/Net; use the line's/column's
+                    # cryptocurrency to round.  Do not round Price, because multiples of a
+                    # fractional price are significant, even if the precision is greater than the
+                    # number of decimals supported by the LineItem's Cryptocurrency.
+                    decimals	= deci( hdr_split[1] if len( hdr_split ) > 1 else coin )
+                    val		= round( val, decimals )
                 return val
 
             # Produce the page line-items.  We must round each line-item's numeric price values
@@ -792,7 +826,7 @@ class Invoice:
                 #   Total    -> Amount
                 #   Coin     -> Coin
                 #   Currency -> Currency
-                table_rows.append( SEPARATING_LINE )
+                table_rows.append( tabulate.SEPARATING_LINE )
                 for acc,tax,tot,coin,curr in total_rows:
                     row		= []
                     for h in headers_selected:
@@ -822,7 +856,7 @@ class Invoice:
                 ]
                 log.info( f"Maximum col widths {commas( ( f'{h}: {w}' for h,w in zip( table_headers, maxcolwidths ) ), final='and' )}" )
 
-            table		= tabulate(
+            table		= tabulate_nopad(
                 table_rows,
                 headers		= table_headers,
                 intfmt		= ',',
@@ -1243,7 +1277,7 @@ def produce_invoice(
             inv_tpl['inv-client-info'] = '\n'.join( metadata.client.info )
             inv_tpl['inv-client-info-bg'] = layout / '1x1-ffffffbf.png'
 
-        dets			= tabulate(
+        dets			= tabulate_nopad(
             [
                 [ f'{metadata.label} #:', metadata.number ],
                 [ 'Date:', metadata.date.strftime( INVOICE_STRFTIME ) ],
@@ -1254,7 +1288,7 @@ def produce_invoice(
         )
 
         exch			= conversions_table( invoice.conversions, greater=1 )
-        exch_date		= invoice.created.strftime( INVOICE_STRFTIME )
+        exch_date		= invoice.resolved.strftime( INVOICE_STRFTIME )
         inv_table		= (dets, tbl,)
         if final:
             inv_table	       += ( f"CONVERSION RATIOS (est. {exch_date}):\n{exch}", )
@@ -1282,12 +1316,12 @@ def write_invoices(
     """
     if filename is None:
         filename		= True
-    for invoice,metadata in invoices:
+    for invoice,metadata in invoices:  # Provides the supplied invoice,metadata...
         try:
-            # Provides the supplied invoice,metadata, and receives the transformed (specialized) metadata.
+            # and receives the transformed (specialized) metadata.
             _,pdf,metadata		= produce_invoice(
                 invoice	= invoice,
-                metadata	= metadata,
+                metadata = metadata,
                 **kwds
             )
 
@@ -1318,7 +1352,7 @@ def write_invoices(
                 pdf	= pdf,
                 path	= path,
             )
-        except Exception as exc:
+        except (BaseException, ConversionError) as exc:
             name, output	= None, exc
 
         yield name, output
