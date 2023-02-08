@@ -41,11 +41,11 @@ def test_conversions():
     c1_tbl			= conversions_table( c1, tablefmt='orgtbl' )
     print( '\n' + c1_tbl )
     assert c1_tbl == """\
-| Coin | in ETH |    in USD |
-|------+--------+-----------|
-| BTC  | ?      | 23,456.78 |
-| ETH  |        |  1,234.56 |
-| USD  |        |           |"""
+| Coin |    in USD | in ETH |
+|------+-----------+--------|
+| BTC  | 23,456.78 | ?      |
+| ETH  |  1,234.56 |        |
+| USD  |           |        |"""
 
     c_simple			= dict( c1 )
     c_simple_i			= 0
@@ -55,11 +55,11 @@ def test_conversions():
     c_simple_tbl		= conversions_table( c_simple, tablefmt='orgtbl' )
     print( c_simple_tbl )
     assert c_simple_tbl == """\
-| Coin |     in BTC |    in ETH |    in USD |
-|------+------------+-----------+-----------|
-| BTC  |            | 19.000113 | 23,456.78 |
-| ETH  | 0.05263126 |           |  1,234.56 |
-| USD  |            |           |           |"""
+| Coin |    in USD |     in BTC |    in ETH |
+|------+-----------+------------+-----------|
+| BTC  | 23,456.78 |            | 19.000113 |
+| ETH  |  1,234.56 | 0.05263126 |           |
+| USD  |           |            |           |"""
 
     c_w_doge			= dict( c1, ) | { ('DOGE','BTC'): .00000385, ('DOGE','USD'): None }
     c_w_doge_i			= 0
@@ -83,22 +83,22 @@ def test_conversions():
     c_w_doge_tbl		= conversions_table( c_w_doge, tablefmt='orgtbl' )
     print( c_w_doge_tbl )
     assert c_w_doge_tbl == """\
-| Coin |     in BTC |        in DOGE |    in ETH |         in USD |
-|------+------------+----------------+-----------+----------------|
-| BTC  |            | 259,740.26     | 19.000113 | 23,456.78      |
-| DOGE |            |                |           |      0.0903086 |
-| ETH  | 0.05263126 |  13,670.458    |           |  1,234.56      |
-| USD  |            |      11.073142 |           |                |"""
+| Coin |        in DOGE |         in USD |     in BTC |    in ETH |
+|------+----------------+----------------+------------+-----------|
+| BTC  | 259,740.26     | 23,456.78      |            | 19.000113 |
+| ETH  |  13,670.458    |  1,234.56      | 0.05263126 |           |
+| USD  |      11.073142 |                |            |           |
+| DOGE |                |      0.0903086 |            |           |"""
 
     c_w_doge_all		= conversions_table( c_w_doge, greater=False, tablefmt='orgtbl' )
     print( c_w_doge_all )
     assert c_w_doge_all == """\
 | Coin |     in BTC |        in DOGE |      in ETH |         in USD |
 |------+------------+----------------+-------------+----------------|
-| BTC  |            | 259,740.26     | 19.000113   | 23,456.78      |
-| DOGE | 3.85e-06   |                |  7.315e-05  |      0.0903086 |
 | ETH  | 0.05263126 |  13,670.458    |             |  1,234.56      |
-| USD  | 4.263e-05  |      11.073142 |  0.00081001 |                |"""
+| USD  | 4.263e-05  |      11.073142 |  0.00081001 |                |
+| DOGE | 3.85e-06   |                |  7.315e-05  |      0.0903086 |
+| BTC  |            | 259,740.26     | 19.000113   | 23,456.78      |"""
 
     c_bad			= dict( c1, ) | { ('DOGE','USD'): None }
     with pytest.raises( Exception ) as c_bad_exc:
@@ -136,13 +136,13 @@ def test_conversions():
     c_zero_tbl			= conversions_table( c_zero, tablefmt='orgtbl' )
     print( c_zero_tbl )
     assert c_zero_tbl == """\
-| Coin   |     in BTC |    in ETH |    in USD | in WEENUS | in ZEENUS |
-|--------+------------+-----------+-----------+-----------+-----------|
-| BTC    |            | 19.000113 | 23,456.78 |           |           |
-| ETH    | 0.05263126 |           |  1,234.56 |           |           |
-| USD    |            |           |           |           |           |
-| WEENUS | 0          |  0        |      0    |           |         1 |
-| ZEENUS | 0          |  0        |      0    |         1 |           |"""
+| Coin   |    in USD |     in BTC |    in ETH | in WEENUS | in ZEENUS |
+|--------+-----------+------------+-----------+-----------+-----------|
+| BTC    | 23,456.78 |            | 19.000113 |           |           |
+| ETH    |  1,234.56 | 0.05263126 |           |           |           |
+| USD    |           |            |           |           |           |
+| WEENUS |      0    | 0          |  0        |           |         1 |
+| ZEENUS |      0    | 0          |  0        |         1 |           |"""
 
 
 line_amounts			= [
@@ -356,28 +356,28 @@ def test_tabulate( tmp_path ):
  2 | Simple                                          |   1 | USD           | USDC   | 12,345.0001 | no tax |  0         | 12,345          |  12,762.88 | 0.56723907
 ---+-------------------------------------------------+-----+---------------+--------+-------------+--------+------------+-----------------+------------+------------
    | BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |     | Bitcoin       | BTC    |             |        |  0.0008844 |      0.56723907 |            |
-   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Ethereum      | ETH    |             |        |  0.013266  |      8.508586   |            |
-   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | USD Coin      | USDC   |             |        | 19.9       | 12,762.88       |            |
    | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Wrapped BTC   | WBTC   |             |        |  0.0008844 |      0.56723907 |            |
+   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Ethereum      | ETH    |             |        |  0.013266  |      8.508586   |            |
    | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Wrapped Ether | WETH   |             |        |  0.013266  |      8.508586   |            |
+   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | USD Coin      | USDC   |             |        | 19.9       | 12,762.88       |            |
    | XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |     | Ripple        | XRP    |             |        | 53.06      | 34,034.34       |            |
 
  Account                                         |      Taxes |        Subtotal | Coin | Currency
 -------------------------------------------------+------------+-----------------+------+---------------
  BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.0008844 |      0.56723907 | BTC  | Bitcoin
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | ETH  | Ethereum
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9       | 12,762.88       | USDC | USD Coin
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.0008844 |      0.56723907 | WBTC | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | ETH  | Ethereum
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | WETH | Wrapped Ether
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9       | 12,762.88       | USDC | USD Coin
  XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.06      | 34,034.34       | XRP  | Ripple
 
  Account                                         |      Taxes |           Total | Coin | Currency
 -------------------------------------------------+------------+-----------------+------+---------------
  BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |  0.0008844 |      0.56723907 | BTC  | Bitcoin
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | ETH  | Ethereum
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9       | 12,762.88       | USDC | USD Coin
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.0008844 |      0.56723907 | WBTC | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | ETH  | Ethereum
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |  0.013266  |      8.508586   | WETH | Wrapped Ether
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 19.9       | 12,762.88       | USDC | USD Coin
  XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 53.06      | 34,034.34       | XRP  | Ripple"""  # noqa: E501
 
     # Test precision of columns related to Bitcoin; should be 8 decimals throughout, even if WBTC
@@ -417,29 +417,29 @@ def test_tabulate( tmp_path ):
  1 | Couchant bogy                                   |  45 | BTC           | BTC  | 9e-05   | 3.5% inc |   0.00013696 |      0.00405 |   4,613.62 |     218.44 |   0.20505 | 0.00970839 |    0.20505 | 0.00970839
 ---+-------------------------------------------------+-----+---------------+------+---------+----------+--------------+--------------+------------+------------+-----------+------------+------------+------------
    | BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |     | Bitcoin       | BTC  |         |          |   0.00970839 |      0.20505 |            |            |           |            |            |
-   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Ethereum      | ETH  |         |          |   0.145626   |      3.07575 |            |            |           |            |            |
-   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | USD Coin      | USDC |         |          | 218.44       |  4,613.62    |            |            |           |            |            |
    | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Wrapped BTC   | WBTC |         |          |   0.00970839 |      0.20505 |            |            |           |            |            |
+   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Ethereum      | ETH  |         |          |   0.145626   |      3.07575 |            |            |           |            |            |
    | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | Wrapped Ether | WETH |         |          |   0.145626   |      3.07575 |            |            |           |            |            |
+   | ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |     | USD Coin      | USDC |         |          | 218.44       |  4,613.62    |            |            |           |            |            |
    | XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         |     | Ripple        | XRP  |         |          | 582.5        | 12,303       |            |            |           |            |            |
 
  Account                                         |        Taxes |     Subtotal | Coin | Currency
 -------------------------------------------------+--------------+--------------+------+---------------
  BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |   0.00970839 |      0.20505 | BTC  | Bitcoin
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | ETH  | Ethereum
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 218.44       |  4,613.62    | USDC | USD Coin
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.00970839 |      0.20505 | WBTC | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | ETH  | Ethereum
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | WETH | Wrapped Ether
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 218.44       |  4,613.62    | USDC | USD Coin
  XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 582.5        | 12,303       | XRP  | Ripple
 
  Account                                         |        Taxes |        Total | Coin | Currency
 -------------------------------------------------+--------------+--------------+------+---------------
  BTC: bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2 |   0.00970839 |      0.20505 | BTC  | Bitcoin
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | ETH  | Ethereum
- ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 218.44       |  4,613.62    | USDC | USD Coin
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.00970839 |      0.20505 | WBTC | Wrapped BTC
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | ETH  | Ethereum
  ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E |   0.145626   |      3.07575 | WETH | Wrapped Ether
- XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 582.5        | 12,303       | XRP  | Ripple""" # noqa: E501
+ ETH: 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E | 218.44       |  4,613.62    | USDC | USD Coin
+ XRP: rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV         | 582.5        | 12,303       | XRP  | Ripple"""  # noqa: E501
 
     # Output some invoices
     this			= Path( __file__ ).resolve()
@@ -512,12 +512,18 @@ line_currencies		= [
     "DAI",
     None,
     "USDC",
-    "USDT",
     "US Dollar",
+    "USD Coin",
+    "US Dollar",
+    "USDT",
+    "Pax Dollar",
+    "Ripple",
     "XRP",
+    "HoloToken",
     "HOT",
     "Shiba Inu",
-    "ZEENUS",  # Worthless; will cause Invoice to fail if chosen as one of payment 'currencies'
+    "WEENUS",  # Worthless; will cause Invoice to fail if chosen as one of payment 'currencies'
+    "ZEENUS",
 ]
 
 

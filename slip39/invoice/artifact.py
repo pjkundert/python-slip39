@@ -129,6 +129,8 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
     """Output a tabulation of conversion ratios, optionally >= a value (or of a pair of ratios), to
     the specified precision (default, 8 decimal points).
 
+    Sort by the column with the highest density of conversion ratios.
+
     """
     if symbols is None:
         symbols			= sorted( set( sum( conversions.keys(), () )))
@@ -145,6 +147,7 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
             return round( v, d )
         return v
 
+    headers_raw			= [ 'Coin' ] + [ f"in {s}" for s in symbols ]
     convers_raw			= [
         [ r ] + list(
             (
@@ -161,14 +164,23 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
     # worthless (or very low valued) currencies, esp. w/ a small 'greater'.  Transpose the
     # conversions (so each column is a row), and elide any w/ empty conversions rows.  Finally,
     # re-transpose back to columns.
-    headers_raw			= [ 'Coin' ] + [ f"in {s}" for s in symbols ]
     convers_txp			= list( zip( *convers_raw ))
-    headers_use,convers_use_txp	= zip( *[
-        (hdr,col)
-        for hdr,col in zip( headers_raw, convers_txp )
-        if any( c != '' for c in col )
-    ])
-    convers_use			= list( zip( *convers_use_txp ))
+    import json
+    headers_use,convers_use_txp	= zip( *sorted(
+        [
+            (hdr,col)
+            for hdr,col in zip( headers_raw, convers_txp )
+            if any( c != '' for c in col )
+        ],
+        key	= lambda hdr_col: sum( map( bool, hdr_col[1] )),  	# number of occupied entries in column
+        reverse	= True,
+    ))
+    # Finally sort by the 2nd (first non-label) column, which has the most occupied values; consider None/'' entries as zero
+    convers_use			= sorted(
+        zip( *convers_use_txp ),
+        key	= lambda row: row[1] or 0,				# by 1st numeric column's conversion ratio
+        reverse	= True,
+    )
 
     return tabulate_nopad(
         convers_use,
@@ -746,8 +758,9 @@ class Invoice:
             def taxi( c ):
                 return headers_can.index( can( f'_Taxes {c}' ))
 
-            subtotal		= tabulate_nopad(
-                # And the per-currency Sub-totals (for each page)
+            # The per-currency Sub-totals (for each page), sorted in ascending order.  Stabilizes
+            # the sort by also sorting the currencies.
+            subtotal_rows	= sorted(
                 [
                     [
                         str( self.currencies_account[c] ),
@@ -758,29 +771,37 @@ class Invoice:
                     ]
                     for c in sorted( self.currencies )
                 ],
-                headers		= (
-                    'Account',
-                    'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
-                    'Subtotal' if final else f'Subtotal {p+1}/{len( pages )}',
-                    'Coin',
-                    'Currency',
-                ),
+                key	= lambda r: r[2]
+            )
+            subtotal_headers	= (
+                'Account',
+                'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
+                'Subtotal' if final else f'Subtotal {p+1}/{len( pages )}',
+                'Coin',
+                'Currency',
+            )
+            subtotal		= tabulate_nopad(
+                subtotal_rows,
+                headers		= subtotal_headers,
                 intfmt		= ',',
                 floatfmt	= ',.15g',
                 tablefmt	= tablefmt or INVOICE_FORMAT,
             )
 
             # And the per-currency Totals (up to current page)
-            total_rows		= [
+            total_rows		= sorted(
                 [
-                    str( self.currencies_account[c] ),
-                    round( page[-1][taxi( c )], deci( c )),
-                    round( page[-1][toti( c )], deci( c )),
-                    c,
-                    self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
-                ]
-                for c in sorted( self.currencies )
-            ]
+                    [
+                        str( self.currencies_account[c] ),
+                        round( page[-1][taxi( c )], deci( c )),
+                        round( page[-1][toti( c )], deci( c )),
+                        c,
+                        self.currencies_account[c].name if c == self.currencies_account[c].symbol else self.currencies_proxy[c].name,
+                    ]
+                    for c in sorted( self.currencies )
+                ],
+                key	= lambda r: r[2]
+            )
             total_headers	= (
                 'Account',
                 'Taxes' if final else f'Taxes {p+1}/{len( pages )}',
@@ -1287,7 +1308,7 @@ def produce_invoice(
             colalign=( 'right', 'left' ), tablefmt='plain'
         )
 
-        exch			= conversions_table( invoice.conversions, greater=1 )
+        exch			= conversions_table( invoice.conversions )
         exch_date		= invoice.resolved.strftime( INVOICE_STRFTIME )
         inv_table		= (dets, tbl,)
         if final:
