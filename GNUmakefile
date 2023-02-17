@@ -77,7 +77,7 @@ test:
 	$(PY3TEST)
 
 analyze:
-	flake8 -j 1 --max-line-length=250 \
+	flake8 --color never -j 1 --max-line-length=250 \
 	  --ignore=W503,E201,E202,E203,E127,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
 	  slip39
 
@@ -126,6 +126,63 @@ slip39/layout/COVER.txt:
 
 # Any build dependencies that are dynamically generated, and may need updating from time to time
 deps:			$(TXT) slip39/gui/SLIP-39.txt slip39/layout/COVER.txt
+
+
+# 
+# Agent Keypairs, Product Licences
+#
+
+GLOBAL_OPTIONS	= -vv
+
+CREDENTIALS	= $(abspath $(HOME)/.crypto-licensing )
+
+export CRYPTO_LIC_PASSWORD
+export CRYPTO_LIC_USERNAME
+
+.PHONY: slip-39 perry-kundert
+products:			slip-39				\
+				perry-kundert			 \
+
+slip-39:
+
+perry-kundert:			USERNAME=a@b.c
+perry-kundert:			CRYPTO_LIC_PASSWORD=password
+perry-kundert:			slip39/invoice/payments_test/perry-kundert.crypto-license
+perry-kundert:			GRANTS="{\"crypto-licensing-server\": {\
+    \"override\": { \
+        \"rate\": \"0.1%\", \
+        \"crypto\": { \
+            \"ETH\": \"0xe4909b66FD66DA7d86114695A1256418580C8767\", \
+            \"BTC\": \"bc1qygm3dlynmjxuflghr0hmq6r7wmff2jd5gtgz0q\" \
+        }\
+    }\
+}}"
+
+
+
+# Create .crypto-keypair from seed; note: if the make rule fails, intermediate files are deleted.
+# We expect any password to be transmitted in CRYPTO_LIC_PASSWORD env. var.
+%.crypto-keypair: %.crypto-seed
+	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
+	    --extra   $(dir $(basename $@ ))			\
+	    --name $(notdir $(basename $@ ))			\
+            --reverse-save					\
+	    registered						\
+	    --username $(USERNAME)				\
+	    --seed $$( cat $< )
+
+# Create .crypto-license, signed by .crypto-keypair
+%.crypto-license : %.crypto-keypair
+	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
+	    --extra   $(dir $(basename $@ ))			\
+	    --name $(notdir $(basename $@ ))			\
+            --reverse-save					\
+	    license						\
+	    --username $(USERNAME) --no-registering		\
+	    --client $(CLIENT) --client-pubkey $(CLIENT_PUBKEY)	\
+	    --grant $(GRANTS)					\
+	    --author $(AUTHOR) --domain $(DOMAIN) --product $(PRODUCT) $(LICENSE_OPTIONS)
+
 
 # 
 # VirtualEnv build, install and activate

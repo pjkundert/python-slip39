@@ -10,3 +10,6 @@ dkimpy[ed25519]		>=1.0.5,<2
 # These versions are very brittle; must be upgraded in lock-step (see web3.py/setup.py)
 web3[tester]		==6.0.0b9
 eth-tester[py-evm]	==v0.8.0-b.3
+
+# Until ethpm upgrade to avoid dependency
+ipfshttpclient				; python_version >= "3.11"

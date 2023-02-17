@@ -963,7 +963,11 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     # OK, we can now sign the 128-bit UUIDv4 bytes w/ the agent keypair.sk (signing key).  The first
     # 64 bytes of the signed document is the signature.
     machine_signed		= ed25519.crypto_sign( machine.bytes, keypair.sk )
-    print( f"{licensing.into_b64( keypair.vk )}: machine UUID signed:    {machine_signed.hex()}" )
+    print( f"{licensing.into_b64( keypair.vk )}: machine UUID sign:       {machine_signed.hex()}" )
+    machine_sig			= machine_signed[:64]
+    print( f"{licensing.into_b64( keypair.vk )}: machine UUID signature:  {licensing.into_b64( machine_sig )}" )
+    assert ed25519.crypto_sign_open( machine_sig + machine.bytes, keypair.vk ) == machine.bytes, \
+        f"Failed to verify machine ID {machine.bytes.hex()} w/ signature {licensing.into_b64( machine_sig )}"
 
     # A 512-bit Ed25519 signature encodes 2 points on an elliptical curve, but won't fit into our
     # 256-bit <data>, so hash it (along with the document).  The result is a "fingerprint" of the

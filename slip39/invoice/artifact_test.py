@@ -568,7 +568,7 @@ desired			= 10
 paths			= f"../-{desired - 1}"
 
 invoices_to_write		= [
-    [
+    (
         # - No obvious route between line-item currencies, and invoice currency:
         #
         # Only XRP LineItems, want USDC in 'currencies' payable (as well as 'BTC', 'ETH' and
@@ -577,25 +577,31 @@ invoices_to_write		= [
         # ('BTC',<something>).
         Invoice(
             items( random.randint( 1, 100 ), most=1, seen=set( ('XRP', ) )),
-            accounts	= [
-                account( SEED_ZOOS, crypto='Ethereum' ),
-                account( SEED_ZOOS, crypto='Bitcoin' ),
-                account( SEED_ZOOS, crypto='Ripple' ),
-            ],
+            accounts	= a,
             currencies	= ['USDC'],
             conversions	= dict( conversions )  # | {('BTC','ETH'): None}, # now automatic
         )
-    ],
-    [
+        for a in [
+            [
+                account( SEED_ZOOS, crypto='Ethereum' ),
+                account( SEED_ZOOS, crypto='Bitcoin' ),
+                account( SEED_ZOOS, crypto='Ripple' ),
+            ]
+        ]
+    ),
+    (
         # - Only ETH.  No conversions required.
         Invoice(
             items( random.randint( 1, 100 ), most=1, seen=set( ('ETH', ) )),
-            accounts	= [
-                account( SEED_ZOOS, crypto='Ethereum' ),
-            ],
+            accounts	= a,
             currencies	= ['ETH'],
         )
-    ],
+        for a in [
+            [
+                account( SEED_ZOOS, crypto='Ethereum' ),
+            ]
+        ]
+    ),
     (
         # - Random combinations of LineItem / Invoice currencies
         #
