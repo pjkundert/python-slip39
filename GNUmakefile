@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=INFO
+PYTESTOPTS	= --capture=no --log-cli-level=WARNING
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -77,7 +77,7 @@ test:
 	$(PY3TEST)
 
 analyze:
-	flake8 --color never -j 1 --max-line-length=250 \
+	$(PY3) -m flake8 --color never -j 1 --max-line-length=250 \
 	  --ignore=W503,E201,E202,E203,E127,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
 	  slip39
 

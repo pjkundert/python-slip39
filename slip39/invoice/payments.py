@@ -207,7 +207,6 @@ def reload(
             # Iterate using authorizations.send(...) instead of next; if nothing to send, leave 'send' None
             credentials		= None
             while True:
-                log.detail( f"Next authorizations, new credentials {credentials!r}" )
                 key,lic		= authorizations.send( credentials )
                 credentials	= None
                 if key is None or lic is None:
@@ -237,7 +236,6 @@ def reload(
                             yield Process.PROMPT, "Enter {} username (leave empty for no change): ".format(
                                 deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' )))
                         )
-                        log.warning( f"  Got username: {username_update}" )
                         userpass_updated |= bool( username_update )
                         if username_update:
                             username	= username_update
@@ -247,7 +245,6 @@ def reload(
                             yield Process.PROMPT, "Enter {} password (leave empty for no change): ".format(
                                 deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' )))
                         )
-                        log.warning( f"  Got password: {password_update}" )
                         userpass_updated |= bool( password_update )
                         if password_update:
                             password	= password_update

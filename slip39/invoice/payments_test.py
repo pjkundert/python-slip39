@@ -72,7 +72,7 @@ def test_grants( tmp_path ):
         product		= "Self Signed",
         keypair		= keyp_ss.into_keypair( username=user_ss, password=pswd_ss ),
     )
-    log.warning( f"Author: {author}" )
+    log.info( f"Author: {author}" )
 
     # Now create the License suitable for self-signing; no client (so any client can sign it)
     lic				= licensing.license(
@@ -81,7 +81,7 @@ def test_grants( tmp_path ):
         grant		= {'self-signed': { 'some-capability': 10 }},
         confirm		= False,  # Not a real domain...
     )
-    log.warning( f"Self-Signable License: {lic}" )
+    log.info( f"Self-Signable License: {lic}" )
 
     # We've got a self-signed.crypto-license, signed by the Vendor, with no specific Client
     # specified.  It's good for anyone to use.  Lets make a link to it, under the name that our
@@ -107,14 +107,14 @@ def test_grants( tmp_path ):
     ls				= subprocess.run(
         [ 'ls', '-l', str( here ) ], stdout=subprocess.PIPE,
     )
-    log.warning( f"Test directory:\n{ls.stdout.decode( 'UTF-8' )}\n\n" )
+    log.info( f"Test directory:\n{ls.stdout.decode( 'UTF-8' )}\n\n" )
 
     client			= licensing.Agent(
         name	= "Perry Kundert",
         service	= "client-user",
         pubkey	= keyp_cl['vk'],
     )
-    log.warning( f"Client: {client}" )
+    log.info( f"Client: {client}" )
 
     # We'll be loading an existing Client Agent keypair, so restrict it from registering a new one.
     # It must try to load the Author's License (using the author.service as the basename), and then
@@ -131,21 +131,31 @@ def test_grants( tmp_path ):
 
     username			= user_cl
     password			= pswd_cl
+    grants			= None
     try:
         key,val			= next( reloader )
         while True:
-            log.warning( f"test_grants <-- {key}: {val}" )
+            log.info( f"test_grants <-- {key}: {val}" )
             if key == Process.PROMPT:
                 if 'username' in val:
-                    log.warning( f"test_grants --> {username}" )
+                    log.info( f"test_grants --> {username}" )
                     key,val	= reloader.send( username )
                     continue
                 elif 'password' in val:
-                    log.warning( f"test_grants --> {password}" )
+                    log.info( f"test_grants --> {password}" )
                     key,val	= reloader.send( password )
                     continue
                 else:
-                    log.warning( f"test_grants -x- ignoring  {val}" )
+                    log.info( f"test_grants -x- ignoring  {val}" )
+            elif key == Process.GRANTS:
+                grants		= val
             key,val		= next( reloader )
     except StopIteration:
-        log.warning( f"test_grants xxx Done w/ key == {key}, val == {val}" )
+        log.info( f"test_grants xxx Done w/ key == {key}, val == {val}" )
+
+    assert str( grants ) == """\
+{
+    "self-signed":{
+        "some-capability":10
+    }
+}"""
