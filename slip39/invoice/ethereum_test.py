@@ -18,7 +18,7 @@ def test_etherscan_ethprice():
     even without an ETHERSCAN_API_TOKEN (subject to default 1/5s rate limit.
 
     """
-    ETH				= Etherscan( "Nothing" )  # Specify Nothing for Ethereum back-end (uses defualts)
+    ETH				= Etherscan( "Nothing" )  # Specify Nothing for Ethereum back-end (uses defaults)
 
     log.warning( "ETH: USD${}".format( ETH.ETH_USD ))
     log.warning( "Gas: USD${:7.2f} / 100,000 gas".format( 100000 * ETH.GAS_GWEI / ETH.ETH_GWEI * ETH.ETH_USD ))
@@ -111,11 +111,11 @@ def test_tokenprice():
 def test_tokenratio():
     # Now, get the token price ratio of two tokens (both cached, relative to default ETH)
     WBTC_USDC		= tokenratio( WBTC, USDC )
-    print( f"{WBTC_USDC[0]['symbol']:>6}/{WBTC_USDC[1]['symbol']:<6}: {float( WBTC_USDC[2] ):13.4f} =~= {WBTC_USDC[2]}" )
+    print( f"{WBTC_USDC[0].symbol:>6}/{WBTC_USDC[1].symbol:<6}: {float( WBTC_USDC[2] ):13.4f} =~= {WBTC_USDC[2]}" )
     assert WBTC_USDC[2] > 10000, \
         "WBTC has crashed vs. USDC?"
 
     HOT_USDC		= tokenratio( "HOT", "USDC" )
-    print( f"{HOT_USDC[0]['symbol']:>6}/{HOT_USDC[1]['symbol']:<6}: {float( HOT_USDC[2] ):13.4f} =~= {HOT_USDC[2]}" )
+    print( f"{HOT_USDC[0].symbol:>6}/{HOT_USDC[1].symbol:<6}: {float( HOT_USDC[2] ):13.4f} =~= {HOT_USDC[2]}" )
     assert HOT_USDC[2] < .10, \
         "HOT has exploded vs. USDC?"

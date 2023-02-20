@@ -50,7 +50,7 @@ def test_grants( tmp_path ):
 
     """
 
-    #test			= Path( __file__ ).resolve().parent,    # Our payments_test.crypto-keypair... file w/ O2o...2ik=
+    test			= Path( __file__ ).resolve()		# Our payments_test.py file
     here			= Path( tmp_path ).resolve()		# Our testing directory.
 
     name_ss			= "self-signed"
@@ -119,6 +119,7 @@ def test_grants( tmp_path ):
     # We'll be loading an existing Client Agent keypair, so restrict it from registering a new one.
     # It must try to load the Author's License (using the author.service as the basename), and then
     # attempt to sign and save an instance of it with the client Keypair.
+    machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
         client		= client,
@@ -127,11 +128,16 @@ def test_grants( tmp_path ):
         basename	= name_cl,  # basename of the License, and the Keypair use to self-sign it
         confirm		= False,
         extra		= [ str( here ) ],
+        constraints	= dict(
+            machine	= True,
+        ),
+        machine_id_path	= machine_id_path,
     )
 
     username			= user_cl
     password			= pswd_cl
     grants			= None
+    keypairs,licenses		= [],[]
     try:
         key,val			= next( reloader )
         while True:
@@ -147,8 +153,16 @@ def test_grants( tmp_path ):
                     continue
                 else:
                     log.info( f"test_grants -x- ignoring  {val}" )
-            elif key == Process.GRANTS:
+            elif key is Process.GRANTS:
+                log.warning( f"Grants:  {val}" )
                 grants		= val
+            elif key is Process.KEYPAIR:
+                log.warning( f"Keypair: {val}" )
+                keypairs.append( val )
+            elif key is Process.LICENSE:
+                log.warning( f"License: {val[1]}, w/ Keypair: {licensing.KeypairPlaintext( val[0] )}" )
+                keypairs.append( val[0] )
+                licenses.append( val[1] )
             key,val		= next( reloader )
     except StopIteration:
         log.info( f"test_grants xxx Done w/ key == {key}, val == {val}" )

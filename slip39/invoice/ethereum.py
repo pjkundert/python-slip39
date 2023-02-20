@@ -451,7 +451,6 @@ class Etherscan( GasOracle ):
             chain,		= ( c for c in Chain if c.name.lower() == chain.lower() )
         assert isinstance( chain, (Chain, type(None)) )
         self._chain		= chain or Chain.Ethereum
-        assert self._chain in ( Chain.Ethereum, Chain.Goerli )
 
         if speed and isinstance( speed, str ):
             speed,		= ( s for s in Speed if s.name.lower() == speed.lower() )

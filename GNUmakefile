@@ -584,6 +584,11 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 # For details on Signing Apps:
 # See: https://developer.apple.com/library/archive/technotes/tn2318/_index.html
 
+# For PyInstaller-specific hints:
+# https://gist.github.com/txoof/0636835d3cc65245c6288b2374799c43
+# https://github.com/txoof/codesign
+# https://github.com/The-Nicholas-R-Barrow-Company-LLC/PyMacApp
+
 # * In order for code signing to succeed, your code signing key(s) MUST have all of their dependent
 #   (issuer) keys downloaded to your Keychain, from https://www.apple.com/certificateauthority.
 #   - Use Keychain Access, right-click on your signing key and click Evaluate "...".

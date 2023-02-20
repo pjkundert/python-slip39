@@ -406,22 +406,30 @@ def process(
         **kwds
     )
 
-    keypairs		= []
-    grants		= None
-    for key,val in reloader:
-        if key is Process.PROMPT:
-            # User information is required; yield the prompt, send the returned data into reloader
-            reloader.send( (yield key, val) )
-            continue
-        # Some other key,val not returning input
-        yield key, val
-        if key is Process.KEYPAIR:
-            keypairs.append( val )
-        if key is Process.LICENSE:
-            keypairs.append( val[0] )
-        if key is Process.GRANTS:
-            grants	= val
-    if grants:
-        return
+    keypairs			= []
+    grants			= None
+    credentials			= None
+    try:
+        while True:
+            key,val		= reloader.send( credentials )
+            if key is Process.PROMPT:
+                # User information is required; yield the prompt, send the returned data into reloader
+                log.warning( f"Prompt: {val}" )
+            # Some other key,val not returning input
+            if key is Process.KEYPAIR:
+                log.warning( f"Keypair: {val}" )
+                keypairs.append( val )
+            if key is Process.LICENSE:
+                log.warning( f"License: {val[1]}" )
+                keypairs.append( val[0] )
+            if key is Process.GRANTS:
+                grants		= val
+            credentials		= ( yield (key,val) )
+    except StopIteration:
+        pass
 
-    # No license grants.  Engage the process of paying for and obtaining a License.
+    if grants:
+        # TODO: check grants
+        pass
+
+    # No/insufficient license grants.  Engage the process of paying for and obtaining a License.

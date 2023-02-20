@@ -1,6 +1,7 @@
 import logging
-import re
 import os
+import re
+import sys
 
 from io			import StringIO
 from pathlib		import Path
@@ -216,11 +217,12 @@ def test_communications_autoresponder( monkeypatch ):
     assert len( envelopes ) == 2
     assert envelopes[-1].rcpt_tos == [ 'perry@kundert.ca' ]
 
-    # Now, try the CLI version.
+    # Now, try the CLI version.  Must use the current python interpreter, and this local instance of python-slip39
     here			= Path( __file__ ).resolve().parent
+
     for execute in [
         [
-            "python3", "-m", "slip39.communications",
+            sys.executable, "-m", "slip39.communications",
         ]
 
     ]:
@@ -235,7 +237,8 @@ def test_communications_autoresponder( monkeypatch ):
             from_addr,
             *to_addrs
         ] ))
-        log.info( f"Running filter: {' . '.join( command )}" )
+        PYTHONPATH		= f"{here.parent}"
+        log.info( f"Running filter w/ PYTHONPATH={PYTHONPATH}: {' . '.join( command )}" )
         with Popen(
                 command,
                 stdin	= PIPE,
@@ -243,7 +246,7 @@ def test_communications_autoresponder( monkeypatch ):
                 stderr	= PIPE,
                 env	= dict(
                     os.environ,
-                    PYTHONPATH	= f"{here.parent.parent}"
+                    PYTHONPATH	= PYTHONPATH,
                 )) as process:
             out, err		= process.communicate( msg.as_bytes() )
             log.info( f"Filter stdout: {out.decode( 'UTF-8' ) if out else out}, stderr: {err.decode( 'UTF-8' ) if err else err}" )
