@@ -1,3 +1,4 @@
+import pytest
 import logging
 import os
 import subprocess
@@ -118,7 +119,9 @@ def test_grants( tmp_path ):
 
     # We'll be loading an existing Client Agent keypair, so restrict it from registering a new one.
     # It must try to load the Author's License (using the author.service as the basename), and then
-    # attempt to sign and save an instance of it with the client Keypair.
+    # attempt to sign and save an instance of it with the client Keypair.  For this, we need access
+    # to an Agent Keypair suitable for signing (access to decrypted private key); so we'll need the
+    # credentials.
     machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
@@ -173,3 +176,29 @@ def test_grants( tmp_path ):
         "some-capability":10
     }
 }"""
+    # TODO: confirm appropriate payment before issuing self-signed license.
+
+    # Now that we've got the self-signed License from Author, self-signed by Client, we can verify
+    # the authenticity of the License without access to the private keys; only the public keys.
+    ls				= subprocess.run(
+        [ 'ls', '-l', str( here ) ], stdout=subprocess.PIPE,
+    )
+    log.info( f"Test directory (post self-signed issuance):\n{ls.stdout.decode( 'UTF-8' )}\n\n" )
+
+    assert len( licenses ) == 1
+    constraints			= licenses[0].verify(
+        author_pubkey	= client.pubkey,
+        confirm		= False,
+        machine_id_path	= machine_id_path,
+    )
+    log.info( f"Verified self-signed License:\n{constraints}\n\n" )
+    assert not constraints
+
+    # Later, we restore from backup and our Machine ID changes...
+    assert len( licenses ) == 1
+    with pytest.raises( licensing.LicenseIncompatibility ) as excinfo:
+        constraints			= licenses[0].verify(
+            author_pubkey	= client.pubkey,
+            confirm		= False,
+        )
+    assert "specifies Machine ID 00010203-0405-4607-8809-0a0b0c0d0e0f; found" in str( excinfo.value )

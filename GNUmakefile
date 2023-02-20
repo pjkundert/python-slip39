@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=WARNING
+PYTESTOPTS	= --capture=no --log-cli-level=INFO
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
