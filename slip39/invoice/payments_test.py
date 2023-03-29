@@ -91,9 +91,9 @@ def test_grants( tmp_path ):
     name_cl			= "client-user"
     base_cl			= here / name_cl
 
-    os.symlink( name_ss + '.crypto-license', base_cl.with_suffix( '.crypto-license' ))
+    # os.symlink( name_ss + '.crypto-license', base_cl.with_suffix( '.crypto-license' ))
 
-    # Get a Client Agent, to use to self-sign the License
+    # Get a Client Agent Keypair, to use to self-sign the License
     seed_cl			= licensing.into_bytes( "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" )
     user_cl			= "end-user@client.com"
     pswd_cl			= "password"
@@ -104,11 +104,84 @@ def test_grants( tmp_path ):
         password	= pswd_cl,
     )
     assert keyp_cl['vk'] == "fVnFYj3UCnSqTVoyrGRdOz+V2urkwiviVHbdakhvc4I="
+    keyp_cl_raw			= keyp_cl.into_keypair( username=user_cl, password=pswd_cl )
 
     ls				= subprocess.run(
         [ 'ls', '-l', str( here ) ], stdout=subprocess.PIPE,
     )
     log.info( f"Test directory:\n{ls.stdout.decode( 'UTF-8' )}\n\n" )
+
+    # The licensing.authorized API should now be able to issue this self-signed.crypto-license
+    # on-demand, IF it can find a Keypair.  It will not find it by looking for
+    # self-signed.crypto-license, b/c self-signed.crypto-keypair is encrypted with different
+    # credentials.
+    with pytest.raises( licensing.NotRegistered ) as excinfo:
+        assert list( licensing.authorized(
+            author	= author,
+            basename	= str( base_ss ),
+            confirm	= False,
+            registering	= False,
+            acquiring	= False,
+        )) == [ (None,None) ]
+    # But w/ a Keypair, we can get a self-signed License issued
+    auth_str = licensing.into_JSON(
+        [
+            ( licensing.KeypairPlaintext( k ) if k else None, l )
+            for k,l in licensing.authorized(
+                author	= author,
+                basename	= str( base_ss ),
+                confirm	= False,
+                registering	= False,
+                acquiring	= False,
+                keypairs	= [ keyp_cl_raw ],
+            )
+        ], indent=4, default=str,
+    )
+    print( auth_str )
+    assert auth_str == """\
+[
+    [
+        {
+            "sk":"u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7t9WcViPdQKdKpNWjKsZF07P5Xa6uTCK+JUdt1qSG9zgg==",
+            "vk":"fVnFYj3UCnSqTVoyrGRdOz+V2urkwiviVHbdakhvc4I="
+        },
+        {
+            "license":{
+                "author":{
+                    "name":"fVnFYj3UCnSqTVoyrGRdOz+V2urkwiviVHbdakhvc4I=",
+                    "pubkey":"fVnFYj3UCnSqTVoyrGRdOz+V2urkwiviVHbdakhvc4I="
+                },
+                "dependencies":[
+                    {
+                        "license":{
+                            "author":{
+                                "domain":"self-signed.com",
+                                "name":"Dominion Research & Development Corp.",
+                                "product":"Self Signed",
+                                "pubkey":"5zTqbCtiV95yNV5HKqBaTEh+a0Y8Ap7TBt8vAbVja1g="
+                            },
+                            "grant":{
+                                "self-signed":{
+                                    "some-capability":10
+                                }
+                            }
+                        },
+                        "signature":"I/o9+bacFBOwTPgNfduUwdgldMRPVCQPUEN4h3yynqzv4sDyEe37oCslnB7gjM8VBojp3vdZbdlmO7HhxLJQDA=="
+                    }
+                ]
+            },
+            "signature":"/OWpu8M4HczWnTXwW5yPchZpdI7B/k7c2GtaiK++itlzm8UY2Gl0DMe2k4HDZY6cg6t1cPi3EgjjtZXrWuLACQ=="
+        }
+    ],
+    [
+        {
+            "sk":"u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7t9WcViPdQKdKpNWjKsZF07P5Xa6uTCK+JUdt1qSG9zgg==",
+            "vk":"fVnFYj3UCnSqTVoyrGRdOz+V2urkwiviVHbdakhvc4I="
+        },
+        null
+    ]
+]
+"""
 
     client			= licensing.Agent(
         name	= "Perry Kundert",
@@ -118,17 +191,19 @@ def test_grants( tmp_path ):
     log.info( f"Client: {client}" )
 
     # We'll be loading an existing Client Agent keypair, so restrict it from registering a new one.
-    # It must try to load the Author's License (using the author.service as the basename), and then
-    # attempt to sign and save an instance of it with the client Keypair.  For this, we need access
-    # to an Agent Keypair suitable for signing (access to decrypted private key); so we'll need the
-    # credentials.
+    # We'll look for Licenses issued under the basenames of client.service (an already issued
+    # sub-license), and author.service (eg. an author-issued License we can sub-license). If no
+    # already issued License is found, tt must try to load the Author's License (using the
+    # author.service as the basename), and then attempt to sign and save an instance of it with the
+    # client Agent's Keypair.  For this, we need access to an Agent Keypair suitable for signing
+    # (access to decrypted private key); so we'll need the credentials.
     machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
         client		= client,
         registering	= False,
         reverse_save	= True,
-        basename	= name_cl,  # basename of the License, and the Keypair use to self-sign it
+        basename	= None,         # name_cl,  # basename of the License, and the Keypair use to self-sign it
         confirm		= False,
         extra		= [ str( here ) ],
         constraints	= dict(
@@ -194,10 +269,11 @@ def test_grants( tmp_path ):
     log.info( f"Verified self-signed License:\n{constraints}\n\n" )
     assert not constraints
 
-    # Later, we restore from backup and our Machine ID changes...
+    # Later, we restore from backup and our Machine ID changes...  This will cause a
+    # LicenseSigned.verify failure.
     assert len( licenses ) == 1
     with pytest.raises( licensing.LicenseIncompatibility ) as excinfo:
-        constraints			= licenses[0].verify(
+        constraints		= licenses[0].verify(
             author_pubkey	= client.pubkey,
             confirm		= False,
         )

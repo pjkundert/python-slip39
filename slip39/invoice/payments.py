@@ -208,11 +208,16 @@ def reload(
             credentials		= None
             while True:
                 key,lic		= authorizations.send( credentials )
+                log.detail( f"Reloading key: {key}, lic: {lic}" )
                 credentials	= None
                 if key is None or lic is None:
                     if key is not None:
                         # Found a Keypair (but no License); yield it
                         yield Process.KEYPAIR, key
+                        continue
+
+                    # Neither Keypair nor License; authorized has indicated it is out of options and
+                    # is about to give up: unless we provide new credentials.
                     what		= "No License found for Agent ID {}".format(
                         licensing.into_b64( key.vk )) if key else "(No Agent ID Keypair found)"
                     if userpass_input:
@@ -234,7 +239,8 @@ def reload(
                         log.warning( "Asking for username..." )
                         username_update	= (
                             yield Process.PROMPT, "Enter {} username (leave empty for no change): ".format(
-                                deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' )))
+                                deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' ),
+                                             default=client and client.servicekey or "the" ))
                         )
                         userpass_updated |= bool( username_update )
                         if username_update:
@@ -243,7 +249,8 @@ def reload(
                         log.warning( "Asking for password..." )
                         password_update	= (
                             yield Process.PROMPT, "Enter {} password (leave empty for no change): ".format(
-                                deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' )))
+                                deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' ),
+                                             default=client and client.servicekey or "the" ))
                         )
                         userpass_updated |= bool( password_update )
                         if password_update:
@@ -294,7 +301,7 @@ def reload(
             exc=''.join( traceback.format_exception( *sys.exc_info() )) if log.isEnabledFor( logging.TRACE ) else exc ))
         with open( Path( crypto_licensing.__file__ ).resolve().parent / 'licensing' / 'static' / 'txt' / 'CL-KEYPAIR-MISSING.txt', 'r' ) as f:
             error		= f.read().format(
-                DISTRIBUTION	= deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' )),
+                DISTRIBUTION	= deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' ), default=client and client.servicekey or "" ),
                 KEYPATTERN	= licensing.KEYPATTERN,
                 LICENSE_OPTION	= '--license',
             )
@@ -377,16 +384,17 @@ def process(
     if acquiring is None:
         acquiring		= True
 
-    # We're looking for a License authored by Dominion R&D Corp.  This might be encapsulated as
-    # one of the dependencies of the License we find (eg. if Dominion issues a License to some
-    # company, which includes the ability to run a crypto-licensing server), but we'll validate
-    # that the Grant was issued by Dominion R&D Corp.  For example, Dominion issues a License to
-    # awesome-inc.com to sub-License crypto-licensing servers.  They, in turn, issue a License
-    # to Лайка.ru to run a crypto-licensing server, and help them set it up.  When
+    # We're looking for a License authored by an author Agent (eg. Dominion R&D Corp.), for a
+    # certain product or service.  This might be encapsulated as one of the dependencies of the
+    # License we find (eg. if Dominion issues a License to some company, which includes the ability
+    # to run a crypto-licensing server), but we'll validate that the Grant was issued by Dominion
+    # R&D Corp.  For example, Dominion issues a License to awesome-inc.com to sub-License
+    # crypto-licensing servers.  They, in turn, issue a License to Лайка.ru to run a
+    # crypto-licensing server, and help them set it up.  When
     # http://crypto-licensing.xn--80aa0aec.ru/ (crypto-licensing.Лайка.ru) issues a License for
-    # their software, part of the fees are paid to awesome-inc.com and some to dominionrnd.com.
-    # The final software installation uses crypto-licensing's authorized() function, which checks
-    # that each successive License's dependencies are correctly signed, and carries the original
+    # their software, part of the fees are paid to awesome-inc.com and some to dominionrnd.com.  The
+    # final software installation uses crypto-licensing's authorized() function, which checks that
+    # each successive License's dependencies are correctly signed, and carries the original
     # 'crypto-licensing' Grant through to the recipient.
     dominion			= licensing.Agent(
         name	= licensing.COMPANY,
