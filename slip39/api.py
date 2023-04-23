@@ -996,7 +996,7 @@ group_parser.RE			= re.compile( # noqa E305
         \s*
         (?P<name> [^\d\(/]+ )
         \s*\(?\s*
-        (:? (?P<require> \d* ) \s* / )?
+        (?: (?P<require> \d* ) \s* / )?
         \s*
         (?P<size> \d* )
         \s*\)?\s*
