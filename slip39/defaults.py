@@ -48,13 +48,13 @@ FONTS				= dict(
 )
 
 #                                  Y      X       Margin
-BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
-CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
-INDEX_CARD			= (3,     5),     1/16  # noqa: E241
+BUSINESS_CARD			= (2,     3+1/2), 1/8   # noqa: E241
+CREDIT_CARD			= (2+1/4, 3+3/8), 1/8
+INDEX_CARD			= (3,     5),     1/8   # noqa: E241
 HALF_LETTER			= (13.5/3,8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
 THIRD_LETTER			= (13.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
 QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 4/letter, 5/legal)
-PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default outer border
+PHOTO_CARD			= (3+1/2, 5+1/2), 1/8   # prints on 4x6 photo paper w/ 1/4" default outer border
 
 # SLIP-39 Mnemonic Card Sizes
 CARD				= 'business'
@@ -108,7 +108,7 @@ BITS_BIP39			= BITS + (160, 192, 224)
 
 MNEM_ROWS_COLS			= {
     20:	( 7, 3),		# 128-bit seed
-    33:	(11, 3),		# 256-bit seed
+    33:	( 9, 4),		# 256-bit seed
     59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor)
 }
 

@@ -313,15 +313,7 @@ def produce_pdf(
                 page_n		= p
             card_n	       += 1
 
-            tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
-            tpl['card-requires'] = requires
-            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
-            tpl['card-qr1']	= qr[0].get_image()
-            if len( accounts[0] ) > 1:
-                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
-                tpl['card-qr2']	= qr[1].get_image()
-            tpl[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
-            tpl['card-link']	= 'slip39.com'
+            tpl['card-title']	= f"{name} : {g_name} : Card {mn_n+1} of {len(g_mnems)}"
             if watermark:
                 tpl['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
@@ -442,7 +434,7 @@ def write_pdfs(
             g_nam_max		= max( map( len, details.groups.keys() ))
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
-                    print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
+                    print( f"{name}: {g_name}: {i+1} of {len(g_mnems)}: {mnem}" )
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
