@@ -248,11 +248,6 @@ def produce_pdf(
             Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
         )
         cover.add_region_proportional(
-            Image( 'cover-image', x1=1/4, x2=3/4, y1=1/4, y2=3/4, priority=-3 )
-        ).square().add_region(
-            Image( 'cover-fade', priority=-2 )
-        )
-        cover.add_region_proportional(
             Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
         )
         cover.add_region_proportional(
@@ -266,8 +261,6 @@ def produce_pdf(
             log.debug( f"Cover elements: {json.dumps( cover_elements, indent=4)}" )
         tpl_cover		= fpdf.FlexTemplate( pdf, cover_elements )
         images			= os.path.dirname( __file__ )
-        tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
-        tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
 
         slip39_mnems		= []
         slip39_group		= [requires]
