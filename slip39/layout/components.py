@@ -543,8 +543,8 @@ def layout_components(
 
     # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
     # Allow 5% bleed over into page margins (to allow for slight error in paper vs. comp sizes)
-    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // comp_dim.x )
-    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // comp_dim.y )
+    comp_cols			= max((1, int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // comp_dim.x )))
+    comp_rows			= max((1, int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // comp_dim.y )))
     comps_pp			= comp_rows * comp_cols
 
     def page_xy( num: int ) -> Tuple[int, Coordinate]:

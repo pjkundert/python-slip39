@@ -444,15 +444,12 @@ def write_pdfs(
                 for i,mnem in enumerate( g_mnems ):
                     print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
 
-        # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
-        # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
-        # we're producing paper wallets, always force portrait orientation for the cards, to match.
+        # Produce a PDF containing the SLIP-39 mnemonic recovery cards.
         if card_format is not False or wallet_pwd:
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
-                orientations	= ('portrait', ) if wallet_pwd else None,
                 cover_text	= cover_text,
                 watermark	= watermark,
             )
