@@ -551,8 +551,8 @@ def layout_components(
         """Returns the page, and the coordinates within that page of the num'th component"""
         page,nth		= divmod( num, comps_pp )
         page_rows,page_cols	= divmod( nth, comp_cols )
-        offsetx			= page_margin_mm + page_cols * comp_dim.x
-        offsety			= page_margin_mm + page_rows * comp_dim.y
+        offsetx			= (pdf.epw - comp_cols * comp_dim.x) / 2 + page_cols * comp_dim.x
+        offsety			= (pdf.eph - comp_rows * comp_dim.y) / 2 + page_rows * comp_dim.y
         log.debug( f"{ordinal(num)} {comp_dim.x:7.5f}mm x {comp_dim.y:7.5f}mm component on page {page}, offset {offsetx:7.5f}mm x {offsety:7.5f}mm" )
         return (page, Coordinate( x=offsetx, y=offsety ))
 
