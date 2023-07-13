@@ -277,10 +277,10 @@ class Account:
     | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
     | CRO    | Bech32   | m/44'/ 60'/0'/0/0 | crc1... | Beta    |
     | BTC    | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
-    |        | SegWit   | m/44'/  0'/0'/0/0 | 3...    |         |
+    |        | SegWit   | m/49'/  0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
     | LTC    | Legacy   | m/44'/  2'/0'/0/0 | L...    |         |
-    |        | SegWit   | m/44'/  2'/0'/0/0 | M...    |         |
+    |        | SegWit   | m/49'/  2'/0'/0/0 | M...    |         |
     |        | Bech32   | m/84'/  2'/0'/0/0 | ltc1... |         |
     | DOGE   | Legacy   | m/44'/  3'/0'/0/0 | D...    |         |
     | XRP    | Legacy   | m/44'/144'/0'/0/0 | r...    | Beta    |
@@ -340,12 +340,12 @@ class Account:
         ),
         BTC		= dict(
             legacy	= "m/44'/0'/0'/0/0",
-            segwit	= "m/44'/0'/0'/0/0",
+            segwit	= "m/49'/0'/0'/0/0",
             bech32	= "m/84'/0'/0'/0/0",
         ),
         LTC		= dict(
             legacy	= "m/44'/2'/0'/0/0",
-            segwit	= "m/44'/2'/0'/0/0",
+            segwit	= "m/49'/2'/0'/0/0",
             bech32	= "m/84'/2'/0'/0/0",
         ),
         DOGE		= dict(
