@@ -313,7 +313,7 @@ def produce_pdf(
                 page_n		= p
             card_n	       += 1
 
-            tpl['card-title']	= f"{name} : {g_name} : Card {mn_n+1} of {len(g_mnems)}"
+            tpl['card-title']	= f"{name} : {g_name}"
             if watermark:
                 tpl['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
