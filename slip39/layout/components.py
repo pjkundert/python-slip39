@@ -239,13 +239,6 @@ def layout_card(
     β			= math.atan( b / a )
     rotate		= 90 - math.degrees( β )
 
-    for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
-        card_interior.add_region_proportional( Text(
-            f'card-g{c_n}', x1=c/b * 8/100, y1=-2/32, x2=c/b * 92/100, y2=10/32,
-            foreground	= int( COLOR[c_n % len( COLOR )], 16 ),
-            rotate	= -rotate,
-            bold	= True,
-        ))
     card_interior.add_region_proportional( Text(
         'card-watermark', x1=5/100, y1=14/16, x2=c/b * 95/100, y2=17/16,
         foreground	= int( COLOR[-2], 16 ),
@@ -253,52 +246,18 @@ def layout_card(
         align		= 'L'
     ))
 
-    # Rotation is downward around upper-left corner; so, lower-left corner will shift 1 height
-    # leftward and upward; so start 1 height right and down.
-    link_length		= card_interior.h
-    link_height		= link_length * 6/32
-    card_interior.add_region(
-        Text(
-            'card-link',
-            x1		= card_interior.x1 + link_height,
-            y1		= card_interior.y1,
-            x2		= card_interior.x1 + link_height + link_length,
-            y2		= card_interior.y1 + link_height,
-            rotate	= -90,				# along left border of card
-            foreground	= int( COLOR[-3], 16 ), 	# Light grey
-            align	= 'R'
-        )
-    )
-
     card_top			= card_interior.add_region_proportional(
-        Region( 'card-top', x1=0, y1=0, x2=1, y2=1/4 )
+        Region( 'card-top', x1=0, y1=0, x2=1, y2=1/8 )
     )
     card_bottom			= card_interior.add_region_proportional(
         Region( 'card-bottom', x1=0, y1=1/4, x2=1, y2=1 )
     )
     card_mnemonics		= card_bottom.add_region_proportional(
-        Region( 'card-mnemonics', x1=0, y1=0, x2=13/16, y2=1 )
+        Region( 'card-mnemonics', x1=0, y1=0, x2=1, y2=1 )
     )
 
-    # QR codes sqaare, and anchored to top and bottom of card.
-    card_bottom.add_region_proportional(
-        Image( 'card-qr1', x1=13/16, y1=0, x2=1, y2=1/2 )
-    ).square( justify='TR' )
-    card_bottom.add_region_proportional(
-        Image( 'card-qr2', x1=13/16, y1=1/2, x2=1, y2=1 )
-    ).square( justify='BR' )
-
     card_top.add_region_proportional(
-        Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
-    )
-    card_top.add_region_proportional(
-        Text( 'card-requires', x1=0, y1=40/100, x2=1, y2=66/100, align='C', italic=True )
-    )
-    card_top.add_region_proportional(
-        Text( 'card-crypto1', x1=0, y1=66/100, x2=1, y2=83/100, align='R' )
-    )
-    card_top.add_region_proportional(
-        Text( 'card-crypto2', x1=0, y1=83/100, x2=1, y2=100/100, align='R' )
+        Text( 'card-title', x1=0, y1=0, x2=1, y2=1, bold=True, align='C')
     )
 
     assert num_mnemonics in MNEM_ROWS_COLS, \
