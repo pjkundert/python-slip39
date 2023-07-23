@@ -28,7 +28,7 @@ from datetime		import datetime, timedelta, timezone
 from calendar		import monthrange
 
 import fpdf
-import tabulate
+from ..			import tabulate
 
 from crypto_licensing.misc import get_localzone, Duration
 
@@ -51,7 +51,7 @@ Invoice artifacts:
 """
 log				= logging.getLogger( "artifact" )
 
-# Custom tabula1te format that provides "====" SEPARATING_LINE between line-items and totals
+# Custom tabulate format that provides "====" SEPARATING_LINE between line-items and totals
 tabulate._table_formats["totalize"] = tabulate.TableFormat(
     lineabove		= tabulate.Line("", "-", "  ", ""),
     linebelowheader	= tabulate.Line("", "-", "  ", ""),

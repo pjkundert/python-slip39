@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=5  # INFO
+PYTESTOPTS	= --capture=no --log-cli-level=WARNING
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -709,7 +709,7 @@ upload-check:
 	    || ( echo -e "\n\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
 	        && false )
 upload: 	upload-check wheel
-	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
+	$(PY3) -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )

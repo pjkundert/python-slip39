@@ -163,12 +163,15 @@ entry_points			= {
 
 package_dir			= {
     "slip39":			"./slip39",
-    "slip39.layout":		"./slip39/layout",
+    "slip39.cli":		"./slip39/cli",
     "slip39.invoice":		"./slip39/invoice",
+    "slip39.layout":		"./slip39/layout",
+    "slip39.layout.font":	"./slip39/layout/font",
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
-    "slip39.cli":		"./slip39/cli",
+    # Until tabulate fixes empty cell type deduction, separators
+    "slip39.tabulate":		"./slip39/tabulate",
 }
 
 package_data			= {

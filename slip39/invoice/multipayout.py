@@ -24,7 +24,9 @@ from typing		import Union
 from itertools		import count
 
 from web3		import Web3		# noqa F401
-from tabulate		import tabulate
+
+#from tabulate		import tabulate
+from ..tabulate		import tabulate
 
 from ..util		import remainder_after, fraction_allocated, commas
 from .ethereum		import Chain, Contract, contract_address  # noqa F401

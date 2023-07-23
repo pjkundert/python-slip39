@@ -128,9 +128,9 @@ def test_grants( tmp_path ):
         [
             ( licensing.KeypairPlaintext( k ) if k else None, l )
             for k,l in licensing.authorized(
-                author	= author,
+                author		= author,
                 basename	= str( base_ss ),
-                confirm	= False,
+                confirm		= False,
                 registering	= False,
                 acquiring	= False,
                 keypairs	= [ keyp_cl_raw ],
@@ -180,8 +180,7 @@ def test_grants( tmp_path ):
         },
         null
     ]
-]
-"""
+]"""
 
     client			= licensing.Agent(
         name	= "Perry Kundert",
