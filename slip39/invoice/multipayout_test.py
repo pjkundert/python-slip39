@@ -13,7 +13,7 @@ import solcx
 from crypto_licensing	import licensing, ed25519
 
 from web3		import Web3, logs as web3_logs
-from web3.contract	import normalize_address_no_ens
+from web3._utils.normalizers import normalize_address_no_ens
 from web3.middleware	import construct_sign_and_send_raw_middleware
 from eth_account	import Account
 
@@ -306,7 +306,7 @@ ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order
 #
 # Here are the Goerli testnet results from the first successful test:
 #
-# The funds came from the 0x667A... source account, and were:
+# The funds came from the 0x667A... (the "zoo zoo ... wrong") source account, and were:
 #
 #       .01 ETH
 #    820.00 WEENUS
@@ -956,7 +956,7 @@ def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destinat
     print( f"{machine} == {machine.bytes.hex()}" )
 
     # Get unique Agent ID Keypair (plaintext; no username/password required)
-    (keyname,keypair),		= licensing.load_keys(
+    (keyname,keypair),		= licensing.load_keypairs(
         extra=[os.path.dirname( __file__ )], filename=__file__ )
     print( f"{licensing.into_b64( keypair.vk )}: {keyname}" )
 
