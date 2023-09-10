@@ -530,7 +530,7 @@ class Etherscan( GasOracle ):
 
             >>> gas, spend = 100000, 1.50  # USD$
             >>> ETH = Etherscan( "Ethereum )
-            >>> maxFeePerGas = spend / ETH.GAS_USD ETH.GAS_WEI
+            >>> maxFeePerGas = spend / ETH.GAS_USD ETH.GAS_WEI (TODO)
 
         """
         return self.ETH_USD * self.GAS_GWEI / self.ETH_GWEI
@@ -860,7 +860,12 @@ class Contract:
     def _update( self ):
         pass
 
-    def _gas_price( self, gas, fail_fast=None, max_factor=None ):
+    def _gas_price(
+        self,
+        gas,				# Estimated Gas required
+        fail_fast	= None,		# If we predict failure due to gas * price, fail now
+        max_factor	= None		# How much can Gas price increase before failing Tx?
+    ):
         """Establish maxPriorityFeePerGas Gas fees for a transaction, optionally w/ a computed
         maxFeePerGas for the given estimated (max) amount of Gas required by the transaction.
 
@@ -881,7 +886,9 @@ class Contract:
         """
 
         # Find out what the network thinks the required Gas fees need to be.  This could be a
-        # Testnet like Goerli, with abnormally low Gas prices.
+        # Testnet like Goerli, with abnormally low Gas prices.  But, for a real Ethereum Mainnet
+        # transaction, it will be an estimate of the latest block's gas price estimates for the next
+        # block.
         latest			= self._w3.eth.get_block( 'latest' )
         base_fee		= latest['baseFeePerGas']
         max_priority_fee	= self._w3.eth.max_priority_fee

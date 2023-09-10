@@ -426,30 +426,88 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     latest			= w3.eth.get_block('latest')
     print( f"{testnet:10}: Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
 
+
+    def gas_pricing(
+        of		= f"{testnet:10}: Web3 Tester",
+        gas		= None,
+        **kwds,
+    ):
+        """Estimate what the gas will cost in USD$, given the transaction's parameters (None if unknown).
+
+        Defaults to the gas of a standard ETH transfer.
+
+        If an old-style fixed gasPrice is given, use that.
+
+        Otherwise, looks for EIP-1559 maxPriorityFeePerGas and maxFeePerGas.
+
+        """
+        if gas is None:
+            gas			= 21000
+        if 'gasPrice' in kwds:
+            # Old fixed gas pricing
+            est_gas_wei		= int(kwds['gasPrice'])
+            max_cost_gwei	= int(gas) * est_gas_wei / ETH.GWEI_WEI
+            max_cost_eth	= max_cost_gwei / ETH.ETH_GWEI
+            max_cost_usd	= max_cost_eth * ETH.ETH_USD
+            print( "{} Gas Price at USD${:9,.2f}/ETH: fee wei/gas fixed {:.4f}: cost per {:,d} Gas: {:,.4f} gwei == {:,.6f} ETH == USD${:10,.6f} ({})".format(  # noqa: E501
+                of,
+                ETH.ETH_USD,
+                est_gas_wei,
+                int(gas),
+                max_cost_gwei,
+                max_cost_eth,
+                max_cost_usd,
+                ETH.STATUS or 'estimated',
+            ))
+        elif 'maxFeePerGas' in kwds or 'baseFeePerGas' in kwds:
+            # New EIP-1599 gas pricing
+            max_gas_wei		= int(kwds.get( 'maxFeePerGas', kwds.get( 'baseFeePerGas' )))
+            max_cost_gwei	= int(gas) * max_gas_wei / ETH.GWEI_WEI
+            max_cost_eth	= max_cost_gwei / ETH.ETH_GWEI
+            max_cost_usd	= max_cost_eth * ETH.ETH_USD
+            print( "{} Gas Price at USD${:9,.2f}/ETH: fee gwei/gas max.  {:.4f}: cost per {:,d} Gas: {:,.4f} gwei == {:,.6f} ETH == USD${:10,.6f} ({})".format(  # noqa: E501
+                of,
+                ETH.ETH_USD,
+                max_gas_wei,
+                int(gas),
+                max_cost_gwei,
+                max_cost_eth,
+                max_cost_usd,
+                ETH.STATUS or 'estimated',
+            ))
+        else:
+            max_cost_usd	= None  # Unknown
+            print( "{} Gas Price at USD${:9,.2f}/ETH: fee gwei/gas unknown from {} ({})".format(  # noqa: E501
+                of,
+                ETH.ETH_USD,
+                ', '.join( f"{k} == {v!r}" for k,v in kwds.items() ),
+                ETH.STATUS or 'estimated',
+            ))
+
+        return max_cost_usd
+
     # Ask the connected Ethereum testnet what it thinks gas prices are.  This will
     # (usually) be a Testnet, where gas prices are artificially low vs. the real Ethereum
     # network.
     max_priority_fee		= w3.eth.max_priority_fee
     base_fee			= latest['baseFeePerGas']
-    est_gas_wei			= base_fee + max_priority_fee
-    max_gas_wei			= base_fee * 2 + max_priority_fee  # fail transaction if gas prices go wild
-    print( "{:10}: Web3 Tester Gas Price at USD${:9,.2f}/ETH: fee gwei/gas est. base (latest): {:9,.2f} priority: {:9,.2f}; cost per {:,d} Gas: {:,.4f} gwei == USD${:9,.2f}; max: USD${:9,.2f} ({})".format(  # noqa: E501
-        testnet, ETH.ETH_USD,
-        base_fee / ETH.GWEI_WEI, max_priority_fee / ETH.GWEI_WEI,
-        100000,
-        100000 * est_gas_wei / ETH.GWEI_WEI,
-        100000 * est_gas_wei * ETH.ETH_USD / ETH.ETH_WEI,
-        100000 * max_gas_wei * ETH.ETH_USD / ETH.ETH_WEI, ETH.STATUS or 'estimated',
-    ))
+    gas				= 21000
 
+    gas_pricing(
+        gas			= gas,
+        maxPriorityFeePerGas	= max_priority_fee,
+        baseFeePerGas		= base_fee,
+    )
+
+    max_gas_wei			= base_fee * 2 + max_priority_fee
     gas_price_testnet		= dict(
         maxFeePerGas		= max_gas_wei,		# If we want to fail if base fee + priority fee exceeds some limits
         maxPriorityFeePerGas	= max_priority_fee,
     )
-    print( f"{testnet:10}: Gas Pricing EIP-1559 for max $1.50 per 21,000 Gas transaction: {json.dumps( gas_price_testnet )}" )
+    print( f"{testnet:10}: Gas Pricing EIP-1559 for max $1.50 per 21,000 Gas transaction (using Testnet Gas pricing): {json.dumps( gas_price_testnet )}" )
 
     # Let's say we're willing to pay up to $1.50 for a standard Ethereum transfer costing 21,000 gas
-    max_usd_per_gas		= 1.50 / 21000
+    max_usd_per_gas		= 1.50 / gas
 
     print( f"{testnet:10}: Web3 Tester Accounts, start of test:" )
     for a in ( src, ) + tuple( destination ):
@@ -503,14 +561,21 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
 
     MultiPayoutERC20_contract	= w3.eth.contract( abi=mp_ERC20_abi, bytecode=mp_ERC20_bytecode )
 
-    gas				= 3000000
+    gas				= 1400000 # 1388019 Gas is actual cost, as of 20230910
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
-    mc_cons_hash		= MultiPayoutERC20_contract.constructor( payees, tokens ).transact({
+    mc_cons_tx			= {
         'from':		src,
         'nonce':	w3.eth.get_transaction_count( src ),
         'gas':		gas,
-    } | gas_price )
+    } | gas_price
+
+    gas_pricing( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20", **mc_cons_tx)
+    
+    print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 Tx (using {'Mainnet' if ETH.UPDATED else 'Testnet'} Gas pricing): {json.dumps(mc_cons_tx, indent=4)}" )
+    # Let's see what this would cost, using the estimated gas:
+    
+    mc_cons_hash		= MultiPayoutERC20_contract.constructor( payees, tokens ).transact( mc_cons_tx )
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 hash: {mc_cons_hash.hex()}" )
     mc_cons			= w3.eth.get_transaction( mc_cons_hash )
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 transaction: {json.dumps( mc_cons, indent=4, default=str )}" )
@@ -534,7 +599,7 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
         return base_fee + prio_fee
 
     gas_cost			= tx_gas_cost( mc_cons, mc_cons_receipt )
-    print( "{:10}: Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {:7.4f}Gwei == USD${:9,.2f} ({}): ${:7.6f}/byte".format(
+    print( "{:10}: Web3 Tester Construct MultiPayoutERC20 Gas Used: {} == {:7.4f}Gwei == USD${:10,.6f} ({}): ${:7.6f}/byte".format(
         testnet,
         mc_cons_receipt.gasUsed,
         mc_cons_receipt.gasUsed * gas_cost / ETH.GWEI_WEI,
