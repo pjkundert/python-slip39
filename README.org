@@ -1915,7 +1915,6 @@ sets of 20 words is difficult, error-prone and time consuming.
     :     selfdestruc
     : }
 
-
 *** Client "Forwarder" Account Creation and Licensing   
 
     Guaranteeing that each client's payments always flow through to the designated tree of payees is

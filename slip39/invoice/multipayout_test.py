@@ -55,13 +55,16 @@ def test_solcx_smoke():
 # Lets deduce the accounts to use in the Goerli Ethereum testnet.  Look for environment variables:
 #
 #   ..._XPRVKEY		- Use this xprv... key to generate m/../0/0 (source) and m/../0/1-3 (destination) addresses
-#   ...__SEED		- Use this Seed (eg. BIP-39 Mnemonic Phrase, hex seed, ...) to generate the xprvkey
+#   ..._SEED		- Use this Seed (eg. BIP-39 Mnemonic Phrase, hex seed, ...) to generate the xprvkey
 #
 # If neither of those are found, use the 128-bit ffff...ffff Seed entropy.  Once you provision an
-# xprvkey and derive the .../0/0 address, send some Goerli Ethereum testnet ETH to it.
+# xprvkey and derive the .../0/0 address, send some Goerli Ethereum testnet ETH (TGOR) to it.
 #
 # With no configuration, we'll end up using the 128-bit ffff...ffff Seed w/ no BIP-39 encoding as
 # our root HD Wallet seed.
+#
+# However, we will choose to *not* run the Multipayout tests, if no _SEED or _XPRVKEY is present,
+# since they require/use resources in the test networks...
 #
 web3_testers			= []
 
@@ -381,6 +384,8 @@ ZEEN_GOERLI		= "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e"  # 0 decimals; order
 #
 #     https://goerli.etherscan.io/address/0xcB5dc1F473A32f18dD4B834d8979fe914e249890
 #
+@pytest.mark.skipif( not goerli_xprvkey and not ganache_xprvkey,
+                     reason="Specify {GOERLI,GANACHE}_{SEED,XPRVKEY} to run MultiPayoutERC20 tests" )
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
 def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_prvkey, destination ):
     """Use web3 tester
@@ -1001,6 +1006,8 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     assert w3.eth.get_balance( mc_cons_addr ) == 0
 
 
+@pytest.mark.skipif( not goerli_xprvkey and not ganache_xprvkey,
+                     reason="Specify {GOERLI,GANACHE}_{SEED,XPRVKEY} to run MultiPayoutERC20 tests" )
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
 def test_multipayout_api( testnet, provider, chain_id, src, src_prvkey, destination ):
     """Create (or reuse) a network of MultiPayoutERC20 contracts to process a payment through to
@@ -1089,6 +1096,8 @@ def test_multipayout_recover( testnet, provider, chain_id, src, src_prvkey, dest
     print( f"Recovered MultiPayoutERC20 at {mp_r._address}" )
 
 
+@pytest.mark.skipif( not goerli_xprvkey and not ganache_xprvkey,
+                     reason="Specify {GOERLI,GANACHE}_{SEED,XPRVKEY} to run MultiPayoutERC20 tests" )
 @pytest.mark.parametrize( "testnet, provider, chain_id, src, src_prvkey, destination", web3_testers )
 def test_multipayout_deploy( testnet, provider, chain_id, src, src_prvkey, destination ):
     """Deploy a new MultiPayoutERC20 w/ random Fractional share allocations from 1/1 to 1/999.
