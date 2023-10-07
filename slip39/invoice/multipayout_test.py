@@ -431,7 +431,6 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     latest			= w3.eth.get_block('latest')
     print( f"{testnet:10}: Web3 Latest block: {json.dumps( latest, indent=4, default=str )}" )
 
-
     def gas_pricing(
         of		= f"{testnet:10}: Web3 Tester",
         gas		= None,
@@ -566,7 +565,7 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
 
     MultiPayoutERC20_contract	= w3.eth.contract( abi=mp_ERC20_abi, bytecode=mp_ERC20_bytecode )
 
-    gas				= 1400000 # 1388019 Gas is actual cost, as of 20230910
+    gas				= 1400000  # 1388019 Gas is actual cost, as of 20230910
     spend			= gas * max_usd_per_gas
     gas_price			= ETH.maxPriorityFeePerGas( spend=spend, gas=gas ) if ETH.UPDATED else gas_price_testnet
     mc_cons_tx			= {
@@ -576,10 +575,10 @@ def test_multipayout_ERC20_web3_tester( testnet, provider, chain_id, src, src_pr
     } | gas_price
 
     gas_pricing( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20", **mc_cons_tx)
-    
+
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 Tx (using {'Mainnet' if ETH.UPDATED else 'Testnet'} Gas pricing): {json.dumps(mc_cons_tx, indent=4)}" )
     # Let's see what this would cost, using the estimated gas:
-    
+
     mc_cons_hash		= MultiPayoutERC20_contract.constructor( payees, tokens ).transact( mc_cons_tx )
     print( f"{testnet:10}: Web3 Tester Construct MultiPayoutERC20 hash: {mc_cons_hash.hex()}" )
     mc_cons			= w3.eth.get_transaction( mc_cons_hash )
@@ -1089,11 +1088,23 @@ def test_multipayout_recover( testnet, provider, chain_id, src, src_prvkey, dest
     # Recover an already deployed MultiPayoutERC20.  No need for a GasOracle (free calls only)
     mp_r			= MultiPayoutERC20(
         provider,
-        address		= "0xb8A8db0B4B8107c71D0C079351Be69c8CCe27469",
-        agent		= src,
-        agent_prvkey	= src_prvkey,
+        address		= "0xdb0bFb2E582Ecd3bc51C264d2F087D034857bF40",
     )
-    print( f"Recovered MultiPayoutERC20 at {mp_r._address}" )
+    print( f"Recovered MultiPayoutERC20 at {mp_r._address}: {mp_r}" )
+    assert str(mp_r) == """\
+MultiPayoutERC20 Payees:
+    | Payee                                      | Share                 |   Frac. % |   Reserve |   Reserve/2^16 |   Frac.Rec. % |   Error % |
+    |--------------------------------------------+-----------------------+-----------+-----------+----------------+---------------+-----------|
+    | 0xEeC2b464c2f50706E3364f5893c659edC9E4153A | 14979/65536           |   22.8561 |     50557 |          50557 |       22.8561 |         0 |
+    | 0xE5714055437154E812d451aF86239087E0829fA8 | 1228888999/4294967296 |   28.6123 |     41229 |          41229 |       28.6123 |         0 |
+    | 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 | 2084414553/4294967296 |   48.5316 |         0 |              0 |       48.5316 |         0 |
+ERC-20s:
+    | Token                                      | Symbol   |   Digits |
+    |--------------------------------------------+----------+----------|
+    | 0xe802376580c10fE23F027e1E19Ed9D54d4C9311e | USDT     |        6 |
+    | 0xde637d4C445cA2aae8F782FFAc8d2971b93A4998 | USDC     |        6 |
+    | 0xaFF4481D10270F50f203E0763e2597776068CBc5 | WEENUS   |       18 |
+    | 0x1f9061B953bBa0E36BF50F21876132DcF276fC6e | ZEENUS   |        0 |"""
 
 
 @pytest.mark.skipif( not goerli_xprvkey and not ganache_xprvkey,

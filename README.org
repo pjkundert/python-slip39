@@ -11,16 +11,6 @@
 
 #+LATEX_HEADER: \usepackage[margin=1.333in]{geometry}
 
-#+BEGIN_SRC emacs-lisp :noweb no-export :exports results
-;; Tables not centered
-(
- setq org-latex-tables-centered nil
-      org-src-preserve-indentation t
-      org-edit-src-content-indentation 0
-      org-confirm-babel-evaluate nil
-)
-nil
-#+END_SRC
 #+RESULTS:
 
 #+BEGIN_ABSTRACT
@@ -226,13 +216,13 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-11-06 06:14:14 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-    : 2022-11-06 06:14:14 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-    : 2022-11-06 06:14:14 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    : 2022-11-06 06:14:14 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-    : 2022-11-06 06:14:14 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-    : 2022-11-06 06:14:14 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-    : 2022-11-06 06:14:17 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-11-06+06.14.15-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+    : 2023-09-20 15:35:21 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+    : 2023-09-20 15:35:21 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+    : 2023-09-20 15:35:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    : 2023-09-20 15:35:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    : 2023-09-20 15:35:21 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+    : 2023-09-20 15:35:21 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+    : 2023-09-20 15:35:24 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2023-09-20+15.35.21-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
 
     #+LATEX: }
 
@@ -254,8 +244,8 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-11-06 06:14:24 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ no passphrase
-    : 2022-11-06 06:14:24 slip39.recovery  Recovered SLIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2023-09-20 15:35:02 slip39.recovery  Recovered 128-bit SLIP-39 Seed Entropy with 2 (all) of 2 supplied mnemonics; Seed decoded from SLIP-39 Mnemonics w/ no passphrase
+    : 2023-09-20 15:35:02 slip39.recovery  Recovered SLIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : ffffffffffffffffffffffffffffffff
 
     #+LATEX: }
@@ -274,12 +264,12 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-11-06 06:14:28 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-    : 2022-11-06 06:14:28 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    : 2022-11-06 06:14:28 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-    : 2022-11-06 06:14:28 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-    : 2022-11-06 06:14:28 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-    : 2022-11-06 06:14:32 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-11-06+06.14.29-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+    : 2023-09-20 15:34:51 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+    : 2023-09-20 15:34:51 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    : 2023-09-20 15:34:51 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    : 2023-09-20 15:34:51 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+    : 2023-09-20 15:34:51 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+    : 2023-09-20 15:34:54 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2023-09-20+15.34.52-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
 
     #+LATEX: }
 
@@ -467,11 +457,11 @@ sets of 20 words is difficult, error-prone and time consuming.
   #+END_SRC
 
   #+RESULTS:
-  : 2022-11-06 06:14:45 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  : 2022-11-06 06:14:45 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-  : 2022-11-06 06:14:45 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  : 2022-11-06 06:14:45 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
-  : 2022-11-06 06:14:47 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2022-11-06+06.14.46-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  : 2023-09-20 15:34:33 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  : 2023-09-20 15:34:33 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  : 2023-09-20 15:34:33 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  : 2023-09-20 15:34:33 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
+  : 2023-09-20 15:34:35 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2023-09-20+15.34.34-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
 
   #+LATEX: }
 
@@ -546,18 +536,18 @@ sets of 20 words is difficult, error-prone and time consuming.
    #+LATEX: {\scriptsize
    #+BEGIN_SRC bash :exports both :results output
    ( python3 -m slip39 --text --no-card \
-       | ( sort -r  ; echo "...later..." 1>&2 ) \
+       | ( sort -r  ; echo "...later, after recovering SLIP-39 mnemonics..." 1>&2 ) \
        | python3 -m slip39.recovery \
        | python3 -m slip39 --secret - --no-card \
     ) 2>&1
    #+END_SRC
 
    #+RESULTS:
-   : 2022-11-06 06:14:57 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xf28DaC854475631D3729f1FA9E7F58DA419EBA1c
-   : 2022-11-06 06:14:57 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qhs5a0tnl6y33g3uyk49k0vr8qq2phqrf5ph064
-   : ...later...
-   : 2022-11-06 06:14:58 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xf28DaC854475631D3729f1FA9E7F58DA419EBA1c
-   : 2022-11-06 06:14:58 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qhs5a0tnl6y33g3uyk49k0vr8qq2phqrf5ph064
+   : 2023-09-20 15:34:12 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x8edACCa26Cc3536A78B1B7bfc2fF124214AAdfcB
+   : 2023-09-20 15:34:12 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q4m7n9pfd2l7xzz6w9fl60dlr93t0cdeac5pxkp
+   : ...later, after recovering SLIP-39 mnemonics...
+   : 2023-09-20 15:34:12 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x8edACCa26Cc3536A78B1B7bfc2fF124214AAdfcB
+   : 2023-09-20 15:34:12 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q4m7n9pfd2l7xzz6w9fl60dlr93t0cdeac5pxkp
 
    #+LATEX: }
 
@@ -702,11 +692,11 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+RESULTS:
     : 
     : 
-    : nonce: 06b795e5223df33f0db920a25a96fca93594343b4f18cc86c196d946
-    :     0: c8b4c7181974f6f1e51ce2b305df3a243b849d5784f365e1d69bd9593450324dcc0723502295c14ea43ba9e706047...
-    :     1: 2df410189c325bdcf04c951d40d1e8afc3e2bfab15cf1bcf8431b8ffc540838df2b884651eef888fa6baaf9c9f364...
-    :     2: 2c6124efecdd9e82bb45c6d4376c2ac9aa79168f0ea357423cf4160689463d3ba5ae4286a2b296fc68c4561f224ca...
-    :     3: 542ff6434688bf47a6ad0de8f15c851595b8d06f87d02ee6495da1cab2cea96ae2fdcc770104a6aa367fa77f3e3db...
+    : nonce: bcf054e8e5af71e0b61f62770704b893e0ec7c1b749ea24bb607c234
+    :     0: e5f574f1261287a5c106fb82582d44f9b7eb7f4ee2c60b2a7d6c6c3dc2d6878395f5146ec1cbbeea2bc67dbdf62e7...
+    :     1: ccbcb08653a7ce06893c4f60f21ebbd22b2388726461f155e7903628aee6c63294170dc7deb91093307227946257c...
+    :     2: 0310707354f3c19556d0ff5e3fd008e2bcc16956a55724cd71e875ba7916a1926c384764a8ad5fc85a181b49b08f0...
+    :     3: 87d01d40703a203a03bf8847902b1a3ba682cdcb3837947192263962057189ee511343ce15f5cb021fe125fc1c53e...
 
     #+LATEX: }
 
@@ -749,7 +739,7 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
 
     #+RESULTS:
-    : 2022-12-02 08:31:17 slip39.generator Decrypting accountgroups with nonce: b041e61fe7366694922035d6
+    : 2023-09-19 05:43:28 slip39.generator Decrypting accountgroups with nonce: e1c1cabfe65b0b0cde555b93
     :     0: [["ETH", "m/44'/60'/0'", "xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"], ["BTC", "m/84'/0'/0'", "zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]]
     :     1: [["ETH", "m/44'/60'/1'", "xpub6C2y6te3rtGgCPb4Gi89Qin7Da2dvnnHSuR9rLQV6bWQKiyfKyjtVzr2n9mKmTEHzr4rzK78LmdSXLSzvpZqVs4ussUU8NyXpt9nWWbKG3C"], ["BTC", "m/84'/0'/1'", "zpub6rD5AGSXPTDMUaSe3aGDqWk4uMTwcrFwytkKuDGmi3ofUkJ4dQxXHZwiXWbHHrELJAor8xGs61F8sbKS2JdQkLZRnu5PGktmr6F32nEBUBb"]]
     :     2: [["ETH", "m/44'/60'/2'", "xpub6C2y6te3rtGgENnaK62SyPawqKvbde17wc2ndMGFWi2yAkk3piwEY9QK8egtE9ye9uoqiqs5WV3MTNCCP2qjUNDb8cmSg4ZsVnwQnkziXVh"], ["BTC", "m/84'/0'/2'", "zpub6rD5AGSXPTDMYx2sQPuZgceniniRXDK5tELiREjxfSGJENNxuQD3u2yfpRqnNE1JeH14Pa7MVGrofDJtyXw252ws9HgRcd82X2M4KzkUfpZ"]]
@@ -773,7 +763,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+RESULTS:
     #+begin_example
-    2022-11-06 06:15:38 slip39.generator Decrypting accountgroups with nonce: 449e69c4ffb096455e4a5ed8
+    2023-09-19 05:43:30 slip39.generator Decrypting accountgroups with nonce: 76ad9b751f8da1ffa68e6f21
     --- 0
     ["ETH","m/44'/60'/0'","xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"]
     ["BTC","m/84'/0'/0'","zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]
@@ -806,7 +796,7 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+RESULTS:
     #+begin_example
-    2022-12-02 08:31:35 slip39.generator Decrypting accountgroups with nonce: c48a60c2fa35f48a527230c6
+    2023-09-19 05:43:31 slip39.generator Decrypting accountgroups with nonce: ca20c03523d27fa25cd7ebfd
     --- 0
     ETH   m/0/0                0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
     ETH   m/0/1                0xd1a7451beB6FE0326b4B78e3909310880B781d66
@@ -977,36 +967,6 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
 
     #+RESULTS:
-    :results:
-    | Mine(1/1) #1: | 1 academic | 8 safari    | 15 standard |
-    |               | 2 acid     | 9 drug      | 16 angry    |
-    |               | 3 acrobat  | 10 browser  | 17 similar  |
-    |               | 4 easy     | 11 trash    | 18 aspect   |
-    |               | 5 change   | 12 fridge   | 19 smug     |
-    |               | 6 injury   | 13 busy     | 20 violence |
-    |               | 7 painting | 14 finger   |             |
-    | Fam(2/3) #1:  | 1 academic | 8 prevent   | 15 dwarf    |
-    |               | 2 acid     | 9 mouse     | 16 dream    |
-    |               | 3 beard    | 10 daughter | 17 flavor   |
-    |               | 4 echo     | 11 ancient  | 18 oral     |
-    |               | 5 crystal  | 12 fortune  | 19 chest    |
-    |               | 6 machine  | 13 ruin     | 20 marathon |
-    |               | 7 bolt     | 14 warmth   |             |
-    | Fam(2/3) #2:  | 1 academic | 8 prune     | 15 briefing |
-    |               | 2 acid     | 9 pickup    | 16 often    |
-    |               | 3 beard    | 10 device   | 17 escape   |
-    |               | 4 email    | 11 device   | 18 sprinkle |
-    |               | 5 dive     | 12 peanut   | 19 segment  |
-    |               | 6 warn     | 13 enemy    | 20 devote   |
-    |               | 7 ranked   | 14 graduate |             |
-    | Fam(2/3) #3:  | 1 academic | 8 dining    | 15 intimate |
-    |               | 2 acid     | 9 invasion  | 16 satoshi  |
-    |               | 3 beard    | 10 bumpy    | 17 hobo     |
-    |               | 4 entrance | 11 identify | 18 ounce    |
-    |               | 5 alarm    | 12 anxiety  | 19 both     |
-    |               | 6 health   | 13 august   | 20 award    |
-    |               | 7 discuss  | 14 sunlight |             |
-    :end:
     #+LATEX: }
 
     Add the resultant HD Wallet addresses:
@@ -1065,11 +1025,10 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+RESULTS:
     :results:
-    Font named family='sourcecode' + features={('bold',)} loading:  /Users/perry/src/python-slip39/slip39/layout/font/SourceCodePro-Bold.ttf (as 'sourcecodeB')
     | Orientation: | landscape |
-    | Paper:       | Letter    |
-    | PDF Pages:   | 1         |
-    | PDF Size:    | 19063     |
+    | Paper:       |    Letter |
+    | PDF Pages:   |         1 |
+    | PDF Size:    |     11351 |
     :end:
 
     #+LATEX: }
@@ -1282,8 +1241,8 @@ sets of 20 words is difficult, error-prone and time consuming.
 
     #+RESULTS:
     :results:
-    | Valid random 12-word mnemonics: |    5.71% |
-    | Or, about:                      | 1 / 17.5 |
+    | Valid random 12-word mnemonics: |    6.42% |
+    | Or, about:                      | 1 / 15.6 |
     :end:
     #+LATEX: }
 
@@ -1522,21 +1481,22 @@ sets of 20 words is difficult, error-prone and time consuming.
     We'll use =slip39.recovery --bip39 ...= to recover the 512-bit stretched seed from BIP-39:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :exports both :results output
+    #+BEGIN_SRC bash
     ( python3 -m slip39.recovery --bip39 -v \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2022-11-06 06:18:22 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-    : 2022-11-06 06:18:22 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2023-09-19 05:44:02 slip39.recovery  BIP-39 Language detected: english
+    : 2023-09-19 05:44:02 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+    : 2023-09-19 05:44:02 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
     #+LATEX: }
 
     Then we can generate a 59-word SLIP-39 mnemonic set from the 512-bit secret:
    
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :exports both :results output
+    #+BEGIN_SRC bash
     ( python3 -m slip39.recovery --bip39 \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
       | python3 -m slip39 --secret - --no-card -v
@@ -1544,26 +1504,26 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-11-06 06:18:26 slip39                7 patent    19 glasses   31 aunt      43 smoking   55 burning   
-    2022-11-06 06:18:26 slip39                8 diminish  20 replace   32 holiday   44 burden    56 military  
-    2022-11-06 06:18:26 slip39                9 duke      21 privacy   33 ugly      45 body      57 crucial   
-    2022-11-06 06:18:26 slip39               10 civil     22 idle      34 burden    46 burning   58 cultural  
-    2022-11-06 06:18:26 slip39               11 bolt      23 editor    35 photo     47 numerous  59 adult     
-    2022-11-06 06:18:26 slip39               12 scared    24 isolate   36 inherit   48 square    
-    2022-11-06 06:18:26 slip39           6th  1 alto      13 traveler  25 level     37 carve     49 away      
-    2022-11-06 06:18:26 slip39                2 acid      14 damage    26 symbolic  38 image     50 similar   
-    2022-11-06 06:18:26 slip39                3 decision  15 pecan     27 dance     39 segment   51 public    
-    2022-11-06 06:18:26 slip39                4 spider    16 robin     28 unfold    40 document  52 picture   
-    2022-11-06 06:18:26 slip39                5 acquire   17 funding   29 genre     41 blanket   53 cage      
-    2022-11-06 06:18:26 slip39                6 image     18 news      30 shadow    42 herd      54 hanger    
-    2022-11-06 06:18:26 slip39                7 hairy     19 hesitate  31 filter    43 frost     55 relate    
-    2022-11-06 06:18:26 slip39                8 silent    20 tackle    32 phrase    44 year      56 improve   
-    2022-11-06 06:18:26 slip39                9 believe   21 false     33 pancake   45 inside    57 tofu      
-    2022-11-06 06:18:26 slip39               10 ending    22 teammate  34 reunion   46 cricket   58 science   
-    2022-11-06 06:18:26 slip39               11 quantity  23 order     35 device    47 budget    59 fishing   
-    2022-11-06 06:18:26 slip39               12 erode     24 eyebrow   36 ultimate  48 retreat   
-    2022-11-06 06:18:26 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2022-11-06 06:18:26 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2023-09-19 05:44:03 slip39                7 scandal   19 alto      31 starting  43 dance     55 garden    
+    2023-09-19 05:44:03 slip39                8 forward   20 snapshot  32 memory    44 aunt      56 script    
+    2023-09-19 05:44:03 slip39                9 research  21 eraser    33 plot      45 glasses   57 senior    
+    2023-09-19 05:44:03 slip39               10 laser     22 elephant  34 listen    46 result    58 material  
+    2023-09-19 05:44:03 slip39               11 answer    23 dream     35 destroy   47 method    59 always    
+    2023-09-19 05:44:03 slip39               12 fancy     24 victim    36 liquid    48 scroll    
+    2023-09-19 05:44:03 slip39           6th  1 kind      13 rapids    25 squeeze   37 ranked    49 maiden    
+    2023-09-19 05:44:03 slip39                2 regret    14 clinic    26 knife     38 inherit   50 mobile    
+    2023-09-19 05:44:03 slip39                3 decision  15 royal     27 sled      39 music     51 furl      
+    2023-09-19 05:44:03 slip39                4 spider    16 plastic   28 rebuild   40 disease   52 antenna   
+    2023-09-19 05:44:03 slip39                5 acid      17 switch    29 coding    41 industry  53 pencil    
+    2023-09-19 05:44:03 slip39                6 burden    18 answer    30 divorce   42 herald    54 jerky     
+    2023-09-19 05:44:03 slip39                7 single    19 climate   31 mason     43 warn      55 silent    
+    2023-09-19 05:44:03 slip39                8 aviation  20 webcam    32 domestic  44 fumes     56 trash     
+    2023-09-19 05:44:03 slip39                9 brave     21 indicate  33 scatter   45 goat      57 stilt     
+    2023-09-19 05:44:03 slip39               10 should    22 diet      34 chemical  46 staff     58 tadpole   
+    2023-09-19 05:44:03 slip39               11 genuine   23 election  35 pleasure  47 smug      59 decision  
+    2023-09-19 05:44:03 slip39               12 behavior  24 unknown   36 very      48 advocate  
+    2023-09-19 05:44:03 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2023-09-19 05:44:03 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
     #+end_example
     #+LATEX: }
     
@@ -1590,31 +1550,21 @@ sets of 20 words is difficult, error-prone and time consuming.
     generated Seed), and then later recover that Seed Entropy and re-generate the BIP-39 Mnemonic
     phrase.  You will continue to need to remember and use your original BIP-39 passphrase:
 
-    #+BEGIN_SRC mermaid :file images/BIP-39-backup-entropy.png
-    sequenceDiagram
-    Participant BIP as BIP-39 Mnemonic
-    Participant SLIP as SLIP-39 Mnemonics
-    Participant BIP_REC as BIP-39 Recovered
-    Participant HW as Hardware Wallet
-
-    BIP-->>SLIP: slip39 --bip39 --mnemonic "..."
-    SLIP-->>BIP_REC: slip39-recovery --mnemonic "..."
-    BIP_REC-->>HW: Recover w/ BIP-39 Mnemonic + passphrase
-    #+END_SRC
     #+RESULTS:
     [[file:images/BIP-39-backup-entropy.png]]
 
     First, observe that we can recover the 128-bit Seed Entropy from the BIP-39 Mnemonic phrase (not
     the 512-bit generated Seed):
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash :exports both :results output
+    #+BEGIN_SRC bash
     ( python3 -m slip39.recovery --bip39 --entropy -v \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2022-11-06 06:18:34 slip39.recovery  Recovered 128-bit BIP-39 secret from english mnemonic
-    : 2022-11-06 06:18:34 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2023-09-19 05:44:09 slip39.recovery  BIP-39 Language detected: english
+    : 2023-09-19 05:44:09 slip39.recovery  Recovered 128-bit BIP-39 entropy from english mnemonic (no passphrase supported)
+    : 2023-09-19 05:44:09 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : ffffffffffffffffffffffffffffffff
     #+LATEX: }
 
@@ -1625,7 +1575,7 @@ sets of 20 words is difficult, error-prone and time consuming.
     not?
 
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash :exports both :results output
+    #+BEGIN_SRC bash
     ( python3 -m slip39.recovery --bip39 --entropy \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
       | python3 -m slip39 --secret - --no-card -v
@@ -1633,26 +1583,26 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-11-06 06:18:37 slip39                4 skin      11 ounce     18 guilt     
-    2022-11-06 06:18:37 slip39                5 airline   12 racism    19 ecology   
-    2022-11-06 06:18:37 slip39                6 depict    13 picture   20 thumb     
-    2022-11-06 06:18:37 slip39                7 counter   14 afraid    
-    2022-11-06 06:18:37 slip39           5th  1 boundary   8 seafood   15 threaten  
-    2022-11-06 06:18:37 slip39                2 roster     9 welfare   16 olympic   
-    2022-11-06 06:18:37 slip39                3 decision  10 voting    17 detailed  
-    2022-11-06 06:18:37 slip39                4 snake     11 orbit     18 muscle    
-    2022-11-06 06:18:37 slip39                5 cubic     12 engage    19 toxic     
-    2022-11-06 06:18:37 slip39                6 corner    13 therapy   20 froth     
-    2022-11-06 06:18:37 slip39                7 upgrade   14 smirk     
-    2022-11-06 06:18:37 slip39           6th  1 boundary   8 review    15 swimming  
-    2022-11-06 06:18:37 slip39                2 roster     9 easy      16 dive      
-    2022-11-06 06:18:37 slip39                3 decision  10 both      17 enlarge   
-    2022-11-06 06:18:37 slip39                4 spider    11 axle      18 rumor     
-    2022-11-06 06:18:37 slip39                5 cause     12 penalty   19 cargo     
-    2022-11-06 06:18:37 slip39                6 elite     13 budget    20 chemical  
-    2022-11-06 06:18:37 slip39                7 glen      14 loan      
-    2022-11-06 06:18:37 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    2022-11-06 06:18:37 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    2023-09-19 05:44:10 slip39                4 skin      11 angry     18 force     
+    2023-09-19 05:44:10 slip39                5 counter   12 sprinkle  19 peanut    
+    2023-09-19 05:44:10 slip39                6 exchange  13 critical  20 sled      
+    2023-09-19 05:44:10 slip39                7 platform  14 rainbow   
+    2023-09-19 05:44:10 slip39           5th  1 sweater    8 vampire   15 thunder   
+    2023-09-19 05:44:10 slip39                2 negative   9 strategy  16 priority  
+    2023-09-19 05:44:10 slip39                3 decision  10 unfold    17 minister  
+    2023-09-19 05:44:10 slip39                4 snake     11 ruin      18 describe  
+    2023-09-19 05:44:10 slip39                5 capacity  12 purple    19 buyer     
+    2023-09-19 05:44:10 slip39                6 shadow    13 texture   20 wrap      
+    2023-09-19 05:44:10 slip39                7 snapshot  14 aide      
+    2023-09-19 05:44:10 slip39           6th  1 sweater    8 corner    15 veteran   
+    2023-09-19 05:44:10 slip39                2 negative   9 taxi      16 envy      
+    2023-09-19 05:44:10 slip39                3 decision  10 dining    17 suitable  
+    2023-09-19 05:44:10 slip39                4 spider    11 true      18 climate   
+    2023-09-19 05:44:10 slip39                5 dryer     12 rival     19 type      
+    2023-09-19 05:44:10 slip39                6 receiver  13 response  20 intimate  
+    2023-09-19 05:44:10 slip39                7 phantom   14 cluster   
+    2023-09-19 05:44:10 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    2023-09-19 05:44:10 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
     #+end_example
     #+LATEX: }
 
@@ -1661,7 +1611,7 @@ sets of 20 words is difficult, error-prone and time consuming.
     we add the =-using-bip39= option:
 
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash :exports both :results output
+    #+BEGIN_SRC bash
     ( python3 -m slip39.recovery --bip39 --entropy \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
       | python3 -m slip39 --secret - --no-card -v --using-bip39
@@ -1669,26 +1619,26 @@ sets of 20 words is difficult, error-prone and time consuming.
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2022-11-06 06:18:46 slip39                4 skin      11 fiscal    18 prize     
-    2022-11-06 06:18:46 slip39                5 buyer     12 crucial   19 legal     
-    2022-11-06 06:18:46 slip39                6 remind    13 seafood   20 game      
-    2022-11-06 06:18:46 slip39                7 rhyme     14 spew      
-    2022-11-06 06:18:46 slip39           5th  1 trial      8 evil      15 pregnant  
-    2022-11-06 06:18:46 slip39                2 regret     9 class     16 enjoy     
-    2022-11-06 06:18:46 slip39                3 decision  10 fiscal    17 grocery   
-    2022-11-06 06:18:46 slip39                4 snake     11 timber    18 style     
-    2022-11-06 06:18:46 slip39                5 debris    12 busy      19 finance   
-    2022-11-06 06:18:46 slip39                6 merit     13 depict    20 peasant   
-    2022-11-06 06:18:46 slip39                7 agree     14 junk      
-    2022-11-06 06:18:46 slip39           6th  1 trial      8 husky     15 cricket   
-    2022-11-06 06:18:46 slip39                2 regret     9 alive     16 expand    
-    2022-11-06 06:18:46 slip39                3 decision  10 intimate  17 downtown  
-    2022-11-06 06:18:46 slip39                4 spider    11 swing     18 escape    
-    2022-11-06 06:18:46 slip39                5 being     12 employer  19 teammate  
-    2022-11-06 06:18:46 slip39                6 race      13 zero      20 climate   
-    2022-11-06 06:18:46 slip39                7 stadium   14 friar     
-    2022-11-06 06:18:46 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2022-11-06 06:18:46 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2023-09-19 05:44:11 slip39                4 skin      11 daughter  18 general   
+    2023-09-19 05:44:11 slip39                5 clock     12 priest    19 necklace  
+    2023-09-19 05:44:11 slip39                6 recover   13 spirit    20 coastal   
+    2023-09-19 05:44:11 slip39                7 firm      14 admit     
+    2023-09-19 05:44:11 slip39           5th  1 laden      8 building  15 scandal   
+    2023-09-19 05:44:11 slip39                2 training   9 smith     16 tackle    
+    2023-09-19 05:44:11 slip39                3 decision  10 shrimp    17 muscle    
+    2023-09-19 05:44:11 slip39                4 snake     11 cover     18 exceed    
+    2023-09-19 05:44:11 slip39                5 capture   12 racism    19 alcohol   
+    2023-09-19 05:44:11 slip39                6 syndrome  13 simple    20 auction   
+    2023-09-19 05:44:11 slip39                7 smirk     14 daughter  
+    2023-09-19 05:44:11 slip39           6th  1 laden      8 column    15 legal     
+    2023-09-19 05:44:11 slip39                2 training   9 glance    16 marathon  
+    2023-09-19 05:44:11 slip39                3 decision  10 obesity   17 fortune   
+    2023-09-19 05:44:11 slip39                4 spider    11 painting  18 mailman   
+    2023-09-19 05:44:11 slip39                5 cards     12 lift      19 exotic    
+    2023-09-19 05:44:11 slip39                6 devote    13 argue     20 hybrid    
+    2023-09-19 05:44:11 slip39                7 rhythm    14 alcohol   
+    2023-09-19 05:44:11 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2023-09-19 05:44:11 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
     #+end_example
     #+LATEX: }
 
@@ -1829,53 +1779,256 @@ sets of 20 words is difficult, error-prone and time consuming.
 
 **** The Product Owner's MultiPayoutERC20 Contract
 
-     The creation of a =MultiPayoutERC20= is simple.
+     The creation of a =MultiPayoutERC20= contract is very simple.
 
      The product owner must know the Ethereum addresses of the payees, and each payee's proportion
      of the product revenue.  A payee may be another MultiPayoutERC20 contract (eg. for a product
      module sub-license), which may in turn have its own payees.
 
      An Ethereum account containing sufficient funds to establish the MultiPayoutERC20 contract must
-     be available.  Here's an example (using the Ethereum "Goerli" testnet):
+     be available.  Here's an example, using the Ethereum "Goerli" testnet.
+
+     Since contract creation is expensive, we'll determine if we've already deployed a
+     MultiPayoutERC20 contract, so we don't need to spend funds to executed this example.
+     We'll use any =GOERLI_SEED= or =GOERLI_XPRVKEY= defined in your environment, as
+     well as =ALCHEMY_API_TOKEN= and =ETHERSCAN_API_TOKEN= available.
+
+     First, lets get the Ethereum account private key details, and see if we've
+     already deployed a MultiPayoutERC20:
 
      #+LATEX: {\scriptsize
      #+BEGIN_SRC ipython :session :exports both :results output raw drawer
-  
-     # Provide yourself with a Goerli testnet account under your control;
-     # provide an "xpub..." key for it, or the BIP-39 Mnemonic phrase to
-     # derive its HD wallet.  Use the https://goerlifaucet.com to fund the
-     # account with some Goerli test Ethereum; requires you to set up an
-     # https://alchemy.com account, and put your API token in the
-     # ALCHEMY_API_TOKEN environment variable.
-     goerli_xprvkey		= os.getenv( 'GOERLI_XPRVKEY' )
-     if not goerli_xprvkey:
-     	  goerli_seed		= os.getenv( 'GOERLI_SEED' )
-     	  if goerli_seed:
-     	      try:
-     		  # why m/44'/1'/... instead of m/44'/60'/...?  Dunno;
-     		  # That's the derivation path that Trezor Suite uses for
-     		  # Goerli testnet wallets...
-     		  goerli_xprvkey = slip39.account(
-     		      goerli_seed, crypto="ETH", path="m/44'/1'/0'"
-     		  ).xprvkey
-     	      except Exception:
-     		  pass
-     if goerli_xprvkey:
-     	  # the Account.address/.prvkey
-     	  goerli_src		= slip39.account(
-     	      goerli_xprvkey, crypto='ETH', path="m/0/0"
-         )
-  
-     from slip39.invoice import MultiPayoutERC20
-  
-     mp				= MultiPayoutERC20(
-     	agent		= goerli_src.address,
-     	agent_prvkey	= goerli_src.prvkey,
-     	address		= "0xb2D03aD9a84F0E10697BF2CDc2B98765688134d8",
-     )
-     salt			
+#
+# To create a new MultiPayoutERC20contract:
+#
+#     Provide yourself with a Goerli testnet account under your control;
+# provide an "xpub..." key for it, or the BIP-39 Mnemonic phrase to
+# derive its HD wallet.  Use the https://goerlifaucet.com to fund the
+# account with some Goerli test Ethereum; requires you to set up an
+# https://alchemy.com account, and put your API token in the
+# ALCHEMY_API_TOKEN environment variable.
+# 
+#     If you have an Etherscan API token, put it in ETHERSCAN_API_TOKEN.
+# This will be used to scan for any existing contracts already deployed by
+# your Goerli testnet Ethernet address.
+# 
+import os
 
+from web3 import Web3
+import slip39
+from slip39.invoice import MultiPayoutERC20, ethereum
+
+goerli_xprvkey                  = os.getenv( 'GOERLI_XPRVKEY' )
+if not goerli_xprvkey:
+    goerli_seed                 = os.getenv( 'GOERLI_SEED' )
+    #goerli_seed                 = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong"
+    print(f"Using Ethereum seed: {goerli_seed}")
+    if goerli_seed:
+        try:
+            # why m/44'/1'/... instead of m/44'/60'/...?  Dunno;
+            # That's the derivation path that Trezor Suite uses for
+            # Goerli testnet wallets...
+             goerli_xprvkey = slip39.account(
+                 goerli_seed, crypto="ETH", path="m/44'/1'/0'"
+             ).xprvkey
+        except Exception as exc:
+            print(f"Failed to deduce XPRVKEY from seed: {exc}")
+
+contract			= None
+if goerli_xprvkey:
+    # We have the means to authorize a transaction on an Ethereum account!
+    # Get the Account.address public from the xprvkey
+    goerli_src                  = slip39.account(
+        goerli_xprvkey, crypto='ETH', path="m/0/0"
+    )
+    print(f"Using Ethereum address: {goerli_src}")
+
+    # eg. f"wss://eth-goerli.g.alchemy.com/v2/{os.getenv( 'ALCHEMY_API_TOKEN' )}"
+    provider_url		= ethereum.alchemy_url( ethereum.Chain.Goerli )
+    provider			= Web3.WebsocketProvider( provider_url )
+
+    # Lets scan the address's transactions for any existing contract creations,
+    # and see if any match our MultiPayoutERC20 API.  Will automatically use the
+    # ETHERSCAN_API_TOKEN environment variable, if defined.
+    try:
+        for tx in reversed(ethereum.ethertx( chain=Chain.Goerli, address=goerli_src.address )):
+            if not ( contract := tx.get( 'contractAddress' )):
+                continue
+            try:
+                mp_found	= MultiPayoutERC20(
+                    provider,
+                    address     = Web3.to_checksum_address( contractAddress ),
+                )
+            except Exception as exc:
+                print( f"Contract {contract} is not a MultiPayoutERC20: {exc}" )
+            else:
+                print( f"Contract {contract} IS a MultiPayoutERC20" )
+                break
+        else:
+            print( f"No MultiPayoutERC20 contracts found for Goerli address {goerli_src}" )
+    except Exception as exc:
+        print( f"Failed to scan {goerli_src!r} for contracts: {exc}" )
+
+    if contract:
+        print("MultiPayoutERC20 Pre-defined Contract Details:")
+        print( tabulate( [
+            [ "MultiPayoutERC20 Contract:", f"{contract}" ],
+        ], tablefmt='orgtbl' ))
+     #+END_SRC
+
+     #+RESULTS:
+     :results:
+     Using Ethereum seed: zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong
+     Using Ethereum address: ETH: 0x667AcC3Fc27A8EbcDA66E7E01ceCA179d407ce00
+     MultiPayoutERC20 Payees:
+	 | Payee                                      | Share                 |   Frac. % |   Reserve |   Reserve/2^16 |   Frac.Rec. % |   Error % |
+	 |--------------------------------------------+-----------------------+-----------+-----------+----------------+---------------+-----------|
+	 | 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 | 10923/65536           |   16.6672 |     54613 |          54613 |       16.6672 |         0 |
+	 | 0xE5714055437154E812d451aF86239087E0829fA8 | 1431679795/4294967296 |   33.3339 |     39321 |          39321 |       33.3339 |         0 |
+	 | 0xEeC2b464c2f50706E3364f5893c659edC9E4153A | 2147437773/4294967296 |   49.9989 |         0 |              0 |       49.9989 |         0 |
+     ERC-20s:
+	 | Token                                      | Symbol   |   Digits |
+	 |--------------------------------------------+----------+----------|
+	 | 0xe802376580c10fE23F027e1E19Ed9D54d4C9311e | USDT     |        6 |
+	 | 0xde637d4C445cA2aae8F782FFAc8d2971b93A4998 | USDC     |        6 |
+	 | 0xaFF4481D10270F50f203E0763e2597776068CBc5 | WEENUS   |       18 |
+	 | 0x1f9061B953bBa0E36BF50F21876132DcF276fC6e | ZEENUS   |        0 |
+     Contract 0xbe69793974fc55cd8b94dac6b410827740cc6d68 IS a MultiPayoutERC20
+     MultiPayoutERC20 Pre-defined Contract Details:
+     | MultiPayoutERC20 Contract: | 0xbe69793974fc55cd8b94dac6b410827740cc6d68 |
+     :end:
+     #+LATEX: }
+
+     If we didn't find a MultiPayoutERC20, and have the means to deploy and have not already, do so!
+     We'll always send the same proportion to the next 3 accounts in our HD wallet for this example.
+
+     #+LATEX: {\scriptsize
+     #+BEGIN_SRC ipython :session :exports both :results output raw drawer
+
+if goerli_xprvkey and not contract:
+    destination			= tuple(
+        a.address
+        for a in slip39.accounts( goerli_xprvkey, crypto="ETH", paths=f"m/0/1-3" )
+    )
+
+    payees			= {
+        address: share + 1
+        for share,address in enumerate(destination)
+    }
+
+    tokens			= list(
+        ethereum.tokeninfo(
+            t,
+            chain		= ethereum.Chain.Goerli,
+            w3_url		= provider_url,
+            use_provider	= Web3.WebsocketProvider
+        )
+        for t in (
+            "0xe802376580c10fE23F027e1E19Ed9D54d4C9311e", # USDT
+            "0xde637d4C445cA2aae8F782FFAc8d2971b93A4998", # USDC
+            "0xaFF4481D10270F50f203E0763e2597776068CBc5", # WEENUS
+            "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e", # ZEENUS
+        )
+    )
+
+    # print( tabulate( [
+    #     [
+    #         [ "Token", "Decimals", "Contract"]
+    #     ] + [
+    #         [ t.name, t.decimals, t.contract ]
+    #         for t in tokens
+    #     ]
+    # ], tablefmt='orgtbl' ))
+
+    erc20s			= list(
+        t.contract
+        for t in tokens
+    )
+
+    try:
+        mp_created              = MultiPayoutERC20(
+            provider,
+            agent       = goerli_src.address,
+            agent_prvkey= goerli_src.prvkey,
+            payees	= payees,
+            erc20s	= erc20s,
+        )
+    except Exception as exc:
+        print( f"Failed to deploy a new MultiPayoutERC20: {exc}" )
+    else:
+        print( f"Success deploying a new MultiPayoutERC20: {mp_created}" )
+        contract                = mp_created._address
+
+        print("MultiPayoutERC20 Newly Deployed Contract Details:")
+        print( tabulate( [
+            [ "MultiPayoutERC20 Contract:", f"{contract}" ],
+        ], tablefmt='orgtbl' ))
+else:
+    print( "-" * 80 )
     #+END_SRC
+
+    #+RESULTS:
+    :results:
+    --------------------------------------------------------------------------------
+    :end:
+    #+LATEX: }
+
+    Finally, if we found or deployed a MultiPayoutERC20 contract, lets generate a "Forwarder" for
+    some unique user-identifying data (we'll use a pre-existing contract, if necessary).
+
+     #+LATEX: {\scriptsize
+     #+BEGIN_SRC ipython :session :exports both :results output raw drawer
+
+if not contract:
+    # We haven't been able to create a contract; just show a pre-defined one.
+    contract                    = "0xbE69793974Fc55cD8B94Dac6b410827740Cc6d68"
+    print( f"No attempt to create a MultiPayoutERC20; using pre-defined: {contract}" )
+
+# To examine an existing MultiPayoutERC20 contract, use:
+#     https://goerli.etherscan.io/address/<contract>
+mp                              = MultiPayoutERC20(
+    provider,
+    address         = Web3.to_checksum_address( contract ),
+)
+
+import hashlib
+import uuid
+username                        = "perry@kundert.ca"
+machine_id                      = uuid.uuid4()
+salt                            = hashlib.sha256(
+    f"{username}-{machine_id}".encode()
+)
+salt_int			= int.from_bytes( salt.digest(), byteorder='big' )
+forwarder                       = mp.forwarder_address( salt_int )
+
+print("MultiPayoutERC20 Contract & Forwarder Details:")
+print( tabulate( [
+    [ "MultiPayoutERC20 Contract:", f"{contract}" ],
+    [ "Unique Client Salt:", f"{salt.hexdigest()}" ],
+    [ "Their Forwarder Contract:", f"{forwarder}" ],
+], tablefmt='orgtbl' ))
+    #+END_SRC
+
+    #+RESULTS:
+    :results:
+    MultiPayoutERC20 Payees:
+	| Payee                                      | Share                 |   Frac. % |   Reserve |   Reserve/2^16 |   Frac.Rec. % |   Error % |
+	|--------------------------------------------+-----------------------+-----------+-----------+----------------+---------------+-----------|
+	| 0x7Fc431B8FC8250A992567E3D7Da20EE68C155109 | 10923/65536           |   16.6672 |     54613 |          54613 |       16.6672 |         0 |
+	| 0xE5714055437154E812d451aF86239087E0829fA8 | 1431679795/4294967296 |   33.3339 |     39321 |          39321 |       33.3339 |         0 |
+	| 0xEeC2b464c2f50706E3364f5893c659edC9E4153A | 2147437773/4294967296 |   49.9989 |         0 |              0 |       49.9989 |         0 |
+    ERC-20s:
+	| Token                                      | Symbol   |   Digits |
+	|--------------------------------------------+----------+----------|
+	| 0xe802376580c10fE23F027e1E19Ed9D54d4C9311e | USDT     |        6 |
+	| 0xde637d4C445cA2aae8F782FFAc8d2971b93A4998 | USDC     |        6 |
+	| 0xaFF4481D10270F50f203E0763e2597776068CBc5 | WEENUS   |       18 |
+	| 0x1f9061B953bBa0E36BF50F21876132DcF276fC6e | ZEENUS   |        0 |
+    MultiPayoutERC20 Contract & Forwarder Details:
+    | MultiPayoutERC20 Contract: | 0xbe69793974fc55cd8b94dac6b410827740cc6d68                       |
+    | Unique Client Salt:        | 51d1e0102d71e7e82716508803a7de708eb10b70a6640c645b0cfd9faa67e271 |
+    | Their Forwarder Contract:  | 0xEdBfA89a4B3d2B9b7CACcF235C3C5559555f5ee0                       |
+    :end:
     #+LATEX: }
 
 *** Distributing Funds Deterministically

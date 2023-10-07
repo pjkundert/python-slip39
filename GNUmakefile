@@ -78,6 +78,7 @@ test:
 
 analyze:
 	$(PY3) -m flake8 --color never -j 1 --max-line-length=250 \
+	  --exclude slip39/tabulate \
 	  --ignore=W503,E201,E202,E203,E127,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
 	  slip39
 

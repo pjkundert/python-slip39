@@ -1,6 +1,5 @@
 import pytest
 import logging
-import os
 import subprocess
 
 from pathlib		import Path

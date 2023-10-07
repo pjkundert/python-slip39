@@ -228,7 +228,7 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
     return response_json['result']
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.INFO, exc_at=logging.WARNING, default_cls=dict )
 def gasoracle( chain=None, **kwds ):
     """Return (possibly cached) Gas Oracle values from etherscan.io, or empty dict, allowing retries w/
     up to 3*1.5^5 seconds (22s) exponential backoff.
@@ -244,7 +244,7 @@ def gasoracle( chain=None, **kwds ):
     )
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.INFO, exc_at=logging.WARNING, default_cls=dict )
 def ethprice( chain=None, **kwds ):
     """Return (possibly cached) Ethereum price in $USD from etherscan.io, or empty dict (performs exponential
     backoff of 3*1.5^5 seconds (22s) on Exceptions.)
@@ -260,7 +260,7 @@ def ethprice( chain=None, **kwds ):
     )
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.INFO, exc_at=logging.WARNING, default_cls=dict )
 def erc20tx( chain=None, address=None, token=None, **kwds ):
     """Return (possibly cached) ERC-20 transactions from etherscan.io, or empty dict (performs exponential
     backoff of 3*1.5^5 seconds (22s) on Exceptions.)
@@ -293,7 +293,7 @@ def erc20tx( chain=None, address=None, token=None, **kwds ):
     )
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.INFO, exc_at=logging.WARNING, default_cls=dict )
 def etherbalance( chain=None, address=None, **kwds ):
     """Return (possibly cached) ETH balance from etherscan.io, or empty dict (performs exponential
     backoff of 3^5 seconds (4 min.) on Exceptions.)
@@ -315,7 +315,7 @@ def etherbalance( chain=None, address=None, **kwds ):
     )
 
 
-@retry( tries=5, delay=3, backoff=1.5, log_at=logging.WARNING, exc_at=logging.WARNING, default_cls=dict )
+@retry( tries=5, delay=3, backoff=1.5, log_at=logging.INFO, exc_at=logging.WARNING, default_cls=dict )
 def ethertx( chain=None, address=None, **kwds ):
     """Return (possibly cached) ETH normal transactions from etherscan.io, or empty dict (performs exponential
     backoff of 3^5 seconds (4 min.) on Exceptions.)
@@ -355,7 +355,7 @@ def etherio( chain=None, address=None, direction=None, **kwds ):
     """
     if direction is None:
         direction		= Direction.Incoming
-    for tx in ethertx( chain=chain, address=address ):
+    for tx in ethertx( chain=chain, address=address, **kwds ):
         if tx["value"] == "0" or tx["isError"] != "0":
             continue
         # A non-error value-bearing transaction.  Ignore?
@@ -830,7 +830,7 @@ class Contract:
             success		= False
             raise
         finally:
-            log.warning( f"Called  {self._name}.{name}( {commas( args )} ) -{'-' if success else 'x'}> {result}" )
+            log.info( f"Called  {self._name}.{name}( {commas( args )} ) -{'-' if success else 'x'}> {result}" )
         return result
 
     def __getattr__( self, name ):
@@ -993,7 +993,7 @@ class Contract:
         beg			= timer()
         while ( block_number := self._w3.eth.block_number ) < cons_receipt.blockNumber:
             time.sleep( 1 )
-        log.warning( f"Waited {timer()-beg:.2f}s for block {block_number} to be mined, vs. Contract block: {cons_receipt.blockNumber}" )
+        log.info( f"Waited {timer()-beg:.2f}s for block {block_number} to be mined, vs. Contract block: {cons_receipt.blockNumber}" )
 
         self._update()
 

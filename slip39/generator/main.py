@@ -206,7 +206,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             healthy		= serial_connected
             encoding		= 'UTF-8'
 
-            def file_opener():
+            def file_opener():  # noqa: F811
                 ser		= Serial(
                     port	= args.device,
                     baudrate	= args.baudrate or BAUDRATE,
@@ -217,7 +217,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 )
                 return ser
 
-            def healthy_reset( file ):
+            def healthy_reset( file ):  # noaq: F811
                 file.dtr		= False
                 # Wait for a server to de-assert DTR, discarding input.  After the Server has de-asserted, we still need to drain
                 # the Server's output / Client's input buffers, so keep flushing 'til input buffer empty...
@@ -346,7 +346,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         encoding		= 'UTF-8'
         healthy			= serial_connected
 
-        def file_opener():
+        def file_opener():  # noqa: F811
             ser			= Serial(
                 port	= args.device,
                 baudrate = args.baudrate or BAUDRATE,
@@ -356,7 +356,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             )
             return ser
 
-        def healthy_waiter( file ):
+        def healthy_waiter( file ):  # noqa: F811
             file.dtr		= False
             # Wait for a client; when seen, assert DTR
             while ( flow := serial_flow( file ) ) and not flow[0].dsr:
