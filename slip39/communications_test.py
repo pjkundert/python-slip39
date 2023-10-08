@@ -60,8 +60,6 @@ Content-Transfer-Encoding: 7bit
 
 """ )
 
-log.warning( f"Using DKIM: {dkim_selector}: {dkim_key}" )
-
 
 def test_communications_matchaddr():
     assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ) == ("abc", "def", "xyz")
@@ -76,6 +74,7 @@ def test_communications_matchaddr():
 
 
 def test_communications_dkim():
+    log.info( f"Using DKIM: {dkim_selector}: {dkim_key}" )
     if dkim_key:
         msg			= dkim_message(
             sender_email	= SMTP_FROM,			# Message From: specifies claimed sender
@@ -132,7 +131,7 @@ def test_communications_dkim():
         )
     except Exception as exc:
         # This may fail (eg. if you have no access to networking), so we don't check.
-        log.warning( f"Failed to send DKIM-validated email to {SMTP_TO}: {exc}" )
+        log.warning( f"(Expected, if no networking): Failed to send DKIM-validated email to {SMTP_TO}: {exc}" )
         pass
 
 
