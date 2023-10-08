@@ -716,10 +716,11 @@ clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )
 
 
-# Run only tests with a prefix containing the target string, eg test-blah
+# Run only tests with a prefix containing the target string, eg test-api
 test-%:
-	slip39/*$*_test.py
+	$(PY3TEST) $(shell find slip39 -name '*$**_test.py')
 
+# Run all tests with names matching the target string
 unit-%:
 	$(PY3TEST) -k $*
 

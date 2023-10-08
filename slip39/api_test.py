@@ -389,7 +389,7 @@ def test_addresses():
         paths		= '.../0/-2',
         format		= 'Bech32',
     ))
-    print( json.dumps( addrs, indent=4, default=str ))
+    #print( json.dumps( addrs, indent=4, default=str ))
     assert addrs == [
         (
             "BTC",

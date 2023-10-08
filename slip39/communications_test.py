@@ -17,6 +17,10 @@ from .defaults		import SMTP_TO, SMTP_FROM
 
 log				= logging.getLogger( __package__ )
 
+# Disable printing of details unless something goes wrong...
+print_NOOP			= lambda *args, **kwds: None
+print				= print_NOOP
+
 # If we find a DKIM key, lets use it.  Otherwise, we'll just use the pre-defined pre-signed email.Message
 dkim_keys			= list( Path( __file__ ).resolve().parent.parent.glob( 'licensing.dominionrnd.com.*.key' ))
 dkim_key			= None

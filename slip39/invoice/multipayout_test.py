@@ -102,13 +102,13 @@ if not goerli_xprvkey:
 if goerli_xprvkey:
     # the Account.address/.key
     goerli_src			= account( goerli_xprvkey, crypto='ETH', path="m/0/0" )
-    print( f"Goerli Ethereum Testnet src ETH address: {goerli_src.address}" )
+    #print( f"Goerli Ethereum Testnet src ETH address: {goerli_src.address}" )
     # Just addresses
     goerli_destination		= tuple(
         a.address
         for a in accounts( goerli_xprvkey, crypto="ETH", paths=f"m/0/1-{goerli_targets}" )
     )
-    print( f"Goerli Ethereum Testnet dst ETH addresses: {json.dumps( goerli_destination, indent=4 )}" )
+    #print( f"Goerli Ethereum Testnet dst ETH addresses: {json.dumps( goerli_destination, indent=4 )}" )
 
     web3_testers	       += [(
         "Goerli",
@@ -135,13 +135,13 @@ if ganache_xprvkey:
 
     # the Account.address/.key
     ganache_src			= account( ganache_xprvkey, crypto='ETH', path="m/0/0" )
-    print( f"Goerli Ethereum Testnet src ETH address: {ganache_src.address}" )
+    #print( f"Goerli Ethereum Testnet src ETH address: {ganache_src.address}" )
     # Just addresses
     ganache_destination		= tuple(
         a.address
         for a in accounts( ganache_xprvkey, crypto="ETH", paths=f"m/0/1-{ganache_targets}" )
     )
-    print( f"Ganache Ethereum Testnet dst ETH addresses: {json.dumps( ganache_destination, indent=4 )}" )
+    #print( f"Ganache Ethereum Testnet dst ETH addresses: {json.dumps( ganache_destination, indent=4 )}" )
 
     web3_testers		       += [(
         "Ganache",

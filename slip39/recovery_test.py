@@ -27,6 +27,9 @@ log				= logging.getLogger( __package__ )
 
 groups_example			= dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) )
 
+# Disable printing of details unless something goes wrong...
+print_NOOP			= lambda *args, **kwds: None
+print				= print_NOOP
 
 def noise( mag ):
     return mag * ( random.random() * 2 - 1 )
@@ -200,7 +203,7 @@ def test_recover_bip39():
     details_slip39		= create(
         "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
     )
-    print( json.dumps( details_slip39.groups, indent=4 ))
+    #print( json.dumps( details_slip39.groups, indent=4 ))
     assert details_slip39.groups == {
         "one": (
             1,
@@ -493,10 +496,12 @@ def test_signal_draw():
     # a DFT so that the recovered signal is produced at a higher sample rate.  This allows us to
     # analyze a signal in 8-bit values, but produce a recovered signal over 2x 4-bit hex nibbles, or
     # 8x 1-bit bits.
-    print()
-    print( ''.join( signal_draw( s )           for s in range( -128, 128 )))
-    print( ''.join( signal_draw( s, pos=True ) for s in range( -128, 128 )))
-    print( ''.join( signal_draw( s, neg=True ) for s in range( -128, 128 )))
+    assert ''.join( signal_draw( s )           for s in range( -128, 128 )) \
+        == ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.....................................____________________________________~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""""""""""""""""""""'
+    assert ''.join( signal_draw( s, pos=True ) for s in range( -128, 128 )) \
+        == '                                                                                                                                ,,,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""'
+    assert ''.join( signal_draw( s, neg=True ) for s in range( -128, 128 )) \
+        == ',,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'"""""""""""""""""""                                                                                                                                '
 
     for entropy in (
             SEED_HIGH,     SEED_MID,     SEED_LOW,
@@ -529,10 +534,25 @@ def test_signal_draw():
         print( "Signal from DFT x 8 deduced (for bin output):" )
         sigR8			= signal_recover_real( dfts, scale=8, integer=True )
         print( f"{entropy_bin}" )
-        print( ''.join( signal_draw( s ) * 8 for s in sigR ) + " (low-frequency, expanded x8)" )
-        print( ''.join( signal_draw( s ) for s in sigR8 ) + " (scaled x8)" )
-        print( ''.join( signal_draw( s, neg=False ) for s in sigR8 ))
-        print( ''.join( signal_draw( s, neg=True ) for s in sigR8 ))
+        sigRx8_1		= ''.join( signal_draw( s ) * 8 for s in sigR ) + " (low-frequency, expanded x8)"
+        print( sigRx8_1 )
+        sigR8_1			= ''.join( signal_draw( s ) for s in sigR8 ) + " (scaled x8)"
+        print( sigR8_1 )
+        sigR8_pos		= ''.join( signal_draw( s, neg=False ) for s in sigR8 )
+        print( sigR8_pos )
+        sigR8_neg		= ''.join( signal_draw( s, neg=True ) for s in sigR8 )
+        print( sigR8_neg )
+
+    # Validate the very last set of renderings
+    assert sigRx8_1 \
+        == '""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\' (low-frequency, expanded x8)'
+    assert sigR8_1 \
+        == '""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'""""""" (scaled x8)'
+    assert f"{sigR8_pos}\n{sigR8_neg}" \
+        == '''\
+""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""
+                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                \
+'''
 
 
 def test_denoise_mags():
@@ -541,7 +561,14 @@ def test_denoise_mags():
     symbols			= 32
     stride			= 8
     threshold			= 200/100
-    for npct in range( 10 ):
+
+    # Test thru some percentage signal to noise; too high, and we'll overflow our symbols
+    noise_pct			= 40
+
+    snr_dB_strides		= {}
+    for npct in range( noise_pct ):
+        print()
+        print( f"For {npct:2d}% noise:" )
         seed_noisy		= [ 128 + noise( 128 * npct/100 ) for _ in range( symbols ) ]  # median 1% noise floor
         for i in range( len( seed_noisy )):
             seed_noisy[i]      += math.cos( math.pi * 2 * i / (32 / 16) ) * 16   # max frequency bin
@@ -570,6 +597,14 @@ def test_denoise_mags():
         signal			= signal_entropy( SEED_NOISY, stride=stride, symbols=symbols, threshold=threshold )
         print( f"{signal}" )
 
+        snr_dB_strides[npct]	= (signal.dB, signal.stride)
+
+    for npct,(dB,stride) in snr_dB_strides.items():
+        print( f"{npct:02d}%: {stride:2d} bits/symbol, at {dB:7.2f}dB" )
+
+    # We should find the signal at all these noise levels
+    assert all( dBS[1] == 8 for dBS in snr_dB_strides.values() )
+
 
 def test_signal_entropy():
     # See if we can detect patterns of bits in various frequency bins.  With 8x 8-bit real-valued
@@ -584,7 +619,6 @@ def test_signal_entropy():
     #
     # We can estimate what perfect noise looks like across all energy bins, and compare our signal
     # against that baseline.  So, our signal has some noise added to it.
-
     print()
     SEED_SINE			= bytes([
         # 255,    255,    255,    255,
