@@ -217,7 +217,7 @@ phrases, and outputs a single PDF containing all the required printable cards to
 On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without*
 trusting this program) and the PDF saved to a USB drive for printing (or directly printed without
 the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BNB,
-CRO and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
+and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
 backed-up seed.  Recovery of the seed to a [trezor-model-t][3] is simple, by entering the mnemonics
 right on the device.
 

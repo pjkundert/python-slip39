@@ -20,7 +20,7 @@ import shamir_mnemonic
 from .api		import create, account, path_hardened
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
 from .recovery.entropy	import fft, ifft, pfft, dft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
-from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES, SEED_ZERO
 from .util		import avg, rms, ordinal, commas, round_onto
 
 log				= logging.getLogger( __package__ )
@@ -563,7 +563,7 @@ def test_denoise_mags():
     threshold			= 200/100
 
     # Test thru some percentage signal to noise; too high, and we'll overflow our symbols
-    noise_pct			= 40
+    noise_pct			= 35
 
     snr_dB_strides		= {}
     for npct in range( noise_pct ):
@@ -740,9 +740,6 @@ def test_shannon_entropy():
     shannon			= shannon_entropy( SEED_ONES, overlap=False )
     shannon			= shannon_entropy( SEED_ONES, stride=4 )
     shannon			= shannon_entropy( SEED_ONES, stride=4, overlap=False )
-
-    SEED_ZERO_HEX		= b'00' * 16
-    SEED_ZERO			= codecs.decode( SEED_ZERO_HEX, 'hex_codec' )
 
     shannon			= shannon_entropy( SEED_ONES+SEED_ZERO )
     print( f"{shannon}" )

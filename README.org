@@ -48,7 +48,7 @@ sets of 20 words is difficult, error-prone and time consuming.
   On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without
   trusting this program*) and the PDF saved to a USB drive for printing (or directly printed without
   the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BNB,
-  CRO and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
+  and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
   backed-up seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] is simple, by entering the mnemonics
   right on the device.
 
@@ -288,7 +288,6 @@ sets of 20 words is difficult, error-prone and time consuming.
     |--------+----------+------------------+---------+---------|
     | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
     | BNB    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
-    | CRO    | Bech32   | m/44'/60'/0'/0/0 | crc1... | Beta    |
     | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
     |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
@@ -309,16 +308,6 @@ sets of 20 words is difficult, error-prone and time consuming.
      to the wallet software; here are the instructions for adding BSC support for the Trezor
      hardware wallet, [[https://docs.binance.org/smart-chain/wallet/trezor.html][using the Metamask software wallet]].  In =python-slip39=, BNB is simply an alias for
      ETH, since the wallet addresses and Ethereum JSON Paper Wallets are identical.
-
-**** CRO on Cronos: crypto.com
-
-     The Cronos chain (formerly known as the Crypto.org chain). It is the native chain of the
-     [[https://crypto.com][crypto.com CRO]]  coin.
-
-     Cronos also uses Ethereum addresses on the =m/44'/60'/0'/0/0= derivation path, but represents
-     them as Bech32 addresses with a "crc" prefix, eg. =crc19a6r74dvfxjyvjzf3pg9y3y5rhk6rds2c9265n=.
-     As with BNB, the wallet must support the Cronos blockchain; instructions exist for adding CRO
-     support for the Trezor hardware wallet, [[https://cronos.org/docs/getting-started/metamask.html][using the Metamask software wallet]].
 
 ** The macOS/win32 =SLIP-39.app= GUI App
 
@@ -382,13 +371,13 @@ sets of 20 words is difficult, error-prone and time consuming.
     :   -f FORMAT, --format FORMAT
     :                         Specify crypto address formats: legacy, segwit,
     :                         bech32; default: ETH:legacy, BTC:bech32, LTC:bech32,
-    :                         DOGE:legacy, CRO:bech32, BNB:legacy, XRP:legacy
+    :                         DOGE:legacy, BNB:legacy, XRP:legacy
     :   -c CRYPTOCURRENCY, --cryptocurrency CRYPTOCURRENCY
     :                         A crypto name and optional derivation path (eg.
     :                         '../<range>/<range>'); defaults: ETH:m/44'/60'/0'/0/0,
     :                         BTC:m/84'/0'/0'/0/0, LTC:m/84'/2'/0'/0/0,
-    :                         DOGE:m/44'/3'/0'/0/0, CRO:m/44'/60'/0'/0/0,
-    :                         BNB:m/44'/60'/0'/0/0, XRP:m/44'/144'/0'/0/0
+    :                         DOGE:m/44'/3'/0'/0/0, BNB:m/44'/60'/0'/0/0,
+    :                         XRP:m/44'/144'/0'/0/0
     :   -p PATH, --path PATH  Modify all derivation paths by replacing the final
     :                         segment(s) w/ the supplied range(s), eg. '.../1/-'
     :                         means .../1/[0,...)
@@ -594,7 +583,7 @@ sets of 20 words is difficult, error-prone and time consuming.
     :   -f FORMAT, --format FORMAT
     :                         Specify crypto address formats: legacy, segwit,
     :                         bech32; default: ETH:legacy, BTC:bech32, LTC:bech32,
-    :                         DOGE:legacy, CRO:bech32, BNB:legacy, XRP:legacy
+    :                         DOGE:legacy, BNB:legacy, XRP:legacy
     :   --xpub                Output xpub... instead of cryptocurrency wallet
     :                         address (and trim non-hardened default path segments)
     :   --no-xpub             Inhibit output of xpub (compatible w/ pre-v10.0.0)

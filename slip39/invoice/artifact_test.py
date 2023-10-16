@@ -26,9 +26,9 @@ SEED_ZOOS			= 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
 
 
 def test_conversions():
-    print( f"tabulate version: {tabulate.__version__}" )
+    #print( f"tabulate version: {tabulate.__version__}" )
     c0_tbl = tabulate.tabulate( [[ 1.23],[12345.6789],[.0001234]], floatfmt=",.6g", tablefmt="orgtbl" )
-    print( f"\n{c0_tbl}" )
+    #print( f"\n{c0_tbl}" )
     assert c0_tbl == """\
 |      1.23      |
 | 12,345.7       |
@@ -40,7 +40,7 @@ def test_conversions():
         ('BTC','ETH'): None,
     }
     c1_tbl			= conversions_table( c1, tablefmt='orgtbl' )
-    print( '\n' + c1_tbl )
+    #print( '\n' + c1_tbl )
     assert c1_tbl == """\
 | Coin |    in USD | in ETH |
 |------+-----------+--------|
@@ -54,7 +54,7 @@ def test_conversions():
         c_simple_i	       += 1
     assert c_simple_i == 1
     c_simple_tbl		= conversions_table( c_simple, tablefmt='orgtbl' )
-    print( c_simple_tbl )
+    #print( c_simple_tbl )
     assert c_simple_tbl == """\
 | Coin |    in USD |     in BTC |    in ETH |
 |------+-----------+------------+-----------|
@@ -82,7 +82,7 @@ def test_conversions():
         ('USD', 'DOGE'): pytest.approx( 11.07314216, rel=1/1000 ),
     }
     c_w_doge_tbl		= conversions_table( c_w_doge, tablefmt='orgtbl' )
-    print( c_w_doge_tbl )
+    #print( c_w_doge_tbl )
     assert c_w_doge_tbl == """\
 | Coin |        in DOGE |         in USD |     in BTC |    in ETH |
 |------+----------------+----------------+------------+-----------|
@@ -92,7 +92,7 @@ def test_conversions():
 | DOGE |                |      0.0903086 |            |           |"""
 
     c_w_doge_all		= conversions_table( c_w_doge, greater=False, tablefmt='orgtbl' )
-    print( c_w_doge_all )
+    #print( c_w_doge_all )
     assert c_w_doge_all == """\
 | Coin |     in BTC |        in DOGE |      in ETH |         in USD |
 |------+------------+----------------+-------------+----------------|
@@ -135,7 +135,7 @@ def test_conversions():
         ('ZEENUS', 'WEENUS'): 1,
     }
     c_zero_tbl			= conversions_table( c_zero, tablefmt='orgtbl' )
-    print( c_zero_tbl )
+    #print( c_zero_tbl )
     assert c_zero_tbl == """\
 | Coin   |    in USD |     in BTC |    in ETH | in WEENUS | in ZEENUS |
 |--------+-----------+------------+-----------+-----------+-----------|
@@ -259,19 +259,19 @@ def test_tabulate( tmp_path ):
     assert total.decimals( 'HOT' ) == 18
     assert total.decimals( 'USDC' ) == 6
 
-    print( json.dumps( list( total.pages() ), indent=4, default=str ))
+    #print( json.dumps( list( total.pages() ), indent=4, default=str ))
 
     tables			= list( total.tables() )
-    for t in tables:
-        print( t )
+    #for t in tables:
+    #    print( t )
 
     # Can't test until we can fake up fixed token values
 
     tables			= list( total.tables(
         columns=('#', 'Description', 'Qty', 'Currency', 'Coin', 'Price', 'Tax%', 'Taxes', 'Amount', 'Total USDC'),
     ))
-    for t in tables:
-        print( t )
+    #for t in tables:
+    #    print( t )
 
     # Get the default formatting for line's w/ currencies w/ 0 decimals, 0 value.
     worthless = '\n\n====\n\n'.join(
@@ -289,7 +289,7 @@ def test_tabulate( tmp_path ):
             tablefmt	= 'presto',
         )
     )
-    print( worthless )
+    #print( worthless )
     assert worthless == """\
  Description                                     | Qty |       Price | Tax%   | Taxes | Amount | Coin
 -------------------------------------------------+-----+-------------+--------+-------+--------+--------
@@ -348,7 +348,7 @@ def test_tabulate( tmp_path ):
             tablefmt	= 'presto',
         )
     )
-    print( shorter )
+    #print( shorter )
     assert shorter == """\
  # | Description                                     | Qty | Currency      | Coin   |       Price | Tax%   |      Taxes |          Amount | Total USDC |  Total BTC
 ---+-------------------------------------------------+-----+---------------+--------+-------------+--------+------------+-----------------+------------+------------
@@ -401,14 +401,14 @@ def test_tabulate( tmp_path ):
         ),
         tablefmt	= 'presto',
     ))
-    for page,table,sub,tot in bitcoin_info:
-        print( f"Bitcoin Invoice page: {json.dumps( page, indent=4, default=repr )}")
+    #for page,table,sub,tot in bitcoin_info:
+    #    print( f"Bitcoin Invoice page: {json.dumps( page, indent=4, default=repr )}")
 
     bitcoin = '\n\n====\n\n'.join(
         f"{table}\n\n{sub}\n\n{tot}"
         for _,table,sub,tot in bitcoin_info
     )
-    print( bitcoin )
+    #print( bitcoin )
     assert bitcoin == """\
  # | Description                                     | Qty | Currency      | Coin |   Price | Tax%     |        Taxes |       Amount | Total USDC | Taxes USDC | Total BTC |  Taxes BTC | Total WBTC | Taxes WBTC
 ---+-------------------------------------------------+-----+---------------+------+---------+----------+--------------+--------------+------------+------------+-----------+------------+------------+------------
@@ -461,11 +461,11 @@ def test_tabulate( tmp_path ):
         logo		= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
     )
 
-    print( f"Invoice metadata: {metadata}" )
+    #print( f"Invoice metadata: {metadata}" )
     temp		= Path( tmp_path )
     path		= temp / 'invoice-shorter.pdf'
     pdf.output( path )
-    print( f"Invoice saved: {path}" )
+    #print( f"Invoice saved: {path}" )
 
     # Finally, generate invoice with all rows, and all conversions from blockchain Oracle (except
     # XRP, for which we do not have an oracle, so must provide an estimate from another source...)
@@ -491,11 +491,11 @@ def test_tabulate( tmp_path ):
         logo		= 'dominionrnd-logo.png',       # Logo 16/9 in bottom right of header
     )
 
-    print( f"Invoice metadata: {metadata}" )
+    #print( f"Invoice metadata: {metadata}" )
     temp		= Path( tmp_path )
     path		= temp / 'invoice-complete.pdf'
     pdf.output( path )
-    print( f"Invoice saved: {path}" )
+    #print( f"Invoice saved: {path}" )
 
 
 # Generate a sequence of Invoices w/ unique accounts
@@ -628,7 +628,7 @@ invoices_to_write		= [
 @pytest.mark.parametrize( "invoices", invoices_to_write )
 def test_write_invoices( tmp_path, invoices ):
     directory		= Path( tmp_path )
-    print( f"Invoice Output path: {directory}" )
+    #print( f"Invoice Output path: {directory}" )
 
     metadata		= InvoiceMetadata(
         client		= client,
@@ -640,7 +640,7 @@ def test_write_invoices( tmp_path, invoices ):
     for i,(name, output) in enumerate( write_invoices(
         ( (invoice,metadata) for invoice in invoices )
     )):
-        print( f"{ordinal( i )} Invoice {name}: {output}" )
+        #print( f"{ordinal( i )} Invoice {name}: {output}" )
         if isinstance( output, Exception ):
             # Only certain failures are allowed/expected:
             # - Selecting a zero-value Cryptocurrency as a payment currency

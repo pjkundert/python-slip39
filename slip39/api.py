@@ -88,59 +88,32 @@ def path_edit(
     path: str,
     edit: str,
 ):
-    """Replace the current path w/ the new path, either entirely, or if only partially if a continuation
-    '../' followed by some new path segments is provided.
+    """Replace the current path w/ the new path, either entirely, or if only partially if a
+    continuation of dot(s) followed by some new path segment(s) is provided.  For example, if the
+    default path for your desired format is:
+
+        m/49'/0'/0'/0/0
+
+    you can provide "../1/9" to produce "m/49'/0'/0'/1/9", or "...3" to produce "m/49'/0'/0'/0/3".
+
+    To simply eliminate a segment, leave its segment empty.  For example, if you wish to eliminate
+    the last two segments, provide "..//", yielding "m/49'/0'/0'".
 
     """
     if edit.startswith( '.' ):
-        new_segs	= edit.lstrip( './' ).split( '/' )
+        if ( new_edit := edit.lstrip( '.' )).startswith( '/' ):
+            new_edit	= new_edit[1:]
+        new_segs	= new_edit.split( '/' )
         cur_segs	= path.split( '/' )
         log.debug( f"Using {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
         if len( new_segs ) >= len( cur_segs ):
             raise ValueError( f"Cannot use {edit} to replace last {len(new_segs)} of {path} with {'/'.join(new_segs)}" )
-        res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + new_segs
+        # Truncate the number of edited segs, and appends only non-empty segments (effectively drops
+        # any empty edited segments)
+        res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + list(filter(None, new_segs))
         return '/'.join( res_segs )
     else:
         return edit
-
-
-class CronosMainnet( cryptocurrencies.Cryptocurrency ):
-    NAME = "Cronos"
-    SYMBOL = "CRO"
-    NETWORK = "mainnet"
-    SOURCE_CODE = "https://github.com/crypto-org-chain/chain-main"
-    COIN_TYPE = cryptocurrencies.CoinType({
-        "INDEX": 60,
-        "HARDENED": True
-    })
-
-    SCRIPT_ADDRESS = 0x05
-    PUBLIC_KEY_ADDRESS = 0x00
-    SEGWIT_ADDRESS = cryptocurrencies.SegwitAddress({
-        "HRP": "crc",
-        "VERSION": 0x00
-    })
-
-    EXTENDED_PRIVATE_KEY = cryptocurrencies.ExtendedPrivateKey({
-        "P2PKH": 0x0488ade4,
-        "P2SH": 0x0488ade4,
-        "P2WPKH": 0x04b2430c,
-        "P2WPKH_IN_P2SH": 0x049d7878,
-        "P2WSH": 0x02aa7a99,
-        "P2WSH_IN_P2SH": 0x0295b005
-    })
-    EXTENDED_PUBLIC_KEY = cryptocurrencies.ExtendedPublicKey({
-        "P2PKH": 0x0488b21e,
-        "P2SH": 0x0488b21e,
-        "P2WPKH": 0x04b24746,
-        "P2WPKH_IN_P2SH": 0x049d7cb2,
-        "P2WSH": 0x02aa7ed3,
-        "P2WSH_IN_P2SH": 0x0295b43f
-    })
-
-    MESSAGE_PREFIX = None
-    DEFAULT_PATH = f"m/44'/{str(COIN_TYPE)}/0'/0/0"
-    WIF_SECRET_KEY = 0x80
 
 
 class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
@@ -226,7 +199,7 @@ class RippleMainnet( cryptocurrencies.Cryptocurrency ):
     WIF_SECRET_KEY = 0x80
 
 
-class XRPHDWallet( hdwallet.BIP44HDWallet ):
+class XRPHDWallet( hdwallet.HDWallet ):
     """The XRP address format uses the standard p2pkh_address formulation, from
     https://xrpl.org/accounts.html#creating-accounts:
 
@@ -277,7 +250,6 @@ class Account:
     |--------+----------+-------------------+---------+---------|
     | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
     | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
-    | CRO    | Bech32   | m/44'/ 60'/0'/0/0 | crc1... | Beta    |
     | BTC    | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
     |        | SegWit   | m/49'/  0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
@@ -295,7 +267,6 @@ class Account:
         BTC		= 'Bitcoin',
         LTC		= 'Litecoin',
         DOGE		= 'Dogecoin',
-        CRO		= 'Cronos',
         BNB		= 'Binance',
         XRP		= 'Ripple',
     )
@@ -312,7 +283,6 @@ class Account:
         BTC		= 24,
         LTC		= 24,
         DOGE		= 24,
-        CRO		= 18,
         BNB		= 18,
         XRP		= 6,
     )
@@ -323,14 +293,13 @@ class Account:
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
         dogecoin	= 'DOGE',
-        cronos		= 'CRO',
         binance		= 'BNB',
         ripple		= 'XRP',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
-    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'CRO', 'XRP') )
+    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'XRP') )
 
-    ETHJS_ENCRYPT		= set( ('ETH', 'CRO', 'BNB') )		# Can be encrypted w/ Ethereum JSON wallet
+    ETHJS_ENCRYPT		= set( ('ETH', 'BNB') )			# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
@@ -338,7 +307,6 @@ class Account:
         BTC		= "bech32",
         LTC		= "bech32",
         DOGE		= "legacy",
-        CRO		= "bech32",
         BNB		= "legacy",
         XRP		= "legacy",
     )
@@ -349,7 +317,6 @@ class Account:
         XRP		= XRPHDWallet,
     )
     CRYPTO_LOCAL		= dict(
-        CRO		= CronosMainnet,
         BNB		= BinanceMainnet,
         XRP		= RippleMainnet,
     )
@@ -367,9 +334,6 @@ class Account:
         BNB		= dict(
             legacy	= "m/44'/60'/0'/0/0",
         ),
-        CRO		= dict(
-            bech32	= "m/44'/60'/0'/0/0",
-        ),
         BTC		= dict(
             legacy	= "m/44'/0'/0'/0/0",
             segwit	= "m/49'/0'/0'/0/0",
@@ -385,6 +349,31 @@ class Account:
         ),
         XRP		= dict(
             legacy	= "m/44'/144'/0'/0/0",
+        )
+    )
+
+    CRYPTO_FORMAT_SEMANTIC	= dict(
+        ETH		= dict(
+            legacy	= "p2pkh",
+        ),
+        BNB		= dict(
+            legacy	= "p2pkh",
+        ),
+        BTC		= dict(
+            legacy	= "p2pkh",
+            segwit	= "p2wpkh_in_p2sh",
+            bech32	= "p2wpkh",
+        ),
+        LTC		= dict(
+            legacy	= "p2pkh",
+            segwit	= "p2wpkh_in_p2sh",
+            bech32	= "p2wpkh",
+        ),
+        DOGE		= dict(
+            legacy	= "p2pkh",
+        ),
+        XRP		= dict(
+            legacy	= "p2pkh",
         )
     )
 
@@ -446,29 +435,19 @@ class Account:
         crypto			= Account.supported( crypto )
         cryptocurrency		= self.CRYPTO_LOCAL.get( crypto )
         self.format		= format.lower() if format else Account.address_format( crypto )
-        hdwallet_cls		= self.CRYPTO_WALLET_CLS.get( crypto )
-        if hdwallet_cls is None and self.format in ("legacy", "segwit",):
-            hdwallet_cls	= hdwallet.BIP44HDWallet
-        if hdwallet_cls is None and self.format in ("bech32",):
-            hdwallet_cls	= hdwallet.BIP84HDWallet
+        semantic		= self.CRYPTO_FORMAT_SEMANTIC[crypto][self.format]
+        hdwallet_cls		= self.CRYPTO_WALLET_CLS.get( crypto, hdwallet.HDWallet )
+        # if hdwallet_cls is None and self.format in ("legacy",):
+        #     hdwallet_cls	= hdwallet.HDWallet  # hdwallet.BIP44HDWallet
+        # if hdwallet_cls is None and self.format in ("segwit",):
+        #     hdwallet_cls	= hdwallet.HDWALLET  # hdwallet.BIP49HDWallet
+        # if hdwallet_cls is None and self.format in ("bech32",):
+        #     hdwallet_cls	= hdwallet.BIP84HDWallet
         if hdwallet_cls is None:
             raise ValueError( f"{crypto} does not support address format {self.format}" )
-        self.hdwallet		= hdwallet_cls( symbol=crypto, cryptocurrency=cryptocurrency )
+        self.hdwallet		= hdwallet_cls( symbol=crypto, cryptocurrency=cryptocurrency, semantic=semantic )
 
-    def clean_derivation( self ) -> Account:
-        """The underlying ...HDWallet.clean_derivation is somewhat broken; it overwrites the
-        HDWallet._path_class incorrectly, forgetting all about the coin's specific
-        hdwallet.Derivation.  So, remember it.
-
-        """
-        _path_class		= self.hdwallet._path_class
-        try:
-            self.hdwallet.clean_derivation()
-            return self
-        finally:
-            self.hdwallet._path_class = _path_class
-
-    def from_seed( self, seed: Union[str,bytes], path: Optional[str] = None ) -> Account:
+    def from_seed( self, seed: Union[str,bytes], path: Optional[str] = None, format=None ) -> Account:
         """Derive the Account from the supplied seed and (optionally) path; uses the default derivation
         path for the Account address format, if None provided.  As with all of the functions that
         completely replace the derivation Seed, we clear any existing known derivation path; it is
@@ -482,7 +461,7 @@ class Account:
         assert all( c in string.hexdigits for c in seed ), \
             "Only bytes and hex string HD Wallet Seeds are supported"
 
-        self.clean_derivation()
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_seed( seed )
         self.from_path( path )
         return self
@@ -513,7 +492,8 @@ class Account:
         # Must be a single BIP-39 Mnemonic Phrase (as a UTF-8 string)
         if isinstance( passphrase, bytes ):
             passphrase		= passphrase.decode( 'UTF-8' )
-        self.clean_derivation()
+
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_mnemonic( *mnemonics_lines, passphrase=passphrase )  # python-hdwallet requires str/None
         self.from_path( path )
         return self
@@ -544,25 +524,25 @@ class Account:
             m/44'/60'/0'/1'/0
 
         """
-        self.clean_derivation()
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_xpublic_key( xpubkey )
         self.from_path( path or "m/" )
         return self
 
     def from_xprvkey( self, xprvkey: str, path: Optional[str] = None ) -> Account:
-        self.clean_derivation()
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_xprivate_key( xprvkey )
         self.from_path( path or "m/" )
         return self
 
     def from_public_key( self, public_key: str, path: Optional[str] = None ) -> Account:
-        self.clean_derivation()
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_public_key( public_key )
         self.from_path( path or "m/" )
         return self
 
     def from_private_key( self, private_key: str, path: Optional[str] = None ) -> Account:
-        self.clean_derivation()
+        self.hdwallet.clean_derivation()
         self.hdwallet.from_private_key( private_key )
         self.from_path( path or "m/" )
         return self
@@ -578,6 +558,7 @@ class Account:
 
         """
         from_path		= self.path
+        log.debug( f"Changing {self.format} {self!r} from {from_path} to {path}" )
         if not from_path or len( from_path ) <= 2:
             if from_path != "m/":
                 raise ValueError( f"Empty but invalid path detected: {from_path}" )
@@ -587,7 +568,6 @@ class Account:
             into_path		= path_edit( from_path, path )
             log.debug( f"Editing path for {self}, from {from_path!r} w/ {path!r}, into {into_path!r}" )
             from_path		= into_path
-        self.clean_derivation()
         # Valid HD wallet derivation paths always start with "m/"
         if not ( from_path and len( from_path ) >= 2 and from_path.startswith( "m/" ) ):
             raise ValueError( f"Unrecognized HD wallet derivation path: {from_path!r}" )
@@ -635,12 +615,15 @@ class Account:
 
     @substitute_symbol
     def legacy_address( self ):
+        """BIP-44 Address"""
         return self.hdwallet.p2pkh_address()
 
     def segwit_address( self ):
-        return self.hdwallet.p2sh_address()
+        """BIP-49 Address"""
+        return self.hdwallet.p2wpkh_in_p2sh_address()
 
     def bech32_address( self ):
+        """BIP-84 Address"""
         return self.hdwallet.p2wpkh_address()
 
     @property
@@ -672,9 +655,9 @@ class Account:
 
     @property
     def xpubkey( self ):
-        """Returns the xpub, ypub or zpub, depending on whether format is legacy, segwit or bech32.  The HD
-        wallet account represented by this xpub... key is that of the current derivation path,
-        eg. "m/44'/60'/0'/0/0" for the default ETH wallet.  Thus, when restoring using
+        """Returns the xpub, ypub or zpub, depending on whether format is legacy, segwit or bech32.
+        The HD wallet account represented by this xpub... key is that of the current derivation
+        path, eg. "m/44'/60'/0'/0/0" for the default ETH wallet.  Thus, when restoring using
         eg. from_xpubkey, the default path used should be empty, ie. "m/".
 
         """
@@ -881,12 +864,20 @@ def path_hardened( path ):
     return hard,soft
 
 
-def cryptopaths_parser( cryptocurrency, edit=None, hardened_defaults=False ):
+def cryptopaths_parser(
+    cryptocurrency,
+    edit			= None,
+    hardened_defaults		= False,
+    format			= None,
+):
     """Generate a standard cryptopaths list, from the given sequnce of (<crypto>,<paths>) or
     "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS, optionally w/ only the hardened
     portion of the path, eg. omitting the trailing ../0/0).
 
     Adjusts the provided derivation paths by an optional eg. "../-" path adjustment.
+
+    A non-default format may be specified, which may change the default HD derivation path.  This
+    must also be passed back, as it also affects the crypto's account's address format.
 
     """
     cryptopaths 		= []
@@ -900,12 +891,12 @@ def cryptopaths_parser( cryptocurrency, edit=None, hardened_defaults=False ):
             crypto,paths	= crypto,None
         crypto			= Account.supported( crypto )
         if paths is None:
-            paths		= Account.path_default( crypto )
+            paths		= Account.path_default( crypto, format )
             if hardened_defaults:
                 paths,_		= path_hardened( paths )
         if edit:
             paths		= path_edit( paths, edit )
-        cryptopaths.append( (crypto,paths) )
+        cryptopaths.append( (crypto,paths,format) )
     return cryptopaths
 
 
@@ -1011,7 +1002,7 @@ def create(
     passphrase: Optional[Union[bytes,str]] = None,
     using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
-    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # default: ETH, BTC at default paths
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
     strength: int		= 128,
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
@@ -1151,7 +1142,7 @@ def account(
     if isinstance( master_secret, str ):
         master_secret		= master_secret.strip()
     if isinstance( master_secret, bytes ) or master_secret[:2].lower == "0x" or all(
-            c in string.hexdigits for c in master_secret
+        c in string.hexdigits for c in master_secret
     ):
         # Probably a binary/hex Seed.
         acct			= Account(
@@ -1162,15 +1153,16 @@ def account(
             seed	= master_secret,
             path	= path,
         )
-        log.debug( f"Created {acct} from {len(master_secret)*8}-bit seed, at derivation path {acct.path}" )
+        log.debug( f"Created {acct.format} {acct} from {len(master_secret)*8}-bit seed, at derivation path {acct.path}" )
     elif ' ' in master_secret:
         # Some kind of Mnemonic; this is the only valid use of whitespace within a master_secret.
         acct			= Account(
             crypto	= crypto or 'ETH',
             format	= format,
         )
+        log.debug( f"Making  {acct.format} {acct} from Mnemonic(s), at derivation path {acct.path}" )
         acct.from_mnemonic( master_secret, path=path, passphrase=passphrase, using_bip39=using_bip39 )
-        log.debug( f"Created {acct} from Mnemonic(s), at derivation path {acct.path}" )
+        log.debug( f"Created {acct.format} {acct} from Mnemonic(s), at derivation path {acct.path}" )
     else:
         # See if we recognize the prefix as a {x,y,z}pub... or .prv...  Get the bound function for
         # initializing the seed.  Also, deduce the default format from the x/y/z+pub/prv.
@@ -1192,6 +1184,7 @@ def account(
             format	= format
         )
         from_method( acct, master_secret, path )  # It's an unbound method, so pass the instance
+        log.debug( f"Created {acct.format} {acct} from {master_secret[:4]} key, at derivation path {acct.path}" )
 
     return acct
 
@@ -1200,7 +1193,7 @@ def accounts(
     master_secret: Union[str,bytes],
     crypto: str			= None,  # default 'ETH'
     paths: str			= None,  # default to the crypto's path_default; allow ranges
-    format: str			= None,
+    format: Optional[str]	= None,
     allow_unbounded		= True,
     passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
@@ -1222,10 +1215,13 @@ def accounts(
 
 def accountgroups(
     master_secret: Union[str,bytes],
-    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default: ETH, BTC
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
     allow_unbounded: bool	= True,
     passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
+    format: Optional[str]	= None,
+    edit: Optional[str]		= None,
+    hardened_defaults: bool	= False,
 ) -> Sequence[Sequence[Account]]:
     """Generate the desired cryptocurrency account(s) at each crypto's given path(s).  This is useful
     for generating sequences of groups of wallets for multiple cryptocurrencies, eg. for receiving
@@ -1251,13 +1247,19 @@ def accountgroups(
     yield from zip( *[
         accounts(
             master_secret	= master_secret,
-            crypto		= crypto,
-            paths		= paths,
+            crypto		= cry,
+            paths		= pth,
+            format		= fmt,
             allow_unbounded	= allow_unbounded,
             passphrase		= passphrase,
             using_bip39		= using_bip39,
         )
-        for crypto,paths in cryptopaths_parser( cryptopaths )
+        for cry,pth,fmt in cryptopaths_parser(
+            cryptopaths,
+            edit		= edit,
+            hardened_defaults	= hardened_defaults,
+            format		= format,
+        )
     ])
 
 
@@ -1265,7 +1267,7 @@ def address(
     master_secret: Union[str,bytes],
     crypto: str			= None,
     path: str			= None,
-    format: str			= None,
+    format: Optional[str]	= None,
     passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
 ):
@@ -1284,7 +1286,7 @@ def addresses(
     master_secret: Union[str,bytes],
     crypto: str	 		= None,  # default 'ETH'
     paths: str			= None,  # default: The crypto's path_default; supports ranges
-    format: str			= None,
+    format: Optional[str]	= None,
     allow_unbounded: bool	= True,
     passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
@@ -1308,22 +1310,31 @@ def addresses(
 
 def addressgroups(
     master_secret: Union[str,bytes],
-    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str]]]] = None,  # Default ETH, BTC
+    cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
     allow_unbounded: bool	= True,
     passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
+    format: Optional[str]	= None,
+    edit: Optional[str]		= None,
+    hardened_defaults: bool	= False,
 ) -> Sequence[str]:
     """Yields account (<crypto>, <path>, <address>) records for the desired cryptocurrencies at paths.
 
     """
     yield from zip( *[
         addresses(
-            master_secret,
-            paths	= paths,
-            crypto	= crypto,
-            allow_unbounded = allow_unbounded,
-            passphrase	= passphrase,
-            using_bip39	= using_bip39,
+            master_secret	= master_secret,
+            crypto		= cry,
+            paths		= pth,
+            format		= fmt,
+            allow_unbounded	= allow_unbounded,
+            passphrase		= passphrase,
+            using_bip39		= using_bip39,
         )
-        for crypto,paths in cryptopaths_parser( cryptopaths )
+        for cry,pth,fmt in cryptopaths_parser(
+            cryptopaths,
+            edit		= edit,
+            hardened_defaults	= hardened_defaults,
+            format		= format,
+        )
     ])

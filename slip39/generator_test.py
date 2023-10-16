@@ -13,6 +13,8 @@ except ImportError:
 from .api		import RANDOM_BYTES, accountgroups
 from .generator		import chacha20poly1305, accountgroups_output, accountgroups_input
 
+log				= logging.getLogger( __package__ )
+
 
 def listener(port):
     # continuously listen to commands on the master device
@@ -21,7 +23,7 @@ def listener(port):
         while not res.endswith(b"\r\n"):
             # keep reading one byte at a time until we have a full line
             res += os.read(port, 1)
-        print("command: %s" % res)
+        #print("command: %s" % res)
 
         # write back the response
         if res == b'QPGS\r\n':
@@ -37,7 +39,7 @@ def test_serial():
     master,slave = pty.openpty()		# open the pseudoterminal
     s_name = os.ttyname(slave)			# translate the slave fd to a filename
 
-    logging.info( f"Pty name: {s_name}" )
+    log.info( f"Pty name: {s_name}" )
 
     # create a separate thread that listens on the master device for commands
     thread = threading.Thread(target=listener, args=[master])
@@ -52,7 +54,7 @@ def test_serial():
     while not res.endswith(b'\r\n'):
         # read the response
         res += ser.read()
-    print("result: %s" % res)
+    log.info("result: %s" % res)
     assert res.startswith( b"I don't understand" )
 
     ser.write(b'QPGS\r\n')			# write a second command
@@ -60,7 +62,7 @@ def test_serial():
     while not res.endswith(b'\r\n'):
         # read the response
         res += ser.read()
-    print("result: %s" % res)
+    log.info("result: %s" % res)
     assert res.startswith( b"correct result" )
 
 
@@ -73,7 +75,7 @@ def generator( password, cryptopaths, fd ):
         master_secret	= b'\xff' * 16,
         cryptopaths	= cryptopaths,
     )):
-        logging.info( f"Sending: {group}" )
+        log.info( f"Sending: {group}" )
         accountgroups_output(
             group	= group,
             index	= index,
@@ -124,4 +126,4 @@ def test_groups_pty():
         encoding	= 'UTF-8',
         file		= ser
     ):
-        logging.info( f"Receive: {group}" )
+        log.info( f"Receive: {group}" )

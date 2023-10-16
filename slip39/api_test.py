@@ -18,8 +18,10 @@ import shamir_mnemonic
 from .			import account, create, addresses, addressgroups, accountgroups, Account
 from .recovery		import recover
 
-from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES, SEED_ZERO
 
+BIP39_ABANDON			= "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+BIP39_ZOO			= 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
 
 def test_account_smoke():
     acct			= account( SEED_XMAS )
@@ -51,14 +53,14 @@ def test_account_smoke():
     assert acct.pubkey == '02d0bca9d976ad7303d1c0c3fd6ad0cb6bb78077d2ff158c16ac21bed763fb49a8'
 
     acct			= account( SEED_XMAS, crypto='Bitcoin', format='SegWit' )
-    assert acct.address == '3HxUpD7E8Y31vDDgDq1VFdNXWViAgBjYJe'
-    assert acct.path == "m/44'/0'/0'/0/0"
+    assert acct.path == "m/49'/0'/0'/0/0"
+    assert acct.address == '3KbLyVYmzoDXtXMMemWV2JvvhWuWZzP5Sa'
 
     # And, confirm that we retrieve the same Bech32 address for the all-ones seed,
     # as on a real Trezor "Model T".
     acct			= account( SEED_ONES, crypto='Bitcoin' )
-    assert acct.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
     assert acct.path == "m/84'/0'/0'/0/0"
+    assert acct.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
     assert acct.pubkey == '038f7fa5776f5359eb861994bee043f0b16a5ca24b66eb38696a7325d3e1717e72'
     assert acct.prvkey == acct.key == '80d5082773a4d2a07ee667a772ca13a120a5fc9d61bcf5a32f9e7ccf731bc0e6'
     assert acct.xpubkey == 'zpub6uMZYEpdewNa98z7Hge3R4GzeayoXCmtPUzFV7DVa4cc36k2Xh7oEDvs6baStXLxT8VtXkBZ56yfuk4D5JvM43nbB7EpdkmJC75ScEZm2QK'
@@ -73,8 +75,8 @@ def test_account_smoke():
     assert acct.path == "m/44'/2'/0'/0/0"
 
     acct			= account( SEED_XMAS, crypto='Litecoin', format='SegWit' )
-    assert acct.address == 'MPULjvY9dNjpNkgbwhfJtD7N6Lbfam1XsP'
-    assert acct.path == "m/44'/2'/0'/0/0"
+    assert acct.path == "m/49'/2'/0'/0/0"
+    assert acct.address == 'MK18ZPy9KR6PiCzti61s3HoNmEEGMmAEKc'
 
     acct			= account( SEED_XMAS, crypto='Dogecoin' )
     assert acct.address == 'DQCnF49GwQ5auL3u5c2uow62XS57RCA2r1'
@@ -99,11 +101,133 @@ def test_account_smoke():
 
     # Test values from a Trezor "Model T" w/ root seed 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' loaded.
     # The Trezor Suite UI produced the following account derivation path and public address for:
-    acct			= account( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong', crypto='Ripple' )
+    acct			= account( BIP39_ZOO, crypto='Ripple' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
     assert acct.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
     assert acct.prvkey == '6501276b9d7f646742feb12fd066e107af8c1e26e4ad7c2694279d44c43bdfb2'
+
+
+def test_account_format():
+    """Bitcoin test vectors from https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+
+    Since these test vectors use only the hardened path eg. m/44'/0'/0', and not the full HD
+    derivation path, and since we also want to test the default paths used for various address
+    formats, we'll need to use the accountgroups API (the regular account API doesn't include a
+    means to restrict the path to hardened_defaults).
+
+    """
+    
+    # Legacy Bitcoin
+    acct			= account(
+        master_secret	= BIP39_ABANDON,
+        crypto		= 'Bitcoin',
+        format		= "legacy",
+    )
+    assert acct.hdwallet.seed() == "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4"
+    assert acct.path == "m/44'/0'/0'/0/0"
+    assert acct.address == '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA'
+
+    # m/44'/0'/0'
+    (acct,),			= accountgroups(
+        BIP39_ABANDON, cryptopaths=['Bitcoin'], format='legacy', hardened_defaults=True,
+    )
+    assert acct.format == 'legacy'
+    assert acct.path == "m/44'/0'/0'"
+    assert acct.xprvkey == "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+    assert acct.xpubkey == "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+
+    # m/44'/0'/0'/0/0
+    acct.from_path( "m/0/0" )
+    assert acct.path == "m/44'/0'/0'/0/0"
+    assert acct.address == "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+
+    acct			= account( BIP39_ABANDON, crypto="Bitcoin", format='legacy' )
+    assert acct.format == 'legacy'
+    assert acct.path == "m/44'/0'/0'/0/0"
+    assert acct.address == "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+
+    acct			= account(
+        master_secret	= BIP39_ABANDON,
+        crypto		= "BTC",
+        path		= "...//",
+        format		= "legacy",
+    )
+    assert acct.format == 'legacy'
+    assert acct.hdwallet.semantic() == "p2pkh"
+    assert acct.path == "m/44'/0'/0'"
+    assert acct.xprvkey == "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+    assert acct.xpubkey == "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+
+
+    # SegWit
+    acct			= account(
+        master_secret	= BIP39_ABANDON,
+        crypto		= "Bitcoin",
+        format		= 'segwit'
+    )
+    assert acct.hdwallet.seed() == "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4"
+    assert acct.hdwallet.network() == "mainnet"
+    assert acct.hdwallet.p2pkh_address() == "1PkaFBUcyAccDp2Xo2K8MqduVMgMB792r2"
+    assert acct.hdwallet.p2sh_address() == "3LWUBjP2jcWhippRcyKUX1kkHNakUAy2Ms"
+    assert acct.hdwallet.p2wpkh_address() == "bc1qlxgx0xk2lcjuyas4xua5p0ezg3kjfl6yd3h8y6"
+    assert acct.hdwallet.p2wpkh_in_p2sh_address() == "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+    assert acct.hdwallet.p2wsh_in_p2sh_address() == "3Kdr7CoTcx8UaGuzD7aqQxXi1dxUmBdph2"
+    assert acct.format == "segwit"
+    assert acct.hdwallet.semantic() == "p2wpkh_in_p2sh"
+    assert acct.path == "m/49'/0'/0'/0/0"
+    assert acct.address == "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+
+    (acct,),			= accountgroups(
+        BIP39_ABANDON, cryptopaths=['Bitcoin'], format='segwit', hardened_defaults=True,
+    )
+    assert acct.format == "segwit"
+    assert acct.path == "m/49'/0'/0'"
+    assert acct.xprvkey == "yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
+    assert acct.xpubkey == "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
+
+    acct.from_path( "m/0/0" )
+    assert acct.path == "m/49'/0'/0'/0/0"
+    assert acct.address == "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+
+
+    # Bech32
+    (acct,),			= accountgroups(
+        BIP39_ABANDON, cryptopaths=['Bitcoin'], format='bech32', hardened_defaults=True,
+    )
+    assert acct.format == "bech32"
+    assert acct.hdwallet.semantic() == "p2wpkh"
+    assert acct.path == "m/84'/0'/0'"
+    assert acct.xprvkey == "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+    assert acct.xpubkey == "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+
+    # "m/84'/0'/0'/0/0"
+    acct.from_path( "m/0/0" )
+    assert acct.path == "m/84'/0'/0'/0/0"
+    assert acct.address == "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+
+    acct			= account(
+        master_secret	= BIP39_ABANDON,
+        crypto		= "BTC",
+        path		= "...//",
+        format		= "bech32",
+    )
+    assert acct.hdwallet.seed() == "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4"
+    assert acct.format == "bech32"
+    assert acct.hdwallet.semantic() == "p2wpkh"
+    assert acct.path == "m/84'/0'/0'"
+    assert acct.xprvkey == "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+    assert acct.xpubkey == "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+
+    acct			= account(
+        master_secret	= BIP39_ABANDON,
+        crypto		= 'Bitcoin',
+        format		= "bech32"
+    )
+    assert acct.format == "bech32"
+    assert acct.hdwallet.seed() == "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4"
+    assert acct.path == "m/84'/0'/0'/0/0"
+    assert acct.address == 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'
 
 
 def test_account_from_mnemonic():
@@ -132,7 +256,7 @@ def test_account_from_mnemonic():
     assert account( '\n'.join( details_ones_native_slip39.groups['fren'][1][:3] ), crypto='BTC', using_bip39=True ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
     # Now 0xffff...ffff entropy as BIP-39 Seed.
-    acct_ones_bip39		= account( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong', crypto='BTC' )
+    acct_ones_bip39		= account( BIP39_ZOO, crypto='BTC' )
     assert acct_ones_bip39.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
     details_ones_using_bip39	= create(
@@ -155,8 +279,12 @@ def test_account_from_mnemonic():
     acct			= account( SEED_ONES, crypto='Ripple' )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default, XRP
     assert acct.address == 'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'
-    # Then with BIP-39 Seed encoding from same 0xffff...ffff entropy
-    acct.from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    acct			= account( SEED_ONES, crypto='Ripple', path="../1" )
+    assert acct.path == "m/44'/144'/0'/0/1"
+    assert acct.address == 'rfMBrTc7VRTLUZu2K517r594Ky9qU5fQ5i'
+    # Then with BIP-39 Seed encoding from same 0xffff...ffff entropy.  We'll test using the *same*
+    # Account; the path should be set back to the default derivation path.
+    acct.from_mnemonic( BIP39_ZOO )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
 
@@ -237,7 +365,7 @@ def test_account_encrypt():
     ).address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
     # Ripple BIP-38 encrypted wallets.  Should round-trip via BIP-38 encryption
-    acct_xrp		= Account( crypto='XRP' ).from_mnemonic( 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' )
+    acct_xrp		= Account( crypto='XRP' ).from_mnemonic( BIP39_ZOO )
     assert acct_xrp.path == "m/44'/144'/0'/0/0"  # Default
     assert acct_xrp.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'  # From Trezor "Model T" w/
     assert acct_xrp.pubkey == '039d65db4964cbf2049ad49467a6b73e7fec7d6e6f8a303cfbdb99fa21c7a1d2bc'
@@ -410,7 +538,7 @@ def test_addresses():
 
 
 def test_addressgroups():
-    master_secret		= SEED_ONES
+    master_secret		= BIP39_ZOO
     addrgrps			= list( enumerate( addressgroups(
         master_secret	= master_secret,
         cryptopaths	= [
@@ -418,41 +546,36 @@ def test_addressgroups():
             ('BTC',	".../-3"),
             ('LTC',	".../-3"),
             ('Doge',	".../-3"),
-            ('CRO',	".../-3"),
             ('Binance',	".../-3"),
             ('Ripple',	".../-3"),
         ],
     )))
-    # print( addrgrps )
-    assert addrgrps == [
-        (0, (("ETH",  "m/44'/60'/0'/0/0", "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"),
-             ("BTC",  "m/84'/0'/0'/0/0",  "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"),
-             ('LTC',  "m/84'/2'/0'/0/0",  'ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake'),
-             ('DOGE', "m/44'/3'/0'/0/0",  'DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy'),
-             ('CRO',  "m/84'/60'/0'/0/0", 'crc1q4hdzumgzgfda84hvt67e4znnfxxnnnc42jgqt9'),
-             ('BNB',  "m/44'/60'/0'/0/0", '0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1'),
-             ('XRP',  "m/44'/144'/0'/0/0",'rsXwvDVHHPrSm23gogdxJdrJg9WBvqRE9m'))),
-        (1, (("ETH",  "m/44'/60'/0'/0/1", "0x8D342083549C635C0494d3c77567860ee7456963"),
-             ("BTC",  "m/84'/0'/0'/0/1",  "bc1qnec684yvuhfrmy3q856gydllsc54p2tx9w955c"),
-             ('LTC',  "m/84'/2'/0'/0/1",  'ltc1qm0hwvvk28wlyfu3sed66e9yyvmwm35xtfexva3'),
-             ('DOGE', "m/44'/3'/0'/0/1",  'DJYE9WWaCA1CbV9x23qkcgNX7Yr9YjCebA'),
-             ('CRO',  "m/84'/60'/0'/0/1", 'crc1qalq0kk8j8mwljneavgmqytcv63vnjjhsn8cfhs'),
-             ('BNB',  "m/44'/60'/0'/0/1", '0x8D342083549C635C0494d3c77567860ee7456963'),
-             ('XRP',  "m/44'/144'/0'/0/1",'rfMBrTc7VRTLUZu2K517r594Ky9qU5fQ5i'))),
-        (2, (("ETH",  "m/44'/60'/0'/0/2", "0x52787E24965E1aBd691df77827A3CfA90f0166AA"),
-             ("BTC",  "m/84'/0'/0'/0/2",  "bc1q2snj0zcg23dvjpw7m9lxtu0ap0hfl5tlddq07j"),
-             ('LTC',  "m/84'/2'/0'/0/2",  'ltc1qx3r3efsmupn34gmwu25fu39tn4h79cjfwvlpfu'),
-             ('DOGE', "m/44'/3'/0'/0/2",  'DQfJcJzLFW9LJPJXNkLeq1WqPfLsRq47Jj'),
-             ('CRO',  "m/84'/60'/0'/0/2", 'crc1qnr2z9wv2z5p54k8sm35fv7m5u86sutwa7m7e99'),
-             ('BNB',  "m/44'/60'/0'/0/2", '0x52787E24965E1aBd691df77827A3CfA90f0166AA'),
-             ('XRP',  "m/44'/144'/0'/0/2",'rn7vgevVmF8HXq7FYNhL34gdJMUFukghPz'))),
-        (3, (("ETH",  "m/44'/60'/0'/0/3", "0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e"),
-             ("BTC",  "m/84'/0'/0'/0/3", "bc1qxwekjd46aa5n0s3dtsynvtsjwsne7c5f5w5dsd"),
-             ('LTC',  "m/84'/2'/0'/0/3", 'ltc1qnqzyear8kct0yjzupe2pxtq0mwee5kl642mj78'),
-             ('DOGE', "m/44'/3'/0'/0/3", 'DLVPiM5763cyNJfoa13cv4kV3b87FgVMCS'),
-             ('CRO',  "m/84'/60'/0'/0/3", 'crc1qtlwuk2p8znv43xpxvupe7ye3ueuxen3475yn8n'),
-             ('BNB',  "m/44'/60'/0'/0/3", '0xc2442382Ae70c77d6B6840EC6637dB2422E1D44e'),
-             ('XRP',  "m/44'/144'/0'/0/3",'rB1KWkYEg7n78eA2GWWrKWvjkHDhVEdRXC'))),
+    print( repr( addrgrps ))
+    assert addrgrps == [								# Verified
+        (0,(('ETH', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
+            ('BTC', "m/84'/0'/0'/0/0", 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'),	# Ledger
+            ('LTC', "m/84'/2'/0'/0/0", 'ltc1qnreu4d88p5tvh33anptujvcvn3xmfhh43yg0am'),	# Ledger
+            ('DOGE', "m/44'/3'/0'/0/0", 'DTMaJd8wqye1fymnjxZ5Cc5QkN1w4pMgXT'),		# Ledger
+            ('BNB', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
+            ('XRP', "m/44'/144'/0'/0/0", 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'))),	# Ledger 
+        (1, (('ETH', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
+             ('BTC', "m/84'/0'/0'/0/1", 'bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug'),
+             ('LTC', "m/84'/2'/0'/0/1", 'ltc1qm4yc8vgxyv0xeu8p4vtq2wls245y2ueqpfrp4d'),
+             ('DOGE', "m/44'/3'/0'/0/1", 'DGkL2LD5FfccAaKtx8G7TST5iZwrNkecTY'),
+             ('BNB', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
+             ('XRP', "m/44'/144'/0'/0/1", 'ravkJwvQBuW4P5TG1qK5WDAgBxbPhdyPh1'))),
+        (2, (('ETH', "m/44'/60'/0'/0/2", '0x578270B5E5B53336baC354756b763b309eCA90Ef'),
+             ('BTC', "m/84'/0'/0'/0/2", 'bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w'),
+             ('LTC', "m/84'/2'/0'/0/2", 'ltc1qstkxz076qdyg0r08eszf0rrxsmfcgj62lkqaj2'),
+             ('DOGE', "m/44'/3'/0'/0/2", 'DQa3SpFZH3fFpEFAJHTXZjam4hWiv9muJX'),
+             ('BNB', "m/44'/60'/0'/0/2", '0x578270B5E5B53336baC354756b763b309eCA90Ef'),
+             ('XRP', "m/44'/144'/0'/0/2", 'rpzdHCsqVLppnUAUvgYDd6ADZFeKE6QoHR'))),
+        (3, (('ETH', "m/44'/60'/0'/0/3", '0x909f59835A5a120EafE1c60742485b7ff0e305da'),
+             ('BTC', "m/84'/0'/0'/0/3", 'bc1q6t9vhestkcfgw4nutnm8y2z49n30uhc0kyjl0d'),
+             ('LTC', "m/84'/2'/0'/0/3", 'ltc1qts5sde8st3x6qt2t0xhtf9uactg7nnztamuehk'),
+             ('DOGE', "m/44'/3'/0'/0/3", 'DTW5tqLwspMY3NpW3RrgMfjWs5gnpXtfwe'),
+             ('BNB', "m/44'/60'/0'/0/3", '0x909f59835A5a120EafE1c60742485b7ff0e305da'),
+             ('XRP', "m/44'/144'/0'/0/3", 'r9czvGVozoKTAnP1G17RG9DfWK272ZExvX')))
     ]
 
 

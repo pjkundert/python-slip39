@@ -291,7 +291,10 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     #
     # is specified, emit BTC "zpub..." xpubkeys at m/84'/0'/0', m/84'/0'/1', ...
     cryptopaths			= cryptopaths_parser(
-        args.cryptocurrency, edit=args.path, hardened_defaults=args.xpub
+        args.cryptocurrency,
+        edit			= args.path,
+        hardened_defaults	= args.xpub,
+        format			= format,
     )
 
     #

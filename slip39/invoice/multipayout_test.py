@@ -194,8 +194,8 @@ multipayout_defaults_Fraction	= {
 ])
 def test_multipayout_ERC20_recipients( multipayout_defaults ):
     payout			= multipayout_ERC20_recipients( multipayout_defaults )
-    print()
-    print( payout )
+    #print()
+    #print( payout )
     assert payout == """\
 transfer_except( payable( address( 0x7F7458EF9A583B95DFD90C048d4B2d2F09f6dA5b )), uint16( 61014 ));  //   6.90000%
 transfer_except( payable( address( 0x94Da50738E09e2f9EA0d4c15cf8DaDfb4CfC672B )), uint16( 37378 ));  //  40.00000%
