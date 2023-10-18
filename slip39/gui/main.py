@@ -1422,7 +1422,7 @@ def app(
         # See what Cryptocurrencies and Paper Wallets are desired, by what checkboxes are clicked.
         # If none are, then the default (BTC, ETH) will be defaulted.
         cs_rec			= set( c for c in Account.CRYPTOCURRENCIES if values.get( f"-CRYPTO-{c}-" ) )
-        cps_rec			= cryptopaths_parser( cryptocurrency=cs_rec, edit=edit )
+        cps_rec			= list( cryptopaths_parser( cryptocurrency=cs_rec, edit=edit ))
         if cs_rec != cryptocurrency or cps_rec != cryptopaths:
             log.info( "Updating SLIP-39 due to changing Cryptocurrencies" )
             cryptocurrency	= cs_rec

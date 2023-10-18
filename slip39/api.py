@@ -411,12 +411,19 @@ class Account:
         for it, or raises an a ValueError.  Eg. "ETH"/"Ethereum" --> "ETH"
 
         """
-        validated		= cls.CRYPTO_NAMES.get(
-            crypto.lower(),
-            crypto.upper() if crypto.upper() in cls.CRYPTO_SYMBOLS else None
-        )
-        if validated:
-            return validated
+        try:
+            validated		= cls.CRYPTO_NAMES.get(
+                crypto.lower(),
+                crypto.upper() if crypto.upper() in cls.CRYPTO_SYMBOLS else None
+            )
+            if validated:
+                return validated
+        except Exception as exc:
+            validated		= exc
+            raise
+        finally:
+            log.debug( f"Validating {crypto!r} yields: {validated!r}" )
+
         raise ValueError( f"{crypto} not presently supported; specify {commas( cls.CRYPTOCURRENCIES )}" )
 
     def __str__( self ):
@@ -865,14 +872,15 @@ def path_hardened( path ):
 
 
 def cryptopaths_parser(
-    cryptocurrency,
+    cryptocurrency,  # Or a cryptopaths list, eg. ["XRP",(ETH,"m/.."),(BTC,NONE,"segwit")]
     edit			= None,
     hardened_defaults		= False,
     format			= None,
 ):
-    """Generate a standard cryptopaths list, from the given sequnce of (<crypto>,<paths>) or
-    "<crypto>[:<paths>]" cryptocurrencies (default: CRYPTO_PATHS, optionally w/ only the hardened
-    portion of the path, eg. omitting the trailing ../0/0).
+    """Generate a standard cryptopaths list, from the given sequnce of "<crypto>",
+    (<crypto>,<paths>), (<crypto>,<paths>,<format>), or "<crypto>[:<paths>[:<format>:]"
+    cryptocurrencies (default: CRYPTO_PATHS, optionally w/ only the hardened portion of the path,
+    eg. omitting the trailing ../0/0).
 
     Adjusts the provided derivation paths by an optional eg. "../-" path adjustment.
 
@@ -880,24 +888,22 @@ def cryptopaths_parser(
     must also be passed back, as it also affects the crypto's account's address format.
 
     """
-    cryptopaths 		= []
     for crypto in cryptocurrency or CRYPTO_PATHS:
-        try:
-            if type(crypto) is str:
-                crypto,paths	= crypto.split( ':' )   # A sequence of str
-            else:
-                crypto,paths	= crypto                # A sequence of tuples
-        except ValueError:
-            crypto,paths	= crypto,None
-        crypto			= Account.supported( crypto )
-        if paths is None:
-            paths		= Account.path_default( crypto, format )
+        if type(crypto) is str:
+            crypto		= crypto.split( ':' )
+
+        cry,*pth		= crypto
+        pth,*fmt		= pth or (None,)
+        fmt,			= fmt or (None,)
+
+        cry			= Account.supported( cry )
+        if not pth:
+            pth			= Account.path_default( cry, fmt or format )
             if hardened_defaults:
-                paths,_		= path_hardened( paths )
+                pth,_		= path_hardened( pth )
         if edit:
-            paths		= path_edit( paths, edit )
-        cryptopaths.append( (crypto,paths,format) )
-    return cryptopaths
+            pth			= path_edit( pth, edit )
+        yield (cry,pth,fmt)
 
 
 def random_secret(
@@ -1217,9 +1223,9 @@ def accountgroups(
     master_secret: Union[str,bytes],
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
     allow_unbounded: bool	= True,
-    passphrase: Optional[Union[bytes,str]] = None,  # If mnemonic(s) provided, then passphrase/using_bip39 optional
+    passphrase: Optional[Union[bytes,str]] = None,	# If mnemonic(s) provided, then passphrase/using_bip39 optional
     using_bip39: bool		= False,
-    format: Optional[str]	= None,
+    format: Optional[str]	= None,			# If the default format for every cryptopath isn't desired
     edit: Optional[str]		= None,
     hardened_defaults: bool	= False,
 ) -> Sequence[Sequence[Account]]:

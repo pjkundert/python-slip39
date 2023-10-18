@@ -417,7 +417,7 @@ def write_pdfs(
 
     group_threshold		= int( group_threshold ) if group_threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    cryptopaths			= cryptopaths_parser( cryptocurrency, edit=edit )
+    cryptopaths			= list( cryptopaths_parser( cryptocurrency, edit=edit ))
 
     # If account details not provided in names, generate them.  If using_bip39 is specified, this is
     # where we use BIP-39 Seed generation to produce the wallet Seed, instead of SLIP-39 which uses
@@ -615,7 +615,7 @@ def write_pdfs(
             assert eth_account, \
                 "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
                 "    python3 -m pip install eth-account"
-            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
+            assert any( 'ETH' == crypto for crypto,*_ in cryptopaths ), \
                 "--json is only valid if '--crypto ETH' wallets are specified"
 
             for eth in (

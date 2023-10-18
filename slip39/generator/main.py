@@ -290,12 +290,12 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     #     --xpub --crypto BTC
     #
     # is specified, emit BTC "zpub..." xpubkeys at m/84'/0'/0', m/84'/0'/1', ...
-    cryptopaths			= cryptopaths_parser(
+    cryptopaths			= list( cryptopaths_parser(
         args.cryptocurrency,
         edit			= args.path,
         hardened_defaults	= args.xpub,
         format			= format,
-    )
+    ))
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow
