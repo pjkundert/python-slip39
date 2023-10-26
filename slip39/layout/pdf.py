@@ -445,12 +445,6 @@ def write_pdfs(
         print( f"Using BIP-39 Mnemonic: {produce_bip39( entropy=master_secret )}" )
 
     cover_text			= None
-    if cover_page:
-        cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
-        if using_bip39:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt', ), encoding='UTF-8').read()
-        else:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt'), encoding='UTF-8').read()
 
     # Generate each desired SLIP-39 Mnemonic cards PDF.  Supports --card (the default).  Remember
     # any deduced orientation and paper_format for below.
@@ -473,6 +467,13 @@ def write_pdfs(
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
                     print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
+        # Get the correct cover page format (if any), according to the details.using_bip39
+        if cover_page:
+            cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
+            if using_bip39:
+                cover_text     += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt', ), encoding='UTF-8').read()
+            else:
+                cover_text     += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt'), encoding='UTF-8').read()
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If

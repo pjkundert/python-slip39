@@ -22,7 +22,7 @@ import codecs
 import logging
 
 from ..util		import log_cfg, log_level, input_secure, ordinal
-from .			import recover, recover_bip39
+from .			import recover, recover_bip39, produce_bip39
 
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
@@ -73,17 +73,22 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     ap.add_argument( '-m', '--mnemonic', action='append',
                      help="Supply another SLIP-39 (or a BIP-39) mnemonic phrase" )
     ap.add_argument( '-e', '--entropy', action='store_true',
-                     default=False,
+                     default=None,
+                     help="Return the BIP-39 Mnemonic Seed Entropy instead of the generated Seed (default: False)" )
+    ap.add_argument( '--no-entropy', dest='entropy', action='store_false',
                      help="Return the BIP-39 Mnemonic Seed Entropy instead of the generated Seed (default: False)" )
     ap.add_argument( '-b', '--bip39', action='store_true',
-                     default=False,
+                     default=None,
                      help="Recover Entropy and generate 512-bit secret Seed from BIP-39 Mnemonic + passphrase" )
     ap.add_argument( '-u', '--using-bip39', action='store_true',
-                     default=False,
+                     default=None,
                      help="Recover Entropy from SLIP-39, generate 512-bit secret Seed using BIP-39 Mnemonic + passphrase" )
     ap.add_argument( '--binary', action='store_true',
                      default=False,
                      help="Output seed in binary instead of hex" )
+    ap.add_argument( '--language',
+                     default=None,
+                     help="BIP-39 Mnemonic language (default: english)" )
     ap.add_argument( '-p', '--passphrase',
                      default=None,
                      help="Decrypt the SLIP-39 or BIP-39 master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -96,6 +101,9 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     logging.basicConfig( **log_cfg )
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
+    if args.entropy is None:
+        # Unless passphrase supplied, default to recover Seed Entropy (not BIP-39 hashed derivation seed)
+        args.entropy		= not args.passphrase
     if args.entropy:
         assert not args.passphrase, "--entropy and --passphrase cannot be used together"
     # Optional passphrase (utf-8 encoded bytes)
@@ -122,7 +130,12 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
                 return 0
             mnemonics.append( phrase )
         try:
-            secret		= recover_bip39( *mnemonics, passphrase, as_entropy=args.entropy )
+            secret		= recover_bip39(
+                *mnemonics,
+                passphrase	= passphrase,
+                as_entropy	= args.entropy,
+                language	= args.language,
+            )
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
@@ -131,7 +144,13 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
         # Collect more mnemonics 'til we can successfully recover the master secret seed
         while secret is None:
             try:
-                secret		= recover( mnemonics, passphrase, using_bip39=args.using_bip39 )
+                secret		= recover(
+                    mnemonics,
+                    passphrase	= passphrase,
+                    using_bip39	= args.using_bip39,
+                    as_entropy	= args.entropy,
+                    language	= args.language,
+                )
             except KeyboardInterrupt:
                 return 0
             except Exception as exc:
@@ -145,9 +164,15 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
                     _,phrase	= phrase.split( ':', 1 )
                 mnemonics.append( phrase )
     if secret:
-        secret			= codecs.encode( secret, 'hex_codec' ).decode( 'ascii' )
-        log.info( f"Recovered {algo} secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -" )
-        if args.binary:
-            secret		= ''.join( f"{int(h,16):0>4b}" for h in secret )
+        if args.using_bip39 and args.entropy in (None, True):
+            secret		= produce_bip39(
+                entropy		= secret,
+                language	= args.language,
+            )
+        else:
+            secret		= codecs.encode( secret, 'hex_codec' ).decode( 'ascii' )
+            log.info( f"Recovered {algo} secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -" )
+            if args.binary:
+                secret		= ''.join( f"{int(h,16):0>4b}" for h in secret )
         print( secret )
     return 0 if secret else 1

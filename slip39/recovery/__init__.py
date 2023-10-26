@@ -21,11 +21,13 @@ import logging
 
 from typing		import List, Optional, Union
 
-from shamir_mnemonic	import combine_mnemonics        # Requires passphrase as bytes
+from shamir_mnemonic	import combine_mnemonics
+from shamir_mnemonic.shamir import RANDOM_BYTES
+
 from mnemonic		import Mnemonic			# Requires passphrase as str
 from mnemonic.mnemonic	import ConfigurationError
 from ..util		import ordinal, commas
-
+from ..defaults		import BITS_DEFAULT
 from .entropy		import (  # noqa F401
     shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
 )
@@ -62,8 +64,9 @@ class Mnemonicv21( Mnemonic ):
 def recover(
     mnemonics: List[str],
     passphrase: Optional[Union[str,bytes]] = None,
-    using_bip39: bool		= False,        # If a BIP-39 "backup",
-    language: Optional[str]	= None,		# ... provide language if not default 'english'
+    using_bip39: Optional[bool]	= None,  # If a BIP-39 "backup" (default: Falsey)
+    as_entropy: Optional[bool]  = None,  # .. and recover original Entropy (not 512-bit Seed)
+    language: Optional[str]	= None,  # ... provide language if not default 'english'
 ) -> bytes:
     """Recover a master secret Seed Entropy from the supplied SLIP-39 mnemonics.  We cannot know what
     subset of these mnemonics is required and/or valid, so we need to iterate over all subset
@@ -128,12 +131,15 @@ def recover(
         )
     )
     if using_bip39:
-        # python-mnemonic's Mnemonic requires passphrase as str (not bytes).
+        # python-mnemonic's Mnemonic requires passphrase as str (not bytes).  This is all a NO-OP,
+        # if using_bip39 is Truthy and as_entropy is Truthy, but no harm...  It checks that no
+        # passphrase has been supplied in that case, as a side-effect.
         passphrase_bip39	= passphrase if isinstance( passphrase, str ) else passphrase.decode( 'UTF-8' )
         # This SLIP-39 was a "backup" of a BIP-39 Mnemonic, in a 'language' (default: "english").
         secret			= recover_bip39(
             mnemonic	= produce_bip39( entropy=secret, language=language ),
             passphrase	= passphrase_bip39,
+            as_entropy	= as_entropy,
             language	= language,
         )
     return secret
@@ -142,12 +148,12 @@ def recover(
 def recover_bip39(
     mnemonic: str,
     passphrase: Optional[Union[str,bytes]] = None,
-    as_entropy			= False,  # Recover original 128- or 256-bit Entropy (not 512-bit Seed)
+    as_entropy: Optional[bool]	= None,   # Recover original 128- or 256-bit Entropy (not 512-bit Seed)
     language: Optional[str]	= None,   # If desired, provide language (eg. if only prefixes are provided)
 ) -> bytes:
-    """Recover a secret 512-bit BIP-39 generated seed (or just the original 128- or 256-bit entropy)
-    from a single BIP-39 Mnemonic Phrase, detecting the language.  Optionally provide a UTF-8 string or
-    encoded passphrase.
+    """Recover the 512-bit BIP-39 generated seed (or the original 128- or 256-bit Seed Entropy, if
+    as_entropy is True) from a single BIP-39 Mnemonic Phrase, detecting the language.  Optionally
+    provide a UTF-8 string or encoded passphrase (defaults to not as_entropy, if so).
 
     Normalizes and validates the BIP-39 Mnemonic Phrase (which is often recovered as user input):
     - Removes excess whitespace and down-cases
@@ -155,11 +161,17 @@ def recover_bip39(
     - Expands unambiguous mnemonic prefixes (eg. 'ae' --> 'aerobic', 'acti' --> 'action')
     - Checks that the BIP-39 Phrase check bits are valid
 
+    Since this would normally be used to begin deriving HD wallets, the default is the hashed,
+    passphrase-decrypted seed.
+
     """
+    if as_entropy is None:
+        as_entropy		= False  # Default: recover the 512-bit derivation seed
     assert not ( bool( passphrase ) and bool( as_entropy )), \
         "When recovering original BIP-39 entropy, no passphrase may be specified"
     if passphrase is None:
         passphrase		= ""
+
     # Polish up the supplied mnemonic, by eliminating extra spaces, leading/trailing newline(s); Mnemonic is fragile...
     mnemonic_stripped		= ' '.join( w.lower() for w in mnemonic.strip().split( ' ' ) if w )
     if mnemonic_stripped != mnemonic:
@@ -177,7 +189,7 @@ def recover_bip39(
     if not m.check( mnemonic_expanded ):
         unrecognized		= [ w for w in mnemonic_expanded.split() if w not in m.wordlist ]
         raise ValueError( f"BIP-39 Mnemonic check fails; {len( unrecognized )} unrecognized {m.language} words {commas( unrecognized )}" )
-    if as_entropy:
+    if as_entropy or as_entropy is None:
         # If we want to "backup" a BIP-39 Mnemonic Phrase, we want the original entropy, NOT the derived seed!
         secret			= m.to_entropy( mnemonic_expanded )
         log.info( f"Recovered {len(secret)*8}-bit BIP-39 entropy from {language} mnemonic (no passphrase supported)" )
@@ -196,8 +208,13 @@ def produce_bip39(
     strength: Optional[int]	= None,
     language: Optional[str]	= None,
 ) -> str:
-    """Produce a BIP-38 Mnemonic from the provided entropy (or generated, default 128 bits)."""
-    m				= Mnemonic( language or "english" )
-    if entropy:
-        return m.to_mnemonic( entropy )
-    return m.generate( strength or 128 )
+    """Produce a BIP-38 Mnemonic from the provided entropy (or generated, default 128 bits).
+
+    We ensure we always use the same secure entropy source from shamir_mnemonic, to allow the user
+    of slip39 to monkey-patch it in one place for testing or to improve the entropy generation.
+    """
+    if not entropy:
+        if not strength:
+            strength		= BITS_DEFAULT
+        entropy			= RANDOM_BYTES( strength // 8 )
+    return Mnemonic( language or "english" ).to_mnemonic( entropy )

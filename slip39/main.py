@@ -91,7 +91,7 @@ def main( argv=None ):
                      default=None,  # Do not enforce default of 128-bit seeds
                      help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
     ap.add_argument( '--using-bip39', action='store_true',
-                     default=False,
+                     default=None,
                      help="Generate Seed from secret Entropy using BIP-39 generation algorithm (encode as BIP-39 Mnemonics, encrypted using --passphrase)" )
     ap.add_argument( '--passphrase',
                      default=None,
@@ -144,22 +144,24 @@ def main( argv=None ):
 
     master_secret		= args.secret
     if master_secret:
-        # Master secret seed supplied as hex
+        # Master secret seed may be supplied as hex or a BIP-39 Mnemonic (leave as str)
         if master_secret == '-':
-            master_secret	= input_secure( 'Master secret hex: ', secret=True )
+            master_secret	= input_secure( 'Master secret (hex or BIP-39): ', secret=True )
         else:
             log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
         if master_secret.lower().startswith('0x'):
             master_secret	= master_secret[2:]
-        master_secret		= codecs.decode( master_secret, 'hex_codec' )
+        if all( c in "0123456789abcdef" for c in master_secret.lower() ):
+            master_secret	= codecs.decode( master_secret, 'hex_codec' )
     else:
-        # Generate a random secret seed
+        # Generate a random secret seed, as bytes
         master_secret		= random_secret( bits_desired // 8 )
-    master_secret_bits		= len( master_secret ) * 8
-    if master_secret_bits not in BITS:
-        raise ValueError( f"A {master_secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
-    if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
-        raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
+    if isinstance( master_secret, bytes ):
+        master_secret_bits		= len( master_secret ) * 8
+        if master_secret_bits not in BITS:
+            raise ValueError( f"A {master_secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
+        if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
+            raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
 
     # SLIP-39 Passphrase.  This is not recommended, as A) it is another thing that must be saved in
     # addition to the SLIP-39 Mnemonics in order to recover the Seed, and B) it is not implemented
@@ -171,7 +173,10 @@ def main( argv=None ):
     elif passphrase:
         log.warning( "It is recommended to not use '-p|--passphrase <password>'; specify '-' to read from input" )
     if passphrase:
-        log.warning( "The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'Hidden wallet' feature instead" )
+        if args.using_bip39 or isinstance( master_secret, str ):
+            log.warning( "The BIP-39 Passphrase will be used only for deducing Crypto addresses; you must remember it, for BIP-39 wallet recovery" )
+        else:
+            log.warning( "The SLIP-39 Standard Passphrase is not compatible w/ the Trezor hardware wallet; use its 'Hidden wallet' feature instead" )
 
     # Optional Paper Wallet and/or JSON Wallet file passwords
     wallet_pwd			= args.wallet
@@ -191,7 +196,8 @@ def main( argv=None ):
             log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
     try:
-        write_pdfs(
+        # Output the filenames of the emitted PDFs, one per line.
+        print( "\n".join( write_pdfs(
             names		= args.names,
             master_secret	= master_secret,
             passphrase		= passphrase,
@@ -210,7 +216,7 @@ def main( argv=None ):
             wallet_format	= wallet_format,
             cover_page		= args.cover_page,
             watermark		= args.watermark,
-        )
+        )))
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )
         return 1

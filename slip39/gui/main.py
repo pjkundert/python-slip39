@@ -23,6 +23,7 @@ import hashlib
 import logging
 import math
 import os
+import pprint
 import re
 import sys
 import subprocess
@@ -60,6 +61,16 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
 SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
 SE_SEED_FRAME			= 'Seed Extra Randomness'
 SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
+
+
+def pretty(thing, maxstr=60, indent=4, **kwds):
+    class P(pprint.PrettyPrinter):
+        def _format(self, thing, *args, **kwds):
+            if isinstance(thing, str) and len(thing) > maxstr:
+                thing = thing[:maxstr//2] + '…' + thing[-maxstr//2:]
+            return super()._format(thing, *args, **kwds)
+                                        
+    return P(indent=indent, **kwds).pformat(thing)
 
 
 def theme_color( thing, theme=None ):
@@ -565,10 +576,14 @@ def update_seed_data( event, window, values ):
         data, pswd, seed	= values['-SD-DATA-'], values['-SD-PASS-'], window['-SD-SEED-'].get()
 
     # Now that we've recovered which Seed Data control was previously in play (and any data/pswd),
-    # update window/value content and other controls' visibility for this -SD-...  selection.
-    window['-SD-DATA-'].update( data )
+    # update window/value content and other controls' visibility for this -SD-...  selection; but
+    # only IF the data has changed.  Otherwise, cursor motion in input fields will be foiled...
+    if window['-SD-DATA-'].get() != data:
+        log.info( f"Updating -SD-DATA- from {window['-SD-DATA-'].get()} to {data}" )
+        window['-SD-DATA-'].update( data )
     values['-SD-DATA-']		= data
-    window['-SD-PASS-'].update( pswd )
+    if window['-SD-PASS-'].get() != pswd:
+        window['-SD-PASS-'].update( pswd )
     if 'FIX' in update_seed_data.src:
         window['-SD-DATA-F-'].update( "Hex data: " )
         window['-SD-DATA-F-'].update( visible=True  )
@@ -1157,9 +1172,17 @@ def app(
         if timeout:
             logging.debug( f"A __TIMEOUT__ was requested: {timeout!r}" )
         event, values		= window.read( timeout=timeout )
-        logging.debug( f"{event}, {values}" )
+        logging.debug( f"{event}, {pretty(values, compact=True)}" )
         if not values or event in events_termination or event in events_ignored:
             continue
+
+        # If an event is reported, but there is no change to the data, this probably indicates a
+        # cursor movement event;
+        if event and event.startswith( '-' ):
+            value		= values.get( event )
+            if value and value == window[event]:
+                logging.debug( "Cursor movement on {event}..." )
+                continue
 
         status			= None
         status_error		= True

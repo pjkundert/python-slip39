@@ -18,7 +18,7 @@ def test_etherscan_ethprice():
     even without an ETHERSCAN_API_TOKEN (subject to default 1/5s rate limit.
 
     """
-    ETH				= Etherscan( "Nothing" )  # Specify Nothing for Ethereum back-end (uses defaults)
+    ETH				= Etherscan( 'Nothing' )  # Specify Nothing for Ethereum back-end (uses defaults)
 
     log.warning( "ETH: USD${}".format( ETH.ETH_USD ))
     log.warning( "Gas: USD${:7.2f} / 100,000 gas".format( 100000 * ETH.GAS_GWEI / ETH.ETH_GWEI * ETH.ETH_USD ))
@@ -73,11 +73,11 @@ def test_1inch_offchainoracle():
     )
 
     token_price			= offchainoracle_contract.functions.getRateToEth( token['address'], True ).call()
-    print( f"ETH/USDT: {token_price}" )
+    log.info( f"ETH/USDT: {token_price}" )
 
     eth_usdt			= token_price / (10 ** ( 18 + 18 - token['decimals'] ))
-    print( f"ETH/USDT: {eth_usdt}" )
-    print( f"USDT/ETH: {1/eth_usdt}" )
+    log.info( f"ETH/USDT: {eth_usdt}" )
+    log.info( f"USDT/ETH: {1/eth_usdt}" )
 
 
 HOT			= "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
@@ -92,10 +92,10 @@ def test_tokenprice():
     due to underlying 10^18 fixed-point offset."""
     for base in (None, HOT):
         prices_eth			= list( tokenprices( USDC, USDT, WBTC, WETH, base=base ))
-        print( json.dumps( prices_eth, indent=4, default=str ))
+        log.info( f"Token prices: " + json.dumps( prices_eth, indent=4, default=str ))
 
         for t,b,f in prices_eth:
-            print( f"{t.symbol:>6}/{b.symbol:<6}: {float( f ):13.4f} =~= {str(f)}" )
+            log.info( f"{t.symbol:>6}/{b.symbol:<6}: {float( f ):13.4f} =~= {str(f)}" )
 
         # WETH in terms of ETH should be close to 1.0 (ignore for any other base currency)
         assert base is not None or float( prices_eth[-1][2] ) == pytest.approx( 1.0 ), \
@@ -111,11 +111,11 @@ def test_tokenprice():
 def test_tokenratio():
     # Now, get the token price ratio of two tokens (both cached, relative to default ETH)
     WBTC_USDC		= tokenratio( WBTC, USDC )
-    print( f"{WBTC_USDC[0].symbol:>6}/{WBTC_USDC[1].symbol:<6}: {float( WBTC_USDC[2] ):13.4f} =~= {WBTC_USDC[2]}" )
+    log.info( f"{WBTC_USDC[0].symbol:>6}/{WBTC_USDC[1].symbol:<6}: {float( WBTC_USDC[2] ):13.4f} =~= {WBTC_USDC[2]}" )
     assert WBTC_USDC[2] > 10000, \
         "WBTC has crashed vs. USDC?"
 
     HOT_USDC		= tokenratio( "HOT", "USDC" )
-    print( f"{HOT_USDC[0].symbol:>6}/{HOT_USDC[1].symbol:<6}: {float( HOT_USDC[2] ):13.4f} =~= {HOT_USDC[2]}" )
+    log.info( f"{HOT_USDC[0].symbol:>6}/{HOT_USDC[1].symbol:<6}: {float( HOT_USDC[2] ):13.4f} =~= {HOT_USDC[2]}" )
     assert HOT_USDC[2] < .10, \
         "HOT has exploded vs. USDC?"

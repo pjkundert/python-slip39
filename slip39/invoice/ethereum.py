@@ -189,6 +189,8 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
 
 
     """
+    assert chain.name in etherscan_urls, \
+        f"No API service URL specified for {chain}"
     url				= etherscan_urls[chain.name]
     timeout			= timeout or 5.0
     headers			= headers or {

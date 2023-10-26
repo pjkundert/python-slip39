@@ -19,22 +19,22 @@ def test_sending():
     def generator( count ):
         for n in range( count ):
             vo			= ordinal( n )
-            print( f"gen. yield: {n, vo}" )
+            #print( f"gen. yield: {n, vo}" )
             v,			= ( yield n, vo )
-            print( f"gen. recvd: {v}" )
+            #print( f"gen. recvd: {v}" )
             assert v == vo
 
     gi				= generator( 3 )
     try:
         credentials		= None
         while True:
-            print( f"iter send:  {credentials}" )
+            #print( f"iter send:  {credentials}" )
             n,vo		= gi.send( credentials )
             credentials		= None
-            print( f"iter next:  {n,vo}" )
+            #print( f"iter next:  {n,vo}" )
             credentials		= (ordinal( n ),)
     except StopIteration:
-        print( f"done w/ n == {n}, s == {vo}" )
+        log.info( f"done w/ n == {n}, s == {vo}" )
 
 
 def test_grants( tmp_path ):

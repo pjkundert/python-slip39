@@ -124,6 +124,7 @@ def test_account_format():
         crypto		= 'Bitcoin',
         format		= "legacy",
     )
+    assert acct.format == 'legacy'
     assert acct.hdwallet.seed() == "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4"
     assert acct.path == "m/44'/0'/0'/0/0"
     assert acct.address == '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA'
@@ -232,9 +233,9 @@ def test_account_format():
 
 def test_account_from_mnemonic():
     """Test all the ways the entropy 0xffff...ffff can be encoded and HD Wallets derived."""
-    # Raw 0xffff...ffff entropy as Seed.  Not BIP-39 decoded (hashed) via mnemonic to produce Seed.  This is
-    # how SLIP-39 encodes and decodes entropy.  The rot HD Wallet Seed directly uses the entropy,
-    # un-molested.
+    # Raw 0xffff...ffff entropy as Seed.  Not BIP-39 decoded (hashed) via mnemonic to produce Seed.
+    # This is how SLIP-39 encodes and decodes entropy.  The raw HD Wallet Seed directly uses the
+    # entropy, un-molested.
     acct_ones			= account( SEED_ONES, crypto='Bitcoin' )
     assert acct_ones.path == "m/84'/0'/0'/0/0"  # Default, BTC
     assert acct_ones.address == 'bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl'
@@ -287,6 +288,14 @@ def test_account_from_mnemonic():
     acct.from_mnemonic( BIP39_ZOO )
     assert acct.path == "m/44'/144'/0'/0/0"  # Default
     assert acct.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
+
+    # And straight from BIP-39 Mnemonics
+    details_zoos_using_bip39		= create(
+        "SLIP39 Wallet: From zoo ... BIP-39",
+        master_secret	= BIP39_ZOO,
+    )
+    [(eth_zoo,btc_zoo)]	= details_zoos_using_bip39.accounts
+    btc_zoo.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
 
 
 @pytest.mark.skipif( not scrypt or not eth_account,
@@ -550,31 +559,31 @@ def test_addressgroups():
             ('Ripple',	".../-3"),
         ],
     )))
-    print( repr( addrgrps ))
+    # print( repr( addrgrps ))
     assert addrgrps == [								# Verified
         (0,(('ETH', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
             ('BTC', "m/84'/0'/0'/0/0", 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'),	# Ledger
             ('LTC', "m/84'/2'/0'/0/0", 'ltc1qnreu4d88p5tvh33anptujvcvn3xmfhh43yg0am'),	# Ledger
             ('DOGE', "m/44'/3'/0'/0/0", 'DTMaJd8wqye1fymnjxZ5Cc5QkN1w4pMgXT'),		# Ledger
-            ('BNB', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
+            ('BSC', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
             ('XRP', "m/44'/144'/0'/0/0", 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'))),	# Ledger 
         (1, (('ETH', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
              ('BTC', "m/84'/0'/0'/0/1", 'bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug'),
              ('LTC', "m/84'/2'/0'/0/1", 'ltc1qm4yc8vgxyv0xeu8p4vtq2wls245y2ueqpfrp4d'),
              ('DOGE', "m/44'/3'/0'/0/1", 'DGkL2LD5FfccAaKtx8G7TST5iZwrNkecTY'),
-             ('BNB', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
+             ('BSC', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
              ('XRP', "m/44'/144'/0'/0/1", 'ravkJwvQBuW4P5TG1qK5WDAgBxbPhdyPh1'))),
         (2, (('ETH', "m/44'/60'/0'/0/2", '0x578270B5E5B53336baC354756b763b309eCA90Ef'),
              ('BTC', "m/84'/0'/0'/0/2", 'bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w'),
              ('LTC', "m/84'/2'/0'/0/2", 'ltc1qstkxz076qdyg0r08eszf0rrxsmfcgj62lkqaj2'),
              ('DOGE', "m/44'/3'/0'/0/2", 'DQa3SpFZH3fFpEFAJHTXZjam4hWiv9muJX'),
-             ('BNB', "m/44'/60'/0'/0/2", '0x578270B5E5B53336baC354756b763b309eCA90Ef'),
+             ('BSC', "m/44'/60'/0'/0/2", '0x578270B5E5B53336baC354756b763b309eCA90Ef'),
              ('XRP', "m/44'/144'/0'/0/2", 'rpzdHCsqVLppnUAUvgYDd6ADZFeKE6QoHR'))),
         (3, (('ETH', "m/44'/60'/0'/0/3", '0x909f59835A5a120EafE1c60742485b7ff0e305da'),
              ('BTC', "m/84'/0'/0'/0/3", 'bc1q6t9vhestkcfgw4nutnm8y2z49n30uhc0kyjl0d'),
              ('LTC', "m/84'/2'/0'/0/3", 'ltc1qts5sde8st3x6qt2t0xhtf9uactg7nnztamuehk'),
              ('DOGE', "m/44'/3'/0'/0/3", 'DTW5tqLwspMY3NpW3RrgMfjWs5gnpXtfwe'),
-             ('BNB', "m/44'/60'/0'/0/3", '0x909f59835A5a120EafE1c60742485b7ff0e305da'),
+             ('BSC', "m/44'/60'/0'/0/3", '0x909f59835A5a120EafE1c60742485b7ff0e305da'),
              ('XRP', "m/44'/144'/0'/0/3", 'r9czvGVozoKTAnP1G17RG9DfWK272ZExvX')))
     ]
 

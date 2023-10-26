@@ -274,7 +274,7 @@ def conversions_remaining( conversions, verify=None ):
     msg				= f"Failed to find ratio(s) for {remains} via {resolved}"
     if verify:
         raise ConversionError( msg )
-    log.warning( msg )
+    log.debug( msg )
     return msg
 
 
@@ -400,7 +400,7 @@ class Invoice:
                 currencies_proxy[c] = alias = tokeninfo( c, w3_url=w3_url, use_provider=use_provider )
             except Exception as exc:
                 # May fail later, if no conversions provided for this currency
-                log.warning( f"Failed to find proxy for Invoice currency {c}: {exc}" )
+                log.info( f"Failed to find proxy for Invoice currency {c}: {exc}" )
             else:
                 # Yup; a proxy for a Crypto eg. BTC -> WBTC was found, or a native ERC-20 eg. USDC
                 # was found; associate it with any ETH account provided.
@@ -508,7 +508,7 @@ class Invoice:
                 try:
                     (one,two,ratio), = tokenprices( c, w3_url=self.w3_url, use_provider=self.use_provider )
                 except Exception as exc:
-                    log.warning( f"Ignoring candidate {c} for price deduction: {exc}" )
+                    log.info( f"Ignoring candidate {c} for price deduction: {exc}" )
                     continue
                 if self.conversions.get( (c,two.symbol) ) is None or self.conversions.get( (one.symbol,two.symbol) ) is None:
                     if self.conversions.get( (c,two.symbol) ) is None:
@@ -1378,7 +1378,6 @@ def write_invoices(
             )
             if not name.lower().endswith( '.pdf' ):
                 name		       += '.pdf'
-            log.warning( f"Invoice {metadata.number}: {name}" )
 
             path			= None
             if filename is not False:

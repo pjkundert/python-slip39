@@ -21,6 +21,7 @@ import getpass
 import logging
 import math
 import sys
+import traceback
 
 from typing		import Union
 from fractions		import Fraction
@@ -243,13 +244,15 @@ def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=lo
                 wrapper.lst	= now
             if wrapper.ok or now >= wrapper.lst + delay * backoff ** min( wrapper.cnt, tries ):
                 # Was truthy last time, or it is time to to call again.
+                rv		= None
                 try:
                     wrapper.lst	= now
                     rv		= func( *args, **kwds )
                 except Exception as exc:
                     if exc_at:
                         log.log( exc_at,  f"{wrapper.__name__}: Exception after {wrapper.cnt} {'successes' if wrapper.ok else 'failures'}: {exc}" )
-                    rv		= None
+                    if log.isEnabledFor( logging.DEBUG ):
+                        logging.debug( "%s", ''.join( traceback.format_exc() ))
                 else:
                     if rv:
                         wrapper.rv	= rv

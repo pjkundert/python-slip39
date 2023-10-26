@@ -628,7 +628,7 @@ invoices_to_write		= [
 @pytest.mark.parametrize( "invoices", invoices_to_write )
 def test_write_invoices( tmp_path, invoices ):
     directory		= Path( tmp_path )
-    #print( f"Invoice Output path: {directory}" )
+    log.info( f"Invoice Output path: {directory}" )
 
     metadata		= InvoiceMetadata(
         client		= client,
@@ -640,11 +640,11 @@ def test_write_invoices( tmp_path, invoices ):
     for i,(name, output) in enumerate( write_invoices(
         ( (invoice,metadata) for invoice in invoices )
     )):
-        #print( f"{ordinal( i )} Invoice {name}: {output}" )
+        log.info( f"{ordinal( i )} Invoice {name}: {output}" )
         if isinstance( output, Exception ):
             # Only certain failures are allowed/expected:
             # - Selecting a zero-value Cryptocurrency as a payment currency
             exc_str			= str( output )
             if "Failed to resolve conversion ratios" in exc_str:
-                assert 'EENUS' in exc_str
-                log.warning( "Failed due to selecting zero-valued crypto as payment currency" )
+                assert 'EENUS' in exc_str, \
+                    f"Failed due to selecting zero-valued crypto as payment currency: {exc_str}"

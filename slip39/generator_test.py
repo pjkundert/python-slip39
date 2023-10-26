@@ -10,7 +10,7 @@ try:
 except ImportError:
     Serial			= None
 
-from .api		import RANDOM_BYTES, accountgroups
+from .api		import random_secret, accountgroups
 from .generator		import chacha20poly1305, accountgroups_output, accountgroups_input
 
 log				= logging.getLogger( __package__ )
@@ -69,7 +69,7 @@ def test_serial():
 def generator( password, cryptopaths, fd ):
     """Generate a sequence of Accounts to the given file descriptor."""
     fdout		= os.fdopen( fd, "w" )
-    nonce		= RANDOM_BYTES( 12 )
+    nonce		= random_secret( 12 )
     cipher		= chacha20poly1305( password=password )
     for index,group in enumerate( accountgroups(
         master_secret	= b'\xff' * 16,

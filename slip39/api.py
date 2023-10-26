@@ -33,12 +33,15 @@ from collections	import namedtuple
 from typing		import Dict, List, Sequence, Tuple, Optional, Union, Callable
 
 from shamir_mnemonic	import generate_mnemonics
+from shamir_mnemonic.shamir import RANDOM_BYTES
 
 import hdwallet
 from hdwallet		import cryptocurrencies
 
-from .defaults		import BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUP_REQUIRED_RATIO, CRYPTO_PATHS
-from .util		import ordinal, commas
+from .defaults		import (
+    BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUPS, GROUP_REQUIRED_RATIO, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS
+)
+from .util		import ordinal, commas, is_listlike, is_mapping
 from .recovery		import produce_bip39, recover_bip39, recover as recover_slip39
 
 __author__                      = "Perry Kundert"
@@ -47,6 +50,7 @@ __copyright__                   = "Copyright (c) 2022 Dominion Research & Develo
 __license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
+
 
 # Support for private key encryption via BIP-38 and Ethereum JSON wallet is optional; pip install slip39[wallet]
 paper_wallet_issues		= []
@@ -71,9 +75,6 @@ except ImportError as exc:
     if log.isEnabledFor( logging.DEBUG ):
         log.exception( message )
     paper_wallet_issues.append( message )
-
-
-RANDOM_BYTES			= secrets.token_bytes
 
 
 def paper_wallet_available():
@@ -118,7 +119,7 @@ def path_edit(
 
 class BinanceMainnet( cryptocurrencies.Cryptocurrency ):
     NAME = "Binance"
-    SYMBOL = "BNB"
+    SYMBOL = "BSC"
     NETWORK = "mainnet"
     SOURCE_CODE = "https://github.com/bnb-chain/bsc"
     COIN_TYPE = cryptocurrencies.CoinType({
@@ -249,7 +250,7 @@ class Account:
     | Crypto | Semantic | Path              | Address | Support |
     |--------+----------+-------------------+---------+---------|
     | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
-    | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
+    | BSC    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
     | BTC    | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
     |        | SegWit   | m/49'/  0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
@@ -267,7 +268,7 @@ class Account:
         BTC		= 'Bitcoin',
         LTC		= 'Litecoin',
         DOGE		= 'Dogecoin',
-        BNB		= 'Binance',
+        BSC		= 'Binance',
         XRP		= 'Ripple',
     )
     CRYPTO_DECIMALS		= dict(
@@ -283,7 +284,7 @@ class Account:
         BTC		= 24,
         LTC		= 24,
         DOGE		= 24,
-        BNB		= 18,
+        BSC		= 18,
         XRP		= 6,
     )
     CRYPTO_NAMES		= dict(
@@ -293,13 +294,13 @@ class Account:
         bitcoin		= 'BTC',
         litecoin	= 'LTC',
         dogecoin	= 'DOGE',
-        binance		= 'BNB',
+        binance		= 'BSC',
         ripple		= 'XRP',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
-    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'XRP') )
+    CRYPTOCURRENCIES_BETA	= set( ('BSC', 'XRP') )
 
-    ETHJS_ENCRYPT		= set( ('ETH', 'BNB') )			# Can be encrypted w/ Ethereum JSON wallet
+    ETHJS_ENCRYPT		= set( ('ETH', 'BSC') )			# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
@@ -307,7 +308,7 @@ class Account:
         BTC		= "bech32",
         LTC		= "bech32",
         DOGE		= "legacy",
-        BNB		= "legacy",
+        BSC		= "legacy",
         XRP		= "legacy",
     )
 
@@ -317,11 +318,11 @@ class Account:
         XRP		= XRPHDWallet,
     )
     CRYPTO_LOCAL		= dict(
-        BNB		= BinanceMainnet,
+        BSC		= BinanceMainnet,
         XRP		= RippleMainnet,
     )
     CRYPTO_LOCAL_SYMBOL		= dict(
-        BNB		= "ETH"
+        BSC		= "ETH"
     )
 
     # The available address formats and default derivation paths.
@@ -331,7 +332,7 @@ class Account:
         ETH		= dict(
             legacy	= "m/44'/60'/0'/0/0",
         ),
-        BNB		= dict(
+        BSC		= dict(
             legacy	= "m/44'/60'/0'/0/0",
         ),
         BTC		= dict(
@@ -356,7 +357,7 @@ class Account:
         ETH		= dict(
             legacy	= "p2pkh",
         ),
-        BNB		= dict(
+        BSC		= dict(
             legacy	= "p2pkh",
         ),
         BTC		= dict(
@@ -444,12 +445,6 @@ class Account:
         self.format		= format.lower() if format else Account.address_format( crypto )
         semantic		= self.CRYPTO_FORMAT_SEMANTIC[crypto][self.format]
         hdwallet_cls		= self.CRYPTO_WALLET_CLS.get( crypto, hdwallet.HDWallet )
-        # if hdwallet_cls is None and self.format in ("legacy",):
-        #     hdwallet_cls	= hdwallet.HDWallet  # hdwallet.BIP44HDWallet
-        # if hdwallet_cls is None and self.format in ("segwit",):
-        #     hdwallet_cls	= hdwallet.HDWALLET  # hdwallet.BIP49HDWallet
-        # if hdwallet_cls is None and self.format in ("bech32",):
-        #     hdwallet_cls	= hdwallet.BIP84HDWallet
         if hdwallet_cls is None:
             raise ValueError( f"{crypto} does not support address format {self.format}" )
         self.hdwallet		= hdwallet_cls( symbol=crypto, cryptocurrency=cryptocurrency, semantic=semantic )
@@ -894,11 +889,11 @@ def cryptopaths_parser(
 
         cry,*pth		= crypto
         pth,*fmt		= pth or (None,)
-        fmt,			= fmt or (None,)
+        fmt,			= fmt or (format,)
 
         cry			= Account.supported( cry )
         if not pth:
-            pth			= Account.path_default( cry, fmt or format )
+            pth			= Account.path_default( cry, fmt )
             if hardened_defaults:
                 pth,_		= path_hardened( pth )
         if edit:
@@ -907,7 +902,7 @@ def cryptopaths_parser(
 
 
 def random_secret(
-    seed_length			= BITS_DEFAULT // 8
+    seed_length: Optional[int]
 ) -> bytes:
     """Generates a new random secret.
 
@@ -930,6 +925,8 @@ def random_secret(
     2**128 / 1e9 / 7e9 / (60*60*24*365) == 1,541,469,010,115.145
 
     """
+    assert seed_length, \
+        f"Must supply a non-zero length in bytes, not {seed_length}"
     return RANDOM_BYTES( seed_length )
 
 
@@ -1002,20 +999,31 @@ group_parser.RE			= re.compile( # noqa E305
 
 def create(
     name: str,
-    group_threshold: int,
-    groups: Dict[str,Tuple[int, int]],
-    master_secret: Optional[bytes] = None,      # Default: generate 128-bit Seed Entropy
+    group_threshold: Optional[Union[int,float]] = None,		# Default: 1/2 of groups, rounded up
+    groups: Optional[Union[List[str],Dict[str,Tuple[int, int]]]] = None,  # Default: 4 groups (see defaults.py)
+    master_secret: Optional[Union[str,bytes]] = None,		# Default: generate 128-bit Seed Entropy
     passphrase: Optional[Union[bytes,str]] = None,
-    using_bip39: bool		= False,        # Produce wallet Seed from master_secret Entropy using BIP-39 generation
+    using_bip39: Optional[bool]	= None,  # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
-    strength: int		= 128,
+    strength: Optional[int]	= None,		# Default: 128
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
     accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
 
     The master_secret Seed Entropy is discarded (because it is, of course, always recoverable from
     the SLIP-39 mnemonics).
+
+    We strive to default to "do the right thing", here.  If you supply BIP-39 Mnemonics, we'll
+    round-trip them via SLIP-39, and produce compatible crypto account addresses.  This should be
+    the "typical" case, as most people already have BIP-39 Mnemonics.  If you don't have a BIP-39
+    Mnemonic, make sure you set using_bip39 = True; this *also* implies that you *MUST* have already
+    converted your entropy to BIP-39 (or are going to recover it and do so, later), so we'll warn
+    you to do that.  If a passphrase is provided, it is assumed to be a BIP-39 passphrase, and is used
+    to generate the crypto account addresses -- it will *not* be used to "encrypt" the SLIP-39!
+
+    If you supply raw entropy, we'll assume you have SLIP-39 compatible wallet and want to use it
+    directly.
 
     Creates accountgroups derived from the Seed Entropy.  By default, this is done in the SLIP-39
     standard, using the master_secret Entropy directly.  If a passphrase is supplied, this is also
@@ -1027,16 +1035,33 @@ def create(
 
     """
     if master_secret is None:
-        assert strength in BITS, f"Invalid {strength}-bit secret length specified"
+        if not strength:
+            strength		= BITS_DEFAULT
         master_secret		= random_secret( strength // 8 )
+    if isinstance( master_secret, bytes ) and not ( 128 <= len( master_secret ) * 8 <= 512 ):
+        log.warning( f"Strangely sized {len(master_secret) * 8}-bit entropy provided; may be weak" )
 
-    g_names,g_dims		= list( zip( *groups.items() ))
+    # If a non-hex str is passed as entropy, assume it is a BIP-39 Mnemonic, and that we want to use
+    # SLIP-39 to round-trip the underlying BIP-39 entropy AND derive compatible wallets.
+    if isinstance( master_secret, str ) and all( c in '0123456789abcdef' for c in master_secret.lower() ):
+        master_secret		= codecs.decode( master_secret, 'hex_codec' )
+    if using_bip39 is None and isinstance( master_secret, str ):
+	# Assume it must be a BIP-39 Mnemonic
+        using_bip39		= True
+    else:
+        # Assume caller knows; default False (use SLIP-39 directly)
+        using_bip39		= bool( using_bip39 )
 
     # Derive the desired account(s) at the specified derivation paths, or the default, using either
     # BIP-39 Seed generation, or directly from Entropy for SLIP-39.
     if using_bip39:
         # For BIP-39, the passphrase is consumed here, and Cryptocurrency accounts are generated
-        # using the BIP-39 Seed generated from entropy + passphrase
+        # using the BIP-39 Seed generated from entropy + passphrase.  This should be the "typical"
+        # use-case, where someone already has a BIP-39 Mnemonic and/or wants to use a "standard"
+        # BIP-39 compatible hardware wallet.
+        log.warning( f"Assuming BIP-39 seed entropy: Ensure you recover and use via a BIP-39 Mnemonic" )
+        if isinstance( master_secret, str ):
+            master_secret	= recover_bip39( mnemonic=master_secret, as_entropy=True )
         bip39_mnem		= produce_bip39( entropy=master_secret )
         bip39_seed		= recover_bip39(
             mnemonic	= bip39_mnem,
@@ -1053,8 +1078,10 @@ def create(
         passphrase		= None  # Consumed by BIP-39; not used for SLIP-39 Mnemonics "backup"!
     else:
         # For SLIP-39, accounts are generated directly from supplied Entropy, and passphrase
-        # encrypts the SLIP-39 Mnemonics, below.
-        log.info(
+        # encrypts the SLIP-39 Mnemonics, below.  Using a SLIP-39 with a passphrase is so unlikely
+        # to be correct that we will warn about it!  You almost *always* want to use SLIP-39
+        # *without* a passphase; use eg. Trezor "hidden wallets" instead.
+        (log.warning if passphrase else log.info)(
             f"SLIP-39 for {name} from {len(master_secret)*8}-bit Entropy directly{' w/ SLIP-39 Passphrase' if passphrase else ''}"
         )
         accts			= list( accountgroups(
@@ -1062,6 +1089,15 @@ def create(
             cryptopaths		= cryptopaths,
             allow_unbounded	= False,
         ))
+
+    # Deduce groups, using defaults
+    if not groups:
+        groups			= GROUPS
+    if not is_mapping( groups ):
+        if isinstance( groups, str ):
+            groups		= groups.split( "," )
+        groups			= dict( map( group_parser, groups ))
+    g_names,g_dims		= list( zip( *groups.items() ))
 
     # Generate the SLIP-39 Mnemonics representing the supplied master_secret Seed Entropy.  This
     # always recovers the Seed Entropy; if not using_bip39, this is also the wallet derivation Seed;
@@ -1094,7 +1130,7 @@ def create(
 
 
 def mnemonics(
-    group_threshold: int,
+    group_threshold: Optional[int],  # Default: 1/2 of groups, rounded up
     groups: Sequence[Tuple[int, int]],
     master_secret: Optional[Union[str,bytes]] = None,
     passphrase: Optional[Union[bytes,str]] = None,
@@ -1120,6 +1156,10 @@ def mnemonics(
             f"Only {commas( BITS, final='and' )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
     if isinstance( passphrase, str ):
         passphrase		= passphrase.encode( 'UTF-8' )
+
+    groups			= list( groups )
+    if not group_threshold:
+        group_threshold		= math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
     return generate_mnemonics(
         group_threshold	= group_threshold,
         groups		= groups,

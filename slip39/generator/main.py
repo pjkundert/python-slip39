@@ -29,7 +29,7 @@ from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
 from ..defaults		import BAUDRATE, CRYPTO_PATHS
 from ..			import Account, cryptopaths_parser
-from ..api		import accountgroups, RANDOM_BYTES
+from ..api		import accountgroups, random_secret
 
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
@@ -167,7 +167,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     for cf in args.format:
         try:
             crypto,format	= cf.split( ':' )
-            Account.address_format( crypto, format=format )
+            Account.address_format( crypto, format=format )  # Changes the default for crypto
             if not any( k.startswith( crypto ) for k in args.cryptocurrency ):
                 args.cryptocurrency.append( crypto )
         except Exception as exc:
@@ -294,7 +294,6 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         args.cryptocurrency,
         edit			= args.path,
         hardened_defaults	= args.xpub,
-        format			= format,
     ))
 
     #
@@ -373,7 +372,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 time.sleep( receive_latency )
 
     nonce_emit			= True
-    nonce			= RANDOM_BYTES( 12 )
+    nonce			= random_secret( 12 )
 
     for index,group in enumerate( accountgroups(
         master_secret	= master_secret,
@@ -397,7 +396,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             healthy	= healthy
         ):
             nonce_emit		= True
-            nonce		= RANDOM_BYTES( 12 )
+            nonce		= random_secret( 12 )
             if healthy_waiter:
                 healthy_waiter( file )
 
