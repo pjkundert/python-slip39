@@ -41,7 +41,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= #-vv --doctest-modules # --capture=no # --log-cli-level=INFO
+PYTESTOPTS	= --capture=no --log-cli-level=WARNING
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -77,8 +77,9 @@ test:
 	$(PY3TEST)
 
 analyze:
-	flake8 -j 1 --max-line-length=200 \
-	  --ignore=W503,E201,E202,E127,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
+	$(PY3) -m flake8 --color never -j 1 --max-line-length=250 \
+	  --exclude slip39/tabulate \
+	  --ignore=W503,E201,E202,E203,E127,E221,E223,E226,E231,E241,E242,E251,E265,E272,E274 \
 	  slip39
 
 pylint:
@@ -127,6 +128,63 @@ slip39/layout/COVER.txt:
 # Any build dependencies that are dynamically generated, and may need updating from time to time
 deps:			$(TXT) slip39/gui/SLIP-39.txt slip39/layout/COVER.txt
 
+
+# 
+# Agent Keypairs, Product Licences
+#
+
+GLOBAL_OPTIONS	= -vv
+
+CREDENTIALS	= $(abspath $(HOME)/.crypto-licensing )
+
+export CRYPTO_LIC_PASSWORD
+export CRYPTO_LIC_USERNAME
+
+.PHONY: slip-39 perry-kundert
+products:			slip-39				\
+				perry-kundert			 \
+
+slip-39:
+
+perry-kundert:			USERNAME=a@b.c
+perry-kundert:			CRYPTO_LIC_PASSWORD=password
+perry-kundert:			slip39/invoice/payments_test/perry-kundert.crypto-license
+perry-kundert:			GRANTS="{\"crypto-licensing-server\": {\
+    \"override\": { \
+        \"rate\": \"0.1%\", \
+        \"crypto\": { \
+            \"ETH\": \"0xe4909b66FD66DA7d86114695A1256418580C8767\", \
+            \"BTC\": \"bc1qygm3dlynmjxuflghr0hmq6r7wmff2jd5gtgz0q\" \
+        }\
+    }\
+}}"
+
+
+
+# Create .crypto-keypair from seed; note: if the make rule fails, intermediate files are deleted.
+# We expect any password to be transmitted in CRYPTO_LIC_PASSWORD env. var.
+%.crypto-keypair: %.crypto-seed
+	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
+	    --extra   $(dir $(basename $@ ))			\
+	    --name $(notdir $(basename $@ ))			\
+            --reverse-save					\
+	    registered						\
+	    --username $(USERNAME)				\
+	    --seed $$( cat $< )
+
+# Create .crypto-license, signed by .crypto-keypair
+%.crypto-license : %.crypto-keypair
+	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
+	    --extra   $(dir $(basename $@ ))			\
+	    --name $(notdir $(basename $@ ))			\
+            --reverse-save					\
+	    license						\
+	    --username $(USERNAME) --no-registering		\
+	    --client $(CLIENT) --client-pubkey $(CLIENT_PUBKEY)	\
+	    --grant $(GRANTS)					\
+	    --author $(AUTHOR) --domain $(DOMAIN) --product $(PRODUCT) $(LICENSE_OPTIONS)
+
+
 # 
 # VirtualEnv build, install and activate
 #
@@ -167,7 +225,7 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 
 # Install from wheel, including all optional extra dependencies (except dev)
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[gui,wallet,serial]
+	$(PY3) -m pip install --force-reinstall $<[all]
 
 install-dev:
 	$(PY3) -m pip install --upgrade -r requirements-dev.txt
@@ -527,6 +585,11 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 # For details on Signing Apps:
 # See: https://developer.apple.com/library/archive/technotes/tn2318/_index.html
 
+# For PyInstaller-specific hints:
+# https://gist.github.com/txoof/0636835d3cc65245c6288b2374799c43
+# https://github.com/txoof/codesign
+# https://github.com/The-Nicholas-R-Barrow-Company-LLC/PyMacApp
+
 # * In order for code signing to succeed, your code signing key(s) MUST have all of their dependent
 #   (issuer) keys downloaded to your Keychain, from https://www.apple.com/certificateauthority.
 #   - Use Keychain Access, right-click on your signing key and click Evaluate "...".
@@ -647,16 +710,17 @@ upload-check:
 	    || ( echo -e "\n\n*** Missing Python modules; run:\n\n        $(PY3) -m pip install --upgrade twine\n" \
 	        && false )
 upload: 	upload-check wheel
-	python3 -m twine upload --repository pypi dist/slip39-$(VERSION)*
+	$(PY3) -m twine upload --repository pypi dist/slip39-$(VERSION)*
 
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )
 
 
-# Run only tests with a prefix containing the target string, eg test-blah
+# Run only tests with a prefix containing the target string, eg test-api
 test-%:
-	slip39/*$*_test.py
+	$(PY3TEST) $(shell find slip39 -name '*$**_test.py')
 
+# Run all tests with names matching the target string
 unit-%:
 	$(PY3TEST) -k $*
 

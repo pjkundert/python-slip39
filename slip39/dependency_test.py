@@ -21,6 +21,9 @@ SEED_XMAS			= codecs.decode( SEED_XMAS_HEX, 'hex_codec' )
 SEED_ONES_HEX			= b'FF' * 16
 SEED_ONES			= codecs.decode( SEED_ONES_HEX, 'hex_codec' )
 
+SEED_ZERO_HEX			= b'00' * 16
+SEED_ZERO			= codecs.decode( SEED_ZERO_HEX, 'hex_codec' )
+
 
 class substitute( contextlib.ContextDecorator ):
     """The SLIP-39 standard includes random data in portions of the as share.  Replace the random

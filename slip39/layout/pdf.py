@@ -14,6 +14,7 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from __future__          import annotations
 
 import ast
 import io
@@ -24,6 +25,7 @@ import os
 import warnings
 
 from datetime		import datetime
+from collections	import namedtuple
 from collections.abc	import Callable
 from pathlib		import Path
 from typing		import Dict, List, Tuple, Optional, Sequence, Any
@@ -35,19 +37,23 @@ from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, grou
 from ..util		import chunker
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
-    FONTS, CARD, CARD_SIZES, PAPER, PAGE_MARGIN, MM_IN, PT_IN,
+    FONTS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
 )
 from .components	import (
     Coordinate, Region, Box, Image, Text,
-    layout_components, layout_card, layout_wallet,
+    page_dimensions, layout_components, layout_card, layout_wallet,
 )
 from .printer		import (
     printer_output,
 )
 
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 # Optionally support output of encrypted JSON files
 eth_account			= None
@@ -128,26 +134,49 @@ class FPDF_Autoload_Fonts( fpdf.FPDF ):
         return super().set_font( family=family, style=style, size=size )
 
 
+LayoutPDF			= namedtuple( 'LayoutPDF', [
+    'comps_pp', 'orientation', 'page_xy', 'pdf', 'comp_dim',
+] )
+
+
 def layout_pdf(
-        card_dim: Coordinate,                   # mm.
-        page_margin_mm: float	= .25 * MM_IN,  # 1/4" in mm.
-        orientation: str	= 'portrait',
-        paper_format: Any	= PAPER,        # Can be a paper name (Letter) or (x, y) dimensions in mm.
-        font_dir: Optional[Path] = None,
-) -> Tuple[int, str, Callable[[int],[int, Coordinate]], fpdf.FPDF]:
-    """Find the ideal orientation for the most cards of the given dimensions.  Returns the number of
-    cards per page, the FPDF, and a function useful for laying out templates on the pages of the
-    PDF."""
+    comp_dim: Optional[Coordinate] = None,      # In mm.; Default: full working page size
+    page_margin_mm: Optional[float] = None,     # Default: 1/4" in mm.
+    orientation: Optional[str]	= None,		# Default: portrait
+    paper_format: Optional[Any]	= None,         # Can be a paper name (Letter) or (x, y) dimensions in mm.
+    font_dir: Optional[Path]	= None,
+) -> Tuple[int, str, Callable[[int],[int, Coordinate]], fpdf.FPDF, Coordinate]:
+    """Find the ideal orientation for the most components of dimensions 'comp_dim'.  Returns the
+    number of components per page, the FPDF, and a function useful for laying out templates on the
+    pages of the PDF.
+
+    Returns the details required to start rendering components to the FPDF, including the
+    component dimensions, 'comp_dim' in mm.
+
+    """
     pdf				= FPDF_Autoload_Fonts(
-        orientation	= orientation,
-        format		= paper_format,
+        orientation	= orientation or ORIENTATION,
+        format		= paper_format or PAPER,
     )
     pdf.set_margin( 0 )
 
-    cards_pp,page_xy		= layout_components(
-        pdf, comp_dim=card_dim, page_margin_mm=page_margin_mm
+    # Establish page dimensions, net margins; if no component dimension, default to page dimensions
+    if page_margin_mm is None:
+        page_margin_mm	= PAGE_MARGIN * MM_IN
+    page_dim		= page_dimensions( pdf, page_margin_mm=page_margin_mm )
+    if comp_dim is None:
+        # Default to 1 component per page (the user must limit themselves to the page size)
+        comp_dim	= page_dim
+
+    # Lay out components on page, computing the number of components that will fit
+    comps_pp,page_xy	= layout_components(
+        pdf,
+        comp_dim	= comp_dim,
+        page_margin_mm	= page_margin_mm
     )
-    return cards_pp, orientation, page_xy, pdf
+    log.info( f'PDF Layout: {comps_pp} components of {comp_dim.x / MM_IN:7.3f}" x {comp_dim.y / MM_IN:7.3f}"'
+              f' on an {page_dimensions( pdf ).x / MM_IN:7.3f}" x {page_dimensions( pdf ).y / MM_IN:7.3f}" {orientation or ORIENTATION} page' )
+    return LayoutPDF( comps_pp, orientation, page_xy, pdf, comp_dim )
 
 
 def output_pdf( *args, **kwds ):
@@ -182,7 +211,8 @@ def produce_pdf(
         paper_format		= PAPER
     if orientations is None:
         orientations		= ('portrait', 'landscape')
-    # Deduce the card size
+
+    # Deduce the card size.  All papers sizes are specified in inches.
     try:
         (card_h,card_w),card_margin = CARD_SIZES[card_format.lower()]
     except KeyError:
@@ -192,14 +222,14 @@ def produce_pdf(
     # Compute how many cards per page.  Flip page portrait/landscape to match the cards'.  Use the length
     # of the first Group's first Mnemonic to determine the number of mnemonics on each card.
     num_mnemonics		= len( groups[next(iter(groups.keys()))][1][0].split() )
-    card			= layout_card(  # converts to mm
+    card			= layout_card(  # layouts are computed in inches.
         card_size, card_margin, num_mnemonics=num_mnemonics )
-    card_dim			= card.mm()
+    card_dim			= card.mm()     # converts to mm for PDF
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
     # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
     page_margin_mm		= PAGE_MARGIN * MM_IN
-    cards_pp,orientation,page_xy,pdf = max(
+    cards_pp,orientation,page_xy,pdf,_ = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
         for orientation in orientations
     )
@@ -387,7 +417,7 @@ def write_pdfs(
 
     group_threshold		= int( group_threshold ) if group_threshold else math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
 
-    cryptopaths			= cryptopaths_parser( cryptocurrency, edit=edit )
+    cryptopaths			= list( cryptopaths_parser( cryptocurrency, edit=edit ))
 
     # If account details not provided in names, generate them.  If using_bip39 is specified, this is
     # where we use BIP-39 Seed generation to produce the wallet Seed, instead of SLIP-39 which uses
@@ -415,12 +445,6 @@ def write_pdfs(
         print( f"Using BIP-39 Mnemonic: {produce_bip39( entropy=master_secret )}" )
 
     cover_text			= None
-    if cover_page:
-        cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
-        if using_bip39:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt', ), encoding='UTF-8').read()
-        else:
-            cover_text	       += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt'), encoding='UTF-8').read()
 
     # Generate each desired SLIP-39 Mnemonic cards PDF.  Supports --card (the default).  Remember
     # any deduced orientation and paper_format for below.
@@ -443,6 +467,13 @@ def write_pdfs(
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
                     print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
+        # Get the correct cover page format (if any), according to the details.using_bip39
+        if cover_page:
+            cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
+            if using_bip39:
+                cover_text     += open(os.path.join(os.path.dirname(__file__), 'COVER-BIP-39.txt', ), encoding='UTF-8').read()
+            else:
+                cover_text     += open(os.path.join(os.path.dirname(__file__), 'COVER-SLIP-39.txt'), encoding='UTF-8').read()
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
@@ -585,7 +616,7 @@ def write_pdfs(
             assert eth_account, \
                 "The optional eth-account package is required to support output of encrypted JSON wallets\n" \
                 "    python3 -m pip install eth-account"
-            assert any( 'ETH' == crypto for crypto,paths in cryptopaths ), \
+            assert any( 'ETH' == crypto for crypto,*_ in cryptopaths ), \
                 "--json is only valid if '--crypto ETH' wallets are specified"
 
             for eth in (
@@ -638,7 +669,7 @@ def write_pdfs(
                 if filepath is True:
                     filepath	= ''
                 pdf_path		= os.path.join( filepath, pdf_name ) if filepath else pdf_name
-                log.warning( f"Writing SLIP39-encoded wallet for {name!r} to: {pdf_path}" )
+                log.warning( f"Writing SLIP39{' backup for BIP-39' if using_bip39 else ''}-encoded wallet for {name!r} to: {pdf_path}" )
                 pdf.output( pdf_path )
             if printer is not None:  # if True, uses "default" printer
                 printer		= None if printer is True else printer

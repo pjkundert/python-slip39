@@ -1,14 +1,34 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
+from __future__         import annotations
+
 import argparse
 import codecs
 import hashlib
 import logging
 import math
 import os
+import pprint
 import re
 import sys
 import subprocess
 
-from itertools import islice
+from itertools		import islice
 
 import PySimpleGUI as sg
 
@@ -21,6 +41,11 @@ from ..defaults		import (
     CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
     LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
 
@@ -36,6 +61,16 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
 SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
 SE_SEED_FRAME			= 'Seed Extra Randomness'
 SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
+
+
+def pretty(thing, maxstr=60, indent=4, **kwds):
+    class P(pprint.PrettyPrinter):
+        def _format(self, thing, *args, **kwds):
+            if isinstance(thing, str) and len(thing) > maxstr:
+                thing = thing[:maxstr//2] + '…' + thing[-maxstr//2:]
+            return super()._format(thing, *args, **kwds)
+                                        
+    return P(indent=indent, **kwds).pformat(thing)
 
 
 def theme_color( thing, theme=None ):
@@ -541,10 +576,14 @@ def update_seed_data( event, window, values ):
         data, pswd, seed	= values['-SD-DATA-'], values['-SD-PASS-'], window['-SD-SEED-'].get()
 
     # Now that we've recovered which Seed Data control was previously in play (and any data/pswd),
-    # update window/value content and other controls' visibility for this -SD-...  selection.
-    window['-SD-DATA-'].update( data )
+    # update window/value content and other controls' visibility for this -SD-...  selection; but
+    # only IF the data has changed.  Otherwise, cursor motion in input fields will be foiled...
+    if window['-SD-DATA-'].get() != data:
+        log.info( f"Updating -SD-DATA- from {window['-SD-DATA-'].get()} to {data}" )
+        window['-SD-DATA-'].update( data )
     values['-SD-DATA-']		= data
-    window['-SD-PASS-'].update( pswd )
+    if window['-SD-PASS-'].get() != pswd:
+        window['-SD-PASS-'].update( pswd )
     if 'FIX' in update_seed_data.src:
         window['-SD-DATA-F-'].update( "Hex data: " )
         window['-SD-DATA-F-'].update( visible=True  )
@@ -615,7 +654,7 @@ def update_seed_data( event, window, values ):
             )
             bits		= len( seed ) * 8
             assert bits in BITS_allowed( values ), \
-                f"Only {commas(BITS, final_and=True)}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
+                f"Only {commas(BITS, final='and')}-bit BIP-39 Mnemonics supported, unless 'Using BIP-39' selected"
         except Exception as exc:
             status		= f"Invalid BIP-39 recovery mnemonic: {exc}"
             log.warning( status )
@@ -1133,9 +1172,17 @@ def app(
         if timeout:
             logging.debug( f"A __TIMEOUT__ was requested: {timeout!r}" )
         event, values		= window.read( timeout=timeout )
-        logging.debug( f"{event}, {values}" )
+        logging.debug( f"{event}, {pretty(values, compact=True)}" )
         if not values or event in events_termination or event in events_ignored:
             continue
+
+        # If an event is reported, but there is no change to the data, this probably indicates a
+        # cursor movement event;
+        if event and event.startswith( '-' ):
+            value		= values.get( event )
+            if value and value == window[event]:
+                logging.debug( "Cursor movement on {event}..." )
+                continue
 
         status			= None
         status_error		= True
@@ -1398,7 +1445,7 @@ def app(
         # See what Cryptocurrencies and Paper Wallets are desired, by what checkboxes are clicked.
         # If none are, then the default (BTC, ETH) will be defaulted.
         cs_rec			= set( c for c in Account.CRYPTOCURRENCIES if values.get( f"-CRYPTO-{c}-" ) )
-        cps_rec			= cryptopaths_parser( cryptocurrency=cs_rec, edit=edit )
+        cps_rec			= list( cryptopaths_parser( cryptocurrency=cs_rec, edit=edit ))
         if cs_rec != cryptocurrency or cps_rec != cryptopaths:
             log.info( "Updating SLIP-39 due to changing Cryptocurrencies" )
             cryptocurrency	= cs_rec

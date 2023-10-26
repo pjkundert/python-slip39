@@ -1,0 +1,22 @@
+eth-account		>=0.8.0,<0.9
+py-solc-x		>=1.1.1,<1.2
+pycryptodome		>=3.16,	<4 
+requests		>=2.20,	<3
+
+# Update to 0.9.1 w/ type deduction w/ missing/empty support
+#tabulate		>=0.9.1,<1
+
+dkimpy[ed25519]		>=1.0.5,<2
+
+# These versions are very brittle; must be upgraded in lock-step (see web3.py/setup.py)
+# 6.0.0b9
+#web3[tester]		==6.0.0b9
+#eth-tester[py-evm]	==v0.8.0-b.3
+# Until ethpm upgrade to avoid dependency
+#ipfshttpclient				; python_version >= "3.11"
+
+# 6.6.1
+web3[tester]		==6.8.0
+eth-tester[py-evm]	==v0.9.1-b.1
+# Until ethpm upgrade to avoid dependency
+#ipfshttpclient		= 0.8.0a2

@@ -15,13 +15,21 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+from __future__          import annotations
+
 import click
 import json
 import logging
 import string
 
 from ..			import addresses as slip39_addresses
-from ..util		import log_cfg, log_level, input_secure
+from ..util		import commas, log_cfg, log_level, input_secure
+from ..defaults		import BITS
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 """
 Provide basic CLI access to the slip39 API.
@@ -50,7 +58,7 @@ cli.json			= False
 @click.command()
 @click.option( "--crypto", help="The cryptocurrency address to generate (default: BTC)" )
 @click.option( "--paths", help="The HD wallet derivation path (default: the standard path for the cryptocurrency; if xpub, omits leading hardened segments by default)" )
-@click.option( "--secret", help="A hex seed or '{x,y,z}{pub,prv}...' x-public/private key to derive HD wallet addresses from; '-' reads it from stdin" )
+@click.option( "--secret", required=True, help="A hex seed or '{x,y,z}{pub,prv}...' x-public/private key to derive HD wallet addresses from; '-' reads it from stdin" )
 @click.option( "--format", help="legacy, segwit, bech32 (default: standard for cryptocurrency or '{x,y,z}{pub/prv}...' key)" )
 @click.option( '--unbounded/--no-unbounded', default=False, help="Allow unbounded sequences of addresses")
 def addresses( crypto, paths, secret, format, unbounded ):
@@ -61,6 +69,8 @@ def addresses( crypto, paths, secret, format, unbounded ):
         log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
     if secret and secret.lower().startswith('0x'):
         secret			= secret[2:]
+    if not secret:
+        log.error( f"Provide a random {commas( BITS, final='or' )}-bit Seed via --secret" )
     if cli.json:
         click.echo( "[" )
     for i,(cry,pth,adr) in enumerate( slip39_addresses(

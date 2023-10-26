@@ -1,0 +1,30 @@
+[
+    {
+        "contract": "0xaFF4481D10270F50f203E0763e2597776068CBc5",
+        "name": "Weenus \ud83d\udcaa",
+        "symbol": "WEENUS",
+        "decimals": 18,
+        "icon": null
+    },
+    {
+        "contract": "0x022E292b44B5a146F2e8ee36Ff44D3dd863C915c",
+        "name": "Xeenus \ud83d\udcaa",
+        "symbol": "XEENUS",
+        "decimals": 18,
+        "icon": null
+    },
+    {
+        "contract": "0xc6fDe3FD2Cc2b173aEC24cc3f267cb3Cd78a26B7",
+        "name": "Yeenus \ud83d\udcaa",
+        "symbol": "YEENUS",
+        "decimals": 8,
+        "icon": null
+    },
+    {
+        "contract": "0x1f9061B953bBa0E36BF50F21876132DcF276fC6e",
+        "name": "Zeenus \ud83d\udcaa",
+        "symbol": "ZEENUS",
+        "decimals": 0,
+        "icon": null
+    }
+]

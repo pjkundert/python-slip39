@@ -42,7 +42,7 @@ def test_Region():
     assert card_qr.y1 == 1.125
 
     elements			= list( card.elements() )[1:]
-    print( json.dumps( elements, indent=4 ))
+    #print( json.dumps( elements, indent=4 ))
     assert len( elements ) == 4
     assert elements[0]['type'] == 'I'
 
@@ -54,7 +54,7 @@ def test_Region():
     )
 
     elements			= list( card.elements() )[1:]
-    print( json.dumps( elements, indent=4 ))
+    #print( json.dumps( elements, indent=4 ))
     assert elements[-1]['type'] == 'T'
     assert elements[-1]['font'] == 'helvetica'
     assert elements[-1]['size'] == approx( 14.4 )

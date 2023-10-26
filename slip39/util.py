@@ -14,15 +14,26 @@
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
+from __future__		import annotations
 
 import colorsys
-import fractions
 import getpass
 import logging
 import math
 import sys
+import traceback
 
+from typing		import Union
+from fractions		import Fraction
 from functools		import wraps
+
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
+
+log				= logging.getLogger( "util" )
 
 # util.timer
 #
@@ -87,6 +98,195 @@ def log_level( adjust ):
     ]
 
 
+def log_apis( func ):
+    """Decorator for logging function args, kwds, and results"""
+    @wraps( func )
+    def wrapper( *args, **kwds ):
+        try:
+            result = func(*args, **kwds)
+        except Exception as exc:
+            log.warning( f"{func.__name__}( {args!r} {kwds!r} ): {exc}" )
+        else:
+            log.info( f"{func.__name__}( {args!r} {kwds!r} ) == {result}" )
+        return result
+    return wrapper
+
+
+#
+# util.is_...		-- Test for various object capabilities
+#
+def is_mapping( thing ):
+    """See if the thing implements the Mapping protocol."""
+    return hasattr( thing, 'keys' ) and hasattr( thing, '__getitem__' )
+
+
+def is_listlike( thing ):
+    """Something like a list or tuple; indexable, but not a string or a class (some may have
+    __getitem__, eg. cpppo.state, based on a dict).
+
+    """
+    return not isinstance( thing, (str,bytes,type) ) and hasattr( thing, '__getitem__' )
+
+
+#
+# @util.memoize		-- Cache function results data based on positional args, and maxage/size
+#
+def memoize( maxsize=None, maxage=None, log_at=None ):
+    """A very simple memoization wrapper based on (immutable) args only, for simplicity.  Any
+    keyword arguments must be immaterial to the successful outcome, eg. timeout, selection of
+    providers, etc..
+
+    Only successful (non-Exception) outcomes are cached!
+
+    Keeps track of the age (in seconds) and usage (count) of each entry, updating them on each call.
+    When an entry exceeds maxage, it is purged.  If the memo dict exceeds maxsize entries, 10% are
+    purged.
+
+    Optionally logs when we memoize something, at level log_at.
+    """
+    def decorator( func ):
+        @wraps( func )
+        def wrapper( *args, **kwds ):
+            now			= timer()
+            # A 0 hits count is our sentinel indicating args not memo-ized
+            last,hits		= wrapper._stat.get( args, (now,0) )
+            if not hits or ( maxage and ( now - last > maxage )):
+                entry = wrapper._memo[args] = func( *args, **kwds )
+                if log_at and log.isEnabledFor( log_at ):
+                    if hits:
+                        log.log( log_at, "{} Refreshed {!r} == {!r}".format( wrapper.__name__, args, entry ))
+                    else:
+                        log.log( log_at, "{} Memoizing {!r} == {!r}".format( wrapper.__name__, args, entry ))
+            else:
+                entry		= wrapper._memo[args]
+                #log.detail( "{} Remembers {!r} == {!r}".format( wrapper.__name__, args, entry ))
+            hits	       += 1
+            wrapper._stat[args] = (now,hits)
+
+            if maxsize and len( wrapper._memo ) > maxsize:
+                # Prune size, by ranking each entry by hits/age.  Something w/:
+                #
+                #   2 hits 10 seconds old > 1 hits 6 seconds old > 3 hits 20 seconds old
+                #
+                # Sort w/ the highest rated keys first, so we can just eject all those after 9/10ths of
+                # maxsize.
+                rating		= sorted(
+                    (
+                        (hits / ( now - last + 1 ), key)		# Avoids hits/0
+                        for key,(last,hits) in wrapper._stat.items()
+                    ),
+                    reverse	= True,
+                )
+                for rtg,key in rating[maxsize * 9 // 10:]:
+                    # log.detail( "{} Ejecting  {!r} == {!r} w/ rating {:7.2f}, stats: {}".format(
+                    #     wrapper.__name__, key, wrapper._memo[key], rtg, wrapper._stat[key] ))
+                    del wrapper._stat[key]
+                    del wrapper._memo[key]
+            return entry
+
+        def stats( predicate=None, now=None ):
+            """Return the number of memoized data, their average age, and average hits per memoized entry."""
+            if now is None:
+                now		= timer()
+            cnt,age,avg		= 0,0,0
+            for key,(last,hits) in wrapper._stat.items():
+                if not predicate or predicate( *key ):
+                    cnt	       += 1
+                    age	       += now-last
+                    avg	       += hits
+            return cnt,age/(cnt or 1),avg/(cnt or 1)
+
+        wrapper.stats		= stats
+
+        def reset():
+            """Flush all memoized data."""
+            wrapper._memo	= dict()		# { args: entry, ... }
+            wrapper._stat	= dict()		# { args: (<timestamp>, <count>), ... }
+
+        wrapper.reset		= reset
+
+        wrapper.reset()
+
+        return wrapper
+
+    return decorator
+
+
+#
+# @util.retry		-- Retry w/ exponential back-off, 'til truthy result returned
+#
+def retry( tries, delay=3, backoff=1.5, default_cls=None, log_at=None, exc_at=logging.WARNING ):
+    """Retries a function or method until it returns a truthy value.  If default_cls is None, will
+    recycle (keep returning) any prior non-falsey value 'til successful again.  Otherwise, will
+    return a default_cls instance (or just its falsey value, eg. False) on failure.
+
+    The 'delay' sets the initial delay in seconds, and 'backoff' (defaults to 1.5x; a 50% increase
+    in delay each retry) sets the factor by which the delay should lengthen after each
+    failure/falsey value.  The 'backoff' multiple must be greater than 1, or else it isn't really a
+    backoff.  The 'tries' must be at least 0 to have any exponential effect, and delay greater than
+    0; once 'tries' expires, the backoff will remain constant.
+
+    Once truthy, the values reset 'til the next failure.
+
+    """
+    if delay <= 0:
+        raise ValueError("delay must be greater than 0")
+    if backoff <= 1:
+        raise ValueError("backoff must be greater than 1")
+    if tries < 0:
+        raise ValueError("tries must be 0 or greater")
+
+    def decorator( func ):
+        @wraps( func )
+        def wrapper( *args, **kwds ):
+            now			= timer()
+            if wrapper.lst is None:
+                wrapper.lst	= now
+            if wrapper.ok or now >= wrapper.lst + delay * backoff ** min( wrapper.cnt, tries ):
+                # Was truthy last time, or it is time to to call again.
+                rv		= None
+                try:
+                    wrapper.lst	= now
+                    rv		= func( *args, **kwds )
+                except Exception as exc:
+                    if exc_at:
+                        log.log( exc_at,  f"{wrapper.__name__}: Exception after {wrapper.cnt} {'successes' if wrapper.ok else 'failures'}: {exc}" )
+                    if log.isEnabledFor( logging.DEBUG ):
+                        logging.debug( "%s", ''.join( traceback.format_exc() ))
+                else:
+                    if rv:
+                        wrapper.rv	= rv
+                        return rv
+                finally:
+                    ok		= bool( rv )
+                    if ok != wrapper.ok:
+                        # Count resets on rising/falling edge (success <-> failure change)
+                        if log_at and log.isEnabledFor( log_at ):
+                            log.log( log_at, f"{wrapper.__name__}: Became {'Truthy' if rv else 'Falsey'} after {wrapper.cnt} {'successes' if wrapper.ok else 'failures'}" )
+                        wrapper.cnt	= 0		# .cnt resets only on rising/falling edge
+                        wrapper.ok	= ok
+                    wrapper.cnt += 1			# And *always* counts successes/failures (even on return, just above!)
+                # Falls thru on attempt and failure (Falsey)
+            wrapper.ok		= False
+            if default_cls is None and wrapper.rv:
+                return wrapper.rv
+            return default_cls() if default_cls else default_cls
+
+        def reset():
+            """Force an immediate attempt to run the underlying function, clearing any try count."""
+            wrapper.ok		= True		# Start off assuming success (hence no initial delay)
+            wrapper.cnt		= 0
+            wrapper.lst		= None		# time of last function invocation
+
+        wrapper.reset		= reset
+
+        wrapper.reset()
+
+        return wrapper
+
+    return decorator
+
+
 def ordinal( num ):
     ordinal_dict		= {1: "st", 2: "nd", 3: "rd"}
     q, mod			= divmod( num, 10 )
@@ -94,7 +294,7 @@ def ordinal( num ):
     return f"{num}{suffix}"
 
 
-def commas( seq, final_and=None ):
+def commas( seq, final=None ):  # supply alternative final connector, eg. 'and', 'or'
     """Replace any numeric sequences eg. 1, 2, 3, 5, 7 w/ 1-3, 5 and 7.  Caller should
     usually sort numeric values before calling."""
     def int_seq( seq ):
@@ -114,9 +314,18 @@ def commas( seq, final_and=None ):
         nxt			= rng[1] + 1
         end			= seq[nxt:] if nxt < len( seq ) else []
         seq			= beg + [f"{seq[rng[0]]}-{seq[rng[1]]}"] + end
-    if final_and and len(seq) > 1:
-        seq			= seq[:-2] + [f"{seq[-2]} and {seq[-1]}"]
+    if final and len(seq) > 1:
+        seq			= seq[:-2] + [f"{seq[-2]} {final} {seq[-1]}"]
     return ', '.join( map( str, seq ))
+
+
+def into_bytes( data: Union[bytes,str] ) -> bytes:
+    """Convert hex data w/ optional '0x' prefix into bytes"""
+    if isinstance( data, bytes ):
+        return data
+    if data[:2].lower() == '0x':
+        data		= data[2:]
+    return bytes.fromhex( data )
 
 
 def round_onto( value, keys, keep_sign=True ):
@@ -338,10 +547,85 @@ def is_power_of_2( n: int ) -> bool:
     return not ( n & ( n - 1 ))
 
 
-class mixed_fraction( fractions.Fraction ):
-    """A Fraction that represents whole multiples of itself as eg. 1-1/2"""
+class mixed_fraction( Fraction ):
+    """A Fraction that represents whole multiples of itself as eg. 1+1/2 instead of 3/2"""
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
         if whole and rest:
-            return f"{whole}+{fractions.Fraction( rest, self.denominator)}"
+            return f"{whole}+{Fraction( rest, self.denominator)}"
         return super().__str__()
+
+
+def remainder_after( proportions, scale=None, total=1 ):
+    """Computes the sequence of what fraction must remain, after the preceding proportions have been
+    removed.  Avoids scaling unless supplied and not falsey or 1.
+
+    If the desired total to compare each fraction and the sum to isn't 1, supply it.  Also, an
+    optional scaling factor for each fraction can be supplied (if the incoming stream of fractions
+    don't sum to desired total).
+
+    We support the proportions, scale and total being Fraction and integer values, and producing
+    Fraction results.
+
+    """
+    f_total			= 0
+    for f in proportions:
+        if scale and scale != 1:
+            f		       *= scale				# (0,total]
+        f_starting		= total - f_total		# (0,total]
+        f_removed		= f / f_starting		# (0,1]
+        f_remaining		= total - total * f_removed     # (0,total]
+        yield f_remaining
+        f_total		       += f				# (0,total)
+
+
+def fraction_allocated( reserves, scale=1 ):
+    """From a sequence of remainder Fractions, compute the Fraction allocated at each point.
+
+    If the reserves are known to be scaled by some factor, provide it (eg. if they are fixed-point
+    fractions, provide the denominator as scale).
+
+    Useful for computing the error between an original sequence of proportions, the resultant
+    reserve Fractions, and the final proportion allocated to each party, when the reserve
+    fraction is rounded (eg. represented as a fixed-point fraction).
+
+        >>> proportions	= [ 57, 26, 103 ]
+        >>> total = sum( proportions )
+        >>> total
+        186
+        >>> reserves = list( remainder_after( proportions, scale=Fraction( 1, total )))
+        >>> reserves
+        [Fraction(43, 62), Fraction(103, 129), Fraction(0, 1)]
+        >>> allocated = list( fraction_allocated( reserves ))
+        >>> allocated
+        [Fraction(19, 62), Fraction(13, 93), Fraction(103, 186)]
+
+    """
+    remaining			= Fraction( 1 )
+    for reserve in reserves:
+        remaining_after		= remaining * reserve / scale
+        yield remaining - remaining_after
+        remaining		= remaining_after
+
+
+def uniq( seq, key=None ):
+    """
+    Removes duplicate elements from a sequence while preserving the order of the rest.
+
+        >>> list(uniq([9,0,2,1,0]))
+        [9, 0, 2, 1]
+
+    The value of the optional `key` parameter should be a function that
+    takes a single argument and returns a key to test the uniqueness.
+
+        >>> list(uniq(["Foo", "foo", "bar"], key=lambda s: s.lower()))
+        ['Foo', 'bar']
+    """
+    key				= key or (lambda x: x)
+    seen			= set()
+    for v in seq:
+        k			= key( v )
+        if k in seen:
+            continue
+        seen.add( k )
+        yield v

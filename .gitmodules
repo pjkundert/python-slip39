@@ -1,0 +1,3 @@
+[submodule "slip39/invoice/openzeppelin-contracts"]
+	path = slip39/invoice/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git

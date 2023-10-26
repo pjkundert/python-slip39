@@ -1,5 +1,23 @@
+
+#
+# Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
+#
+# Copyright (c) 2022, Dominion Research & Development Corp.
+#
+# Python-slip39 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.  It is also available under alternative (eg. Commercial) licenses, at
+# your option.  See the LICENSE file at the top of the source tree.
+#
+# Python-slip39 is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+
+from __future__         import annotations
+
 import argparse
-import codecs
 import logging
 import time
 
@@ -9,12 +27,16 @@ from serial		import Serial
 
 from .			import chacha20poly1305, accountgroups_output, accountgroups_input
 from ..util		import log_cfg, log_level, input_secure
-from ..defaults		import BITS, BAUDRATE, CRYPTO_PATHS
+from ..defaults		import BAUDRATE, CRYPTO_PATHS
 from ..			import Account, cryptopaths_parser
-from ..api		import accountgroups, RANDOM_BYTES
+from ..api		import accountgroups, random_secret
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@dominionrnd.com"
+__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
-
 
 DtrDsr				= namedtuple( 'DtrDsr', ('dtr', 'dsr') )
 RtsCts				= namedtuple( 'RtsCts', ('rts', 'cts') )
@@ -145,27 +167,21 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     for cf in args.format:
         try:
             crypto,format	= cf.split( ':' )
-            Account.address_format( crypto, format=format )
+            Account.address_format( crypto, format=format )  # Changes the default for crypto
             if not any( k.startswith( crypto ) for k in args.cryptocurrency ):
                 args.cryptocurrency.append( crypto )
         except Exception as exc:
             log.error( f"Invalid address format: {cf}: {exc}" )
             raise
 
-    # Master secret seed supplied as hex
-    secret			= None
+    # Master secret seed supplied as hex, x{pub,prv}..., BIP-39/SLIP-39 Mnemonic(s)
+    master_secret		= None
     if not args.receive:
-        secret			= args.secret or '-'
-        if secret == '-':
-            secret		= input_secure( 'Master secret hex: ', secret=True )
+        master_secret		= args.secret or '-'
+        if master_secret == '-':
+            master_secret	= input_secure( 'Master secret hex/xpub/mnemonic: ', secret=True )
         else:
             log.warning( "It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input" )
-        if secret.lower().startswith('0x'):
-            secret		= secret[2:]
-        secret			= codecs.decode( secret, 'hex_codec' )
-        secret_bits		= len( secret ) * 8
-        if secret_bits not in BITS:
-            raise ValueError( f"A {secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
 
     # Create cipher if necessary.  The nonce must only be used for one message; we'll increment it
     # below by the index of each record we send.  It must only be transmitted once; a fresh nonce
@@ -190,7 +206,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             healthy		= serial_connected
             encoding		= 'UTF-8'
 
-            def file_opener():
+            def file_opener():  # noqa: F811
                 ser		= Serial(
                     port	= args.device,
                     baudrate	= args.baudrate or BAUDRATE,
@@ -201,7 +217,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 )
                 return ser
 
-            def healthy_reset( file ):
+            def healthy_reset( file ):  # noaq: F811
                 file.dtr		= False
                 # Wait for a server to de-assert DTR, discarding input.  After the Server has de-asserted, we still need to drain
                 # the Server's output / Client's input buffers, so keep flushing 'til input buffer empty...
@@ -274,9 +290,11 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
     #     --xpub --crypto BTC
     #
     # is specified, emit BTC "zpub..." xpubkeys at m/84'/0'/0', m/84'/0'/1', ...
-    cryptopaths			= cryptopaths_parser(
-        args.cryptocurrency, edit=args.path, hardened_defaults=args.xpub
-    )
+    cryptopaths			= list( cryptopaths_parser(
+        args.cryptocurrency,
+        edit			= args.path,
+        hardened_defaults	= args.xpub,
+    ))
 
     #
     # Set up serial device, if desired.  We will attempt to send each record using hardware flow
@@ -330,7 +348,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
         encoding		= 'UTF-8'
         healthy			= serial_connected
 
-        def file_opener():
+        def file_opener():  # noqa: F811
             ser			= Serial(
                 port	= args.device,
                 baudrate = args.baudrate or BAUDRATE,
@@ -340,7 +358,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             )
             return ser
 
-        def healthy_waiter( file ):
+        def healthy_waiter( file ):  # noqa: F811
             file.dtr		= False
             # Wait for a client; when seen, assert DTR
             while ( flow := serial_flow( file ) ) and not flow[0].dsr:
@@ -354,10 +372,10 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 time.sleep( receive_latency )
 
     nonce_emit			= True
-    nonce			= RANDOM_BYTES( 12 )
+    nonce			= random_secret( 12 )
 
     for index,group in enumerate( accountgroups(
-        master_secret	= secret,
+        master_secret	= master_secret,
         cryptopaths	= cryptopaths,
     )):
         if file is None and file_opener:
@@ -378,7 +396,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
             healthy	= healthy
         ):
             nonce_emit		= True
-            nonce		= RANDOM_BYTES( 12 )
+            nonce		= random_secret( 12 )
             if healthy_waiter:
                 healthy_waiter( file )
 

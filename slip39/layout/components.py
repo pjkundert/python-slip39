@@ -15,17 +15,19 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
+from __future__		import annotations
+
 import logging
 import math
 
 from collections	import namedtuple
-from typing		import Tuple, Callable, Type
+from typing		import Tuple, Callable, Type, Optional
 
 from fpdf		import FPDF
 
 from ..util		import ordinal
 from ..defaults		import (
-    FONTS, MNEM_ROWS_COLS, MM_IN, PT_IN, COLOR,
+    FONTS, MNEM_ROWS_COLS, MM_IN, PT_IN, COLOR, PAGE_MARGIN,
 )
 
 log				= logging.getLogger( __package__ )
@@ -233,11 +235,11 @@ def layout_card(
     #   tan(β) = b / a, so
     #   β = arctan(b / a)
     #
-    a			= card_interior.h
-    b			= card_interior.w
-    c			= math.sqrt( a * a + b * b )
-    β			= math.atan( b / a )
-    rotate		= 90 - math.degrees( β )
+    a				= card_interior.h
+    b				= card_interior.w
+    c				= math.sqrt( a * a + b * b )
+    β				= math.atan( b / a )
+    rotate			= 90 - math.degrees( β )
 
     for c_n in range( 16 ):  # SLIP-39 supports up to 16 groups
         card_interior.add_region_proportional( Text(
@@ -255,8 +257,8 @@ def layout_card(
 
     # Rotation is downward around upper-left corner; so, lower-left corner will shift 1 height
     # leftward and upward; so start 1 height right and down.
-    link_length		= card_interior.h
-    link_height		= link_length * 6/32
+    link_length			= card_interior.h
+    link_height			= link_length * 6/32
     card_interior.add_region(
         Text(
             'card-link',
@@ -303,7 +305,7 @@ def layout_card(
 
     assert num_mnemonics in MNEM_ROWS_COLS, \
         f"Invalid SLIP-39 mnemonic word count: {num_mnemonics}"
-    rows,cols		= MNEM_ROWS_COLS[num_mnemonics]
+    rows,cols			= MNEM_ROWS_COLS[num_mnemonics]
     for r in range( rows ):
         for c in range( cols ):
             card_mnemonics.add_region_proportional(
@@ -533,18 +535,39 @@ def layout_wallet(
     return wallet
 
 
+def page_dimensions(
+    pdf: FPDF,
+    page_margin_mm: Optional[float] = None,   # eg. 1/4" in mm.
+) -> Type[Coordinate]:
+    """Compute the working page dimensions.  FPDF().epw/.eph incl. orienation, excl. margins.
+
+    """
+    if page_margin_mm is None:
+        page_margin_mm		= PAGE_MARGIN * MM_IN
+    return Coordinate(
+        x	= pdf.epw - page_margin_mm * 2,
+        y	= pdf.eph - page_margin_mm * 2
+    )
+
+
 def layout_components(
     pdf: FPDF,
     comp_dim: Coordinate,
-    page_margin_mm: float	= .25 * MM_IN,   # 1/4" in mm.
+    page_margin_mm: Optional[float] = None,     # eg. 1/4" in mm.
+    bleed: Optional[float]	= None,	        # eg. 5%
 ) -> Tuple[int, Callable[[int],Tuple[int, Type[Coordinate]]]]:
-    """Compute the number of components per pdf page, and a function returning the page # and
-    component (x,y) for the num'th component."""
+    """Compute the number of components per pdf page, and a function returning the page # and component
+    (x,y) for the num'th component.
 
-    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    """
+    if page_margin_mm is None:
+        page_margin_mm		= PAGE_MARGIN * MM_IN
     # Allow 5% bleed over into page margins (to allow for slight error in paper vs. comp sizes)
-    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * 95/100 ) // comp_dim.x )
-    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * 95/100 ) // comp_dim.y )
+    if bleed is None:
+        bleed			= 5/100
+    # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
+    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.x )
+    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.y )
     comps_pp			= comp_rows * comp_cols
 
     def page_xy( num: int ) -> Tuple[int, Coordinate]:

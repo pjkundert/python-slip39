@@ -57,7 +57,7 @@ def test_passphrase():
         groups		= groups,
         master_secret	= SEED_FF,
     )
-    print( json.dumps( details_nonpass.groups, indent=4 ))
+    #print( json.dumps( details_nonpass.groups, indent=4 ))
     assert details_nonpass.groups == {
         "First": (
             1,
@@ -127,7 +127,7 @@ def test_passphrase():
         master_secret	= SEED_FF,
         passphrase	= badpass,
     )
-    print( json.dumps( details_badpass.groups, indent=4 ))
+    #print( json.dumps( details_badpass.groups, indent=4 ))
     assert details_badpass.groups == {
         "First": (
             1,

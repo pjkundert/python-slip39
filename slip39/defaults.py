@@ -51,9 +51,9 @@ FONTS				= dict(
 BUSINESS_CARD			= (2,     3+1/2), 1/32  # noqa: E241
 CREDIT_CARD			= (2+1/4, 3+3/8), 1/32
 INDEX_CARD			= (3,     5),     1/16  # noqa: E241
-HALF_LETTER			= (13.5/3,8),     1/8   # noqa: E241 (actually, 2/letter, 3/legal)
-THIRD_LETTER			= (13.5/4,8),     1/8   # noqa: E241 (actually, 3/letter, 4/legal)
-QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually, 4/letter, 5/legal)
+HALF_LETTER			= (13.5/3,8),     1/8   # noqa: E241 (actually 2/letter, 3/legal)
+THIRD_LETTER			= (13.5/4,8),     1/8   # noqa: E241 (actually 3/letter, 4/legal)
+QUARTER_LETTER			= (10.5/4,8),     1/8   # noqa: E241 (actually 4/letter, 5/legal)
 PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default outer border
 
 # SLIP-39 Mnemonic Card Sizes
@@ -89,6 +89,8 @@ PAPER_FORMATS			= dict(
     Photo	= (int( 4 * MM_IN ), int( 6 * MM_IN )),
 )
 
+ORIENTATION			= 'portrait'
+
 # The available GUI controls Layout Options
 LAYOUT				= 'Backup'
 LAYOUT_OPTIONS			= [
@@ -112,7 +114,8 @@ MNEM_ROWS_COLS			= {
     59:	(12, 5),		# 512-bit seed, eg. from BIP-39 (Unsupported on Trezor)
 }
 
-# Separators for groups of Mnemonics, and those that indicate the continuation/last line of a Mnemonic phrase
+# Separators for groups of Mnemonics, and those that indicate the continuation/last line of a
+# Mnemonic phrase
 MNEM_PREFIX			= {
     20: '{',
     33: '╭╰',
@@ -159,3 +162,37 @@ COLOR				= [
     f"0x{__m}{__m}{__m}",  # Medium grey,
     f"0x{__d}{__d}{__d}",  # Dark grey,
 ]
+
+# We'll default to 30-second intervals for querying Etherscan for Gas, ETH, ERC-20 Pricing info
+ETHERSCAN_MEMO_MAXAGE		= 30
+ETHERSCAN_MEMO_MAXSIZE		= None
+# For token prices, default to 5 minute refreshes
+TOKPRICES_MEMO_MAXAGE		= 5*60
+TOKPRICES_MEMO_MAXSIZE		= None
+
+SMTP_TO				= "licensing@dominionrnd.com"
+SMTP_FROM			= "no-reply@licensing.dominionrnd.com"
+
+# Invoice options.  Presently, only highly-liquid ERC-20 tokens present in Ethereum AMM
+# (Automatic Market Maker) systems should be used in invoices, since we use 1Inch's "Off-Chain
+# Oracle" smart contract to get current market values.  This prevents us from needing to "trust"
+# anyone to obtain current prices for cryptocurrencies -- if you have access to an Ethereum
+# blockchain (either locally or via an HTTPS API like Alchemy), then we can securely and reliably
+# get current prices.  To avoid conflicts, by convention we upper-case symbols, lower-case full
+# names.
+INVOICE_FORMAT			= 'totalize'  # 'presto'  # 'orgtbl'
+INVOICE_ROWS			= 60  # rows on invoice; each page, about 1/2 that number of line-items
+INVOICE_DESCRIPTION_MAX		= 48  # This may seem low; full-precision Prices, 8-dec. Cryptos need room
+INVOICE_CURRENCY		= "USD"
+INVOICE_PROXIES			= {
+    "USD":		"USDC",
+    "us dollar":	"USDC",
+    "ETH":		"WETH",
+    "ethereum":		"WETH",
+    "BTC":		"WBTC",
+    "bitcoin":		"WBTC",
+}
+
+# Invoice times; very explicit about timezones, b/c short zone names are non-deterministic
+INVOICE_DUE			= dict( months=1 )      # Default terms: Net 1 month (~30 days)
+INVOICE_STRFTIME		= "%c %z %Z"            # "Wed Aug 16 21:30:00 1988 +0000 UTC"

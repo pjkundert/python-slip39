@@ -3,7 +3,6 @@ import sys
 import glob
 import fnmatch
 
-
 # 
 # All platforms
 # 
@@ -12,14 +11,21 @@ HERE				= os.path.dirname( os.path.abspath( __file__ ))
 install_requires		= open( os.path.join( HERE, "requirements.txt" )).readlines()
 tests_require			= open( os.path.join( HERE, "requirements-tests.txt" )).readlines()
 extras_require			= {
-    option: open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+    option: list(
+        # Remove whitespace, elide blank lines and comments
+        ''.join( r.split() )
+        for r in open( os.path.join( HERE, f"requirements-{option}.txt" )).readlines()
+        if r.strip() and not r.strip().startswith( '#' )
+    )
     for option in [
-        'gui',		# slip39[gui]:    Support PySimpleGUI/tkinter Graphical UI App
-        'dev',		# slip39[dev]:    All modules to support development
-        'serial',	# slip39[serial]: Support serial I/O of generated wallet data
-        'wallet',	# slip39[wallet]: Paper Wallet and BIP-38/Ethereum wallet encryption
+        'gui',		# slip39[gui]:		Support PySimpleGUI/tkinter Graphical UI App
+        'serial',	# slip39[serial]:	Support serial I/O of generated wallet data
+        'wallet',	# slip39[wallet]:	Paper Wallet and BIP-38/Ethereum wallet encryption
+        'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
     ]
 }
+# Make python-slip39[all] install all extra (non-tests) requirements, excluding duplicates
+extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 
 Executable			= None
 if sys.platform == 'win32':
@@ -157,11 +163,15 @@ entry_points			= {
 
 package_dir			= {
     "slip39":			"./slip39",
+    "slip39.cli":		"./slip39/cli",
+    "slip39.invoice":		"./slip39/invoice",
     "slip39.layout":		"./slip39/layout",
+    "slip39.layout.font":	"./slip39/layout/font",
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
-    "slip39.cli":		"./slip39/cli",
+    # Until tabulate fixes empty cell type deduction, separators
+    "slip39.tabulate":		"./slip39/tabulate",
 }
 
 package_data			= {
@@ -206,8 +216,8 @@ phrases, and outputs a single PDF containing all the required printable cards to
 
 On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without*
 trusting this program) and the PDF saved to a USB drive for printing (or directly printed without
-the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BNB,
-CRO and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
+the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC,
+and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
 backed-up seed.  Recovery of the seed to a [trezor-model-t][3] is simple, by entering the mnemonics
 right on the device.
 
