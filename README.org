@@ -79,7 +79,7 @@ sets of 20 words is difficult, error-prone and time consuming.
    First, we generate create SLIP-39 Cards representing a BIP-39 Mnemonic seed:
    
    #+LATEX: {\scriptsize
-   #+BEGIN_SRC bash :results output drawer
+   #+BEGIN_SRC bash :export both :results output drawer
 # python3 -m pip install slip39; slip39 -q --using-bip39  # generate one from scratch
 slip39 -q --secret "seven replace great luggage fox rent general tower guess inside smile sing"
    #+END_SRC
@@ -131,7 +131,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    generated in the first step:
 
    #+LATEX: {\scriptsize
-   #+BEGIN_SRC bash :results output drawer
+   #+BEGIN_SRC bash :exports both :results output drawer
 python3 -m slip39.recovery --using-bip39 \
   -m "pitch negative acrobat romp desert usual negative darkness friar artist estimate aluminum beard crowd email season guard hybrid kidney cards" \
   -m "pitch negative beard romp diagnose timely ruler emission acrobat adult stilt dress typical blue inmate lilac pajamas trend duration endless"
@@ -287,7 +287,7 @@ python3 -m slip39.recovery --using-bip39 \
     ffff...= for yours!):
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     slip39 -c ETH -c BTC -c DOGE -c LTC --secret ffffffffffffffffffffffffffffffff \
         --no-card --wallet password --wallet-hint 'bad:pass...' 2>&1
     #+END_SRC
@@ -313,7 +313,7 @@ python3 -m slip39.recovery --using-bip39 \
     Controls, or to do so on the command-line, use =slip39-recover=:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     slip39-recovery -v \
         --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
         --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
@@ -331,7 +331,7 @@ python3 -m slip39.recovery --using-bip39 \
     note that the wallets match those output above:
     
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     slip39-recovery \
         --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
         --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
@@ -366,10 +366,10 @@ python3 -m slip39.recovery --using-bip39 \
     | ETH    | Legacy   | m/44'/60'/0'/0/0 | 0x...   |         |
     | BSC    | Legacy   | m/44'/60'/0'/0/0 | 0x...   | Beta    |
     | BTC    | Legacy   | m/44'/ 0'/0'/0/0 | 1...    |         |
-    |        | SegWit   | m/44'/ 0'/0'/0/0 | 3...    |         |
+    |        | SegWit   | m/49'/ 0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/ 0'/0'/0/0 | bc1...  |         |
     | LTC    | Legacy   | m/44'/ 2'/0'/0/0 | L...    |         |
-    |        | SegWit   | m/44'/ 2'/0'/0/0 | M...    |         |
+    |        | SegWit   | m/49'/ 2'/0'/0/0 | M...    |         |
     |        | Bech32   | m/84'/ 2'/0'/0/0 | ltc1... |         |
     | DOGE   | Legacy   | m/44'/ 3'/0'/0/0 | D...    |         |
 
@@ -411,7 +411,7 @@ python3 -m slip39.recovery --using-bip39 \
     The full command-line argument synopsis for =slip39= is:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :results raw
+    #+BEGIN_SRC bash :exports both :results raw
     slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
@@ -516,7 +516,7 @@ python3 -m slip39.recovery --using-bip39 \
   wallet files):
 
   #+LATEX: {\scriptsize
-  #+BEGIN_SRC bash
+  #+BEGIN_SRC bash :exports both
   slip39 --secret 383597fd63547e7c9525575decd413f7 --wallet password --wallet-hint bad:pass... 2>&1
   #+END_SRC
 
@@ -532,13 +532,13 @@ python3 -m slip39.recovery --using-bip39 \
 *** =slip39.recovery= Synopsis
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :results raw
-    slip39-recovery --help 2>&1                | sed 's/^/: /' # (just for output formatting)
+    #+BEGIN_SRC bash :exports both :results raw
+    python3 -m slip39.recovery --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
     #+RESULTS:
-    : usage: slip39-recovery [-h] [-v] [-q] [-m MNEMONIC] [-e] [-b] [-u] [--binary]
-    :                        [-p PASSPHRASE]
+    : usage: __main__.py [-h] [-v] [-q] [-m MNEMONIC] [-e] [--no-entropy] [-b] [-u]
+    :                    [--binary] [--language LANGUAGE] [-p PASSPHRASE]
     : 
     : Recover and output secret Seed from SLIP-39 or BIP-39 Mnemonics
     : 
@@ -549,12 +549,15 @@ python3 -m slip39.recovery --using-bip39 \
     :   -m MNEMONIC, --mnemonic MNEMONIC
     :                         Supply another SLIP-39 (or a BIP-39) mnemonic phrase
     :   -e, --entropy         Return the BIP-39 Mnemonic Seed Entropy instead of the
-    :                         generated Seed (default: False)
+    :                         generated Seed (default: True if --using-bip39 w/o
+    :                         passphrase)
+    :   --no-entropy          Return the BIP-39 Mnemonic generated Seed
     :   -b, --bip39           Recover Entropy and generate 512-bit secret Seed from
     :                         BIP-39 Mnemonic + passphrase
     :   -u, --using-bip39     Recover Entropy from SLIP-39, generate 512-bit secret
     :                         Seed using BIP-39 Mnemonic + passphrase
     :   --binary              Output seed in binary instead of hex
+    :   --language LANGUAGE   BIP-39 Mnemonic language (default: english)
     :   -p PASSPHRASE, --passphrase PASSPHRASE
     :                         Decrypt the SLIP-39 or BIP-39 master secret w/ this
     :                         passphrase, '-' reads it from stdin (default: None/'')
@@ -596,7 +599,7 @@ python3 -m slip39.recovery --using-bip39 \
    =slip39 --secret -= to re-generate the same wallet as we originally created.
 
    #+LATEX: {\scriptsize
-   #+BEGIN_SRC bash
+   #+BEGIN_SRC bash :exports both
    ( python3 -m slip39 --text --no-card \
        | ( sort -r  ; echo "...later, after recovering SLIP-39 mnemonics..." 1>&2 ) \
        | python3 -m slip39.recovery \
@@ -605,11 +608,12 @@ python3 -m slip39.recovery --using-bip39 \
    #+END_SRC
 
    #+RESULTS:
-   : 2023-10-25 15:24:39 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xEe462E0a41bE8c4D64Bb2e85daA9d93876f518c0
-   : 2023-10-25 15:24:39 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qjzg9ufn4wuzc639qznyulua5w78lq77dr4aseg
+   : 2023-10-26 16:04:28 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x367e057B2E8AD73eB3270712CB0eEFa2656c7Eeb
+   : 2023-10-26 16:04:28 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q0lcaz2amhyqc28gvgmvg09lgdthygu79cdyp5d
    : ...later, after recovering SLIP-39 mnemonics...
-   : 2023-10-25 15:24:39 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xEe462E0a41bE8c4D64Bb2e85daA9d93876f518c0
-   : 2023-10-25 15:24:39 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qjzg9ufn4wuzc639qznyulua5w78lq77dr4aseg
+   : 2023-10-26 16:04:28 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x367e057B2E8AD73eB3270712CB0eEFa2656c7Eeb
+   : 2023-10-26 16:04:28 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q0lcaz2amhyqc28gvgmvg09lgdthygu79cdyp5d
+   : SLIP39-2023-10-26+16.04.28-ETH-0x367e057B2E8AD73eB3270712CB0eEFa2656c7Eeb.pdf
 
    #+LATEX: }
 
@@ -621,7 +625,7 @@ python3 -m slip39.recovery --using-bip39 \
     Mhemonic:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 --entropy \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
           | python3 -m slip39 --using-bip39 --secret -  \
@@ -629,10 +633,11 @@ python3 -m slip39.recovery --using-bip39 \
     #+END_SRC
 
     #+RESULTS:
-    : 2023-10-26 10:20:08 slip39           Assuming BIP-39 seed entropy: Ensure you recover and use via a BIP-39 Mnemonic
-    : 2023-10-26 10:20:08 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    : 2023-10-26 10:20:08 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
-    : 2023-10-26 10:20:08 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'SLIP39' to: SLIP39-2023-10-26+10.20.08-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
+    : 2023-10-26 16:03:49 slip39           Assuming BIP-39 seed entropy: Ensure you recover and use via a BIP-39 Mnemonic
+    : 2023-10-26 16:03:50 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    : 2023-10-26 16:03:50 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    : 2023-10-26 16:03:50 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'SLIP39' to: SLIP39-2023-10-26+16.03.50-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
+    : SLIP39-2023-10-26+16.03.50-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
 
     #+LATEX: }
 
@@ -640,7 +645,7 @@ python3 -m slip39.recovery --using-bip39 \
     bit of "wrapping" around the filename output, so the first page shows up here):
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :results output raw
+    #+BEGIN_SRC bash :exports both :results output raw
     echo -n "[[./$( \
 	python3 -m slip39 -q --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
     )]]"
@@ -648,7 +653,7 @@ python3 -m slip39.recovery --using-bip39 \
     #+END_SRC
 
     #+RESULTS:
-    [[./SLIP39-2023-10-26+11.16.30-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf]]
+    [[./SLIP39-2023-10-26+15.44.03-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf]]
 
     Note the presence of the BIP-39 recovery phrase on the cover sheet; this is recovered
     by round-tripping the original BIP-39 seed entropy, through SLIP-39, and re-encoding back
@@ -663,7 +668,7 @@ python3 -m slip39.recovery --using-bip39 \
 *** =slip39-generator= Synopsis
    
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash :results raw
+    #+BEGIN_SRC bash :exports both :results raw
     slip39-generator --help --version         | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
@@ -740,7 +745,7 @@ python3 -m slip39.recovery --using-bip39 \
     Addresses can be produced in plaintext or encrypted, and output to stdout or to a serial port.
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     echo ffffffffffffffffffffffffffffffff | slip39-generator --secret - --path '../-3' 2>&1
     #+END_SRC
 
@@ -758,7 +763,7 @@ python3 -m slip39.recovery --using-bip39 \
     =0xfc20...1B5E= and BTC =bc1qk0...gnn2= accounts associated with this test Mnemonic:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --path '../-3' --format 'BTC:segwit' --crypto 'DOGE' ) 2>&1
     #+END_SRC
@@ -775,7 +780,7 @@ python3 -m slip39.recovery --using-bip39 \
     occur over an insecure channel like a serial cable):
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | slip39-generator --secret - --path '../-3' --encrypt 'password' ) 2>&1 \
             | sed -E 's/^(.{100})(.{1,})$/\1.../'  # (shorten output)
@@ -795,7 +800,7 @@ python3 -m slip39.recovery --using-bip39 \
     On the receiving computer, we can decrypt and recover the stream of accounts from the wallet
     seed; any rows with errors are ignored:
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | slip39-generator --secret - --path '../-3' --encrypt 'password' \
         | slip39-generator --receive --decrypt 'password' ) 2>&1
@@ -824,7 +829,7 @@ python3 -m slip39.recovery --using-bip39 \
     to your accounting system:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' ) 2>&1
@@ -842,7 +847,7 @@ python3 -m slip39.recovery --using-bip39 \
     receives these "xpub..." addresses:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' \
@@ -873,7 +878,7 @@ python3 -m slip39.recovery --using-bip39 \
     accounts from each "xpub..." key, and adding the remaining non-hardened HD wallet path segments:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
         | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
         | python3 -m slip39.generator -v --receive --decrypt 'password' \
@@ -920,7 +925,7 @@ python3 -m slip39.recovery --using-bip39 \
     directly from the BIP-39 Mnemonic Phrase:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     secret='zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
     for crypto in BTC ETH; do
         python3 -m slip39.cli -v --no-json addresses --secret "$secret" --crypto $crypto --paths "../-2"
@@ -944,9 +949,9 @@ python3 -m slip39.recovery --using-bip39 \
     addresses from that, which doesn't disclose any of your private key material:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
-    ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | python3 -m slip39.generator --secret - --xpub --path "../-2'" --crypto BTC
+    #+BEGIN_SRC bash :exports both
+    ( python3 -m slip39.generator -q --secret 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+        --xpub --path "../-2'" --crypto BTC
     ) 2>&1
     #+END_SRC
 
@@ -1591,22 +1596,22 @@ python3 -m slip39.recovery --using-bip39 \
     We'll use =slip39.recovery --bip39 ...= to recover the 512-bit stretched seed from BIP-39:
 
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 -v \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2023-10-26 07:32:35 slip39.recovery  BIP-39 Language detected: english
-    : 2023-10-26 07:32:35 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-    : 2023-10-26 07:32:35 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2023-10-26 16:06:11 slip39.recovery  BIP-39 Language detected: english
+    : 2023-10-26 16:06:11 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+    : 2023-10-26 16:06:11 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
     #+LATEX: }
 
     Then we can generate a 59-word SLIP-39 mnemonic set from the 512-bit secret:
    
     #+LATEX: {\scriptsize
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
       | python3 -m slip39 --secret - --no-card -v
@@ -1614,26 +1619,26 @@ python3 -m slip39.recovery --using-bip39 \
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2023-10-26 07:32:45 slip39                7 aluminum  19 justice   31 injury    43 primary   55 earth     
-    2023-10-26 07:32:45 slip39                8 fraction  20 orbit     32 pecan     44 sidewalk  56 withdraw  
-    2023-10-26 07:32:45 slip39                9 boring    21 total     33 fantasy   45 gesture   57 package   
-    2023-10-26 07:32:45 slip39               10 climate   22 earth     34 segment   46 grill     58 grief     
-    2023-10-26 07:32:45 slip39               11 desktop   23 disaster  35 iris      47 diminish  59 goat      
-    2023-10-26 07:32:45 slip39               12 bulb      24 careful   36 airline   48 surface   
-    2023-10-26 07:32:45 slip39           6th  1 humidity  13 become    25 wits      37 always    49 fiction   
-    2023-10-26 07:32:45 slip39                2 merit     14 pile      26 kernel    38 laden     50 burning   
-    2023-10-26 07:32:45 slip39                3 decision  15 discuss   27 manager   39 lecture   51 mobile    
-    2023-10-26 07:32:45 slip39                4 spider    16 verdict   28 eclipse   40 genre     52 crystal   
-    2023-10-26 07:32:45 slip39                5 acid      17 radar     29 lunch     41 coastal   53 inherit   
-    2023-10-26 07:32:45 slip39                6 aspect    18 believe   30 payroll   42 headset   54 suitable  
-    2023-10-26 07:32:45 slip39                7 frozen    19 result    31 tidy      43 exchange  55 mason     
-    2023-10-26 07:32:45 slip39                8 spelling  20 hormone   32 music     44 acquire   56 march     
-    2023-10-26 07:32:45 slip39                9 lying     21 payroll   33 budget    45 paid      57 skunk     
-    2023-10-26 07:32:45 slip39               10 broken    22 dining    34 diet      46 envy      58 welcome   
-    2023-10-26 07:32:45 slip39               11 width     23 shame     35 ounce     47 adapt     59 smell     
-    2023-10-26 07:32:45 slip39               12 station   24 grant     36 genuine   48 lobe      
-    2023-10-26 07:32:45 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2023-10-26 07:32:45 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2023-10-26 16:05:59 slip39                8 editor    20 silver    32 ruler     44 pulse     56 slush     
+    2023-10-26 16:05:59 slip39                9 tadpole   21 simple    33 writing   45 greatest  57 predator  
+    2023-10-26 16:05:59 slip39               10 race      22 credit    34 belong    46 crystal   58 permit    
+    2023-10-26 16:05:59 slip39               11 lobe      23 prayer    35 envelope  47 amount    59 single    
+    2023-10-26 16:05:59 slip39               12 spark     24 sharp     36 dish      48 relate    
+    2023-10-26 16:05:59 slip39           6th  1 multiple  13 frequent  25 kind      37 weapon    49 clinic    
+    2023-10-26 16:05:59 slip39                2 steady    14 activity  26 involve   38 mason     50 jewelry   
+    2023-10-26 16:05:59 slip39                3 decision  15 describe  27 ounce     39 woman     51 freshman  
+    2023-10-26 16:05:59 slip39                4 spider    16 discuss   28 window    40 sheriff   52 sister    
+    2023-10-26 16:05:59 slip39                5 acquire   17 ruler     29 medal     41 numb      53 install   
+    2023-10-26 16:05:59 slip39                6 profile   18 fumes     30 diploma   42 presence  54 secret    
+    2023-10-26 16:05:59 slip39                7 headset   19 august    31 glen      43 trust     55 hush      
+    2023-10-26 16:05:59 slip39                8 evil      20 analysis  32 galaxy    44 upgrade   56 tadpole   
+    2023-10-26 16:05:59 slip39                9 glasses   21 bike      33 prize     45 froth     57 election  
+    2023-10-26 16:05:59 slip39               10 join      22 calcium   34 thank     46 slush     58 valid     
+    2023-10-26 16:05:59 slip39               11 twice     23 mason     35 preach    47 grocery   59 material  
+    2023-10-26 16:05:59 slip39               12 employer  24 chemical  36 jury      48 hybrid    
+    2023-10-26 16:05:59 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2023-10-26 16:05:59 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    SLIP39-2023-10-26+16.05.59-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
     #+end_example
     #+LATEX: }
     
@@ -1666,15 +1671,15 @@ python3 -m slip39.recovery --using-bip39 \
     First, observe that we can recover the 128-bit Seed Entropy from the BIP-39 Mnemonic phrase (not
     the 512-bit generated Seed):
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 --entropy -v \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
     ) 2>&1
     #+END_SRC
     #+RESULTS:
-    : 2023-10-26 07:32:51 slip39.recovery  BIP-39 Language detected: english
-    : 2023-10-26 07:32:51 slip39.recovery  Recovered 128-bit BIP-39 entropy from english mnemonic (no passphrase supported)
-    : 2023-10-26 07:32:51 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+    : 2023-10-26 16:06:32 slip39.recovery  BIP-39 Language detected: english
+    : 2023-10-26 16:06:32 slip39.recovery  Recovered 128-bit BIP-39 entropy from english mnemonic (no passphrase supported)
+    : 2023-10-26 16:06:32 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
     : ffffffffffffffffffffffffffffffff
     #+LATEX: }
 
@@ -1685,34 +1690,34 @@ python3 -m slip39.recovery --using-bip39 \
     not?
 
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 --entropy \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+        --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
       | python3 -m slip39 --secret - --no-card -v
     ) 2>&1 | tail -20
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2023-10-26 07:32:56 slip39                4 skin      11 chubby    18 apart     
-    2023-10-26 07:32:56 slip39                5 canyon    12 legend    19 window    
-    2023-10-26 07:32:56 slip39                6 hormone   13 carbon    20 dynamic   
-    2023-10-26 07:32:56 slip39                7 describe  14 mountain  
-    2023-10-26 07:32:56 slip39           5th  1 pencil     8 ting      15 speak     
-    2023-10-26 07:32:56 slip39                2 guilt      9 render    16 unusual   
-    2023-10-26 07:32:56 slip39                3 decision  10 elevator  17 large     
-    2023-10-26 07:32:56 slip39                4 snake     11 jacket    18 explain   
-    2023-10-26 07:32:56 slip39                5 course    12 analysis  19 society   
-    2023-10-26 07:32:56 slip39                6 easy      13 payroll   20 pickup    
-    2023-10-26 07:32:56 slip39                7 gesture   14 grief     
-    2023-10-26 07:32:56 slip39           6th  1 pencil     8 pajamas   15 prayer    
-    2023-10-26 07:32:56 slip39                2 guilt      9 frozen    16 biology   
-    2023-10-26 07:32:56 slip39                3 decision  10 total     17 decent    
-    2023-10-26 07:32:56 slip39                4 spider    11 knife     18 dive      
-    2023-10-26 07:32:56 slip39                5 distance  12 tricycle  19 duration  
-    2023-10-26 07:32:56 slip39                6 fishing   13 diminish  20 salon     
-    2023-10-26 07:32:56 slip39                7 space     14 mule      
-    2023-10-26 07:32:56 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-    2023-10-26 07:32:56 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    2023-10-26 16:06:43 slip39                5 actress   12 amuse     19 costume   
+    2023-10-26 16:06:43 slip39                6 grill     13 duke      20 verdict   
+    2023-10-26 16:06:43 slip39                7 wolf      14 duration  
+    2023-10-26 16:06:43 slip39           5th  1 evening    8 knit      15 apart     
+    2023-10-26 16:06:43 slip39                2 training   9 envy      16 pancake   
+    2023-10-26 16:06:43 slip39                3 decision  10 angry     17 educate   
+    2023-10-26 16:06:43 slip39                4 snake     11 reward    18 graduate  
+    2023-10-26 16:06:43 slip39                5 axle      12 grownup   19 receiver  
+    2023-10-26 16:06:43 slip39                6 again     13 reward    20 carve     
+    2023-10-26 16:06:43 slip39                7 domestic  14 space     
+    2023-10-26 16:06:43 slip39           6th  1 evening    8 system    15 enjoy     
+    2023-10-26 16:06:43 slip39                2 training   9 bundle    16 video     
+    2023-10-26 16:06:43 slip39                3 decision  10 company   17 ancestor  
+    2023-10-26 16:06:43 slip39                4 spider    11 tactics   18 mountain  
+    2023-10-26 16:06:43 slip39                5 earth     12 grief     19 quantity  
+    2023-10-26 16:06:43 slip39                6 tension   13 public    20 worthy    
+    2023-10-26 16:06:43 slip39                7 window    14 crush     
+    2023-10-26 16:06:43 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+    2023-10-26 16:06:43 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+    SLIP39-2023-10-26+16.06.43-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
     #+end_example
     #+LATEX: }
 
@@ -1721,7 +1726,7 @@ python3 -m slip39.recovery --using-bip39 \
     we add the =-using-bip39= option:
 
     #+LATEX: {\scriptsize3
-    #+BEGIN_SRC bash
+    #+BEGIN_SRC bash :exports both
     ( python3 -m slip39.recovery --bip39 --entropy \
         --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
       | python3 -m slip39 --secret - --no-card -v --using-bip39
@@ -1729,26 +1734,26 @@ python3 -m slip39.recovery --using-bip39 \
     #+END_SRC
     #+RESULTS:
     #+begin_example
-    2023-10-26 07:33:02 slip39                4 skin      11 spirit    18 reunion   
-    2023-10-26 07:33:02 slip39                5 dilemma   12 dynamic   19 vexed     
-    2023-10-26 07:33:02 slip39                6 victim    13 pacific   20 mixture   
-    2023-10-26 07:33:02 slip39                7 slice     14 disaster  
-    2023-10-26 07:33:02 slip39           5th  1 diagnose   8 reject    15 wrap      
-    2023-10-26 07:33:02 slip39                2 pipeline   9 marvel    16 starting  
-    2023-10-26 07:33:02 slip39                3 decision  10 yoga      17 pleasure  
-    2023-10-26 07:33:02 slip39                4 snake     11 findings  18 arena     
-    2023-10-26 07:33:02 slip39                5 database  12 preach    19 national  
-    2023-10-26 07:33:02 slip39                6 depict    13 snapshot  20 lift      
-    2023-10-26 07:33:02 slip39                7 race      14 prevent   
-    2023-10-26 07:33:02 slip39           6th  1 diagnose   8 crucial   15 headset   
-    2023-10-26 07:33:02 slip39                2 pipeline   9 income    16 ounce     
-    2023-10-26 07:33:02 slip39                3 decision  10 fatal     17 petition  
-    2023-10-26 07:33:02 slip39                4 spider    11 flavor    18 coal      
-    2023-10-26 07:33:02 slip39                5 blanket   12 slush     19 twice     
-    2023-10-26 07:33:02 slip39                6 ultimate  13 pile      20 desire    
-    2023-10-26 07:33:02 slip39                7 often     14 purple    
-    2023-10-26 07:33:02 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-    2023-10-26 07:33:02 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    2023-10-26 16:07:34 slip39                5 diagnose  12 lips      19 therapy   
+    2023-10-26 16:07:34 slip39                6 evil      13 safari    20 rebuild   
+    2023-10-26 16:07:34 slip39                7 finance   14 staff     
+    2023-10-26 16:07:34 slip39           5th  1 unknown    8 dictate   15 charity   
+    2023-10-26 16:07:34 slip39                2 flexible   9 losing    16 fiscal    
+    2023-10-26 16:07:34 slip39                3 decision  10 viral     17 watch     
+    2023-10-26 16:07:34 slip39                4 snake     11 cultural  18 nervous   
+    2023-10-26 16:07:34 slip39                5 declare   12 glad      19 fluff     
+    2023-10-26 16:07:34 slip39                6 script    13 purchase  20 clay      
+    2023-10-26 16:07:34 slip39                7 discuss   14 earth     
+    2023-10-26 16:07:34 slip39           6th  1 unknown    8 glance    15 born      
+    2023-10-26 16:07:34 slip39                2 flexible   9 crystal   16 valuable  
+    2023-10-26 16:07:34 slip39                3 decision  10 tactics   17 duckling  
+    2023-10-26 16:07:34 slip39                4 spider    11 genre     18 impact    
+    2023-10-26 16:07:34 slip39                5 acid      12 echo      19 tadpole   
+    2023-10-26 16:07:34 slip39                6 elite     13 coal      20 junk      
+    2023-10-26 16:07:34 slip39                7 merchant  14 engage    
+    2023-10-26 16:07:34 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+    2023-10-26 16:07:34 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+    SLIP39-2023-10-26+16.07.34-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
     #+end_example
     #+LATEX: }
 

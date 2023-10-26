@@ -74,9 +74,9 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
                      help="Supply another SLIP-39 (or a BIP-39) mnemonic phrase" )
     ap.add_argument( '-e', '--entropy', action='store_true',
                      default=None,
-                     help="Return the BIP-39 Mnemonic Seed Entropy instead of the generated Seed (default: False)" )
+                     help="Return the BIP-39 Mnemonic Seed Entropy instead of the generated Seed (default: True if --using-bip39 w/o passphrase)" )
     ap.add_argument( '--no-entropy', dest='entropy', action='store_false',
-                     help="Return the BIP-39 Mnemonic Seed Entropy instead of the generated Seed (default: False)" )
+                     help="Return the BIP-39 Mnemonic generated Seed" )
     ap.add_argument( '-b', '--bip39', action='store_true',
                      default=None,
                      help="Recover Entropy and generate 512-bit secret Seed from BIP-39 Mnemonic + passphrase" )
@@ -102,8 +102,10 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     if args.verbose:
         logging.getLogger().setLevel( log_cfg['level'] )
     if args.entropy is None:
-        # Unless passphrase supplied, default to recover Seed Entropy (not BIP-39 hashed derivation seed)
-        args.entropy		= not args.passphrase
+        # For SLIP-39, if using_bip39 (unless passphrase supplied), default to recover Seed Entropy
+        # (not BIP-39 hashed derivation seed).  This defaults to recovering the BIP-39 encoded seed
+        # entropy as Mnemonic.  Use --no-entropy to get it as a derivation Seed instead.
+        args.entropy		= not args.bip39 and args.using_bip39 and not args.passphrase
     if args.entropy:
         assert not args.passphrase, "--entropy and --passphrase cannot be used together"
     # Optional passphrase (utf-8 encoded bytes)
@@ -119,9 +121,10 @@ decryption and seed generation.  It has no effect for SLIP-39 recovery.
     algo			= "BIP-39" if args.bip39 else "SLIP-39"
     mnemonics			= args.mnemonic or []
     if args.bip39:
-        # Recover actual BIP-39 Mnemonic.  By default, outputs the generated 512-bit wallet Seed.
-        # Optionally, with the --entropy option, returns the un-decrypted original 128- to 256-bit
-        # Seed Entropy encoded in the BIP-39 Mnemonic phrase (undecrypted; no --passphrase allowed).
+        # Recover from a BIP-39 Mnemonic.  By default, outputs the generated 512-bit wallet Seed,
+        # required to derive crypto accounts.  Optionally, with the --entropy option, returns the
+        # un-decrypted original 128- to 256-bit Seed Entropy encoded in the BIP-39 Mnemonic phrase
+        # (undecrypted; no --passphrase allowed).
         assert 0 <= len( mnemonics ) <= 1, "BIP-39 requires exactly one Mnemonic phrase"
         if not mnemonics:
             try:
