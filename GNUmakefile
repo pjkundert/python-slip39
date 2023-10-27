@@ -613,13 +613,13 @@ dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 	#     $@
 	# echo "Checking signature (app code signed)..."; ./SLIP-39.metadata/check-signature $@ || true
 	# codesign --verify $@
-	# codesign --deep --force \
-	#     --all-architectures --options=runtime --timestamp \
-	#     --entitlements ./SLIP-39.metadata/entitlements.plist \
-	#     --sign "$(DEVID)" \
-	#     $@
-	# echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP-39.metadata/check-signature $@ || true
-	# codesign --verify $@
+	codesign --deep --force \
+	    --all-architectures --options=runtime --timestamp \
+	    --entitlements ./SLIP-39.metadata/entitlements.plist \
+	    --sign "$(DEVID)" \
+	    $@
+	echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP-39.metadata/check-signature $@ || true
+	codesign --verify $@
 	touch $@  # try to avoid unnecessary rebuilding
 
 #

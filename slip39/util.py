@@ -629,3 +629,39 @@ def uniq( seq, key=None ):
             continue
         seen.add( k )
         yield v
+
+
+def parse_scutil(input_data):
+    """
+    A simple parser for the custom 'scutil' data format where every object is a dictionary.
+    """
+    stack = []
+    obj = None
+
+    # Split lines and iterate through them
+    for line in input_data.splitlines():
+        log.debug( f"Parse: {line}" )
+        line = line.strip()
+        if not line:
+            continue
+
+        if line == '}':
+            obj = stack.pop()
+            continue
+
+        *key,val = map(str.strip, line.split( ':' ))
+
+        if val.startswith('<') and val.endswith('{'):
+            # New dictionary/array detected
+            val = {}
+            if key:
+                stack[-1][key[0]] = val
+            stack.append(val)
+            continue
+
+        stack[-1][key[0]] = val
+
+    assert not stack, \
+        f"Invalid parse: {stack!r}"
+
+    return obj

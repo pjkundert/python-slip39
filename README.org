@@ -86,7 +86,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
 
    #+RESULTS:
    :results:
-   SLIP39-2023-10-26+13.21.19-ETH-0x6E6268F14B922cb924C7683A415B30C2bf967000.pdf
+   SLIP39-2023-10-27+05.09.52-ETH-0x6E6268F14B922cb924C7683A415B30C2bf967000.pdf
    :end:
 
    #+LATEX: }
@@ -109,10 +109,11 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    [[./images/SLIP39-recover-BIP39-entropy.png]]
 
    Later, when you need to recover your BIP-39 Seed Entropy and Mnemonic, use this SLIP-39 App or
-   [[https://iancoleman.com]], and entry some of your SLIP-39 Mnemonic Cards.  These may need to be collected from friends and family.
+   [[https://iancoleman.com/slip39/]] and entry some of your SLIP-39 Mnemonic Cards.  These may need
+   to be collected from friends and family.
 
    In this case, we're using the First and Second cards, intended for you to secure, separately from
-   each other; for example, in two safes or other secure locations like locked filing cabinets, and
+   each other; for example, in two safes or other secure locations like locked filing cabinets, at
    2 locations known to you and your partner(s):
 
    #+CAPTION: BIP-39 Mnemonic
@@ -120,7 +121,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    [[./images/SLIP39-recover-BIP39-mnemonic.png]]
 
    Finally, convert the recovered Seed Entropy back to your BIP-39 Mnemonic.  This requires 2 steps
-   if you use [[https://iancoleman.com]].
+   if you use [[https://iancoleman.com/bip39/]]
 
    In this step, we're simply converting the recovered Seed Entropy back into its BIP-39 Mnemonic.
    You need to select the "[X] show entropy details" checkbox in order to enter the raw Seed Entropy

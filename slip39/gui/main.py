@@ -34,7 +34,7 @@ import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
-from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg
+from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg, parse_scutil
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
@@ -277,11 +277,10 @@ def groups_layout(
                                                                                 visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     visible=LO_PRO, **T_hue( B_kwds, 0/20 )),
-                    sg.Text( "Recover:",                                        visible=LO_BAK, **T_hue( T_kwds, 2/20 )),
+                    sg.Text( "Recover:",                                        visible=LO_CRE, **T_hue( T_kwds, 2/20 )),
                     sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         default=LO_BAK,
-                                                                                visible=LO_BAK or LO_CRE,
-                                                                                                **T_hue( B_kwds, 2/20 )),
+                                                                                visible=LO_CRE, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
                     sg.Checkbox( 'Passphrase',          key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
                 ],
@@ -350,9 +349,10 @@ def groups_layout(
                     sg.Text( "",                        key='-SEED-',           size=inlong,    **T_kwds ),
                 ],
                 [
-                    sg.Checkbox( "Using BIP-39:",       key='-AS-BIP-CB-',      default=True,
+                    sg.Checkbox( "Using BIP-39:",       key='-AS-BIP-CB-',      visible=LO_CRE,
+                                                                                default=True,
                                                                                 size=prefix,    **T_hue( B_kwds, -1/20 )),
-                    sg.Text( '',                        key='-AS-BIP-',         visible=True,   **T_hue( T_kwds_dense, -1/20 )),
+                    sg.Text( '',                        key='-AS-BIP-',         visible=LO_CRE, **T_hue( T_kwds_dense, -1/20 )),
                 ],
                 [
                     sg.Column( [
@@ -602,12 +602,12 @@ def update_seed_data( event, window, values ):
         # We're recovering the BIP-39 Seed Phrase *Entropy*, NOT the derived (decrypted) 512-bit
         # Seed Data!  So, we don't deal in Passphrases, here.  The Passphrase (to encrypt the Seed,
         # when "Using BIP-39") is only required to display the correct wallet addresses.
-        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic: " )
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic to Back Up: " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=False )
         window['-SD-PASS-F-'].update( visible=False )
     elif 'SLIP' in update_seed_data.src:
-        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics: " )
+        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics to Back Up: " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=True )
         window['-SD-PASS-F-'].update(
@@ -1026,11 +1026,13 @@ def user_name_full():
         f"{' '.join( command )!r} command failed, or no output returned"
 
     if sys.platform == 'darwin':
-        for li in subproc.stdout.split( '\n' ):
-            if 'kCGSessionLongUserNameKey' in li:
-                # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
-                full_name	= li.split( ':' )[1].strip()
-                break
+        scutil = parse_scutil( subproc.stdout )
+        if uid := scutil.get( 'UID' ):
+            for session in scutil.get( 'SessionInfo', {} ).values():
+                if session.get( 'kCGSSessionUserIDKey' ) == uid:
+                    # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
+                    full_name = session.get( 'kCGSessionLongUserNameKey' )
+                    break
     elif sys.platform == 'win32':
         for li in subproc.stdout.split( '\n' ):
             if li.startswith( 'Full Name' ):
@@ -1352,7 +1354,9 @@ def app(
 
         # Recover any passphrase, discarding any details on change.  The empty passphrase b'' is the
         # default for both SLIP-39 and BIP-39.
-        window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
+        if window['-AS-BIP-CB-'].visible:
+            # Only if the checkbox is visible in this mode, also make the BIP-39 rendering visible
+            window['-AS-BIP-'].update( visible=values['-AS-BIP-CB-'] )
         window['-PASSPHRASE-F-'].update(
             'BIP-39 Passphrase' if using_bip39 else passphrase_trezor_incompatible )
         passphrase_now		= values['-PASSPHRASE-'].strip().encode( 'UTF-8' )
