@@ -11,9 +11,10 @@ TEAMID		?= ZD8TVTCXDS
 # The unique App ID assigned by App Store Connect, under App Information (NOT your Apple ID!!)
 APPID		?= 1608360813
 #DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
-DEVID		?= Developer ID Application: Perry Kundert ($(TEAMID))
-PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
-#PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
+#DEVID		?= Developer ID Application: Perry Kundert ($(TEAMID))
+DEVID		?= DDB5489E29389E9081E0A2FD83B6555D1B101829
+#PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
+PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
 DSTID		?= Apple Distribution: Perry Kundert ($(TEAMID))
 BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
@@ -381,13 +382,15 @@ dist/SLIP-39-$(VERSION).dmg.upload-app: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39
 # o Need ... --product <path-to-app-bundle-Info.plist>
 # According to this article, a "Developer ID Installer:..." signing key is required:
 # See: https://forums.ivanti.com/s/article/Obtaining-an-Apple-Developer-ID-Certificate-for-macOS-Provisioning?language=en_US&ui-force-components-controllers-recordGlobalValueProvider.RecordGvp.getRecord=1
+# Must copy the app w/ ditto, into a target dir structure including the destination location, eg. /Applications/SLIP-39.app/...
 # 
 dist/SLIP-39-$(VERSION).pkg:	dist/SLIP-39.app
+	rm -rf /tmp/SLIP-39
+	ditto $< /tmp/SLIP-39/Applications/SLIP-39.app
 	productbuild --sign "$(PKGID)" --timestamp \
 	    --identifier "$(BUNDLEID).pkg" \
 	    --version $(VERSION) \
-	    --component $< /Applications \
-	    $@
+	    --root /tmp/SLIP-39/Applications/ / $@
 
 
 # Confirm that the .pkg is signed w/ the correct certificates.
