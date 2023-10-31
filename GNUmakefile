@@ -599,6 +599,14 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 #   - Find each dependent key, and look at its SHA fingerprint, and then see if you have
 #     that one in your System keychain, downloading all the named keys from apple 'til
 #     you find the one with the matching fingerprint.  Grr...  Repeat 'til check-signature works.
+# * To be accepted by the Mac App Store, your App must be signed, and have an entitlements.plist
+#   containing:
+#     <key>com.apple.security.app-sandbox</key> <true/>
+#   - This causes PyInstaller created apps to crash, because they can't execute the Python interpreter
+#     recursively (?) https://github.com/pyinstaller/pyinstaller/issues/2198
+#   - Here is an up-to-date diary of the woes encountered: https://github.com/pyinstaller/pyinstaller/issues/7123
+#     - A summary of the solutions is here: https://github.com/nyavramov/python_app_mac_app_store
+# 
 dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
 				images/SLIP-39.icns
@@ -650,7 +658,6 @@ SLIP-39-macOS.spec: SLIP-39.py
 	pyinstaller --noconfirm --windowed --onefile \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
-	    --osx-entitlements-file ./SLIP-39.metadata/entitlements.plist \
 	    --collect-data shamir_mnemonic \
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
