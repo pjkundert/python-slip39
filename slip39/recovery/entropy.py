@@ -197,11 +197,15 @@ def denoise_mags( mags, threshold, middle=None, stride=8 ):
         ]
         cavg			= avg( curs ) if middle is None else middle( curs )
         target			= cavg * threshold
-        #print( f"dnoi: {' '.join( f'{c:{stride}.1f}({mags[i] / target:{stride-2}.1f})' for i,c in enumerate( curs ))}: {target=:7.1f}" )
+        #print( f"dnoi: {' '.join( f'{c:{stride}.1f}({mags[i] / target if target else 0:{stride-2}.1f})' for i,c in enumerate( curs ))}: {target=:7.1f}" )
 
     # Return the noise threshold target magnitude deduced, and the index,SNR for each signal bin,
     # sorted by SNR
-    return target, sorted( ( (i, mags[i] / target) for i in snrs ), key=lambda e: e[1], reverse=True )
+    return target, sorted(
+        ( (i, mags[i] / target if target else 0) for i in snrs ),
+        key	= lambda e: e[1],
+        reverse	= True,
+    )
 
 
 def signal_recover_real( dfts, scale=None, integer=False, amplify=None ):
@@ -414,7 +418,7 @@ def signal_entropy(
     dB.  Using something like statistics.median is problematic for low-noise signals, because if a
     sufficient number of bins have 0 energy, the noise will be 0, and a "default" SNR (signal/noise
     *ratio*) of 1.0 will be used (0.0 dB), allowing any more legitimate signal to be used instead of
-    the unlikely "perfect" noise-free signal.
+    the unlikely "perfect" noise-free signal (or signals w/ *only* a DC component if we ignore_dc.)
 
     So, the result can be sorted by greatest power, and if any power is found to be > 0.0dB, the
     entropy can be rejected as having too much "signal" vs "noise" (entropy).
@@ -464,16 +468,6 @@ def signal_entropy(
             target, snrs	= denoise_mags( mags, threshold )
             snrd		= dict( snrs )  # i: snr
             #print( f"snrs: {' '.join( f'{snrd[i]:{stride*2}.1f}' if i in snrd else (' ' * stride*2) for i in range( len( mags )))}: {target=:7.1f}" )
-
-            # mid			= nrms if middle is None else middle( mags )
-            # target		= mid * threshold
-            # # Find the magnitude, offset of the top magnitudes exceeding target, sorted high to low
-            # tops		= sorted( ( (m,i) for i,m in enumerate( mags ) if m > target ), reverse=True )
-            # # Compute total signal dB SNR vs. target.  If all mags are 0 (all sigs were 0), then top
-            # # and target will all be 0.  However, this means that the signal is totally predictable
-            # # (contains infinitely strong signal), so pick an small but non-passing snr (1.0 ==
-            # # 0.0dB), so that any other more "legitimate" non-passing signals will likely be chosen
-            # # as strongest.  If no signal; report how far below the target our strongest bin is.
 
             # When we have multiple signals, a Signal with several strong signals should have an SNR
             # higher than something with fewer/weaker signals.  However, only the portion *above*
@@ -565,7 +559,9 @@ def signal_entropy(
                 # scale the signal by the ratio of the removed DC to the largest other signal.  Since we know that
                 # the other signals were DC "higher" in the original signal, amplifying the signal by this ratio
                 # shouldn't exceed the maximum dynamic range of the eg. integer signal values.
-                dc_amplify	= 1 + abs( dc ) / max( abs( b ) for b in dfts )
+                peak		= max( abs( b ) for b in dfts )
+                if peak:
+                    dc_amplify	= 1 + abs( dc ) / peak
 
             # Compute the resolution for the inverse DFT required to properly cover the binary
             # entropy.  However, limit size of the resultant DFT, as idft is O(N^2).  For a 512-bit
@@ -588,7 +584,7 @@ def signal_entropy(
                 #print( f" - {i=:3} --> {o=:3} ==> {sigs[o]:7}" )
                 pos	       += signal_draw( sigs[o], pos=True )
                 neg	       += signal_draw( sigs[o], neg=True )
-            harmonic_dBs	= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/target):.1f}dB" for h in harmonic ]
+            harmonic_dBs	= [ f"{ordinal(h) if h else 'DC'} {into_dB(mags[h]/target) if target else 0.0:.1f}dB" for h in harmonic ]
             details	       += f"{offpref}{pos} {len(harmonic)} harmonics: {commas( harmonic_dBs, final='and' )}\n"
             details	       += f"{offpref}{neg}  - "
             if 0 in harmonic:

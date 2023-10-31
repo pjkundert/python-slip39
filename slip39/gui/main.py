@@ -285,11 +285,6 @@ def groups_layout(
                     sg.Checkbox( 'Passphrase',          key='-SD-PASS-C-',      visible=False,  **T_hue( B_kwds, 2/20 )),
                 ],
                 [
-                    sg.Text("Fixed: ",                                          visible=LO_PRO, **T_hue( T_kwds, 1/20 )),
-                ] + [
-                    sg.Radio( f"{b}-bit",  "SD", key=f"-SD-{b}-FIX-",           visible=LO_PRO, **T_hue( B_kwds, 1/20 ))
-                    for b in BITS
-                ] + [
                     sg.Frame( passphrase_trezor_incompatible, [
                         [
                             sg.Text( "Passphrase (decrypt): ",                                  **T_kwds ),
@@ -319,19 +314,20 @@ def groups_layout(
             sg.Frame( SE_SEED_FRAME, [
                 [
                     sg.Radio( "None",             "SE", key='-SE-NON-',         visible=LO_REC,
-                                                                                default=True,   **B_kwds ),
+                                                                                default=LO_BAK, **B_kwds ),
                     sg.Radio( "Hex",              "SE", key='-SE-HEX-',         visible=LO_PRO, **B_kwds ),
-                    sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC, **B_kwds ),
+                    sg.Radio( "Die rolls, ... (SHA-512)", "SE", key='-SE-SHA-', visible=LO_REC,
+                                                                                default=LO_CRE or LO_PRO, **B_kwds ),
                     sg.Checkbox( 'Ignore Bad Entropy', key='-SE-SIGS-C-',       visible=LO_REC or LO_PRO,
                                                                                 disabled=False, **T_hue( B_kwds, 3/20 )),
                 ],
                 [
-                    sg.Frame( 'Entropy', [
+                    sg.Column( [
                         [
-                            sg.Text( "Hex digits: ",    key='-SE-DATA-T-',      size=prefix,    **T_kwds ),
+                            sg.Text( "Die rolls, etc.:",key='-SE-DATA-T-',      size=prefix,    **T_kwds ),
                             sg.Input( "",               key='-SE-DATA-',        size=inlong,    **I_kwds ),
                         ],
-                    ],                                  key='-SE-DATA-F-',      visible=False,  **F_kwds ),
+                    ],                                  key='-SE-DATA-F-',      visible=False ),
                 ],
                 [
                     sg.Text( "Seed XOR Data: ",                                 visible=LO_REC,
@@ -532,9 +528,6 @@ def update_seed_data( event, window, values ):
         '-SD-128-RND-',
         '-SD-256-RND-',
         '-SD-512-RND-',
-        '-SD-128-FIX-',
-        '-SD-256-FIX-',
-        '-SD-512-FIX-',
         '-SD-BIP-',			# Recover 128- to 256-bit Mnemonic Seed Entropy
         '-SD-BIP-SEED-',		# Recover 512-bit Generated Seed w/ passphrase
         '-SD-SLIP-',
@@ -775,9 +768,13 @@ def stretch_seed_entropy( entropy, n, bits, encoding=None ):
             # Other encoding was provided, eg 'UTF-8', 'ASCII', ...; stretch for the 0th Seed, too.
             n		       += 1
             entropy		= codecs.encode( entropy, encoding )    # '012abc' --> b'012abc'
-    for _ in range( n ):
-        entropy			= hashlib.sha512( entropy ).digest()
     octets			= ( bits + 7 ) // 8
+    if entropy:
+        for _ in range( n ):
+            entropy		= hashlib.sha512( entropy ).digest()
+    else:
+        # If no entropy provided, result is all 0
+        entropy			= b'\0' * octets
     assert len( entropy ) >= octets, \
         "Insufficient extra Seed Entropy provided for {ordinal(n+1)} {bits}-bit Seed"
     return entropy[:octets]
@@ -809,7 +806,9 @@ def update_seed_entropy( event, window, values ):
             update_seed_entropy.src = src
             window['-SE-DATA-'].update( data )
             values['-SE-DATA-']	= data
-            if 'HEX' in update_seed_entropy.src:
+            if 'NON' in update_seed_entropy.src:
+                window['-SE-DATA-T-'].update( "" )
+            elif 'HEX' in update_seed_entropy.src:
                 window['-SE-DATA-T-'].update( "Hex digits: " )
             else:
                 window['-SE-DATA-T-'].update( "Die rolls, etc.: " )

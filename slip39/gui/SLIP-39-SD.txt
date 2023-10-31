@@ -8,7 +8,6 @@ your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
  Create    Random       Create SLIP-39 Mnemonics from secure randomnes         
  Recover   SLIP-39      Recover Seed from SLIP-39 Mnemonics                    
  Pro       BIP-39 Seed  Backup 512-bit BIP-39 Seed from Mnemonics + passphrase 
- Pro       Fixed        Hex data may be supplied for the Seed                  
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
