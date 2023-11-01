@@ -199,6 +199,7 @@ def produce_pdf(
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
     cover_text: Optional[str]	= None,		# Any Cover Page text; we'll append BIP-39 if 'using_bip39'
     watermark: Optional[str]	= None,
+    double_sided: Optional[bool]= None,
 ) -> Tuple[Tuple[str,str], fpdf.FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
@@ -333,6 +334,9 @@ def produce_pdf(
         else:
             tpl_cover.render()
 
+        if double_sided:
+            pdf.add_page()
+
     card_n			= 0
     page_n			= None
     for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
@@ -341,6 +345,10 @@ def produce_pdf(
             if p != page_n:
                 pdf.add_page()
                 page_n		= p
+
+                if double_sided:
+                    pdf.add_page()
+
             card_n	       += 1
 
             tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
