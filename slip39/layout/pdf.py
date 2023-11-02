@@ -25,13 +25,15 @@ import os
 import warnings
 
 from datetime		import datetime
-from collections	import namedtuple
+from collections	import namedtuple, defaultdict
 from collections.abc	import Callable
 from pathlib		import Path
 from typing		import Dict, List, Tuple, Optional, Sequence, Any
 
 import qrcode
+import qrcode.image.svg
 import fpdf		# FPDF, FlexTemplate, FPDF_FONT_DIR
+import fpdf.svg
 
 from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, group_parser
 from ..util		import chunker
@@ -207,11 +209,15 @@ def produce_pdf(
     produced cards, and the cryptocurrency accounts from the supplied slip39.Details.
 
     Makes available several fonts.
+
+    Produces double-sided PDF by default, containing QR codes for SLIP-39 Mnemonics on the back.
     """
     if paper_format is None:
         paper_format		= PAPER
     if orientations is None:
         orientations		= ('portrait', 'landscape')
+
+    double_sided		= True if double_sided is None else bool( double_sided )
 
     # Deduce the card size.  All papers sizes are specified in inches.
     try:
@@ -250,18 +256,19 @@ def produce_pdf(
     # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
         "At least one cryptocurrency account must be supplied"
-    qr				= {}
+    qr_acct			= {}
     for i,acct in enumerate( accounts[0] ):
         qrc			= qrcode.QRCode(
-            version	= None,
-            error_correction = qrcode.constants.ERROR_CORRECT_M,
-            box_size	= 10,
-            border	= 1
+            version		= None,
+            error_correction	= qrcode.constants.ERROR_CORRECT_M,
+            box_size		= 10,
+            border		= 1,
+            image_factory	= qrcode.image.svg.SvgPathImage,
         )
         qrc.add_data( acct.address )
         qrc.make( fit=True )
 
-        qr[i]			= qrc.make_image()
+        qr_acct[i]		= qrc.make_image()
         if log.isEnabledFor( logging.INFO ):
             f			= io.StringIO()
             qrc.print_ascii( out=f )
@@ -337,35 +344,63 @@ def produce_pdf(
         if double_sided:
             pdf.add_page()
 
+
+    # Compute the contents of the cards; the keys and their values are the attributes of
+    # each template.  Creates pages of cards (<pos>,<front>,<back>).
+    page			= []  # A sequence of pages [[<card>,..],..]
     card_n			= 0
-    page_n			= None
     for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
         for mn_n,mnem in enumerate( g_mnems ):
-            p,(offsetx,offsety)	= page_xy( card_n )
-            if p != page_n:
-                pdf.add_page()
-                page_n		= p
-
-                if double_sided:
-                    pdf.add_page()
-
+            p_n,(p_x,p_y)	= page_xy( card_n )
             card_n	       += 1
+            if p_n == len(page):
+                page.append([])
+            page[-1].append( ((p_n,(p_x,p_y)), dict(), dict()) )
 
-            tpl['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
-            tpl['card-requires'] = requires
-            tpl['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
-            tpl['card-qr1']	= qr[0].get_image()
+            _,f,b		= page[-1][-1]
+
+            f['card-title']	= \
+            b['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
+            f['card-requires']	= requires
+            f['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+            f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8')) # get_image()
             if len( accounts[0] ) > 1:
-                tpl['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
-                tpl['card-qr2']	= qr[1].get_image()
-            tpl[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
-            tpl['card-link']	= 'slip39.com'
+                f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
+                f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
+            f[f'card-g{g_n}']	= \
+            b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
             if watermark:
-                tpl['card-watermark'] = watermark
+                f['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
-                tpl[f"mnem-{n}"] = m
+                f[f"mnem-{n}"]	= m
 
-            tpl.render( offsetx=offsetx, offsety=offsety )
+            # Back contains QR code of the card's SLIP-39 Mnemonic
+            qrc			= qrcode.QRCode(
+                version		= None,
+                error_correction = qrcode.constants.ERROR_CORRECT_M,
+                box_size	= 10,
+                border		= 1,
+                image_factory	= qrcode.image.svg.SvgPathImage
+            )
+            qrc.add_data( mnem )
+            qrc.make( fit=True )
+
+            b['card-qr-mnem']	= io.BytesIO( qrc.make_image().to_string(encoding='unicode').encode('UTF-8'))  # get_image()
+
+    # Now render the front and (optionally) back cards for each page
+    for p_n,p in enumerate( page ):
+        pdf.add_page()
+        for c_n,((_,(p_x,p_y)),f,b) in enumerate( p ):
+            for key,txt in f.items():
+                tpl[key] 	= txt
+            tpl.render( offsetx=p_x, offsety=p_y )
+        if not double_sided:
+            continue
+        pdf.add_page()
+        for c_n,((_,(p_x,p_y)),f,b) in enumerate( p ):
+            for key,txt in b.items():
+                tpl[key] 	= txt
+            tpl.render( offsetx=pdf.epw - p_x - card_dim.x, offsety=p_y )
 
     return (paper_format,orientation),pdf,accounts
 
@@ -392,6 +427,7 @@ def write_pdfs(
     wallet_paper	= None,		# default Wallets to output on Letter format paper,
     cover_page		= True,         # Produce a cover page (including BIP-39 Mnemonic, if using_bip39)
     watermark		= None,		# Any watermark desired on each output
+    double_sided	= None,
 ):
     """Writes a PDF containing a unique SLIP-39 encoded Seed Entropy for each of the names specified.
 
@@ -494,6 +530,7 @@ def write_pdfs(
                 orientations	= ('portrait', ) if wallet_pwd else None,
                 cover_text	= cover_text,
                 watermark	= watermark,
+                double_sided	= double_sided,
             )
 
         now			= datetime.now()
