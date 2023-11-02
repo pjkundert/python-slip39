@@ -44,9 +44,9 @@ app = BUNDLE(
     exe,
     name='SLIP-39.app',
     icon='images/SLIP-39.icns',
-    version='11.0.2',
+    version='11.1.1',
     info_plist={
-        'CFBundleVersion':'11.0.2',
+        'CFBundleVersion':'11.1.1',
         'CFBundlePackageType':'APPL',
         'LSApplicationCategoryType':'public.app-category.utilities',
         'LSMinimumSystemVersion':'10.15.0',

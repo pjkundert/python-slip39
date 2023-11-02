@@ -522,12 +522,12 @@ def write_pdfs(
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
         # we're producing paper wallets, always force portrait orientation for the cards, to match.
-        if card_format is not False or wallet_pwd:
+        if card_format is not False or wallet_pwd is not None:
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
-                orientations	= ('portrait', ) if wallet_pwd else None,
+                orientations	= ('portrait', ) if wallet_pwd is not None else None,
                 cover_text	= cover_text,
                 watermark	= watermark,
                 double_sided	= double_sided,
@@ -546,7 +546,7 @@ def write_pdfs(
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
 
-        if wallet_pwd:
+        if wallet_pwd is not None:
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
             # inches; template dimensions are in mm.
             try:
@@ -580,6 +580,8 @@ def write_pdfs(
                     p,(offsetx,offsety) = page_xy( wall_n )
                     if p != page_n:
                         pdf.add_page( orientation='P', format=wallet_paper )
+                        if double_sided is None or double_sided:
+                            pdf.add_page( orientation='P', format=wallet_paper )
                         page_n	= p
                     try:
                         private_enc		= account.encrypted( wallet_pwd )
@@ -654,7 +656,7 @@ def write_pdfs(
 
                     wall_tpl.render( offsetx=offsetx, offsety=offsety )
 
-        if json_pwd:
+        if json_pwd is not None:
             # If -j|--json supplied, also emit the encrypted JSON wallet.  This may be a *different*
             # password than the SLIP-39 master secret encryption passphrase.  It will be required to
             # decrypt and use the saved JSON wallet file, eg. to load a software Ethereum wallet.
@@ -690,7 +692,8 @@ def write_pdfs(
                 log.warning( f"Wrote JSON {name or 'SLIP39'}'s encrypted ETH wallet {eth.address} derived at {eth.path} to: {json_name}" )
 
                 if pdf:
-                    # Add the encrypted JSON account recovery to the PDF also, if generated.
+                    # Add the encrypted JSON account recovery to the PDF also, if generated.  Last
+                    # page, so no need to handle double_sided for subsequent output.
                     pdf.add_page()
                     margin_mm	= PAGE_MARGIN * MM_IN
                     pdf.set_margin( 1.0 * MM_IN )

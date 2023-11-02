@@ -77,7 +77,7 @@ def main( argv=None ):
                      help="Save an encrypted JSON wallet for each Ethereum address w/ this password, '-' reads it from stdin (default: None)" )
     ap.add_argument( '-w', '--wallet',
                      default=None,
-                     help="Produce paper wallets in output PDF; each wallet private key is encrypted this password" )
+                     help="Produce paper wallets in output PDF; each wallet private key is encrypted this password (use --wallet=\"\" for empty password)" )
     ap.add_argument( '--wallet-hint',
                      default=None,
                      help="Paper wallets password hint" )
@@ -86,7 +86,7 @@ def main( argv=None ):
                      help=f"Paper wallet size; {', '.join(WALLET_SIZES.keys())} or '(<h>,<w>),<margin>' (default: {WALLET})" )
     ap.add_argument( '-s', '--secret',
                      default=None,
-                     help="Use the supplied 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
+                     help="Use the supplied BIP-39 Mnemonic or 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
     ap.add_argument( '--bits',
                      default=None,  # Do not enforce default of 128-bit seeds
                      help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
@@ -196,7 +196,7 @@ def main( argv=None ):
     wallet_format		= args.wallet_format
 
     json_pwd			= args.json
-    if json_pwd:
+    if json_pwd is not None:
         if json_pwd == '-':
             json_pwd		= input_secure( 'Ethereum JSON wallet file password: ', secret=True )
         else:
