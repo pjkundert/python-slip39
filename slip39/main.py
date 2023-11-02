@@ -115,6 +115,13 @@ def main( argv=None ):
     ap.add_argument( '--watermark',
                      default=None,
                      help="Include a watermark on the output SLIP-39 mnemonic cards" )
+    ap.add_argument( '--double-sided', action='store_true',
+                     default=None,
+                     help="Enable double-sided PDF (default)" )
+    ap.add_argument( '--no-double-sided', dest="double_sided", action='store_false',
+                     help="Disable double-sided PDF" )
+    ap.add_argument( '--single-sided', dest="double_sided", action='store_false',
+                     help="Enable single-sided PDF" )
     ap.add_argument( 'names', nargs="*",
                      help="Account names to produce; if --secret Entropy is supplied, only one is allowed.")
     args			= ap.parse_args( argv )
@@ -216,6 +223,7 @@ def main( argv=None ):
             wallet_format	= wallet_format,
             cover_page		= args.cover_page,
             watermark		= args.watermark,
+            double_sided	= args.double_sided,
         )))
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )

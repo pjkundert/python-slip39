@@ -281,6 +281,10 @@ def layout_card(
     card_mnemonics		= card_bottom.add_region_proportional(
         Region( 'card-mnemonics', x1=0, y1=0, x2=13/16, y2=1 )
     )
+    # QR code for Card Mnemonics on back is center/middle of Mnemonics area
+    card_mnemonics.add_region(
+        Image( 'card-qr-mnem' )
+    ).square( justify='T' )
 
     # QR codes sqaare, and anchored to top and bottom of card.
     card_bottom.add_region_proportional(
@@ -570,12 +574,16 @@ def layout_components(
     comp_rows			= int(( pdf.eph - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.y )
     comps_pp			= comp_rows * comp_cols
 
+    # Compute actual page margins to center cards.
+    page_margin_tb		= ( pdf.eph - comp_rows * comp_dim.y ) / 2
+    page_margin_lr		= ( pdf.epw - comp_cols * comp_dim.x ) / 2
+
     def page_xy( num: int ) -> Tuple[int, Coordinate]:
         """Returns the page, and the coordinates within that page of the num'th component"""
         page,nth		= divmod( num, comps_pp )
         page_rows,page_cols	= divmod( nth, comp_cols )
-        offsetx			= page_margin_mm + page_cols * comp_dim.x
-        offsety			= page_margin_mm + page_rows * comp_dim.y
+        offsetx			= page_margin_lr + page_cols * comp_dim.x
+        offsety			= page_margin_tb + page_rows * comp_dim.y
         log.debug( f"{ordinal(num)} {comp_dim.x:7.5f}mm x {comp_dim.y:7.5f}mm component on page {page}, offset {offsetx:7.5f}mm x {offsety:7.5f}mm" )
         return (page, Coordinate( x=offsetx, y=offsety ))
 
