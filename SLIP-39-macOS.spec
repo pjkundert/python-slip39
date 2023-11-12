@@ -46,7 +46,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity='DDB5489E29389E9081E0A2FD83B6555D1B101829',
+    codesign_identity='EAA134BE299C43D27E33E2B8645FF4CF55DE8A92',
     entitlements_file=None,
     icon='images/SLIP-39.icns',
 )

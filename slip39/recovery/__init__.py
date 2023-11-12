@@ -47,15 +47,22 @@ class Mnemonicv21( Mnemonic ):
         """Scan the Mnemonic until the language becomes unambiguous, including as abbreviation prefixes."""
         code = cls.normalize_string(code)
         possible = set(cls(lang) for lang in cls.list_languages())
-        for word in code.split():
+        words = set(code.split())
+        for word in words:
             # possible languages have candidate(s) starting with the word/prefix
             possible = set(p for p in possible if any(c.startswith( word ) for c in p.wordlist))
             if not possible:
                 raise ConfigurationError(f"Language unrecognized for {word!r}")
-            if len( possible ) < 2:
-                break
         if len(possible) == 1:
             return possible.pop().language
+        # Multiple languages match: A prefix in many, but an exact match in one determines language.
+        complete = set()
+        for word in words:
+            exact = set(p for p in possible if word in p.wordlist)
+            if len(exact) == 1:
+               complete.update(exact)
+        if len(complete) == 1:
+            return complete.pop().language
         raise ConfigurationError(
             f"Language ambiguous between {', '.join( p.language for p in possible)}"
         )

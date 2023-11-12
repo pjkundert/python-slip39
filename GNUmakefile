@@ -10,15 +10,24 @@ APPLEID		?= perry@kundert.ca
 TEAMID		?= ZD8TVTCXDS
 # The unique App ID assigned by App Store Connect, under App Information (NOT your Apple ID!!)
 APPID		?= 1608360813
-#DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
 #DEVID		?= Developer ID Application: Perry Kundert ($(TEAMID))
-DEVID		?= DDB5489E29389E9081E0A2FD83B6555D1B101829
+#DEVID		?= DDB5489E29389E9081E0A2FD83B6555D1B101829
+#DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
+#DEVID		?= A5DE932A0649AE3B6F06A8134F3E19D2E19A8196
+# Developer ID Application (not for Mac App Store)
+DEVID		?= EAA134BE299C43D27E33E2B8645FF4CF55DE8A92
+
 #PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
+#PKGID		?= 1B482CEB543825C33C366A5665B935D3CEC9FD05
+
 PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
-DSTID		?= Apple Distribution: Perry Kundert ($(TEAMID))
+
+
 BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
+#PROVISION	?= ~/Documents/Apple/Certificates/SLIP39_Mac_App_Store_Provisioning.provisionprofile
+PROVISION	?= ~/Documents/Apple/Certificates/SLIP39_Mac_General_Provisioning.provisionprofile
 
 # Various cx_Freeze targets are at paths with computed extensions, eg: build/exe.win-amd64-3.10/
 CXFREEZE_VER	?= 3.10
@@ -385,12 +394,15 @@ dist/SLIP-39-$(VERSION).dmg.upload-app: dist/SLIP-39-$(VERSION).dmg dist/SLIP-39
 # Must copy the app w/ ditto, into a target dir structure including the destination location, eg. /Applications/SLIP-39.app/...
 # 
 dist/SLIP-39-$(VERSION).pkg:	dist/SLIP-39.app
-	rm -rf /tmp/SLIP-39
-	ditto $< /tmp/SLIP-39/Applications/SLIP-39.app
-	productbuild --sign "$(PKGID)" --timestamp \
+	#rm -rf /tmp/SLIP-39-pkg
+	#ditto $< /tmp/SLIP-39-pkg/SLIP-39.app
+	productbuild \
+	    --sign "$(PKGID)" \
+	    --timestamp \
 	    --identifier "$(BUNDLEID).pkg" \
 	    --version $(VERSION) \
-	    --root /tmp/SLIP-39/Applications/ / $@
+	    --root "$<" "/Applications/SLIP-39.app/" \
+	    $@
 
 
 # Confirm that the .pkg is signed w/ the correct certificates.
@@ -609,29 +621,35 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 # 
 dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				SLIP-39.metadata/entitlements.plist \
-				images/SLIP-39.icns
+				images/SLIP-39.icns \
+				$(PROVISION)
 	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
 	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
 	sed -I "" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
 	pyinstaller --noconfirm $<
+	#echo "Copying Provisioning Profile..."; rsync -va $(PROVISION) $@/Contents/embedded.provisionprofile
 	echo "Checking signature (pyinstaller signed)..."; ./SLIP-39.metadata/check-signature $@ || true
-	codesign --verify $@
+	codesign --verify --verbose $@
 	# codesign --deep --force \
 	#     --all-architectures --options=runtime --timestamp \
 	#     --sign "$(DEVID)" \
 	#     $@
 	# echo "Checking signature (app code signed)..."; ./SLIP-39.metadata/check-signature $@ || true
 	# codesign --verify $@
-	codesign --deep --force \
-	    --all-architectures --options=runtime --timestamp \
+	codesign --deep --force --timestamp --verbose --options runtime \
+	    --all-architectures \
 	    --entitlements ./SLIP-39.metadata/entitlements.plist \
 	    --sign "$(DEVID)" \
 	    $@
 	echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP-39.metadata/check-signature $@ || true
-	codesign --verify $@
+	codesign --verify --verbose $@
 	touch $@  # try to avoid unnecessary rebuilding
+
+app-assess: dist/SLIP-39.app
+	spctl --assess --type execute --context context:primary-signature -vvv $< 
+
 
 #
 # Only used for initial creation of SLIP-39.spec; it must be customized, so this target cannot be
