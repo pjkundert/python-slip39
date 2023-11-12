@@ -5,6 +5,7 @@ datas = []
 datas += collect_data_files('shamir_mnemonic')
 datas += collect_data_files('slip39')
 
+block_cipher = None
 
 a = Analysis(
     ['SLIP-39.py'],
@@ -16,9 +17,17 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False,
 )
-pyz = PYZ(a.pure)
+
+pyz = PYZ(
+    a.pure,
+    a.zipped_data,
+    cipher=block_cipher,
+)
 
 exe = EXE(
     pyz,
@@ -37,20 +46,29 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity='DDB5489E29389E9081E0A2FD83B6555D1B101829',
-    entitlements_file='./SLIP-39.metadata/entitlements.plist',
+    codesign_identity='EAA134BE299C43D27E33E2B8645FF4CF55DE8A92',
+    entitlements_file=None,
+    icon='images/SLIP-39.icns',
 )
+
 app = BUNDLE(
     exe,
     name='SLIP-39.app',
     icon='images/SLIP-39.icns',
     version='11.1.1',
     info_plist={
+        'NSPrincipalClass': 'NSApplication',
+        'NSAppleScriptEnabled': False,
+        'LSBackgroundOnly': False,
+        'NSRequiresAquaSystemAppearance': 'No',
+        'CFBundleSupportedPlatforms': ['MacOSX'],
+        'CFBundleIdentifier': 'ca.kundert.perry.SLIP39',
         'CFBundleVersion':'11.1.1',
         'CFBundlePackageType':'APPL',
         'LSApplicationCategoryType':'public.app-category.utilities',
-        'LSMinimumSystemVersion':'10.15.0',
+        'LSMinimumSystemVersion':'10.15',
         'NSHumanReadableCopyright':"Copyright © 2023 Perry Kundert.",
+        'ITSAppUsesNonExemptEncryption': False,
     },
     bundle_identifier='ca.kundert.perry.SLIP39',
 )

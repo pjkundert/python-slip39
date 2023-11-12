@@ -239,6 +239,7 @@ def groups_layout(
                         [
                             sg.Text( f"Seed Name{LO_PRO and 's, ...' or ''}:",  size=prefix,    **T_kwds ),
                             sg.Input( f"{', '.join(names)}",key='-NAMES-',      size=inputs,    **I_kwds ),
+                            sg.Checkbox( '2-Sided',key='-PF-DOUBLE-',		default=True,	**I_kwds ),
                         ],
                         [
                             sg.Text( "Card size:",                                              **T_hue( T_kwds, 1/20 )),
@@ -1524,9 +1525,10 @@ def app(
         # We have a complete SLIP-39 Mnemonic set.  If we get here, no failure status has been
         # detected, and SLIP39 mnemonic and account details { "name": <details> } have been created;
         # we can now save the PDFs; converted details is now { "<filename>": <details> })
-        if wallet_pwd is not False:
-            # And, if Paper Wallets haven't been disabled completely, remember our password/hint
-            wallet_pwd		= values['-WALLET-PASS-']  # Produces Paper Wallet(s) iff set
+        if wallet_pwd is not False and values['-WALLET-PASS-'] or values['-WALLET-HINT-']:
+            # And, if Paper Wallets haven't been disabled completely, remember our password/hint.
+            # If we're supplied a wallet password "hint", we allow even the empty wallet password.
+            wallet_pwd		= values['-WALLET-PASS-']
             wallet_pwd_hint	= values['-WALLET-HINT-']
 
         if event in ('-SAVE-', '-PRINT-'):
@@ -1549,6 +1551,8 @@ def app(
             try:
                 card_format	= next( c for c in CARD_SIZES if values[f"-CS-{c}-"] )
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
+                wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None )
+                double_sided	= values['-PF-DOUBLE-']
                 details		= write_pdfs(
                     names		= details,
                     using_bip39		= using_bip39,
@@ -1558,10 +1562,11 @@ def app(
                     edit		= edit,
                     wallet_pwd		= wallet_pwd,
                     wallet_pwd_hint	= wallet_pwd_hint,
-                    wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None ),
+                    wallet_format	= wallet_format,
                     filepath		= filepath,
                     printer		= printer,
                     watermark		= watermark,
+                    double_sided	= double_sided,
                 )
             except Exception as exc:
                 status		= f"Error saving PDF(s): {exc}"
