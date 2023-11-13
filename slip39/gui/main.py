@@ -95,7 +95,7 @@ def theme_color( thing, theme=None ):
 #     root.destroy()
 #     print( '\n'.join( FontList ))
 if sys.platform == 'darwin':
-    font_name			= 'Source Code Pro'
+    font_name			= 'Andale Mono'
 elif sys.platform == 'win32':
     font_name			= 'Consolas'
 else:  # assume linux
