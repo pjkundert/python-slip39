@@ -55,7 +55,7 @@ app = BUNDLE(
     exe,
     name='SLIP-39.app',
     icon='images/SLIP-39.icns',
-    version='11.1.2',
+    version='11.2.0',
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,
@@ -63,7 +63,7 @@ app = BUNDLE(
         'NSRequiresAquaSystemAppearance': 'No',
         'CFBundleSupportedPlatforms': ['MacOSX'],
         'CFBundleIdentifier': 'ca.kundert.perry.SLIP39',
-        'CFBundleVersion':'11.1.2',
+        'CFBundleVersion':'11.2.0',
         'CFBundlePackageType':'APPL',
         'LSApplicationCategoryType':'public.app-category.utilities',
         'LSMinimumSystemVersion':'10.15',
