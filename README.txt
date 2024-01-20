@@ -159,8 +159,8 @@ Table of Contents
   • Creating new (or "Backing Up" existing) Seed Entropy as a BIP-39
     Mnemonic
   • Recovering the Seed Entropy from SLIP-39 (via
-    <https://iancoleman.com/slip39/>)
-  • Recovering the original BIP-39 (via <https://iancoleman.com/bip39/>)
+    <https://iancoleman.io/slip39/>)
+  • Recovering the original BIP-39 (via <https://iancoleman.io/bip39/>)
 
   First, we generate create SLIP-39 Cards representing a BIP-39 Mnemonic
   seed:
