@@ -251,7 +251,7 @@ def produce_pdf(
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
+    requires			= f"Need {group_threshold} of {len(group_reqs)} groups"
 
     # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
@@ -286,15 +286,10 @@ def produce_pdf(
             Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
         )
         cover.add_region_proportional(
-            Image( 'cover-image', x1=1/4, x2=3/4, y1=1/4, y2=3/4, priority=-3 )
-        ).square().add_region(
-            Image( 'cover-fade', priority=-2 )
-        )
-        cover.add_region_proportional(
             Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
         )
         cover.add_region_proportional(
-            Region( 'cover-rhs', x1=3/5, y1=1/5 )  # On right, below full-width header
+            Region( 'cover-rhs', x1=0.58, y1=1/5 )  # On right, below full-width header
         ).add_region_proportional(
             Text( 'cover-sent', y2=1/25, font='mono', multiline=True )  # 1st line
         )
@@ -304,16 +299,15 @@ def produce_pdf(
             log.debug( f"Cover elements: {json.dumps( cover_elements, indent=4)}" )
         tpl_cover		= fpdf.FlexTemplate( pdf, cover_elements )
         images			= os.path.dirname( __file__ )
-        tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
-        tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
 
         slip39_mnems		= []
-        slip39_group		= []
+        slip39_group		= [requires]
         g_nam_max		= max( map( len, groups.keys() ))
         for g_nam,(g_of,g_mns) in groups.items():
             slip39_mnems.extend( g_mns )
-            slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
-            slip39_group.extend( f"  {i+1:2}: ____________________" for i in range( len( g_mns )))
+            slip39_group.append( "" )
+            slip39_group.append(f"{g_nam} ({g_of}/{len(g_mns)}): {' '.join(g_mns[0].split()[:3])}")
+            slip39_group.extend(f"{i+1:2} __________________________" for i in range(len(g_mns)))
         if using_bip39:
             # Add the BIP-39 Mnemonics to the cover_text, by recovering the master_secret from the
             # SLIP-39 Mnemonics.
@@ -331,8 +325,7 @@ def produce_pdf(
             cover_text	       += "\n"
 
         tpl_cover['cover-text']	= cover_text
-        cover_sent		= "SLIP-39 Mnemonic Card Recipients:\n\n"
-        cover_sent	       += "\n".join( slip39_group )
+        cover_sent = "\n".join( slip39_group )
         tpl_cover['cover-sent']	= cover_sent
 
         pdf.add_page()
