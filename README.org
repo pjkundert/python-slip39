@@ -73,8 +73,8 @@ sets of 20 words is difficult, error-prone and time consuming.
 
    Here's a full round-trip demonstration of:
    - Creating new (or "Backing Up" existing) Seed Entropy as a BIP-39 Mnemonic
-   - Recovering the Seed Entropy from SLIP-39 (via [[https://iancoleman.com/slip39/]])
-   - Recovering the original BIP-39 (via  [[https://iancoleman.com/bip39/]])
+   - Recovering the Seed Entropy from SLIP-39 (via [[https://iancoleman.io/slip39/]])
+   - Recovering the original BIP-39 (via  [[https://iancoleman.io/bip39/]])
 
    First, we generate create SLIP-39 Cards representing a BIP-39 Mnemonic seed:
    
@@ -109,7 +109,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    [[./images/SLIP39-recover-BIP39-entropy.png]]
 
    Later, when you need to recover your BIP-39 Seed Entropy and Mnemonic, use this SLIP-39 App or
-   [[https://iancoleman.com/slip39/]] and entry some of your SLIP-39 Mnemonic Cards.  These may need
+   [[https://iancoleman.io/slip39/]] and enter some of your SLIP-39 Mnemonic Cards.  These may need
    to be collected from friends and family.
 
    In this case, we're using the First and Second cards, intended for you to secure, separately from
@@ -121,7 +121,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    [[./images/SLIP39-recover-BIP39-mnemonic.png]]
 
    Finally, convert the recovered Seed Entropy back to your BIP-39 Mnemonic.  This requires 2 steps
-   if you use [[https://iancoleman.com/bip39/]]
+   if you use [[https://iancoleman.io/bip39/]]
 
    In this step, we're simply converting the recovered Seed Entropy back into its BIP-39 Mnemonic.
    You need to select the "[X] show entropy details" checkbox in order to enter the raw Seed Entropy
