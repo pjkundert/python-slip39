@@ -26,6 +26,8 @@ PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
 BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
 APIKEY		?= 5H98J7LKPC
+APICREDENTIALS	?= ~/.private_keys/AuthKey_$(APIKEY).p8
+
 #PROVISION	?= ~/Documents/Apple/Certificates/SLIP39_Mac_App_Store_Provisioning.provisionprofile
 PROVISION	?= ~/Documents/Apple/Certificates/SLIP39_Mac_General_Provisioning.provisionprofile
 
@@ -428,27 +430,34 @@ dist/SLIP-39-$(VERSION).pkg-verify: dist/SLIP-39-$(VERSION).pkg
 #
 # macOS Package Notarization
 # See: https://oozou.com/blog/scripting-notarization-for-macos-app-distribution-38
+# https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool
 # o The .pkg version doesn't work due to incorrect signing keys for the .pkg (unknown reason)
+# 
+# Submits the version's .pkg for notariation, and waits for completion (success or failure).
+# - The output contains the Submission ID, required to obtain the JSON notary log 
 dist/SLIP-39-$(VERSION).pkg.notarization: dist/SLIP-39-$(VERSION).pkg dist/SLIP-39-$(VERSION).pkg-verify
-	jq -r '.["notarization-upload"]["RequestUUID"]' $@ 2>/dev/null \
-	|| xcrun altool --notarize-app -f $< \
-	    --primary-bundle-id $(BUNDLEID) \
-	    --team-id $(TEAMID) \
-	    --apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
-	    --output-format json \
+	grep "Submission ID" $@ 2>/dev/null \
+	|| xcrun notarytool submit \
+	    --issuer $(APIISSUER) \
+	    --key-id $(APIKEY) \
+	    --key $(APICREDENTIALS) \
+	    --wait \
+	    $< \
 		> $@
 
 dist/SLIP-39-$(VERSION).pkg.notarization-status: dist/SLIP-39-$(VERSION).pkg.notarization FORCE
 	[ -s $@ ] && grep "Status: success" $@ \
-	    || xcrun altool \
-		--apiKey $(APIKEY) --apiIssuer $(APIISSUER) \
-		--notarization-info $$( jq -r '.["notarization-upload"]["RequestUUID"]' $< ) \
-		    | tee -a $@
+	|| xcrun notarytool log \
+	    --issuer $(APIISSUER) \
+	    --key-id $(APIKEY) \
+	    --key $(APICREDENTIALS) \
+	    $$( grep -A1 "Submission ID" < $< | grep "id:" | awk '{print $$2}' ) \
+		> $@
 
 # Check notarization status 'til Status: success, then staple it to ...pkg, and create ...pkg.valid marker file
 dist/SLIP-39-$(VERSION).pkg.valid: dist/SLIP-39-$(VERSION).pkg.notarization-status FORCE
-	@grep "Status: success" $< || \
-	    ( tail -10 $<; echo -e "\n\n!!! App not yet notarized; try again in a few seconds..."; false )
+	@grep "Ready for distribution" $< || \
+	    ( tail -10 $<; echo -e "\n\n!!! App not yet notarized..."; false )
 	( [ -r $@ ] ) \
 	    && ( echo -e "\n\n*** Notarization complete; refreshing $@" && touch $@ ) \
 	    || ( \
