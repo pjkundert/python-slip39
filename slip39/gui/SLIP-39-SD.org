@@ -90,10 +90,10 @@ BIP-39 Mnemonic using SLIP-39.
    somewhat greater.
 
    If every human and all their devices created a few billion Seeds (about 10^13), the probability
-   of an /accidental/ collision falls to about 1 in 10^12 -- about 1 in a billion.  Unlikely, but
+   of an /accidental/ collision falls to about 1 in 10^12 -- about 1 in a trillion.  Unlikely, but
    something like this has happened for IPv4 addresses, so who knows.
 
-   So, if a 1 in a billion chance of someone eventually stumbling upon your wallet is too great a
+   So, if a 1 in a trillion chance of someone eventually stumbling upon your wallet is too great a
    risk, choose a 256-bit random Seed where this Birthday Paradox probability falls to 1 in 10^32 --
    approximately the chance of 2 people on earth picking the same virus-sized particle in our solar
    system.
