@@ -227,31 +227,6 @@ related to the Seed.
 
    The Crypto.com exchange has many more coins available, as well as a crypto-funded credit card
    that works in Canada.
-
-** Protecting your SLIP-39 Cards
-
-   Protect your printed SLIP-39 cards from water damage by laminating them in plastic or storing
-   them in [[https://amzn.to/3EgdfGb][foil ziplock bags]] before [[https://amzn.to/3G5zOjk][mailing them]].
-   #+BEGIN_EXPORT html
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B08G8JNLVX&linkId=e584b2c9a1ab8e3b9451241d50e99994"></iframe>
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B07WXMYX87&linkId=d36eaab43ae10799576d1bf6aa06db48"></iframe>
-   #+END_EXPORT
-
-   Print the SLIP-39 cards and cut them out, and then lay them out with 1/2" margins (so you can cut
-   them out after lamination and retain 1/4" borders), either with [[https://amzn.to/3NRr9Tr][full-page self-adhesive]] (or
-   [[https://amzn.to/3G8NQ3w][index-card size]]) laminating sheets -- no machine required.
-   #+BEGIN_EXPORT html
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B06ZY31ZB3&linkId=9450e15b915a57d90c9a3172194d5269"></iframe>
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00ENFRAX8&linkId=2496ae94b1c07ac33bac10452ca754d1"></iframe>
-   #+END_EXPORT
-
-   Ideally, use a [[https://amzn.to/3UJqBkB][heat-laminating machine]] in [[https://amzn.to/3G4ZmNu][full-page pouches]] (or in [[https://amzn.to/3G4Zuws][index-card size pouches]]).  This is
-   the best option, in my opinion.
-   #+BEGIN_EXPORT html
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B018UOYJZ4&linkId=0513e65d25ae54d508452fd8336bd981"></iframe>
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B00BWU3HNY&linkId=62ebedd04e75446cc7e35f6333886825"></iframe>
-   <iframe sandbox="allow-popups allow-scripts allow-modals allow-forms allow-same-origin" style="width:120px;height:240px;" marginwidth="0" marginheight="0" scrolling="no" frameborder="0" src="//rcm-na.amazon-adsystem.com/e/cm?lt1=_blank&bc1=000000&IS2=1&bg1=FFFFFF&fc1=000000&lc1=0000FF&t=pjkundert06-20&language=en_CA&o=15&p=8&l=as4&m=amazon&f=ifr&ref=as_ss_li_til&asins=B001B0ES1K&linkId=9561218d8582a651832712b8badd2e09"></iframe>
-   #+END_EXPORT
    
 * Privacy Policy
 :PROPERTIES:

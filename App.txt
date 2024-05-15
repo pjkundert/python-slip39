@@ -52,7 +52,6 @@ Table of Contents
 .. 2. Ledger
 .. 3. Netcoins.app
 .. 4. Crypto.com
-.. 5. Protecting your SLIP-39 Cards
 3. Privacy Policy
 
 
@@ -303,35 +302,6 @@ Table of Contents
 
 [Crypto.com (referral code: 2x4hk92dnf)]
 <https://crypto.com/app/2x4hk92dnf>
-
-
-2.5 Protecting your SLIP-39 Cards
-─────────────────────────────────
-
-  Protect your printed SLIP-39 cards from water damage by laminating
-  them in plastic or storing them in [foil ziplock bags] before [mailing
-  them].
-  Print the SLIP-39 cards and cut them out, and then lay them out with
-  1/2" margins (so you can cut them out after lamination and retain 1/4"
-  borders), either with [full-page self-adhesive] (or [index-card size])
-  laminating sheets – no machine required.
-  Ideally, use a [heat-laminating machine] in [full-page pouches] (or in
-  [index-card size pouches]).  This is the best option, in my opinion.
-
-
-[foil ziplock bags] <https://amzn.to/3EgdfGb>
-
-[mailing them] <https://amzn.to/3G5zOjk>
-
-[full-page self-adhesive] <https://amzn.to/3NRr9Tr>
-
-[index-card size] <https://amzn.to/3G8NQ3w>
-
-[heat-laminating machine] <https://amzn.to/3UJqBkB>
-
-[full-page pouches] <https://amzn.to/3G4ZmNu>
-
-[index-card size pouches] <https://amzn.to/3G4Zuws>
 
 
 3 Privacy Policy
