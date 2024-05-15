@@ -28,7 +28,7 @@ Trezor supports these directly, and they can only be created "manually".  Writin
 sets of 20 words is difficult, error-prone and time consuming.
 #+END_ABSTRACT
 
-#+TOC: headlines 3
+#+TOC: headlines 2
 
 * Hardware Wallet "Seed" Configuration
 
@@ -47,12 +47,12 @@ sets of 20 words is difficult, error-prone and time consuming.
   phrases, and outputs a single PDF containing all the required printable cards to document the seed
   (and the specified derived accounts).
 
-  On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without
-  trusting this program*) and the PDF saved to a USB drive for printing (or directly printed without
-  the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC,
-  and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
-  backed-up seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] is simple, by entering the mnemonics
-  right on the device.
+  On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without trusting
+  this program*) and the PDF saved to a USB drive for printing (or directly printed without the file
+  being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC, and XRP
+  addresses derived from the seed, to /illustrate/ what accounts are associated with the backed-up
+  seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] or a (newer, less costly) [[https://affil.trezor.io/SHUD]["Model One"]] is simple,
+  by entering the mnemonics right on the device.
 
   We also support the backup of existing insecure and unreliable 12- or 24-word BIP-39 Mnemonic
   Phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware wallets like the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]],
@@ -69,18 +69,20 @@ sets of 20 words is difficult, error-prone and time consuming.
   #+ATTR_LATEX: :width 6in :options angle=0
   [[./images/slip39.png]]
 
-** TL;DR
+** TL;DR Backup and Recover your BIP-39 Mnemonic
 
    Here's a full round-trip demonstration of:
    - Creating new (or "Backing Up" existing) Seed Entropy as a BIP-39 Mnemonic
    - Recovering the Seed Entropy from SLIP-39 (via [[https://iancoleman.io/slip39/]])
    - Recovering the original BIP-39 (via  [[https://iancoleman.io/bip39/]])
 
-   First, we generate create SLIP-39 Cards representing a BIP-39 Mnemonic seed:
+   First, we generate SLIP-39 Cards representing a BIP-39 Mnemonic seed.  Remember, your BIP-39
+   Mnemonic simply encodes your 128- or 256-bit Seed Entropy.  So, we're not backing up your
+   Mnemonic phrase -- we're backing up the raw seed data that is encoded into your BIP-39 Mnemonic.
    
    #+LATEX: {\scriptsize
    #+BEGIN_SRC bash :export both :results output drawer
-# python3 -m pip install slip39; slip39 -q --using-bip39  # generate one from scratch
+# python3 -m pip install slip39; slip39 -q --using-bip39  # to generate one from scratch, or
 slip39 -q --secret "seven replace great luggage fox rent general tower guess inside smile sing"
    #+END_SRC
 
@@ -92,7 +94,7 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    #+LATEX: }
 
    #+CAPTION: SLIP-39 Backup
-   #+ATTR_LATEX: :float wrap :width 2.5in :placement {r}
+   #+ATTR_LATEX: :float wrap :width 2in :placement {r}
    [[./images/SLIP39-backup-BIP39.png]]
 
    If you look at the generated SLIP39 PDF, you'll see that the cover page contains the original
@@ -100,25 +102,29 @@ slip39 -q --secret "seven replace great luggage fox rent general tower guess ins
    cards encode the original Seed Entropy, and are what you use to recover the BIP-39 Mnemonic whenever
    you need it.
 
-   I *recommend* that you tear off and destroy the BIP-39 Mnemonic from the cover sheet, once you've
-   confirmed you can recover it anytime you want, and you've set up your hardware wallet, and
+   I *recommend* that you /tear off and destroy/ the BIP-39 Mnemonic from the cover sheet, once
+   you've confirmed you can recover it anytime you want, and you've set up your hardware wallet, and
    confirmed that it contains the same cryptocurrency addresses displayed in the PDF.
 
    #+CAPTION: BIP-39 Entropy
    #+ATTR_LATEX: :float wrap :width 3in :placement {l}
    [[./images/SLIP39-recover-BIP39-entropy.png]]
 
+   Practice this full round-trip several times with a bad BIP-39 Mnemonic like "zoo zoo ... wrong".
+   This is the only way to become comfortable with your ability to recover your original seed data,
+   and (hence) your BIP-39 Mnemonic.
+
    Later, when you need to recover your BIP-39 Seed Entropy and Mnemonic, use this SLIP-39 App or
    [[https://iancoleman.io/slip39/]] and enter some of your SLIP-39 Mnemonic Cards.  These may need
    to be collected from friends and family.
 
-   In this case, we're using the First and Second cards, intended for you to secure, separately from
-   each other; for example, in two safes or other secure locations like locked filing cabinets, at
-   2 locations known to you and your partner(s):
-
    #+CAPTION: BIP-39 Mnemonic
    #+ATTR_LATEX: :float wrap :width 2in :placement {r}
    [[./images/SLIP39-recover-BIP39-mnemonic.png]]
+
+   In this case, we're using the First and Second cards, intended for you to secure, separately from
+   each other; for example, in two safes or other secure locations like locked filing cabinets, at
+   2 locations known to you and your partner(s):
 
    Finally, convert the recovered Seed Entropy back to your BIP-39 Mnemonic.  This requires 2 steps
    if you use [[https://iancoleman.io/bip39/]]
@@ -234,13 +240,13 @@ python3 -m slip39.recovery --using-bip39 \
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
-   $ python3 -m pip install slip39        # Install slip39 in Python3
-   $ cd /Volumes/USBDRIVE/                # Change current directory to USB
-   $ python3 -m slip39 Personal           # Or just run "slip39 Personal"
-   2022-11-22 05:35:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x0F04cab1855CE275bd098c918075373EB3944Ba3
-   2022-11-22 05:35:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qszvts5vyxy265er6ngk3ew4utx5sll2ck2m7m2
-   2022-11-22 05:35:22 slip39.layout    Writing SLIP39-encoded wallet for 'Personal' to:\
-     Personal-2022-11-22+05.35.22-ETH-0x0F04cab1855CE275bd098c918075373EB3944Ba3.pdf
+$ python3 -m pip install slip39        # Install slip39 in Python3
+$ cd /Volumes/USBDRIVE/                # Change current directory to USB
+$ python3 -m slip39 Personal           # Or just run "slip39 Personal"
+2022-11-22 05:35:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x0F04cab1855CE275bd098c918075373EB3944Ba3
+2022-11-22 05:35:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qszvts5vyxy265er6ngk3ew4utx5sll2ck2m7m2
+2022-11-22 05:35:22 slip39.layout    Writing SLIP39-encoded wallet for 'Personal' to:\
+  Personal-2022-11-22+05.35.22-ETH-0x0F04cab1855CE275bd098c918075373EB3944Ba3.pdf
    #+END_EXAMPLE
    #+LATEX: }
 
@@ -263,11 +269,11 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_EXAMPLE
-    $ slip39 --using-bip39 Personal-BIP-39
-    2022-11-22 05:47:13 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x927232296120343A89DeAb15F108a420087a2Ef3
-    2022-11-22 05:47:13 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qgs6xg5kvrrxp4579y22a4tf0d8me4dslwxjr9x
-    2022-11-22 05:47:15 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'Personal-BIP-39' to:\
-      Personal-BIP-39-2022-11-22+05.47.15-ETH-0x927232296120343A89DeAb15F108a420087a2Ef3.pdf
+$ slip39 --using-bip39 Personal-BIP-39
+2022-11-22 05:47:13 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x927232296120343A89DeAb15F108a420087a2Ef3
+2022-11-22 05:47:13 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qgs6xg5kvrrxp4579y22a4tf0d8me4dslwxjr9x
+2022-11-22 05:47:15 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'Personal-BIP-39' to:\
+  Personal-BIP-39-2022-11-22+05.47.15-ETH-0x927232296120343A89DeAb15F108a420087a2Ef3.pdf
     #+END_EXAMPLE
     #+LATEX: }
 
@@ -289,8 +295,8 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    slip39 -c ETH -c BTC -c DOGE -c LTC --secret ffffffffffffffffffffffffffffffff \
-        --no-card --wallet password --wallet-hint 'bad:pass...' 2>&1
+slip39 -c ETH -c BTC -c DOGE -c LTC --secret ffffffffffffffffffffffffffffffff \
+    --no-card --wallet password --wallet-hint 'bad:pass...' 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -315,10 +321,10 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    slip39-recovery -v \
-        --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
-        --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
-            2>&1
+slip39-recovery -v \
+    --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
+    --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
+        2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -333,12 +339,12 @@ python3 -m slip39.recovery --using-bip39 \
     
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    slip39-recovery \
-        --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
-        --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
-    | slip39 -c ETH -c BTC -c DOGE -c LTC --secret - \
-        --no-card --wallet password --wallet-hint 'bad:pass...' \
-            2>&1
+slip39-recovery \
+    --mnemonic "material leaf acrobat romp charity capital omit skunk change firm eclipse crush fancy best tracks flip grownup plastic chew peanut" \
+    --mnemonic "material leaf beard romp disaster duke flame uncover group slice guest blue gums duckling total suitable trust guitar payment platform" \
+| slip39 -c ETH -c BTC -c DOGE -c LTC --secret - \
+    --no-card --wallet password --wallet-hint 'bad:pass...' \
+        2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -395,8 +401,8 @@ python3 -m slip39.recovery --using-bip39 \
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
-   slip39-gui
-   python3 -m slip39.gui
+slip39-gui
+python3 -m slip39.gui
    #+END_EXAMPLE
    #+LATEX: }
 
@@ -413,7 +419,7 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results raw
-    slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
+slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
     #+RESULTS:
@@ -502,13 +508,13 @@ python3 -m slip39.recovery --using-bip39 \
 
   #+LATEX: {\scriptsize
   #+BEGIN_EXAMPLE
-  $ python3 -m slip39.recovery   # (or just "slip39-recovery")
-  Enter 1st SLIP-39 mnemonic: ab c
-  Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
-  Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
-  Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy ...
-  2021-12-25 11:03:33 slip39.recovery  Recovered SLIP-39 secret; Use:  python3 -m slip39 --secret ...
-  383597fd63547e7c9525575decd413f7
+$ python3 -m slip39.recovery   # (or just "slip39-recovery")
+Enter 1st SLIP-39 mnemonic: ab c
+Enter 2nd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
+Enter 3rd SLIP-39 mnemonic: veteran guilt acrobat romp burden campus purple webcam uncover ...
+Enter 4th SLIP-39 mnemonic: veteran guilt beard romp dragon island merit burden aluminum worthy ...
+2021-12-25 11:03:33 slip39.recovery  Recovered SLIP-39 secret; Use:  python3 -m slip39 --secret ...
+383597fd63547e7c9525575decd413f7
   #+END_EXAMPLE
   #+LATEX: }
 
@@ -518,7 +524,7 @@ python3 -m slip39.recovery --using-bip39 \
 
   #+LATEX: {\scriptsize
   #+BEGIN_SRC bash :exports both
-  slip39 --secret 383597fd63547e7c9525575decd413f7 --wallet password --wallet-hint bad:pass... 2>&1
+slip39 --secret 383597fd63547e7c9525575decd413f7 --wallet password --wallet-hint bad:pass... 2>&1
   #+END_SRC
 
   #+RESULTS:
@@ -534,7 +540,7 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results raw
-    python3 -m slip39.recovery --help 2>&1                | sed 's/^/: /' # (just for output formatting)
+python3 -m slip39.recovery --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
     #+RESULTS:
@@ -601,11 +607,11 @@ python3 -m slip39.recovery --using-bip39 \
 
    #+LATEX: {\scriptsize
    #+BEGIN_SRC bash :exports both
-   ( python3 -m slip39 --text --no-card \
-       | ( sort -r  ; echo "...later, after recovering SLIP-39 mnemonics..." 1>&2 ) \
-       | python3 -m slip39.recovery \
-       | python3 -m slip39 --secret - --no-card \
-    ) 2>&1
+( python3 -m slip39 --text --no-card \
+    | ( sort -r  ; echo "...later, after recovering SLIP-39 mnemonics..." 1>&2 ) \
+    | python3 -m slip39.recovery \
+    | python3 -m slip39 --secret - --no-card \
+) 2>&1
    #+END_SRC
 
    #+RESULTS:
@@ -627,10 +633,10 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 --entropy \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-          | python3 -m slip39 --using-bip39 --secret -  \
-    ) 2>&1
+( python3 -m slip39.recovery --bip39 --entropy \
+    --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+      | python3 -m slip39 --using-bip39 --secret -  \
+) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -647,9 +653,9 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output raw
-    echo -n "[[./$( \
+echo -n "[[./$( \
 	python3 -m slip39 -q --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-    )]]"
+)]]"
 
     #+END_SRC
 
@@ -670,7 +676,7 @@ python3 -m slip39.recovery --using-bip39 \
    
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results raw
-    slip39-generator --help --version         | sed 's/^/: /' # (just for output formatting)
+slip39-generator --help --version         | sed 's/^/: /' # (just for output formatting)
     #+END_SRC
 
     #+RESULTS:
@@ -747,7 +753,7 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    echo ffffffffffffffffffffffffffffffff | slip39-generator --secret - --path '../-3' 2>&1
+echo ffffffffffffffffffffffffffffffff | slip39-generator --secret - --path '../-3' 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -765,8 +771,8 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | python3 -m slip39.generator --secret - --path '../-3' --format 'BTC:segwit' --crypto 'DOGE' ) 2>&1
+( python3 -m slip39.recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | python3 -m slip39.generator --secret - --path '../-3' --format 'BTC:segwit' --crypto 'DOGE' ) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -782,9 +788,9 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | slip39-generator --secret - --path '../-3' --encrypt 'password' ) 2>&1 \
-            | sed -E 's/^(.{100})(.{1,})$/\1.../'  # (shorten output)
+( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | slip39-generator --secret - --path '../-3' --encrypt 'password' ) 2>&1 \
+        | sed -E 's/^(.{100})(.{1,})$/\1.../'  # (shorten output)
     #+END_SRC
 
     #+RESULTS:
@@ -802,9 +808,9 @@ python3 -m slip39.recovery --using-bip39 \
     seed; any rows with errors are ignored:
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | slip39-generator --secret - --path '../-3' --encrypt 'password' \
-        | slip39-generator --receive --decrypt 'password' ) 2>&1
+( slip39-recovery --bip39 --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | slip39-generator --secret - --path '../-3' --encrypt 'password' \
+    | slip39-generator --receive --decrypt 'password' ) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -831,9 +837,9 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
-        | python3 -m slip39.generator -v --receive --decrypt 'password' ) 2>&1
+( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
+    | python3 -m slip39.generator -v --receive --decrypt 'password' ) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -849,14 +855,14 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
-        | python3 -m slip39.generator -v --receive --decrypt 'password' \
-        | while IFS=':' read num json; do \
-            echo "--- $(( num ))"; \
-            echo "$json" | jq -c '.[]'; \
-        done \
-    ) 2>&1
+( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
+    | python3 -m slip39.generator -v --receive --decrypt 'password' \
+    | while IFS=':' read num json; do \
+        echo "--- $(( num ))"; \
+        echo "$json" | jq -c '.[]'; \
+    done \
+) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -880,16 +886,16 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
-        | python3 -m slip39.generator -v --receive --decrypt 'password' \
-        | while IFS=':' read num json; do \
-            echo "--- $(( num ))"; \
-            echo "$json" | jq -cr '.[]|"--crypto " + .[0] + " --secret " + .[2]' | while read command; do \
-                python3 -m slip39.cli -v --no-json addresses $command --paths m/0/-2; \
-            done; \
-        done \
-    ) 2>&1
+( echo 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    | python3 -m slip39.generator --secret - --xpub --path "../-2'"  --encrypt 'password' \
+    | python3 -m slip39.generator -v --receive --decrypt 'password' \
+    | while IFS=':' read num json; do \
+        echo "--- $(( num ))"; \
+        echo "$json" | jq -cr '.[]|"--crypto " + .[0] + " --secret " + .[2]' | while read command; do \
+            python3 -m slip39.cli -v --no-json addresses $command --paths m/0/-2; \
+        done; \
+    done \
+) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -927,10 +933,10 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    secret='zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
-    for crypto in BTC ETH; do
-        python3 -m slip39.cli -v --no-json addresses --secret "$secret" --crypto $crypto --paths "../-2"
-    done
+secret='zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
+for crypto in BTC ETH; do
+    python3 -m slip39.cli -v --no-json addresses --secret "$secret" --crypto $crypto --paths "../-2"
+done
     #+END_SRC
 
     #+RESULTS:
@@ -951,9 +957,9 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.generator -q --secret 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-        --xpub --path "../-2'" --crypto BTC
-    ) 2>&1
+( python3 -m slip39.generator -q --secret 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+    --xpub --path "../-2'" --crypto BTC
+) 2>&1
     #+END_SRC
 
     #+RESULTS:
@@ -1030,44 +1036,44 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-      import codecs
-      import random
-      from tabulate import tabulate
+import codecs
+import random
+from tabulate import tabulate
 
-      #
-      # NOTE:
-      #
-      # We turn off randomness here during SLIP-39 generation to get deterministic phrases;
-      # during normal operation, secure entropy is used during mnemonic generation, yielding
-      # random phrases, even when the same seed is used multiple times.
-      # 
-      import shamir_mnemonic
-      shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
+#
+# NOTE:
+#
+# We turn off randomness here during SLIP-39 generation to get deterministic phrases;
+# during normal operation, secure entropy is used during mnemonic generation, yielding
+# random phrases, even when the same seed is used multiple times.
+# 
+import shamir_mnemonic
+shamir_mnemonic.shamir.RANDOM_BYTES = lambda n: b'\00' * n
 
-      import slip39
+import slip39
 
-      cryptopaths         = [("ETH","../-2"), ("BTC","../-2")]
-      master_secret       = b'\xFF' * 16
-      master_secret       = 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' 
-      passphrase          = b""
-      create_details      = slip39.create(
-	  "Test", 2, { "Mine": (1,1), "Fam": (2,3) },
-	  master_secret=master_secret, passphrase=passphrase, cryptopaths=cryptopaths )
+cryptopaths         = [("ETH","../-2"), ("BTC","../-2")]
+master_secret       = b'\xFF' * 16
+master_secret       = 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' 
+passphrase          = b""
+create_details      = slip39.create(
+    "Test", 2, { "Mine": (1,1), "Fam": (2,3) },
+    master_secret=master_secret, passphrase=passphrase, cryptopaths=cryptopaths )
 
-      [
-	  [
-	      "Card", "Mnemonics 1 ", "Mnemonics 2", "Mnemonics 3"
-	  ],
-	  None,
-      ] + [
-	  [
-	      f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else ""
-	  ] + words
-	  for g_name,(g_of,g_mnems) in create_details.groups.items()
-	  for g_n,mnem in enumerate( g_mnems )
-	  for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
-		  mnem, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
-      ]
+[
+    [
+        "Card", "Mnemonics 1 ", "Mnemonics 2", "Mnemonics 3"
+    ],
+    None,
+] + [
+    [
+        f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else ""
+    ] + words
+    for g_name,(g_of,g_mnems) in create_details.groups.items()
+    for g_n,mnem in enumerate( g_mnems )
+    for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
+            mnem, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1108,11 +1114,11 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-      [
-	  [ account.path, account.address ]
-	  for group in create_details.accounts
-	  for account in group
-      ]
+[
+    [ account.path, account.address ]
+    for group in create_details.accounts
+    for account in group
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1146,14 +1152,14 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    (paper_format,orientation),pdf,accounts = slip39.produce_pdf( *create_details )
-    pdf_binary = pdf.output()
-    [
-        [ "Orientation:",	orientation ],
-        [ "Paper:",		paper_format ],
-        [ "PDF Pages:",		pdf.pages_count ],
-        [ "PDF Size:",		len( pdf_binary )],
-    ]
+(paper_format,orientation),pdf,accounts = slip39.produce_pdf( *create_details )
+pdf_binary = pdf.output()
+[
+    [ "Orientation:",       orientation ],
+    [ "Paper:",             paper_format ],
+    [ "PDF Pages:",         pdf.pages_count ],
+    [ "PDF Size:",          len( pdf_binary )],
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1198,7 +1204,7 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_EXAMPLE
-    slip39.write_pdfs( ... )
+slip39.write_pdfs( ... )
     #+END_EXAMPLE
     #+LATEX: }
 
@@ -1226,24 +1232,24 @@ python3 -m slip39.recovery --using-bip39 \
     
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    # Recover with the wrong password (on purpose, as a decoy wallet w/ a small amount)
-    recoverydecoy       = slip39.recover(
-        create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
-        passphrase=b"wrong!"
-    )
-    recoverydecoy_hex   = codecs.encode( recoverydecoy, 'hex_codec' ).decode( 'ascii' )
+# Recover with the wrong password (on purpose, as a decoy wallet w/ a small amount)
+recoverydecoy       = slip39.recover(
+    create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
+    passphrase=b"wrong!"
+)
+recoverydecoy_hex   = codecs.encode( recoverydecoy, 'hex_codec' ).decode( 'ascii' )
 
-    # But, recovering w/ correct passphrase yields our original Seed Entropy
-    recoveryvalid       = slip39.recover(
-        create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
-        passphrase=passphrase
-    )
-    recoveryvalid_hex   = codecs.encode( recoveryvalid, 'hex_codec' ).decode( 'ascii' )
+# But, recovering w/ correct passphrase yields our original Seed Entropy
+recoveryvalid       = slip39.recover(
+    create_details.groups['Mine'][1][:] + create_details.groups['Fam'][1][:2],
+    passphrase=passphrase
+)
+recoveryvalid_hex   = codecs.encode( recoveryvalid, 'hex_codec' ).decode( 'ascii' )
 
-    [
-      [ f"{len(recoverydecoy)*8}-bit secret (decoy):", f"{recoverydecoy_hex}" ],
-      [ f"{len(recoveryvalid)*8}-bit secret recovered:", f"{recoveryvalid_hex}" ]
-    ]
+[
+  [ f"{len(recoverydecoy)*8}-bit secret (decoy):", f"{recoverydecoy_hex}" ],
+  [ f"{len(recoveryvalid)*8}-bit secret recovered:", f"{recoveryvalid_hex}" ]
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1312,24 +1318,24 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-      from mnemonic import Mnemonic
-      bip39_english     = Mnemonic("english")
-      entropy           = b'\xFF' * 16
-      entropy_hex	= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
-      entropy_mnemonic  = bip39_english.to_mnemonic( entropy )
+from mnemonic import Mnemonic
+bip39_english     = Mnemonic("english")
+entropy           = b'\xFF' * 16
+entropy_hex       = codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
+entropy_mnemonic  = bip39_english.to_mnemonic( entropy )
 
-      recovered		= slip39.recover_bip39( entropy_mnemonic, as_entropy=True )
-      recovered_hex	= codecs.encode( recovered, 'hex_codec' ).decode( 'ascii' )
+recovered         = slip39.recover_bip39( entropy_mnemonic, as_entropy=True )
+recovered_hex     = codecs.encode( recovered, 'hex_codec' ).decode( 'ascii' )
 
-      recovered_seed	= slip39.recover_bip39( entropy_mnemonic, passphrase=passphrase )
-      recovered_seed_hex= codecs.encode( recovered_seed, 'hex_codec' ).decode( 'ascii' )
+recovered_seed    = slip39.recover_bip39( entropy_mnemonic, passphrase=passphrase )
+recovered_seed_hex= codecs.encode( recovered_seed, 'hex_codec' ).decode( 'ascii' )
 
-      [
-	  [ "Original Entropy", entropy_hex ],
-	  [ "BIP-39 Mnemonic", entropy_mnemonic ],
-	  [ "Recovered Entropy", recovered_hex ],
-	  [ "Recovered Seed", f"{recovered_seed_hex:.50}..." ],
-      ]
+[
+    [ "Original Entropy", entropy_hex ],
+    [ "BIP-39 Mnemonic", entropy_mnemonic ],
+    [ "Recovered Entropy", recovered_hex ],
+    [ "Recovered Seed", f"{recovered_seed_hex:.50}..." ],
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1352,18 +1358,18 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    def random_words( n, count=100 ):
-        for _ in range( count ):
-            yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
+def random_words( n, count=100 ):
+    for _ in range( count ):
+        yield ' '.join( random.choice( bip39_english.wordlist ) for _ in range( n ))
 
-    successes           = sum(
-        bip39_english.check( m )
-        for i,m in enumerate( random_words( 12, 10000 ))) / 100
+successes           = sum(
+    bip39_english.check( m )
+    for i,m in enumerate( random_words( 12, 10000 ))) / 100
 
-    [
-      [ "Valid random 12-word mnemonics:", f"{successes}%" ],
-      [ "Or, about: ", f"1 / {100/successes:.3}" ],
-    ]
+[
+    [ "Valid random 12-word mnemonics:", f"{successes}%" ],
+    [ "Or, about: ", f"1 / {100/successes:.3}" ],
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1383,11 +1389,11 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    seed                = bip39_english.to_seed( entropy_mnemonic )
-    seed_hex            = codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
-    [
-     [ f"{len(seed)*8}-bit seed:", f"{seed_hex:.50}..." ]
-    ]
+seed                = bip39_english.to_seed( entropy_mnemonic )
+seed_hex            = codecs.encode( seed, 'hex_codec' ).decode( 'ascii' )
+[
+    [ f"{len(seed)*8}-bit seed:", f"{seed_hex:.50}..." ]
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1406,13 +1412,13 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    path                = "m/44'/60'/0'/0/0"
-    bip39_eth_hd        = slip39.account( seed, 'ETH', path )
-    [
-     [ f"{len(bip39_eth_hd.key)*4}-bit derived key path:", f"{path}" ],
-     [ "Produces private key: ", f"{bip39_eth_hd.key}" ],
-     [ "Yields Ethereum address:", f"{bip39_eth_hd.address}" ],
-    ]
+path                = "m/44'/60'/0'/0/0"
+bip39_eth_hd        = slip39.account( seed, 'ETH', path )
+[
+    [ f"{len(bip39_eth_hd.key)*4}-bit derived key path:", f"{path}" ],
+    [ "Produces private key: ", f"{bip39_eth_hd.key}" ],
+    [ "Yields Ethereum address:", f"{bip39_eth_hd.address}" ],
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1434,15 +1440,15 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    name,thrs,grps,acct,ub39 = slip39.create(
-        "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy )
-    [
-        [ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
-        for g_name,(g_of,g_mnems) in grps.items()
-        for g_n,mnem in enumerate( g_mnems )
-        for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
-                mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
-    ]
+name,thrs,grps,acct,ub39 = slip39.create(
+    "Test", 2, { "Mine": (1,1), "Fam": (2,3) }, entropy )
+[
+    [ f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" if l_n == 0 else "" ] + words
+    for g_name,(g_of,g_mnems) in grps.items()
+    for g_n,mnem in enumerate( g_mnems )
+    for l_n,(line,words) in enumerate(slip39.organize_mnemonic(
+            mnem, rows=7, cols=3, label=f"{g_name}({g_of}/{len(g_mnems)}) #{g_n+1}:" ))
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1483,14 +1489,14 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    [
-        [ "Crypto", "HD Wallet Path:", "Ethereum Address:" ],
-        None,
-    ] + [
-        [ account.crypto, account.path, account.address ]
-        for group in create_details.accounts
-        for account in group
-    ]
+[
+    [ "Crypto", "HD Wallet Path:", "Ethereum Address:" ],
+    None,
+] + [
+    [ account.crypto, account.path, account.address ]
+    for group in create_details.accounts
+    for account in group
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1512,13 +1518,13 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    _,mnem_mine         = grps['Mine']
-    _,mnem_fam          = grps['Fam']
-    recseed             = slip39.recover( mnem_mine + mnem_fam[:2] )
-    recseed_hex         = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
-    [
-        [ f"{len(recseed)*8}-bit Seed:", f"{recseed_hex}" ]
-    ]
+_,mnem_mine         = grps['Mine']
+_,mnem_fam          = grps['Fam']
+recseed             = slip39.recover( mnem_mine + mnem_fam[:2] )
+recseed_hex         = codecs.encode( recseed, 'hex_codec' ).decode( 'ascii' )
+[
+    [ f"{len(recseed)*8}-bit Seed:", f"{recseed_hex}" ]
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1532,12 +1538,12 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC python :session py :results value
-    slip39_eth_hd       = slip39.account( recseed, 'ETH', path )
-    [
-        [ f"{len(slip39_eth_hd.key)*4}-bit derived key path:", f"{path}" ],
-        [ "Produces private key: ", f"{slip39_eth_hd.key}" ],
-        [ "Yields Ethereum address:", f"{slip39_eth_hd.address}" ],
-    ]
+slip39_eth_hd       = slip39.account( recseed, 'ETH', path )
+[
+    [ f"{len(slip39_eth_hd.key)*4}-bit derived key path:", f"{path}" ],
+    [ "Produces private key: ", f"{slip39_eth_hd.key}" ],
+    [ "Yields Ethereum address:", f"{slip39_eth_hd.address}" ],
+]
     #+END_SRC
 
     #+RESULTS:
@@ -1598,9 +1604,9 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 -v \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
-    ) 2>&1
+( python3 -m slip39.recovery --bip39 -v \
+    --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
+) 2>&1
     #+END_SRC
     #+RESULTS:
     : 2023-10-26 16:06:11 slip39.recovery  BIP-39 Language detected: english
@@ -1613,10 +1619,10 @@ python3 -m slip39.recovery --using-bip39 \
    
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-      | python3 -m slip39 --secret - --no-card -v
-    ) 2>&1 | tail -20
+( python3 -m slip39.recovery --bip39 \
+    --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+  | python3 -m slip39 --secret - --no-card -v
+) 2>&1 | tail -20
     #+END_SRC
     #+RESULTS:
     #+begin_example
@@ -1673,9 +1679,9 @@ python3 -m slip39.recovery --using-bip39 \
     the 512-bit generated Seed):
     #+LATEX: {\scriptsize3
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 --entropy -v \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
-    ) 2>&1
+( python3 -m slip39.recovery --bip39 --entropy -v \
+    --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" 
+) 2>&1
     #+END_SRC
     #+RESULTS:
     : 2023-10-26 16:06:32 slip39.recovery  BIP-39 Language detected: english
@@ -1692,10 +1698,10 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize3
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 --entropy \
-        --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
-      | python3 -m slip39 --secret - --no-card -v
-    ) 2>&1 | tail -20
+( python3 -m slip39.recovery --bip39 --entropy \
+    --mnemonic 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong' \
+  | python3 -m slip39 --secret - --no-card -v
+) 2>&1 | tail -20
     #+END_SRC
     #+RESULTS:
     #+begin_example
@@ -1728,10 +1734,10 @@ python3 -m slip39.recovery --using-bip39 \
 
     #+LATEX: {\scriptsize3
     #+BEGIN_SRC bash :exports both
-    ( python3 -m slip39.recovery --bip39 --entropy \
-        --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
-      | python3 -m slip39 --secret - --no-card -v --using-bip39
-    ) 2>&1 | tail -20
+( python3 -m slip39.recovery --bip39 --entropy \
+    --mnemonic "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" \
+  | python3 -m slip39 --secret - --no-card -v --using-bip39
+) 2>&1 | tail -20
     #+END_SRC
     #+RESULTS:
     #+begin_example
@@ -2091,7 +2097,6 @@ f"MultiPayoutERC20 deployed: {mp_created}"
 
      #+LATEX: {\scriptsize
      #+BEGIN_SRC python :session py :results value raw drawer
-
 if not contract:
     # We haven't been able to create a contract; just show a pre-defined one.
     contract                    = "0xbE69793974Fc55cD8B94Dac6b410827740Cc6d68"

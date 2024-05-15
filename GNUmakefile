@@ -1,6 +1,14 @@
 #
 # GNU 'make' file
 # 
+
+#
+# Requires Python 3
+# On macOS:
+#    $ brew install python-tk@3.12
+# - add to your .bash_profile:
+#    export PATH="$HOME/Library/Python/3.12/bin:$PATH"
+#
 SHELL		= /bin/bash
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
@@ -102,7 +110,7 @@ build-check:
 	@$(PY3) -m build --version \
 	    || ( \
 		echo -e "\n\n!!! Missing Python modules; run:"; \
-		echo -e "\n\n        $(PY3) -m pip install --upgrade pip setuptools wheel build\n"; \
+		echo -e "\n\n        $(PY3) -m pip install --break-system-packages --user --upgrade pip setuptools wheel build\n"; \
 	        false; \
 	    )
 
@@ -237,10 +245,10 @@ dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
 
 # Install from wheel, including all optional extra dependencies (except dev)
 install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --force-reinstall $<[all]
+	$(PY3) -m pip install --break-system-packages --user --force-reinstall $<[all]
 
 install-tests:
-	$(PY3) -m pip install --upgrade -r requirements-tests.txt
+	$(PY3) -m pip install --upgrade --break-system-packages --user -r requirements-tests.txt
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store

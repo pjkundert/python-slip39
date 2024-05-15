@@ -13,22 +13,27 @@ Creating personal Ethereum, Bitcoin and other cryptocurrency accounts is
 funds.
 
 All Crypto wallets start with a "Seed": a large, random number used to
-derive all of your actual Bitcoin, Ethereum, etc. wallets.
+derive all of your actual Bitcoin, Ethereum, etc. wallets.  You do not
+want to try to generate such a Seed by yourself, or trust any
+hardware/software solution for this – even us!  So, we architected the
+SLIP-39 App so you /don't need to trust it/.
 
-The best practice for using these wallets is to load this "Seed" into a
-secure hardware device, like a [Trezor "Model T"] hardware wallet.
-SLIP-39 Mnemonic cards contain the recovery words, which are typed
-directly into the Trezor device to recover the Seed, and all of its
-cryptocurrency accounts.  For the [Ledger Nano] and other hardware
-wallets supporting only BIP-39 Mnemonics, you can now use the SLIP-39
-App to securely and reliably back up these BIP-39 phrases.
+The best practice for using these Seed-generated wallets is to load this
+"Seed" (usually in the form of a 12- or 24-word BIP-39 Phrase) into a
+secure hardware device, like a [Trezor "Model T"] or a (newer, less
+costly) ["Model One"] hardware wallet.  SLIP-39 Mnemonic cards contain
+the recovery words, which are typed directly into the Trezor device to
+recover the Seed, and all of its cryptocurrency accounts.  For the
+[Ledger Nano] and other hardware wallets supporting only BIP-39
+Mnemonics, you can now use the SLIP-39 App to securely and reliably back
+up these BIP-39 phrases.
 
-The [macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi
-for Windows)] helps you generate Mnemonic cards and back up this Seed,
-securely and reliably, by distributing Mnemonic cards for the Seed to
-partners, family and friends.  Also, encrypted "Paper Wallets" can be
-output, to support software cryptocurrency wallets such as Metamask,
-Brave or various mobile-phone and computer-based wallets.
+[Download the macOS (.pkg) or win32 (.msi) SLIP-39 App] to generate
+Mnemonic cards and back up this Seed, securely and reliably, by
+distributing Mnemonic cards for the Seed to partners, family and
+friends.  Also, encrypted "Paper Wallets" can be output, to support
+software cryptocurrency wallets such as Metamask, Brave or various
+mobile-phone and computer-based wallets.
 
 Later, if you (or your heirs!) need to recover *all* of your
 cryptocurrency accounts, they can collect a sufficient threshold of the
@@ -41,14 +46,10 @@ Table of Contents
 1. Security with Availability
 .. 1. Back Up Your BIP-39 Phrase!
 .. 2. SLIP-39 Mnemonic Recovery Cards
-..... 1. Why Not a BIP-39 Mnemonic Phrase?
-..... 2. Why Not a BIP-38 Encrypted Wallet + Passphrase?
 .. 3. Paper Wallets
-..... 1. Walking-Around Money
 2. Recommended Vendors
 .. 1. Trezor
 .. 2. Ledger
-..... 1. Recovering your BIP-39 Seed Phrase
 .. 3. Netcoins.app
 .. 4. Crypto.com
 .. 5. Protecting your SLIP-39 Cards
@@ -57,11 +58,13 @@ Table of Contents
 
 [Trezor "Model T"] <https://trezor.go2cloud.org/SH1Y>
 
+["Model One"] <https://affil.trezor.io/SHUD>
+
 [Ledger Nano]
 <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
 
-[macOS and win32 SLIP-39 App (download here – .dmg for macOS, .msi for
-Windows)] <https://github.com/pjkundert/python-slip39/releases/latest>
+[Download the macOS (.pkg) or win32 (.msi) SLIP-39 App]
+<https://github.com/pjkundert/python-slip39/releases/latest>
 
 
 1 Security with Availability
