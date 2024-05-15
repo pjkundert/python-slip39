@@ -264,7 +264,7 @@ Table of Contents
 
   This may not /seem/ like an impressive feat.  But, it is unexpectedly
   important and powerful!  Your existing BIP-39 Seed Phrase is
-  *extrememely* risky; it can /easily/ be lost or stolen.  By using
+  *extremely* risky; it can /easily/ be lost or stolen.  By using
   SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe
   and reliable SLIP-39 Mnemonic cards to friends and family, and reduce
   the risks of theft or loss of your critical cryptocurrency accounts
