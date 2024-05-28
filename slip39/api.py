@@ -1007,6 +1007,7 @@ def create(
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
     strength: Optional[int]	= None,		# Default: 128
+    extendable: bool = True,
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
     accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
@@ -1108,7 +1109,8 @@ def create(
         groups		= g_dims,
         master_secret	= master_secret,
         passphrase	= passphrase,
-        iteration_exponent= iteration_exponent
+        iteration_exponent= iteration_exponent,
+        extendable	= extendable
     )
 
     groups			= {
@@ -1136,6 +1138,7 @@ def mnemonics(
     passphrase: Optional[Union[bytes,str]] = None,
     iteration_exponent: int	= 1,
     strength: int		= BITS_DEFAULT,
+    extendable: bool = True,
 ) -> List[List[str]]:
     """Generate SLIP39 mnemonics for the supplied group_threshold of the given groups.  Will generate a
      random master_secret, if necessary.
@@ -1166,6 +1169,7 @@ def mnemonics(
         master_secret	= master_secret,
         passphrase	= passphrase or b"",  # python-shamir-mnemonic requires bytes
         iteration_exponent = iteration_exponent,
+        extendable = extendable,
     )
 
 
