@@ -121,6 +121,30 @@ related to the Seed.
     This option is perhaps even less desirable than using a BIP-39 Mnemonic Seed phrase, because
     each and every Encrypted Wallet is exposed to this risk of loss.
 
+*** Recovering your BIP-39 Seed Phrase
+
+    If you already have a BIP-39 Mnemonic, and would like back it up using SLIP-39 for more security
+    and recovery reliability, you can use the SLIP-39 App's Backup Controls to do so.  After you
+    create your Seed Data (or enter an existing BIP-39 Seed Phrase), select "Using BIP-39".  This
+    will generate a set of SLIP-39 Mnemonic Cards that *backs up your existing BIP-39 Seed Phrase*.
+
+    Later, when you need to recover your BIP-39 Mnemonic (say, to initialize a fresh replacement
+    Ledger hardware wallet), use the SLIP-39 App, select the Recover Controls, and enter sufficient
+    SLIP-39 card Mnemonics -- and click "Using BIP-39" to reveal your original BIP-39 Seed Phrase.
+    Then, proceed with Ledger wallet recovery as normal, using the BIP-39 Mnemonic.
+
+    This may not /seem/ like an impressive feat.  But, it is unexpectedly important and powerful!
+    Your existing BIP-39 Seed Phrase is *extremely* risky; it can /easily/ be lost or stolen.  By
+    using SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe and reliable
+    SLIP-39 Mnemonic cards to friends and family, and reduce the risks of theft or loss of your
+    critical cryptocurrency accounts Seed data.
+
+    Learn how to use the SLIP-39 App to "back up" your BIP-39 Mnemonic Phrase:
+
+    #+ATTR_LATEX: :width 4in
+    #+CAPTION: [[https://youtu.be/t70rRr08vBY][SLIP-39 Overview -- BIP-39 Mnemonic Backup]]
+    [[./images/slip39-overview-youtube.png]]
+
 ** Paper Wallets
 
    If desired, you can produce encrypted Paper Wallets, to support software crypto wallets
@@ -190,24 +214,6 @@ related to the Seed.
    #+BEGIN_EXPORT html
    <a href="https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f"><img width=728 height=90 src="http://affiliate.ledger.com/image/728/90"></a>
    #+END_EXPORT
-
-*** Recovering your BIP-39 Seed Phrase
-
-    If you already have a BIP-39 Mnemonic, and would like back it up using SLIP-39 for more security
-    and recovery reliability, you can use the SLIP-39 App's Backup Controls to do so.  After you
-    create your Seed Data (or enter an existing BIP-39 Seed Phrase), select "Using BIP-39".  This
-    will generate a set of SLIP-39 Mnemonic Cards that *backs up your existing BIP-39 Seed Phrase*.
-
-    Later, when you need to recover your BIP-39 Mnemonic (say, to initialize a fresh replacement
-    Ledger hardware wallet), use the SLIP-39 App, select the Recover Controls, and enter sufficient
-    SLIP-39 card Mnemonics -- and click "Using BIP-39" to reveal your original BIP-39 Seed Phrase.
-    Then, proceed with Ledger wallet recovery as normal, using the BIP-39 Mnemonic.
-
-    This may not /seem/ like an impressive feat.  But, it is unexpectedly important and powerful!
-    Your existing BIP-39 Seed Phrase is *extremely* risky; it can /easily/ be lost or stolen.  By
-    using SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe and reliable
-    SLIP-39 Mnemonic cards to friends and family, and reduce the risks of theft or loss of your
-    critical cryptocurrency accounts Seed data.
 
 ** Netcoins.app
 
