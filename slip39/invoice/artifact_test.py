@@ -8,8 +8,7 @@ from pathlib		import Path
 
 import pytest
 
-#import tabulate
-from ..			import tabulate
+import tabulate
 
 from crypto_licensing.misc import parse_datetime
 

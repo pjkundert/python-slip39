@@ -28,7 +28,7 @@ from datetime		import datetime, timedelta, timezone
 from calendar		import monthrange
 
 import fpdf
-from ..			import tabulate
+import tabulate
 
 from crypto_licensing.misc import get_localzone, Duration
 

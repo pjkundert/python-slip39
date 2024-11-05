@@ -727,6 +727,7 @@ def write_pdfs(
                     printer		= printer,
                     orientation		= pdf_orient,
                     paper_format	= pdf_paper,
+                    double_sided	= double_sided,
                 )
 
         results[pdf_name]	= details

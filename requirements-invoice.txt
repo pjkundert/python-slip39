@@ -5,6 +5,7 @@ requests		>=2.20,	<3
 
 # Update to 0.9.1 w/ type deduction w/ missing/empty support
 #tabulate		>=0.9.1,<1
+tabulate @ git+https://github.com/pjkundert/python-tabulate.git@python-slip39#egg=tabulate
 
 dkimpy[ed25519]		>=1.0.5,<2
 

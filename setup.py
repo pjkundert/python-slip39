@@ -171,8 +171,6 @@ package_dir			= {
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
-    # Until tabulate fixes empty cell type deduction, separators
-    "slip39.tabulate":		"./slip39/tabulate",
 }
 
 package_data			= {

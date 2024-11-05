@@ -2285,12 +2285,32 @@ f"MultiPayoutERC20 Contract & Forwarder Details:\n\n{mp}\n\n"
 
 * Building & Installing
 
+  If you =git clone git@github.com:pjkundert/python-slip39.git= and have the source code, you can use
+  the supplied GNU =make= targets to create a venv Virtual Environment and build then install.
+  
   The =python-slip39= project is tested under both homebrew:
-  : $ brew install python-tk@3.9
-  and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].
+  : $ brew install python-tk@3.12
+  : $ PY3=python3.12 make venv
+  : ...
+  : (python-slip39-13.0.0-usr-darwin-cpython-312) bash-3.2$
+  and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].  It is also supported under Nix (optionally
+  prefixed with a =TARGET\=py310= and/or =NIX_OPTS\=""= to avoid --pure and gain access to locally
+  installed applications like emacs, but using the nix-supplied Python3 interpreter):
+  : $ make nix-venv
+  : ...
+  : *** Activating /Users/perry/src/python-slip39-13.0.0-nix-darwin-cpython-312 VirtualEnv for Interactive /bin/bash
+  : (python-slip39-13.0.0-nix-darwin-cpython-312) Perrys-MBP:python-slip39 perry$
 
-  Either of these methods will get you a =python3= executable running version 3.9+, usable for
+  Either of these methods will get you a =python3= executable running version 3.12+, usable for
   running the =slip39= module, and the =slip39.gui= GUI.
+
+  To manually create your own venv and install from pypi using the Python 3.9 to 3.12 (+ TK if using
+  the GUI) you have at hand:
+  : $ python3.12 -m venv python-slip39-venv
+  : $ . ./python-slip39-venv/bin/activate
+  : (python-slip39-venv) [you@yourhost src]$ python3 -m pip install slip39[gui]
+  : ...
+  : (python-slip39-venv) [you@yourhost src]$ python3 -m slip39.gui
 
 ** The =slip39= Module
 

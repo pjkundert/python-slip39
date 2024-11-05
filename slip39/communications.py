@@ -31,8 +31,7 @@ from crypto_licensing.licensing import doh
 from email		import utils, message_from_file, message_from_string
 from email.mime		import multipart, text
 
-#from tabulate		import tabulate
-from .tabulate		import tabulate
+from tabulate		import tabulate
 
 from .util		import is_listlike, commas, uniq, log_cfg, log_level
 
