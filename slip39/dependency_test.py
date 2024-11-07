@@ -55,6 +55,8 @@ def test_share_1_of_3_5():
         groups		= [(3, 5)],
         master_secret	= SEED_TREZOR,
         passphrase	= PASS_TREZOR,
+        extendable	= False,
+        iteration_exponent = 1,
     )
 
     #print( json.dumps( mnemonics, indent=4 ))
@@ -71,6 +73,8 @@ def test_share_2_of_groups():
         groups		= [(1, 1), (1, 1), (2, 5), (3, 6)],
         master_secret	= SEED_KNOWN,
         passphrase	= PASS_KNOWN,
+        extendable	= False,
+        iteration_exponent = 1,
     )
 
     #print( json.dumps( mnemonics, indent=4 ))
@@ -121,6 +125,8 @@ def test_bip39( entropy, expected_BIP39, expected_seed, expected_SLIP39 ):
         groups		= [(1, 1), (1, 1), (2, 5), (3, 6)],
         master_secret	= seed,
         passphrase	= b"",
+        extendable	= False,
+        iteration_exponent = 1,
     )
 
     # print( json.dumps( mnemonics, indent=4 ))

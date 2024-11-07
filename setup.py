@@ -14,7 +14,7 @@ options_require			= [
         'gui',		# slip39[gui]:		Support PySimpleGUI/tkinter Graphical UI App
         'serial',	# slip39[serial]:	Support serial I/O of generated wallet data
         'wallet',	# slip39[wallet]:	Paper Wallet and BIP-38/Ethereum wallet encryption
-      # 'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
+        'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
 ]
 extras_require			= {
     option: list(

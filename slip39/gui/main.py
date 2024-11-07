@@ -19,7 +19,6 @@ from __future__         import annotations
 
 import argparse
 import codecs
-import hashlib
 import logging
 import math
 import os
@@ -32,7 +31,7 @@ from itertools		import islice
 
 import PySimpleGUI as sg
 
-from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available
+from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available, stretch_seed_entropy
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
 from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg, parse_scutil
 from ..layout		import write_pdfs, printers_available
@@ -69,7 +68,7 @@ def pretty(thing, maxstr=60, indent=4, **kwds):
             if isinstance(thing, str) and len(thing) > maxstr:
                 thing = thing[:maxstr//2] + '…' + thing[-maxstr//2:]
             return super()._format(thing, *args, **kwds)
-                                        
+
     return P(indent=indent, **kwds).pformat(thing)
 
 
@@ -738,47 +737,6 @@ update_seed_data.was		= {
 }
 update_seed_data.deficiencies	= ()
 update_seed_data.analysis	= ''
-
-
-def stretch_seed_entropy( entropy, n, bits, encoding=None ):
-    """To support the generation of a number of Seeds, each subsequent seed *must* be independent of
-    the prior seed.  The Seed Data supplied (ie. recovered from BIP/SLIP-39 Mnemonics, or from fixed/random
-    data) is of course unchanging for the subsequent seeds to be produced; only the "extra" Seed Entropy
-    is useful for producing multiple sequential Seeds.  Returns the designated number of bits
-    (rounded up to bytes).
-
-    If non-binary hex data is supplied, encoding should be 'hex_codec' (0-filled/truncated on the
-    right up to the required number of bits); otherwise probably 'UTF-8' (and we'll always stretch
-    other encoded Entropy, even for the first (ie. 0th) seed).
-
-    If binary data is supplied, it must be sufficient to provide the required number of bits for the
-    first and subsequent Seeds (SHA-512 is used to stretch, so any encoded and stretched entropy
-    data will be sufficient)
-
-    """
-    assert n == 0 or ( entropy and n >= 0 ), \
-        f"Some Extra Seed Entropy is required to produce the {ordinal(n+1)}+ Seed(s)"
-    assert ( type(entropy) is bytes ) == ( not encoding ), \
-        "If non-binary Seed Entropy is supplied, an appropriate encoding must be specified"
-    if encoding:
-        if encoding == 'hex_codec':
-            # Hexadecimal Entropy was provided; Use the raw encoded Hex data for the first round!
-            entropy		= f"{entropy:<0{bits // 4}.{bits // 4}}"
-            entropy		= codecs.decode( entropy, encoding )  # '012abc' --> b'\x01\x2a\xbc'
-        else:
-            # Other encoding was provided, eg 'UTF-8', 'ASCII', ...; stretch for the 0th Seed, too.
-            n		       += 1
-            entropy		= codecs.encode( entropy, encoding )    # '012abc' --> b'012abc'
-    octets			= ( bits + 7 ) // 8
-    if entropy:
-        for _ in range( n ):
-            entropy		= hashlib.sha512( entropy ).digest()
-    else:
-        # If no entropy provided, result is all 0
-        entropy			= b'\0' * octets
-    assert len( entropy ) >= octets, \
-        "Insufficient extra Seed Entropy provided for {ordinal(n+1)} {bits}-bit Seed"
-    return entropy[:octets]
 
 
 def update_seed_entropy( event, window, values ):

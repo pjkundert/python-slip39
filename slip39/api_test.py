@@ -18,10 +18,11 @@ import shamir_mnemonic
 from .			import account, create, addresses, addressgroups, accountgroups, Account
 from .recovery		import recover
 
-from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES, SEED_ZERO
+from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
 
 BIP39_ABANDON			= "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 BIP39_ZOO			= 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong'
+
 
 def test_account_smoke():
     acct			= account( SEED_XMAS )
@@ -117,7 +118,6 @@ def test_account_format():
     means to restrict the path to hardened_defaults).
 
     """
-    
     # Legacy Bitcoin
     acct			= account(
         master_secret	= BIP39_ABANDON,
@@ -160,7 +160,6 @@ def test_account_format():
     assert acct.xprvkey == "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
     assert acct.xpubkey == "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
 
-
     # SegWit
     acct			= account(
         master_secret	= BIP39_ABANDON,
@@ -190,7 +189,6 @@ def test_account_format():
     acct.from_path( "m/0/0" )
     assert acct.path == "m/49'/0'/0'/0/0"
     assert acct.address == "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
-
 
     # Bech32
     (acct,),			= accountgroups(
@@ -561,12 +559,12 @@ def test_addressgroups():
     )))
     # print( repr( addrgrps ))
     assert addrgrps == [								# Verified
-        (0,(('ETH', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
-            ('BTC', "m/84'/0'/0'/0/0", 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'),	# Ledger
-            ('LTC', "m/84'/2'/0'/0/0", 'ltc1qnreu4d88p5tvh33anptujvcvn3xmfhh43yg0am'),	# Ledger
-            ('DOGE', "m/44'/3'/0'/0/0", 'DTMaJd8wqye1fymnjxZ5Cc5QkN1w4pMgXT'),		# Ledger
-            ('BSC', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),	# Ledger
-            ('XRP', "m/44'/144'/0'/0/0", 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'))),	# Ledger 
+        (0,(('ETH', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),  # Ledger
+            ('BTC', "m/84'/0'/0'/0/0", 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'),   # Ledger
+            ('LTC', "m/84'/2'/0'/0/0", 'ltc1qnreu4d88p5tvh33anptujvcvn3xmfhh43yg0am'),  # Ledger
+            ('DOGE', "m/44'/3'/0'/0/0", 'DTMaJd8wqye1fymnjxZ5Cc5QkN1w4pMgXT'),	        # Ledger
+            ('BSC', "m/44'/60'/0'/0/0", '0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E'),  # Ledger
+            ('XRP', "m/44'/144'/0'/0/0", 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'))),       # Ledger
         (1, (('ETH', "m/44'/60'/0'/0/1", '0xd1a7451beB6FE0326b4B78e3909310880B781d66'),
              ('BTC', "m/84'/0'/0'/0/1", 'bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug'),
              ('LTC', "m/84'/2'/0'/0/1", 'ltc1qm4yc8vgxyv0xeu8p4vtq2wls245y2ueqpfrp4d'),

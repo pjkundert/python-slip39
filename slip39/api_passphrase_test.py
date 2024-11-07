@@ -1,5 +1,4 @@
 import codecs
-import json
 import math
 
 import pytest

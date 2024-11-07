@@ -60,7 +60,7 @@ class Mnemonicv21( Mnemonic ):
         for word in words:
             exact = set(p for p in possible if word in p.wordlist)
             if len(exact) == 1:
-               complete.update(exact)
+                complete.update(exact)
         if len(complete) == 1:
             return complete.pop().language
         raise ConfigurationError(

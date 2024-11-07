@@ -25,7 +25,7 @@ import os
 import warnings
 
 from datetime		import datetime
-from collections	import namedtuple, defaultdict
+from collections	import namedtuple
 from collections.abc	import Callable
 from pathlib		import Path
 from typing		import Dict, List, Tuple, Optional, Sequence, Any
@@ -201,7 +201,7 @@ def produce_pdf(
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
     cover_text: Optional[str]	= None,		# Any Cover Page text; we'll append BIP-39 if 'using_bip39'
     watermark: Optional[str]	= None,
-    double_sided: Optional[bool]= None,
+    double_sided: Optional[bool] = None,
 ) -> Tuple[Tuple[str,str], fpdf.FPDF, Sequence[Sequence[Account]]]:
     """Produces an FPDF containing the specified SLIP-39 Mnemonics group recovery cards.
 
@@ -251,7 +251,7 @@ def produce_pdf(
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs)>4 else ''}"
+    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs) > 4 else ''}"
 
     # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
@@ -344,7 +344,6 @@ def produce_pdf(
         if double_sided:
             pdf.add_page()
 
-
     # Compute the contents of the cards; the keys and their values are the attributes of
     # each template.  Creates pages of cards (<pos>,<front>,<back>).
     page			= []  # A sequence of pages [[<card>,..],..]
@@ -360,15 +359,15 @@ def produce_pdf(
             _,f,b		= page[-1][-1]
 
             f['card-title']	= \
-            b['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
+              b['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
             f['card-requires']	= requires
             f['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
-            f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8')) # get_image()
+            f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
             if len( accounts[0] ) > 1:
                 f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
             f[f'card-g{g_n}']	= \
-            b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
+              b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
             if watermark:
                 f['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():

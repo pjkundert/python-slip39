@@ -1,4 +1,3 @@
-import json
 import random
 import math
 import logging
@@ -260,15 +259,15 @@ def test_tabulate( tmp_path ):
 
     #print( json.dumps( list( total.pages() ), indent=4, default=str ))
 
-    tables			= list( total.tables() )
+    #tables			= list( total.tables() )
     #for t in tables:
     #    print( t )
 
     # Can't test until we can fake up fixed token values
 
-    tables			= list( total.tables(
-        columns=('#', 'Description', 'Qty', 'Currency', 'Coin', 'Price', 'Tax%', 'Taxes', 'Amount', 'Total USDC'),
-    ))
+    #tables			= list( total.tables(
+    #    columns=('#', 'Description', 'Qty', 'Currency', 'Coin', 'Price', 'Tax%', 'Taxes', 'Amount', 'Total USDC'),
+    #))
     #for t in tables:
     #    print( t )
 
