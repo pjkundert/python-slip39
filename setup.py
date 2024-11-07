@@ -28,6 +28,10 @@ extras_require			= {
 # Make python-slip39[all] install all extra (non-tests) requirements, excluding duplicates
 extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 
+# Since setuptools is retiring tests_require, add it as another option (but not included in 'all')
+extras_require['tests']		= tests_require
+options_require.append( 'tests' )
+
 Executable			= None
 if sys.platform == 'win32':
     # We use cx_Freeze for executable/installer packaging on Windows, only, for now.

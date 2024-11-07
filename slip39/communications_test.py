@@ -2,17 +2,22 @@ import logging
 import os
 import re
 import sys
+import pytest
 
 from io			import StringIO
 from pathlib		import Path
 from subprocess		import Popen, PIPE
 from email		import message_from_string
 
-import dkim
 
 from aiosmtpd.controller import Controller
 
-from .communications	import dkim_message, send_message, matchaddr, AutoResponder
+try:
+    import dkim
+    from .communications	import dkim_message, send_message, matchaddr, AutoResponder
+except ImportError:
+    dkim = None
+
 from .defaults		import SMTP_TO, SMTP_FROM
 
 log				= logging.getLogger( __package__ )
@@ -61,6 +66,8 @@ Content-Transfer-Encoding: 7bit
 """ )
 
 
+@pytest.mark.skipif( not dkim,
+                     reason="DKIM support unavailable; install w/ [invoice] option" )
 def test_communications_matchaddr():
     assert matchaddr( "abc+def@xyz", mailbox="abc", domain="xyz" ) == ("abc", "def", "xyz")
     assert matchaddr( "abc+def@xyz",                domain="xYz" ) == ("abc", "def", "xyz")
@@ -73,6 +80,8 @@ def test_communications_matchaddr():
     assert matchaddr( "abc+def@xyz", mailbox="xxx"               ) is None
 
 
+@pytest.mark.skipif( not dkim,
+                     reason="DKIM support unavailable; install w/ [invoice] option" )
 def test_communications_dkim():
     log.info( f"Using DKIM: {dkim_selector}: {dkim_key}" )
     if dkim_key:
@@ -135,6 +144,8 @@ def test_communications_dkim():
         pass
 
 
+@pytest.mark.skipif( not dkim,
+                     reason="DKIM support unavailable; install w/ [invoice] option" )
 def test_communications_autoresponder( monkeypatch ):
     """The Postfix-compatible auto-responder takes an email.Message from stdin, and auto-forwards it
     (via a relay; normally the same Postfix installation that it is running within).
@@ -183,8 +194,8 @@ def test_communications_autoresponder( monkeypatch ):
     controller		= Controller( handler, hostname='localhost', port=11111 )
     controller.start()
 
-    # Send the email.Message directly our SMTP daemon, w/ RCTP TO: licensing@dominionrnd.com (taken
-    # from the To: header)
+    # Send the email.Message directly to our SMTP daemon, w/ RCTP TO: licensing@dominionrnd.com
+    # (taken from the To: header)
     send_message(
         msg,
         relay		= controller.hostname,

@@ -64,7 +64,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=WARNING
+PYTESTOPTS	= --capture=no --log-cli-level=WARNING  # --doctest-modules 
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
@@ -211,7 +211,7 @@ $(VENV):
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
 	    && source $@/bin/activate \
-	    && make install
+	    && make install install-tests
 
 
 wheel:			deps $(WHEEL)
