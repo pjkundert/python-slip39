@@ -7,6 +7,6 @@ fpdf2			>=2.7.6,<3
 #hdwallet		>=2.3.0,<3
 hdwallet @ git+https://github.com/pjkundert/python-hdwallet.git@python-slip39#egg=hdwallet
 tabulate @ git+https://github.com/pjkundert/python-tabulate.git@python-slip39#egg=tabulate
-mnemonic		>=0.2,	<1
+mnemonic		>=0.21,	<1
 qrcode			>=7.3
 shamir-mnemonic		>=0.3.0,<0.4

@@ -26,10 +26,14 @@ from .util		import avg, rms, ordinal, commas, round_onto
 log				= logging.getLogger( __package__ )
 
 groups_example			= dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) )
+groups_extended			= { **groups_example, **dict( more = (5,10), silly = (7,11) ) }
+
+simple_example			= dict( name="simple base", group_threshold=1, groups= dict( base = (1,1) ))
+simple_extended			= dict( name="simple ext.", group_threshold=2, groups= dict( base = (1,1), more=(3,5) ))
 
 # Disable printing of details unless something goes wrong...
 print_NOOP			= lambda *args, **kwds: None		# noqa: E731
-print				= print_NOOP				# noqa: E273
+#print				= print_NOOP				# noqa: E273
 
 
 def noise( mag ):
@@ -250,11 +254,10 @@ def test_recover_bip39_non_extendable():
     assert details_slip39.groups == details_bip39entropy.groups
 
 
-
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create_recover_extendable():
     details			= create(
-        "recovery test", 2, groups_example, SEED_XMAS
+        "recovery test", 2, groups_example, SEED_XMAS,
     )
     #import json
     #print( json.dumps( details.groups, indent=4 ))
@@ -321,6 +324,170 @@ def test_create_recover_extendable():
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_smoke_extendable():
+    simple_base			= create( **simple_example, master_secret=SEED_ONES, extendable=True )
+    #print( json.dumps( simple_base.groups, indent=4 ))
+    assert simple_base.groups == {
+        "base": (
+            1,
+            [
+                "academic agency academic academic chew else infant blimp nylon penalty teacher elevator screw secret prepare calcium artist eraser vexed sugar"
+            ]
+        )
+    }
+
+    simple_ext			= create( **simple_extended, master_secret=SEED_ONES, extendable=True )
+    #print( json.dumps( simple_ext.groups, indent=4 ))
+    assert simple_ext.groups == {
+        "base": (
+            1,
+            [
+                "academic agency acrobat easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy loan tricycle sister"
+            ]
+        ),
+        "more": (
+            3,
+            [
+                "academic agency beard eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic biology round voting",
+                "academic agency beard emerald blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant sister cage meaning",
+                "academic agency beard envelope cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful upgrade satisfy remove",
+                "academic agency beard exact dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk costume careful round",
+                "academic agency beard eyebrow arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks satisfy junction midst"
+            ]
+        )
+    }
+
+    # Lets see if we can work from a shamir_mnemonic.EncryptedMasterSecret, with the same identifier,
+    # extendable and iteration_exponent, and generate compatible SLIP-39 Mnemonics.
+    encr_seed			= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
+        master_secret		= SEED_ONES,
+        passphrase		= b"",
+        identifier		= 42,
+        extendable		= True,
+        iteration_exponent	= 1,
+    )
+
+    slip_simple			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5) ],
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_simple_mnems		= [[share.mnemonic() for share in group] for group in slip_simple]
+    print( json.dumps( slip_simple_mnems, indent=4 ))
+    assert slip_simple_mnems == [
+        [
+            "acid fawn acrobat easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy juice amount guitar"
+        ],
+        [
+            "acid fawn beard eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic traffic civil fangs",
+            "acid fawn beard emerald blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant debris yoga credit",
+            "acid fawn beard envelope cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful apart category camera",
+            "acid fawn beard exact dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk spew wisdom graduate",
+            "acid fawn beard eyebrow arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks dynamic numb device"
+        ]
+    ]
+
+    # Now, add another group, w/ the same encrypted seed and group_threshold...
+    slip_extend			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5), (2, 6) ],
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_mnems		= [[share.mnemonic() for share in group] for group in slip_extend]
+    assert slip_extend_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc"
+        ]
+    ]
+    slip_extend_b		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5), (2, 7) ],  # < just one groups size difference
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_b_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_b]
+    print( json.dumps( slip_extend_b_mnems, indent=4 ))
+    assert slip_extend_b_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
+            # extended -->
+            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps"
+        ]
+    ]
+
+    # They should be compatible; same identifier and group_threshold --> first 3 words
+    assert slip_extend_mnems[0][0].split()[:3] == slip_simple_mnems[0][0].split()[:3]
+
+    # Of course we can recover the encrypted seed w/ sufficient mnemonics from either set
+    encr_seed_groups_simple	= shamir_mnemonic.decode_mnemonics(
+        slip_simple_mnems[0][:1] + slip_simple_mnems[1][:3]
+    )
+    encr_seed_rec_simple	= shamir_mnemonic.recover_ems( encr_seed_groups_simple )
+    assert encr_seed_rec_simple == encr_seed
+
+    # Of course we can recover the encrypted seed w/ sufficient mnemonics from either set
+    encr_seed_groups_extend	= shamir_mnemonic.decode_mnemonics(
+        slip_extend_mnems[0][:1] + slip_extend_mnems[2][:2]
+    )
+    encr_seed_rec_extend	= shamir_mnemonic.recover_ems( encr_seed_groups_extend )
+    assert encr_seed_rec_extend == encr_seed
+
+    # But, can we combine the simple and extended mnemonics?  No.  Different groups are incompatible
+    with pytest.raises(shamir_mnemonic.MnemonicError):
+        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+            slip_simple_mnems[0][:1] + slip_extend_mnems[2][:2]
+        )
+
+    # But, can we combine the simple and extended mnemonics?  No.  Different groups are incompatible
+    with pytest.raises(shamir_mnemonic.MnemonicError):
+        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+            slip_simple_mnems[0][:1] + slip_extend_mnems[2][:2]
+        )
+    with pytest.raises(shamir_mnemonic.MnemonicError) as exc:
+        log.error( f"Almost identical: {exc}" )
+        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+            slip_simple_mnems[0][:1] + slip_extend_b_mnems[2][:2]
+        )
+
+    # OK, extended allows you to create a SLIP-39 system with a certain number of groups of certain
+    # sizes, and later, produce *additional* cards in any of those same groups.  The number of
+    # groups, group required and cards required in each group stays the same.
+
+    for _ in range( 100 ):
+        groups 			= random.choice( range( 1, 5 ))
+        groups_required		= random.choice( range( 1, groups + 1 ))
+    #xxx
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create_recover_bip39_extendable():
     """Go through the 3 methods for producing accounts from the same 0xffff...ffff Seed Entropy."""
 
@@ -337,32 +504,44 @@ def test_create_recover_bip39_extendable():
         "one": (
             1,
             [
-                "academic agency acrobat romp acid scroll insect inmate empty standard depart lend guitar gross crazy amuse spit viral rhythm hand yield envelope twice estate false elite taxi hobo receiver example inherit luxury scared salary adult email huge tackle crazy venture unfold tracks slim strategy grin jerky ordinary coal benefit thorn news exclude recover silver elevator ceramic album anxiety satisfy"
+                "academic agency acrobat romp acid scroll insect inmate empty standard depart lend guitar gross crazy amuse spit viral rhythm hand yield envelope twice estate false elite taxi hobo receiver"
+                " example inherit luxury scared salary adult email huge tackle crazy venture unfold tracks slim strategy grin jerky ordinary coal benefit thorn news exclude recover silver elevator ceramic album anxiety satisfy"
             ]
         ),
         "two": (
             1,
             [
-                "academic agency beard romp acne mother pleasure spend upgrade clinic peaceful artist emphasis froth nuclear gather software fatal multiple elevator robin capacity float similar enforce quiet violence transfer chemical cradle vexed sprinkle woman kind cargo animal oven result finance impulse moisture anatomy zero render training prayer surface device presence always pharmacy evidence smear soul branch move furl warn random"
+                "academic agency beard romp acne mother pleasure spend upgrade clinic peaceful artist emphasis froth nuclear gather software fatal multiple elevator robin capacity float similar enforce quiet violence transfer"
+                " chemical cradle vexed sprinkle woman kind cargo animal oven result finance impulse moisture anatomy zero render training prayer surface device presence always pharmacy evidence smear soul branch move furl warn random"
             ]
         ),
         "fam": (
             2,
             [
-                "academic agency ceramic roster academic single credit sister fumes darkness husky costume herd twin grasp climate weapon fiber papa oral anatomy bishop spider adult science guard false exceed station cage omit fawn freshman famous identify treat prisoner phrase view yield prepare steady glance drift verify threaten column endless endorse stay employer vintage race category fiber lying vanish lizard mother",
-                "academic agency ceramic scared acne hearing acrobat ceramic have inform speak raisin furl mobile negative regret cleanup trend universe company intend vocal forbid evaluate review scandal numb crucial fact vitamins twin genuine tricycle traveler trust verify disease remove leaf smith regret mansion laser grant mixed drove location endorse debris lungs quantity industry tension story puny ending ceiling radar emission",
-                "academic agency ceramic shadow acid twin swing merchant diagnose oral loyalty being ambition budget manual sympathy flexible election database herd voice spend humidity fatal detect entrance grant album romp pants satoshi join crucial exclude thumb calcium news upstairs program step lilac born warmth evoke decrease flame greatest enjoy playoff black pitch volume brave space oven blessing parcel umbrella guard",
-                "academic agency ceramic sister acquire evil visual knit adjust secret client member domestic glance husky editor living yoga gasoline starting lungs diagnose texture burning exchange twice process gasoline enemy estate railroad evil order visitor language alarm avoid unkind sugar traffic metric emerald timber biology facility meaning scatter energy swimming emerald fumes install exercise crowd junk superior include survive receiver",
+                "academic agency ceramic roster academic single credit sister fumes darkness husky costume herd twin grasp climate weapon fiber papa oral anatomy bishop spider adult science guard false exceed"
+                " station cage omit fawn freshman famous identify treat prisoner phrase view yield prepare steady glance drift verify threaten column endless endorse stay employer vintage race category fiber lying vanish lizard mother",
+                "academic agency ceramic scared acne hearing acrobat ceramic have inform speak raisin furl mobile negative regret cleanup trend universe company intend vocal forbid evaluate review scandal numb crucial fact"
+                " vitamins twin genuine tricycle traveler trust verify disease remove leaf smith regret mansion laser grant mixed drove location endorse debris lungs quantity industry tension story puny ending ceiling radar emission",
+                "academic agency ceramic shadow acid twin swing merchant diagnose oral loyalty being ambition budget manual sympathy flexible election database herd voice spend humidity fatal detect entrance"
+                " grant album romp pants satoshi join crucial exclude thumb calcium news upstairs program step lilac born warmth evoke decrease flame greatest enjoy playoff black pitch volume brave space oven blessing parcel umbrella guard",
+                "academic agency ceramic sister acquire evil visual knit adjust secret client member domestic glance husky editor living yoga gasoline starting lungs diagnose texture burning exchange twice process gasoline"
+                " enemy estate railroad evil order visitor language alarm avoid unkind sugar traffic metric emerald timber biology facility meaning scatter energy swimming emerald fumes install exercise crowd junk superior include survive receiver",
             ]
         ),
         "fren": (
             3,
             [
-                "academic agency decision round academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic fragment receiver provide",
-                "academic agency decision scatter acquire plot story salt legs plastic depict believe carve elite express view strike bundle guard mild early rebound duckling shaped holiday fatigue system thank best member vocal hazard mental airline lobe findings guard laden ancestor pumps hairy review crush dragon unkind antenna total bike shaped result shelter loyalty ceramic taxi rival jump clogs critical raspy",
-                "academic agency decision shaft acne river sprinkle warn hush floral admit kernel enjoy priest rhyme visitor security acrobat shaped stilt scatter alto nail pregnant legs blind infant fraction being actress aluminum junk pumps realize lair symbolic income length texture flash pupal category paper anxiety daughter faint firefly greatest animal chemical merit desktop shaped phantom evening tension dramatic general envelope",
-                "academic agency decision skin acid blimp aviation document valuable username decision hamster flea union vampire adult capture building problem entrance wireless public plastic gravity typical ending plunge reject acrobat medal year away duration quick walnut lunch bishop zero trash together suitable ordinary marvel deal round force pumps install safari ounce forbid quick traffic employer vintage negative employer worthy exhaust",
-                "academic agency decision snake acquire juice item envelope garbage western texture exact idle flip aquatic energy diagnose campus numb mustang exchange remind closet primary hormone minister armed campus victim resident museum miracle paces ordinary mule have climate thunder envelope headset thorn evil away realize sunlight blind exceed ajar costume exercise repair argue mobile receiver remove listen parking inform being",
+                "academic agency decision round academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
+                " academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
+                " academic academic academic academic academic academic fragment receiver provide",
+                "academic agency decision scatter acquire plot story salt legs plastic depict believe carve elite express view strike bundle guard mild early rebound duckling shaped holiday fatigue system thank best member vocal hazard"
+                " mental airline lobe findings guard laden ancestor pumps hairy review crush dragon unkind antenna total bike shaped result shelter loyalty ceramic taxi rival jump clogs critical raspy",
+                "academic agency decision shaft acne river sprinkle warn hush floral admit kernel enjoy priest rhyme visitor security acrobat shaped stilt scatter alto nail pregnant legs blind infant fraction being actress aluminum"
+                " junk pumps realize lair symbolic income length texture flash pupal category paper anxiety daughter faint firefly greatest animal chemical merit desktop shaped phantom evening tension dramatic general envelope",
+                "academic agency decision skin acid blimp aviation document valuable username decision hamster flea union vampire adult capture building problem entrance wireless public plastic gravity typical ending plunge reject"
+                " acrobat medal year away duration quick walnut lunch bishop zero trash together suitable ordinary marvel deal round force pumps install safari ounce forbid quick traffic employer vintage negative employer worthy exhaust",
+                "academic agency decision snake acquire juice item envelope garbage western texture exact idle flip aquatic energy diagnose campus numb mustang exchange remind closet primary hormone minister armed campus victim resident"
+                " museum miracle paces ordinary mule have climate thunder envelope headset thorn evil away realize sunlight blind exceed ajar costume exercise repair argue mobile receiver remove listen parking inform being",
             ]
         )
     }
@@ -393,11 +572,11 @@ def test_create_recover_bip39_extendable():
     # Finally, test that the basic SLIP-39 encoding and derivation using the raw Seed Entropy is
     # different, and yields the expected well-known accounts.
     #
-    details_slip39		= create(
+    details_slip39_ones		= create(
         "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
     )
-    #print( json.dumps( details_slip39.groups, indent=4 ))
-    assert details_slip39.groups == {
+    #print( json.dumps( details_slip39_ones.groups, indent=4 ))
+    assert details_slip39_ones.groups == {
         "one": (
             1,
             [
@@ -432,13 +611,177 @@ def test_create_recover_bip39_extendable():
     }
 
     # These are the well-known SLIP-39 0xffff...ffff Seed accounts
-    [(eth,btc)] = details_slip39.accounts
+    [(eth,btc)] = details_slip39_ones.accounts
     assert eth.address == "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
     assert btc.address == "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
 
     # And ensure that the SLIP-39 encoding of the BIP-39 "zoo zoo ... wrong" w/ BIP-39
-    # Entropy was identically to the raw SLIP-39 encoding.
-    assert details_slip39.groups == details_bip39entropy.groups
+    # Entropy was identical to the raw SLIP-39 encoding.
+    assert details_slip39_ones.groups == details_bip39entropy.groups
+
+    # With "extendable" SLIP-39 mnemonic sets, we can start with a simple set of mnemonics, and
+    # later produce additional sets of mnemonics in the future that can be added to the previous set
+    # to recover the seed.  So, lets create another set of mnemonics and try it -- and ensure that
+    # we can't mix in SLIP-39 extension mnemonics from a different seed and erroneously recover
+    # something!
+    details_slip39_ones_ext		= create(
+        "bip39 recovery test -- all ones in SLIP-39 -- extended", 2, groups_extended, SEED_ONES
+    )
+
+    print( json.dumps( details_slip39_ones_ext.groups, indent=4 ))
+    assert details_slip39_ones_ext.groups == {
+        "one": (
+            1,
+            [
+                "academic agency activity easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy both increase owner"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beaver easy downtown inmate hamster counter rainbow grocery veteran decorate describe bedroom disease suitable peasant eclipse adult artist"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency champion echo crystal critical forbid sled building glad legs angry enlarge ting ranked round solution leaf robin frost",
+                "academic agency champion email drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture gasoline firm identify",
+                "academic agency champion entrance avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm evil alpha plot",
+                "academic agency champion evoke capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent presence unhappy lobe"
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency declare eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic picture behavior reunion",
+                "academic agency declare emerald desert wisdom birthday fatigue lecture detailed destroy realize recover lilac genre venture jacket mother type guest",
+                "academic agency declare envelope birthday debut benefit shame market devote angel finger traveler analysis pipeline extra funding ladybug recover pumps",
+                "academic agency declare exact category skin alpha observe artwork advance earth thank fact material sheriff peaceful club exclude ending graduate",
+                "academic agency declare eyebrow anxiety acrobat inform home patrol alpha erode steady cultural juice emerald reject flash level distance index"
+            ]
+        ),
+        "more": (
+            5,
+            [
+                "academic agency editor edge academic academic academic academic academic academic academic academic academic academic academic academic academic pickup alien justice",
+                "academic agency editor emperor academic academic academic academic academic academic academic academic academic academic academic academic academic density survive maximum",
+                "academic agency editor epidemic academic academic academic academic academic academic academic academic academic academic academic academic academic mayor punish mixture",
+                "academic agency editor exceed damage editor overall peanut alpha exceed liberty training twice merit dismiss rainbow discuss aquatic company grief",
+                "academic agency editor fact capture include listen elite lecture detailed destroy realize recover lilac genre venture jacket greatest moment style",
+                "academic agency editor filter deliver unhappy patent formal mixed learn dining clinic erode shelter paces ugly percent prize involve fatal",
+                "academic agency editor floral dining exceed software duke junk headset fortune saver remove guilt isolate brave triumph scatter founder debut",
+                "academic agency editor fridge detailed midst guilt liquid hunting modify sunlight recover painting random rocky python aunt branch veteran research",
+                "academic agency editor general category carve alpha plot victim scared humidity again extend station hearing legal pecan bishop axle deliver",
+                "academic agency editor gravity crisis elder threaten spelling genius anatomy sugar sharp vampire maximum slice stick disease bucket unfold champion"
+            ]
+        ),
+        "silly": (
+            7,
+            [
+                "academic agency failure educate academic academic academic academic academic academic academic academic academic academic academic academic academic gravity ivory cradle",
+                "academic agency failure employer academic academic academic academic academic academic academic academic academic academic academic academic academic username party surprise",
+                "academic agency failure equation academic academic academic academic academic academic academic academic academic academic academic academic academic evoke smith royal",
+                "academic agency failure exclude academic academic academic academic academic academic academic academic academic academic academic academic academic strike blessing detailed",
+                "academic agency failure faint academic academic academic academic academic academic academic academic academic academic academic academic academic dining birthday wealthy",
+                "academic agency failure findings alpha strike being visitor order treat gesture predator curly fitness move platform device medal replace campus",
+                "academic agency failure focus argue adjust practice yelp medal freshman gather disaster taste bulb hazard raspy trial watch knife public",
+                "academic agency failure frost ancient superior remember amount beyond ranked admit moisture various exclude wrote carpet surprise educate species fiction",
+                "academic agency failure genre cards mule silver plunge mixed learn dining clinic erode shelter paces ugly percent math coding away",
+                "academic agency failure greatest earth episode party guest task source segment apart episode coastal knit domestic check criminal tolerate ivory",
+                "academic agency failure hand crowd repeat response pants fantasy threaten slavery forbid pajamas damage spine havoc kind admit traveler task"
+            ]
+        )
+    }
+
+    details_slip39_zero_ext		= create(
+        "bip39 recovery test -- all zero in SLIP-39 -- extended", 2, groups_extended, SEED_ZERO
+    )
+
+    print( json.dumps( details_slip39_zero_ext.groups, indent=4 ))
+    assert details_slip39_zero_ext.groups == {
+        "one": (
+            1,
+            [
+                "academic agency activity easy diagnose diet regret adjust magazine carve timber wits gray shrimp subject salt transfer husband diet editor"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beaver easy answer wine thunder again snapshot lecture moisture cover carbon extra lunch satoshi emphasis satoshi venture favorite"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency champion echo chew pitch failure dish chubby divorce taste ladle change satisfy profile reunion hearing twice cage already",
+                "academic agency champion email cylinder segment vexed mule branch adjust rhyme oasis violence clothes remove skin ounce mental picture describe",
+                "academic agency champion entrance dough intend bumpy inform spelling escape busy purple magazine behavior loan unhappy scroll humidity museum briefing",
+                "academic agency champion evoke dining browser rhyme style trash impulse ladle filter frost voice method paid depend anxiety cultural critical"
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency declare eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic picture behavior reunion",
+                "academic agency declare emerald blimp costume shadow disease gesture phrase bracelet deliver promise lawsuit emission husband flea ultimate forecast flavor",
+                "academic agency declare envelope aviation jump isolate editor living capture aunt genius yoga strategy location client piece making strike beam",
+                "academic agency declare exact bulge false provide judicial tracks reject broken fantasy extra photo salary fiber yoga ruler military welcome",
+                "academic agency declare eyebrow adequate frequent mailman aircraft biology afraid filter already human destroy thunder criminal sniff carve broken knit"
+            ]
+        ),
+        "more": (
+            5,
+            [
+                "academic agency editor edge academic academic academic academic academic academic academic academic academic academic academic academic academic pickup alien justice",
+                "academic agency editor emperor academic academic academic academic academic academic academic academic academic academic academic academic academic density survive maximum",
+                "academic agency editor epidemic academic academic academic academic academic academic academic academic academic academic academic academic academic mayor punish mixture",
+                "academic agency editor exceed artist maximum literary boundary tactics window imply fiscal system easel wildlife ultimate ambition blessing heat herd",
+                "academic agency editor fact capital general drink nervous gesture phrase bracelet deliver promise lawsuit emission husband flea empty work receiver",
+                "academic agency editor filter depart gums coal envelope check main forget again ugly wrap meaning forbid triumph jerky senior manager",
+                "academic agency editor floral desktop knife index island careful early example injury squeeze omit leaf species stick ruler salary evil",
+                "academic agency editor fridge birthday width uncover provide legend trash index blind evening change pulse bolt glad venture upgrade junk",
+                "academic agency editor general coding valid ugly husband royal industry resident force scramble order forget superior failure skin secret angel",
+                "academic agency editor gravity course surface cricket careful dramatic airline mobile amazing voice galaxy darkness hospital quantity fortune raisin acrobat"
+            ]
+        ),
+        "silly": (
+            7,
+            [
+                "academic agency failure educate academic academic academic academic academic academic academic academic academic academic academic academic academic gravity ivory cradle",
+                "academic agency failure employer academic academic academic academic academic academic academic academic academic academic academic academic academic username party surprise",
+                "academic agency failure equation academic academic academic academic academic academic academic academic academic academic academic academic academic evoke smith royal",
+                "academic agency failure exclude academic academic academic academic academic academic academic academic academic academic academic academic academic strike blessing detailed",
+                "academic agency failure faint academic academic academic academic academic academic academic academic academic academic academic academic academic dining birthday wealthy",
+                "academic agency failure findings advance squeeze desert tendency luck greatest agency library petition perfect plan uncover perfect smart jury decorate",
+                "academic agency failure focus deliver anatomy energy tendency segment episode epidemic rainbow together coastal glasses scatter boundary smug expect mayor",
+                "academic agency failure frost declare talent income academic echo cubic exchange devote elephant lend should craft purple cover cause endorse",
+                "academic agency failure genre capacity ordinary shrimp nervous check main forget again ugly wrap meaning forbid triumph render inmate reunion",
+                "academic agency failure greatest chemical method thorn glen slice scout spit rhyme minister prune column stilt paces birthday inform umbrella",
+                "academic agency failure hand declare dragon inmate vanish entrance surface sunlight talent holiday hairy papa worthy disease ranked wisdom humidity"
+            ]
+        )
+    }
+
+    # Lets ensure each set of SLIP-39 Mnemonics works independently
+    assert recover( details_slip39_ones_ext.groups['more'][1][:5] + details_slip39_ones_ext.groups['silly'][1][:7] ) == SEED_ONES
+    assert recover( details_slip39_ones_ext.groups['more'][1][3:3+5] + details_slip39_ones_ext.groups['silly'][1][2:2+7] ) == SEED_ONES
+    [(eth,btc)] = details_slip39_ones_ext.accounts
+    assert eth.address == "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
+    assert btc.address == "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
+
+    assert recover( details_slip39_zero_ext.groups['more'][1][:5] + details_slip39_zero_ext.groups['silly'][1][:7] ) == SEED_ZERO
+    assert recover( details_slip39_zero_ext.groups['more'][1][3:3+5] + details_slip39_zero_ext.groups['silly'][1][2:2+7] ) == SEED_ZERO
+    [(eth,btc)] = details_slip39_zero_ext.accounts
+    assert eth.address == "0xb0e4d189aD9b1a19A4c917be5C8985214ff9ee16"
+    assert btc.address == "bc1qsqs4ja3sm84vhtc7k3palld0nwga7tf47azjsq"
+
+    # And lets try to use a mixture of the original ..._ones and ..._ones_ext "extended" group Nope;
+    # that's not how extended groups work...  I think it allows you to recover the encrypted seed
+    # and create a new set of groups, without decrypting the seed.
+
+    #assert recover( details_slip39_ones.groups['one'][1][:] + details_slip39_ones_ext.groups['silly'][1][:7] ) == SEED_ONES
 
 
 def into_boolean( val, truthy=(), falsey=() ):
@@ -1187,6 +1530,10 @@ def test_good_entropy():
 
     # This test takes a while without numpy installed, due to inefficient python-only dft
     cycles			= 1000
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        cycles			= 100
     analysis_bad		= []
     signals_bad			= []
     shannon_bad			= []

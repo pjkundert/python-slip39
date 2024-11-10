@@ -55,6 +55,7 @@ def test_passphrase():
         group_threshold	= group_threshold,
         groups		= groups,
         master_secret	= SEED_FF,
+        extendable	= False,
     )
     #print( json.dumps( details_nonpass.groups, indent=4 ))
     assert details_nonpass.groups == {
@@ -125,6 +126,7 @@ def test_passphrase():
         groups		= groups,
         master_secret	= SEED_FF,
         passphrase	= badpass,
+        extendable	= False,
     )
     #print( json.dumps( details_badpass.groups, indent=4 ))
     assert details_badpass.groups == {
@@ -176,7 +178,8 @@ def test_passphrase():
     ) == SEED_FF
 
     # Mixing SLIP39 recovery groups should fail to recover, both without and with the password,
-    # since SLIP39 confirms the digest of the recovered "encrypted" seed, before decryption.
+    # since SLIP39 confirms the digest of the recovered "encrypted" seed, before decryption.  This
+    # was the default, before SLIP-39 added the concept of "extendable".
     with pytest.raises( shamir_mnemonic.utils.MnemonicError ):
         assert recover(
             details_nonpass.groups['Fam'][1][:2] + details_badpass.groups['Frens'][1][:3],

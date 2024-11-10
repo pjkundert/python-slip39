@@ -31,8 +31,8 @@ from functools		import wraps
 from collections	import namedtuple
 from typing		import Dict, List, Sequence, Tuple, Optional, Union, Callable
 
-from shamir_mnemonic	import generate_mnemonics
-from shamir_mnemonic.shamir import RANDOM_BYTES
+from shamir_mnemonic	import EncryptedMasterSecret, split_ems
+from shamir_mnemonic.shamir import _random_identifier, RANDOM_BYTES
 
 import hdwallet
 from hdwallet		import cryptocurrencies
@@ -867,10 +867,16 @@ def random_secret(
 
 def stretch_seed_entropy( entropy, n, bits, encoding=None ):
     """To support the generation of a number of Seeds, each subsequent seed *must* be independent of
-    the prior seed.  The Seed Data supplied (ie. recovered from BIP/SLIP-39 Mnemonics, or from fixed/random
-    data) is of course unchanging for the subsequent seeds to be produced; only the "extra" Seed Entropy
-    is useful for producing multiple sequential Seeds.  Returns the designated number of bits
-    (rounded up to bytes).
+    the prior seed: thus, if a number of seeds are produced from the same entropy, it *must* extend
+    beyond the amount used by the seed, so the additional entropy beyond the end of that used is
+    stretched into the subsequent batch of 'bits' worth of entropy returned.  So, for 128-bit or
+    256-bit seeds, supply entropy longer than this bit amount if more than one seed is to be
+    enhanced using this entropy source.
+
+    The Seed Data supplied (ie. recovered from BIP/SLIP-39 Mnemonics, or from fixed/random data) is
+    of course unchanging for the subsequent seeds to be produced; only the "extra" Seed Entropy is
+    useful for producing multiple sequential Seeds.  Returns the designated number of bits (rounded
+    up to bytes).
 
     If non-binary hex data is supplied, encoding should be 'hex_codec' (0-filled/truncated on the
     right up to the required number of bits); otherwise probably 'UTF-8' (and we'll always stretch
@@ -878,7 +884,7 @@ def stretch_seed_entropy( entropy, n, bits, encoding=None ):
 
     If binary data is supplied, it must be sufficient to provide the required number of bits for the
     first and subsequent Seeds (SHA-512 is used to stretch, so any encoded and stretched entropy
-    data will be sufficient)
+    data will be sufficient) for 128- and 256-bit seeds.
 
     """
     assert n == 0 or ( entropy and n >= 0 ), \
@@ -982,8 +988,8 @@ def create(
     using_bip39: Optional[bool]	= None,  # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
-    strength: Optional[int]	= None,		# Default: 128
-    extendable: bool = True,
+    strength: Optional[int]	= None,				# Default: 128
+    extendable: Optional[Union[bool,int]] = None,		# Default: True w/ random identifier
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
     accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
@@ -1110,14 +1116,14 @@ def create(
 def mnemonics(
     group_threshold: Optional[int],  # Default: 1/2 of groups, rounded up
     groups: Sequence[Tuple[int, int]],
-    master_secret: Optional[Union[str,bytes]] = None,
+    master_secret: Optional[Union[bytes,EncryptedMasterSecret]] = None,
     passphrase: Optional[Union[bytes,str]] = None,
     iteration_exponent: int	= 1,
     strength: int		= BITS_DEFAULT,
-    extendable: bool = True,
+    extendable: Optional[Tuple[bool,int]] = None,
 ) -> List[List[str]]:
-    """Generate SLIP39 mnemonics for the supplied group_threshold of the given groups.  Will generate a
-     random master_secret, if necessary.
+    """Generate SLIP39 mnemonics for the supplied master_secret for group_threshold of the given
+     groups.  Will generate a random master_secret, if necessary.
 
     If you have BIP-39/SLIP-39 Mnemonic(s), use recovery.recover or .recover_bip39 first.  To
     "backup" a BIP-39 Mnemonic Phrase, you probably want to use .recover_bip39( ..., as_entropy=True
@@ -1126,28 +1132,69 @@ def mnemonics(
     Later, supply these SLIP-39 Mnemonics to any of the .account... functions with using_bip39=True,
     to derive the original BIP-39 wallets.
 
+    An encrypted master seed may be supplied, recovered from SLIP-39 mnemonics.  This allows the
+    caller to convert an existing encrypted seed to produce another set of SLIP-39 Mnemonics.  If
+    extendable, and the group_threshold, number of groups and group minimums are not changed, then
+    the result will be an extension of an existing set of SLIP-39 Mnemonics.  Otherwise, it will be
+    a new (but incompatible) set of Mnemonics.
+
     """
     if master_secret is None:
-        assert strength in BITS, f"Invalid {strength}-bit secret length specified"
-        master_secret		= random_secret( strength // 8 )
-    if len( master_secret ) * 8 not in BITS:
-        raise ValueError(
-            f"Only {commas( BITS, final='and' )}-bit seeds supported; {len(master_secret)*8}-bit seed supplied" )
-    if isinstance( passphrase, str ):
-        passphrase		= passphrase.encode( 'UTF-8' )
+        master_secret		= random_secret(( strength + 7 ) // 8 )
 
+    if isinstance( master_secret, EncryptedMasterSecret ):
+        assert not passphrase, \
+            "No passphrase required/allowed for encrypted master seed"
+        encrypted_secret	= master_secret
+    else:
+        if passphrase is None:
+            passphrase		= ""
+        if isinstance( passphrase, str ):
+            passphrase		= passphrase.encode( 'UTF-8' )
+        encrypted_secret	= EncryptedMasterSecret.from_master_secret(
+            master_secret = master_secret,
+            passphrase	= passphrase,
+            identifier	= _random_identifier() if extendable in (None, False, True) else extendable,
+            extendable	= False if extendable is False else True,
+            iteration_exponent = iteration_exponent,
+        )
+
+    if len( encrypted_secret.ciphertext ) * 8 not in BITS:
+        raise ValueError(
+            f"Only {commas( BITS, final='and' )}-bit seeds supported; {len(encrypted_secret.ciphertext)*8}-bit seed supplied" )
+
+    return mnemonics_encrypted(
+        group_threshold	= group_threshold,
+        groups		= groups,
+        encrypted_secret = encrypted_secret,
+    )
+
+
+def mnemonics_encrypted(
+    group_threshold: Optional[int],
+    groups: Sequence[Tuple[int, int]],
+    encrypted_secret: EncryptedMasterSecret,
+) -> List[List[str]]:
+    """Generate SLIP-39 mnemonics for the supplied encrypted_secret.  To reliably generate mnemonics
+    to extend existing encrypted SLIP-39 gruop(s), supply an EncryptedMasterSecret with an
+    'extendable' SLIP-39 identifier.
+
+    If the group threshold, count and group minimum requirements are consistent (just the group
+    size(s) are increased), then the Mnemonics will be an extension of the existing group(s) --
+    producing more potential recovery options for 1 or more group(s).  Since SLIP-39 doesn't allow
+    "1 of X" groups (for anything other than "1 of 1"), you cannot extend existing "1 of 1" groups.
+
+    """
     groups			= list( groups )
     if not group_threshold:
         group_threshold		= math.ceil( len( groups ) * GROUP_THRESHOLD_RATIO )
-    return generate_mnemonics(
-        group_threshold	= group_threshold,
-        groups		= groups,
-        master_secret	= master_secret,
-        passphrase	= passphrase or b"",  # python-shamir-mnemonic requires bytes
-        extendable	= False,
-        iteration_exponent = iteration_exponent,
-        extendable = extendable,
-    )
+
+    grouped_shares		= split_ems( group_threshold, groups, encrypted_secret )
+    log.warning(
+        f"Generated {len(encrypted_secret.ciphertext)*8}-bit SLIP-39 Mnemonics w/ identifier {encrypted_secret.identifier} requiring {group_threshold}"
+        f" of {len(grouped_shares)} {'(extendable)' if encrypted_secret.extendable else ''} groups to recover" )
+
+    return [[share.mnemonic() for share in group] for group in grouped_shares]
 
 
 def account(
