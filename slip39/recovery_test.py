@@ -16,6 +16,7 @@ import multiprocessing
 from collections	import deque
 
 import shamir_mnemonic
+from shamir_mnemonic.constants import MAX_SHARE_COUNT
 
 from .api		import create, account, path_hardened
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
@@ -478,14 +479,23 @@ def test_create_recover_smoke_extendable():
             slip_simple_mnems[0][:1] + slip_extend_b_mnems[2][:2]
         )
 
-    # OK, extended allows you to create a SLIP-39 system with a certain number of groups of certain
-    # sizes, and later, produce *additional* cards in any of those same groups.  The number of
-    # groups, group required and cards required in each group stays the same.
+    # OK, extended allows you to create a SLIP-39 mnemonic system with a certain number of groups of
+    # certain sizes, and later, produce *additional* cards in any of those same groups (w/ mnemonics
+    # required > 1).  The number of groups, group required and mnemonics required in each group
+    # stays the same.
 
-    for _ in range( 100 ):
-        groups 			= random.choice( range( 1, 5 ))
-        groups_required		= random.choice( range( 1, groups + 1 ))
-    #xxx
+    for _ in range( 10 ):
+        group_count		= random.choice( range( 1, MAX_SHARE_COUNT + 1 ))
+        group_threshold		= random.choice( range( 1, group_count + 1 ))
+        groups			= {}
+        for gn in range( group_count ):
+            gn_req		= random.choice( range( 1, MAX_SHARE_COUNT + 1 ))
+            gn_req_of		= random.choice( range( gn_req, gn_req + ( 1 if gn_req == 1 else MAX_SHARE_COUNT - gn_req + 1 )))
+            groups[ordinal( gn+1 )] = (gn_req, gn_req_of)
+        log.warning( f"SLIP-39 {group_threshold} of {group_count}: {commas( ': '.join(map(str, i)) for i in groups.items() )}" )
+        g			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=False )
+        g_ext			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=True )
+
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
 def test_create_recover_bip39_extendable():
