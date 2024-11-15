@@ -64,7 +64,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= -v --capture=no --log-cli-level=WARNING  # --doctest-modules 
+PYTESTOPTS	= -v --log-cli-level=WARNING  # --capture=no  # --doctest-modules 
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
