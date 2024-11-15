@@ -9,4 +9,5 @@ hdwallet @ git+https://github.com/pjkundert/python-hdwallet.git@python-slip39#eg
 tabulate @ git+https://github.com/pjkundert/python-tabulate.git@python-slip39#egg=tabulate
 mnemonic		>=0.21,	<1
 qrcode			>=7.3
-shamir-mnemonic		>=0.3.0,<0.4
+#shamir-mnemonic		>=0.3.0,<0.4
+shamir-mnemonic @ git+https://github.com/pjkundert/python-shamir-mnemonic.git@python-slip39#egg=shamir-mnemonic

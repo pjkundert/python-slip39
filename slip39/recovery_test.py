@@ -34,7 +34,7 @@ simple_extended			= dict( name="simple ext.", group_threshold=2, groups= dict( b
 
 # Disable printing of details unless something goes wrong...
 print_NOOP			= lambda *args, **kwds: None		# noqa: E731
-#print				= print_NOOP				# noqa: E273
+print				= print_NOOP				# noqa: E273
 
 
 def noise( mag ):
@@ -86,7 +86,7 @@ def test_recover_non_extendable():
     # Enough correct number of mnemonics must be provided (extras ignored)
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
     assert recover( details.groups['one'][1] + details.groups['fren'][1][:4] ) == SEED_XMAS
 
@@ -97,17 +97,15 @@ def test_recover_non_extendable():
         ])
     assert "Invalid mnemonic checksum" in str(excinfo.value)
 
-    # Duplicate mnemonics rejected/ignored
+    # Duplicate mnemonics ignored, but inadequate mnemonics rejected
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] + details.groups['fren'][1][:1] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
-    # Mnemonics from another SLIP-39 rejected
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
-            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
-        ])
-    assert "Invalid set of mnemonics" in str(excinfo.value)
+    # Mnemonics from another SLIP-39 ignored (if not otherwise invalid)
+    recover( details.groups['one'][1] + details.groups['fren'][1][:3] + [
+        "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
+    ]) == SEED_XMAS
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
@@ -300,7 +298,7 @@ def test_create_recover_extendable():
     # Enough correct number of mnemonics must be provided (extras ignored)
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
     assert recover( details.groups['one'][1] + details.groups['fren'][1][:4] ) == SEED_XMAS
 
@@ -311,17 +309,15 @@ def test_create_recover_extendable():
         ])
     assert "Invalid mnemonic checksum" in str(excinfo.value)
 
-    # Duplicate mnemonics rejected/ignored
+    # Duplicate mnemonics ignored, but inadequate mnemonics rejected
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] + details.groups['fren'][1][:1] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
-    # Mnemonics from another SLIP-39 rejected
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
-            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
-        ])
-    assert "Invalid set of mnemonics" in str(excinfo.value)
+    # Mnemonics from another SLIP-39 ignored (if not otherwise invalid)
+    recover( details.groups['one'][1] + details.groups['fren'][1][:3] + [
+        "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
+    ]) == SEED_XMAS
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
@@ -358,7 +354,7 @@ def test_create_recover_smoke_extendable():
         )
     }
 
-    # Lets see if we can work from a shamir_mnemonic.EncryptedMasterSecret, with the same identifier,
+    # Let's see if we can work from a shamir_mnemonic.EncryptedMasterSecret, with the same identifier,
     # extendable and iteration_exponent, and generate compatible SLIP-39 Mnemonics.
     encr_seed			= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
         master_secret		= SEED_ONES,
@@ -415,35 +411,6 @@ def test_create_recover_smoke_extendable():
             "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc"
         ]
     ]
-    slip_extend_b		= shamir_mnemonic.split_ems(
-        group_threshold		= 2,
-        groups			= [ (1, 1), (3, 5), (2, 7) ],  # < just one groups size difference
-        encrypted_master_secret	= encr_seed,
-    )
-    slip_extend_b_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_b]
-    print( json.dumps( slip_extend_b_mnems, indent=4 ))
-    assert slip_extend_b_mnems == [
-        [
-            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
-        ],
-        [
-            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
-            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
-            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
-            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
-            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine"
-        ],
-        [
-            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
-            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
-            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
-            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
-            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
-            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
-            # extended -->
-            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps"
-        ]
-    ]
 
     # They should be compatible; same identifier and group_threshold --> first 3 words
     assert slip_extend_mnems[0][0].split()[:3] == slip_simple_mnems[0][0].split()[:3]
@@ -473,12 +440,216 @@ def test_create_recover_smoke_extendable():
         encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
             slip_simple_mnems[0][:1] + slip_extend_mnems[2][:2]
         )
-    with pytest.raises(shamir_mnemonic.MnemonicError) as exc:
-        log.error( f"Almost identical: {exc}" )
-        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
-            slip_simple_mnems[0][:1] + slip_extend_b_mnems[2][:2]
-        )
 
+    # OK, we can't add groups.  But, can we keep the same groups, but add additional mnemonics
+    # (extend the group count) to generate more mnemonics as necessary to extend the existing
+    # groups, while keeping the existing deployed mnemonics valid?  Yes.
+
+    slip_extend_b		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 6), (2, 7) ],  # < just one group size difference
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_b_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_b]
+    print( json.dumps( slip_extend_b_mnems, indent=4 ))
+    assert slip_extend_b_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine",
+            # extended -->
+            "acid fawn beard mortgage broken standard leaves benefit deliver uncover boundary method faint pancake briefing purchase else earth moment liberty"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
+            # extended -->
+            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps"
+        ]
+    ]
+
+    slip_extend_c		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 10), (2, 10) ],  # < and another few...
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_c_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_c]
+    print( json.dumps( slip_extend_c_mnems, indent=4 ))
+    assert slip_extend_c_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine",
+            # extended -->
+            "acid fawn beard mortgage broken standard leaves benefit deliver uncover boundary method faint pancake briefing purchase else earth moment liberty",
+            "acid fawn beard nervous chew gesture heat rebound pulse purple envy evening talent dining render picture mandate afraid evening random",
+            "acid fawn beard oral dilemma hospital vampire humidity again spend retreat juice trust club level kidney costume superior nail skunk",
+            "acid fawn beard pancake alpha fatal boring submit victim scared humidity again extend station hearing legal pecan render adjust lyrics",
+            "acid fawn beard pencil believe galaxy mama adequate educate payment ocean detect golden screw fantasy forecast alto gesture system upstairs"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
+            # extended -->
+            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps",
+            "acid fawn ceramic omit cards blessing emphasis lawsuit symbolic recover primary genuine laundry describe rhyme swimming mouse observe phrase ordinary",
+            "acid fawn ceramic pajamas cultural pumps jury uncover epidemic loan exact fangs training shame gather playoff prize mama lyrics mayor",
+            "acid fawn ceramic penalty dress hamster keyboard bumpy false born news photo multiple mandate priority empty surface hearing garden patrol"
+        ]
+    ]
+
+    # All groups internally consistent (same group parameters, ie. group count
+    encr_seed_groups_consistent	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_extend_mnems[0][:1] + slip_extend_b_mnems[2][-2:]
+    )
+    encr_seed_rec_consistent	= shamir_mnemonic.recover_ems( encr_seed_groups_consistent )
+    assert encr_seed_rec_consistent == encr_seed
+
+    # The group counts different, when we combine extended mnemonics from different extended sets.
+    # Since the number of groups, group threshold, and each group's member threshold haven't
+    # changed, the mnemonics are consistent.
+    encr_seed_groups_different	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_extend_mnems[0][:1] + slip_extend_mnems[1][-1:] + slip_extend_b_mnems[1][-1:] + slip_extend_c_mnems[1][-1:]
+    )
+    encr_seed_rec_different	= shamir_mnemonic.recover_ems( encr_seed_groups_different )
+    assert encr_seed_rec_different == encr_seed
+
+    # Let's see if the same thing works for non-extendable SLIP-39.  I don't suppose it should?
+    encr_seed_nonext		= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
+        master_secret		= SEED_ONES,
+        passphrase		= b"",
+        identifier		= 42,
+        extendable		= False,
+        iteration_exponent	= 1,
+    )
+
+    slip_nonext			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5), (2, 6) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext]
+    print( json.dumps( slip_nonext_mnems, indent=4 ))
+    assert slip_nonext_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema"
+        ]
+    ]
+    slip_nonext_b		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 6), (2, 7) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_b_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext_b]
+    print( json.dumps( slip_nonext_b_mnems, indent=4 ))
+    assert slip_nonext_b_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science",
+            # extended -->
+            "acid extra beard mortgage carbon kind replace exhaust peaceful trip herald herd database prune oven campus lamp genuine duke income"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema",
+            # extended -->
+            "acid extra ceramic negative dive decorate shrimp ceramic edge bedroom regular quick pile volume earth expand penalty benefit axis counter"
+        ]
+    ]
+
+    slip_nonext_c		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 10), (2, 10) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_c_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext_c]
+    print( json.dumps( slip_nonext_c_mnems, indent=4 ))
+    assert slip_nonext_c_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science",
+            # extended -->
+            "acid extra beard mortgage carbon kind replace exhaust peaceful trip herald herd database prune oven campus lamp genuine duke income",
+            "acid extra beard nervous class beam dynamic material spit sunlight repair moment lyrics brother justice order work amount spelling smoking",
+            "acid extra beard oral busy become destroy critical express raisin decision huge vampire loyalty carbon average emperor stadium memory grill",
+            "acid extra beard pancake briefing extra insect game terminal wine spend talent luxury enjoy parking family sugar render express dynamic",
+            "acid extra beard pencil coastal fact lawsuit wealthy isolate move galaxy cleanup upstairs strike scene romp glad grief beyond lyrics"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema",
+            # extended -->
+            "acid extra ceramic negative dive decorate shrimp ceramic edge bedroom regular quick pile volume earth expand penalty benefit axis counter",
+            "acid extra ceramic omit decent survive prospect estimate standard quarter pajamas repeat counter general wrap capital distance ceiling browser shaft",
+            "acid extra ceramic pajamas acrobat ecology pipeline sharp slice nail crush always warn impulse grief decent manager either hawk hazard",
+            "acid extra ceramic penalty aluminum prevent space peaceful founder destroy desire activity island threaten piece genuine bolt imply glasses mama"
+        ]
+    ]
+
+    # Hmm.  Looks like adding the identifier to the salt doesn't interfere with extending the
+    # group's counts...
+    encr_seed_groups_nonext	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_nonext_mnems[0][:1] + slip_nonext_mnems[1][-1:] + slip_nonext_b_mnems[1][-1:] + slip_nonext_c_mnems[1][-1:]
+    )
+    encr_seed_rec_nonext	= shamir_mnemonic.recover_ems( encr_seed_groups_nonext )
+    assert encr_seed_rec_nonext == encr_seed_nonext
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_cover_extendable():
     # OK, extended allows you to create a SLIP-39 mnemonic system with a certain number of groups of
     # certain sizes, and later, produce *additional* cards in any of those same groups (w/ mnemonics
     # required > 1).  The number of groups, group required and mnemonics required in each group
@@ -493,8 +664,23 @@ def test_create_recover_smoke_extendable():
             gn_req_of		= random.choice( range( gn_req, gn_req + ( 1 if gn_req == 1 else MAX_SHARE_COUNT - gn_req + 1 )))
             groups[ordinal( gn+1 )] = (gn_req, gn_req_of)
         log.warning( f"SLIP-39 {group_threshold} of {group_count}: {commas( ': '.join(map(str, i)) for i in groups.items() )}" )
-        g			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=False )
-        g_ext			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=True )
+        g_nxt			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=False )
+        g_ext			= create( "extendable", group_threshold, groups, SEED_ONES, extendable=True )
+
+        recovered = []
+
+        for ems,groups in shamir_mnemonic.group_ems_mnemonics(
+                sum(( mnems for of,mnems in g_nxt.groups.values() ), []) +  # noqa: W504
+                sum(( mnems for of,mnems in g_ext.groups.values() ), [])
+        ):
+            #import tabulate
+            #table = tabulate.tabulate( [[x, ' '.join(s.words())] for x in groups for s in groups[x]], tablefmt='orgtbl' )
+            #log.warning( f"SLIP-39 recovered: {ems!r} using:\n{table}" )
+            if ems:
+                recovered.append( ems )
+
+        assert len( recovered ) == 2
+        assert all( ems.decrypt( b"" ) == SEED_ONES for ems in recovered )
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
@@ -774,7 +960,7 @@ def test_create_recover_bip39_extendable():
         )
     }
 
-    # Lets ensure each set of SLIP-39 Mnemonics works independently
+    # Let's ensure each set of SLIP-39 Mnemonics works independently
     assert recover( details_slip39_ones_ext.groups['more'][1][:5] + details_slip39_ones_ext.groups['silly'][1][:7] ) == SEED_ONES
     assert recover( details_slip39_ones_ext.groups['more'][1][3:3+5] + details_slip39_ones_ext.groups['silly'][1][2:2+7] ) == SEED_ONES
     [(eth,btc)] = details_slip39_ones_ext.accounts
@@ -958,7 +1144,7 @@ def test_dft_smoke():
     # Ensure a DFT on a power-of-2 length sequence is the same as the pure FFT
     assert dft( x[:4] ) == pytest.approx( pfft( x[:4] ))
 
-    # Lets determine how dft organizes its output buckets.  Lets find the bucket contain any DC
+    # Let's determine how dft organizes its output buckets.  Let's find the bucket contain any DC
     # offset, by supplying a 0Hz signal w/ a large DC offset.
 
     # What about a single full real-valued waveform (complex component is always 0j)?

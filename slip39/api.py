@@ -1105,7 +1105,7 @@ def create(
             for g_nam,(g_of,g_mns) in groups.items() )
         requires		= f"Recover w/ {group_threshold} of {len(groups)} groups {commas( group_reqs )}"
         for g_n,(g_name,(g_of,g_mnems)) in enumerate( groups.items() ):
-            log.info( f"{g_name}({g_of}/{len(g_mnems)}): {requires}" )
+            log.info( f"{g_name}({g_of}/{len(g_mnems)}): {'' if g_n else requires}" )
             for mn_n,mnem in enumerate( g_mnems ):
                 for line,_ in organize_mnemonic( mnem, label=f"{ordinal(mn_n+1)} " ):
                     log.info( f"{line}" )
@@ -1192,7 +1192,7 @@ def mnemonics_encrypted(
     grouped_shares		= split_ems( group_threshold, groups, encrypted_secret )
     log.warning(
         f"Generated {len(encrypted_secret.ciphertext)*8}-bit SLIP-39 Mnemonics w/ identifier {encrypted_secret.identifier} requiring {group_threshold}"
-        f" of {len(grouped_shares)} {'(extendable)' if encrypted_secret.extendable else ''} groups to recover" )
+        f" of {len(grouped_shares)}{' (extendable)' if encrypted_secret.extendable else ''} groups to recover" )
 
     return [[share.mnemonic() for share in group] for group in grouped_shares]
 

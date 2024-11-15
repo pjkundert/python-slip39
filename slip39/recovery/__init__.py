@@ -16,16 +16,15 @@
 #
 from __future__		import annotations
 
-import itertools
 import logging
 
-from typing		import List, Optional, Union, Tuple, Sequence
+from typing		import Dict, List, Optional, Union, Tuple, Sequence
 
-from shamir_mnemonic	import decode_mnemonics, recover_ems, EncryptedMasterSecret
+from shamir_mnemonic	import group_ems_mnemonics, EncryptedMasterSecret, Share, MnemonicError
 from shamir_mnemonic.shamir import RANDOM_BYTES
 
 from mnemonic		import Mnemonic			# Requires passphrase as str
-from ..util		import ordinal, commas
+from ..util		import commas
 from ..defaults		import BITS_DEFAULT
 from .entropy		import (  # noqa F401
     shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
@@ -40,45 +39,40 @@ log				= logging.getLogger( __package__ )
 
 
 def recover_encrypted(
-    mnemonics: List[str],
-) -> Tuple[EncryptedMasterSecret, Sequence[int]]:
-    """Recover an encrypted SLIP-39 master secret Seed Entropy from the supplied SLIP-39 mnemonics.
-    Returns the EncryptedMasterSecret, and the sequence of exactly which mnemonics were used to
-    resolve it.
+    mnemonics: Sequence[Union[str,Share]],
+    strict: bool = False,
+) -> Tuple[EncryptedMasterSecret, Dict[int,Share], Sequence[int]]:
+    """Recover encrypted SLIP-39 master secret Seed Entropy and Group details from the supplied
+    SLIP-39 mnemonics.  Returns a sequence of EncryptedMasterSecret, and group Share detail that
+    were used to resolve each one.
 
-    We cannot know what subset of these supplied mnemonics is required and/or valid, so we need to
-    iterate over all subset combinations on failure; this allows us to recover from 1 (or more)
-    incorrectly recovered SLIP-39 Mnemonics, using any others available.
+    We cannot know in advance what subset of these supplied mnemonics is required and/or valid, so
+    we need to iterate over all subset combinations on failure; this allows us to recover from 1 (or
+    more) incorrectly recovered SLIP-39 Mnemonics, using any others available.
 
-    We'll try to find one of the smallest subsets that satisfies the SLIP-39 recovery.
+    We'll try to find one of the smallest subset combinations that satisfies the SLIP-39 recovery.
 
     Use this method to recover but NOT decrypt the SLIP-39 master secret Seed.  Later, you may use
     this as a master_secret to slip39.create another set of SLIP-39 Mnemonics for this same
     passphrase-encrypted secret.
 
     """
-    try:
-        return recover_ems( decode_mnemonics( mnemonics )), range( len( mnemonics ))
-    except Exception as exc:
-        # Try subsets of the supplied mnemonics, to silently reject any invalid/redundant mnemonics
-        for length in range( len( mnemonics )):
-            for combo in itertools.combinations( range( len( mnemonics )), length ):
-                try:
-                    return recover_ems( decode_mnemonics( set( mnemonics[i] for i in combo ) )), combo
-                except Exception:
-                    pass
-        # No recovery; raise the Exception produced by original attempt w/ all mnemonics
-        raise exc
+    for ems, groups in group_ems_mnemonics( mnemonics, strict=strict ):
+        log.info(
+            f"Recovered {len(ems.ciphertext)*8}-bit Encrypted SLIP-39 Seed Entropy using {len(groups)} groups comprising {sum(map(len,groups.values()))} mnemonics"
+        )
+        yield ems, groups
 
 
 def recover(
-    mnemonics: List[str],
+    mnemonics: List[Union[str,Share]],
     passphrase: Optional[Union[str,bytes]] = None,
     using_bip39: Optional[bool]	= None,  # If a BIP-39 "backup" (default: Falsey)
     as_entropy: Optional[bool]  = None,  # .. and recover original Entropy (not 512-bit Seed)
     language: Optional[str]	= None,  # ... provide BIP-39 language if not default 'english'
+    strict: bool		= True,  # Fail if invalid Mnemonics are supplied
 ) -> bytes:
-    """Recover, decrypt and return the secret seed Entropy encoded in the SLIP-39 Mnemonics.
+    """Recover, decrypt and return the (first) secret seed Entropy encoded in the SLIP-39 Mnemonics.
 
     If not 'using_bip39', the resultant secret Entropy is returned as the Seed, optionally with (not
     widely used) SLIP-39 decryption with the given passphrase (empty, if None).  We handle either
@@ -98,28 +92,28 @@ def recover(
     SLIP-39 Mnemomnic Cards, you are free to destroy your original insecure and unreliable BIP-39
     Mnemonic backup(s).
 
-    """
-    if passphrase is None:
-        passphrase		= ""
+    If strict, we will fail if invalid Mnemonics are supplied; otherwise, they'll be ignored.
 
-    encrypted_secret, combo	= recover_encrypted( mnemonics )
+    """
+    try:
+        encrypted_secret, groups = next( recover_encrypted( mnemonics, strict=strict ))
+    except StopIteration:
+        raise MnemonicError( "Invalid set of mnemonics; No encoded secret found" )
 
     # python-shamir-mnemonic requires passphrase as bytes (not str)
+    if passphrase is None:
+        passphrase		= ""
     passphrase_slip39		= b"" if using_bip39 else (
         passphrase if isinstance( passphrase, bytes ) else passphrase.encode( 'UTF-8' )
     )
 
     secret			= encrypted_secret.decrypt( passphrase_slip39 )
 
-    log.info(
-        f"Recovered {len(secret)*8}-bit SLIP-39 Seed Entropy with {len(combo)}"
-        f" ({'all' if len(combo) == len(mnemonics) else ', '.join( ordinal(i+1) for i in combo)})"
-        f" of {len(mnemonics)} supplied mnemonics" + (
-            f"; Seed decoded from SLIP-39 (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
-            if using_bip39 else
-            f"; Seed decoded from SLIP-39 Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
-        )
-    )
+    log.info( "Seed decoded from SLIP-39" + (
+        f" (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
+        if using_bip39 else
+        f" Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
+    ))
 
     if using_bip39:
         # python-mnemonic's Mnemonic requires passphrase as str (not bytes).  This is all a NO-OP,
