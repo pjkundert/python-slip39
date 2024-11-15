@@ -20,7 +20,7 @@ import logging
 import math
 
 from dataclasses	import dataclass
-from collections	import namedtuple, defaultdict
+from collections	import defaultdict
 from typing		import Dict, Union, Optional, Sequence, List, Any, Tuple
 from fractions		import Fraction
 from pathlib		import Path
@@ -28,7 +28,7 @@ from datetime		import datetime, timedelta, timezone
 from calendar		import monthrange
 
 import fpdf
-from ..			import tabulate
+import tabulate
 
 from crypto_licensing.misc import get_localzone, Duration
 
@@ -83,16 +83,6 @@ def tabulate_nopad( *args, **kwds ):
 # be tax-inclusive and it is subtracted from the computed amount.
 #
 # Each line-Item may be expressed in a different currency.
-Item				= namedtuple( 'Item', [
-    'description',			# "Widgets for The Thing"
-    'units',				# 198
-    'price',				# 1.98 eg. $USD, Fraction( 10000, 12 ) * 10**9, eg. ETH Gwei per dozen, in Wei
-    'tax',				# 0.05, Fraction( 5, 100 ) eg. GST, added to amount, 1.05 GST, included in amount
-    'decimals',				# Number of decimals to display computed amounts, eg. 2.  Default: currency's decimals//3
-    'currency'				# USD
-] )
-
-
 @dataclass
 class Item:
     description: str				# "Widgets for The Thing"

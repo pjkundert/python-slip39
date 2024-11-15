@@ -16,17 +16,15 @@
 #
 from __future__		import annotations
 
-import itertools
 import logging
 
-from typing		import List, Optional, Union
+from typing		import Dict, List, Optional, Union, Tuple, Sequence
 
-from shamir_mnemonic	import combine_mnemonics
+from shamir_mnemonic	import group_ems_mnemonics, EncryptedMasterSecret, Share, MnemonicError
 from shamir_mnemonic.shamir import RANDOM_BYTES
 
 from mnemonic		import Mnemonic			# Requires passphrase as str
-from mnemonic.mnemonic	import ConfigurationError
-from ..util		import ordinal, commas
+from ..util		import commas
 from ..defaults		import BITS_DEFAULT
 from .entropy		import (  # noqa F401
     shannon_entropy, signal_entropy, analyze_entropy, scan_entropy, display_entropy
@@ -40,103 +38,83 @@ __license__                     = "Dual License: GPLv3 (or later) and Commercial
 log				= logging.getLogger( __package__ )
 
 
-class Mnemonicv21( Mnemonic ):
-    """When trezor/python-mmnemonic is updated, we can retire this."""
-    @classmethod
-    def detect_language(cls, code: str) -> str:
-        """Scan the Mnemonic until the language becomes unambiguous, including as abbreviation prefixes."""
-        code = cls.normalize_string(code)
-        possible = set(cls(lang) for lang in cls.list_languages())
-        words = set(code.split())
-        for word in words:
-            # possible languages have candidate(s) starting with the word/prefix
-            possible = set(p for p in possible if any(c.startswith( word ) for c in p.wordlist))
-            if not possible:
-                raise ConfigurationError(f"Language unrecognized for {word!r}")
-        if len(possible) == 1:
-            return possible.pop().language
-        # Multiple languages match: A prefix in many, but an exact match in one determines language.
-        complete = set()
-        for word in words:
-            exact = set(p for p in possible if word in p.wordlist)
-            if len(exact) == 1:
-               complete.update(exact)
-        if len(complete) == 1:
-            return complete.pop().language
-        raise ConfigurationError(
-            f"Language ambiguous between {', '.join( p.language for p in possible)}"
+def recover_encrypted(
+    mnemonics: Sequence[Union[str,Share]],
+    strict: bool = False,
+) -> Tuple[EncryptedMasterSecret, Dict[int,Share], Sequence[int]]:
+    """Recover encrypted SLIP-39 master secret Seed Entropy and Group details from the supplied
+    SLIP-39 mnemonics.  Returns a sequence of EncryptedMasterSecret, and group Share detail that
+    were used to resolve each one.
+
+    We cannot know in advance what subset of these supplied mnemonics is required and/or valid, so
+    we need to iterate over all subset combinations on failure; this allows us to recover from 1 (or
+    more) incorrectly recovered SLIP-39 Mnemonics, using any others available.
+
+    We'll try to find one of the smallest subset combinations that satisfies the SLIP-39 recovery.
+
+    Use this method to recover but NOT decrypt the SLIP-39 master secret Seed.  Later, you may use
+    this as a master_secret to slip39.create another set of SLIP-39 Mnemonics for this same
+    passphrase-encrypted secret.
+
+    """
+    for ems, groups in group_ems_mnemonics( mnemonics, strict=strict ):
+        log.info(
+            f"Recovered {len(ems.ciphertext)*8}-bit Encrypted SLIP-39 Seed Entropy using {len(groups)} groups comprising {sum(map(len,groups.values()))} mnemonics"
         )
+        yield ems, groups
 
 
 def recover(
-    mnemonics: List[str],
+    mnemonics: List[Union[str,Share]],
     passphrase: Optional[Union[str,bytes]] = None,
     using_bip39: Optional[bool]	= None,  # If a BIP-39 "backup" (default: Falsey)
     as_entropy: Optional[bool]  = None,  # .. and recover original Entropy (not 512-bit Seed)
-    language: Optional[str]	= None,  # ... provide language if not default 'english'
+    language: Optional[str]	= None,  # ... provide BIP-39 language if not default 'english'
+    strict: bool		= True,  # Fail if invalid Mnemonics are supplied
 ) -> bytes:
-    """Recover a master secret Seed Entropy from the supplied SLIP-39 mnemonics.  We cannot know what
-    subset of these mnemonics is required and/or valid, so we need to iterate over all subset
-    combinations on failure; this allows us to recover from 1 (or more) incorrectly recovered
-    SLIP-39 Mnemonics, using any others available.
+    """Recover, decrypt and return the (first) secret seed Entropy encoded in the SLIP-39 Mnemonics.
 
-    We'll try to find one of the smallest subsets that satisfies the SLIP-39 recovery.  The
-    resultant secret Entropy is returned as the Seed, with (not widely used) SLIP-39 decryption with
-    the given passphrase.  We handle either str/bytes passphrase, and will en/decode as UTF-8 as
-    necessary.
+    If not 'using_bip39', the resultant secret Entropy is returned as the Seed, optionally with (not
+    widely used) SLIP-39 decryption with the given passphrase (empty, if None).  We handle either
+    str/bytes passphrase, and will en/decode as UTF-8 as necessary.
 
     WARNING: SLIP-39 passphrase encryption is not Trezor "Model T" compatible, and is not widely
     used; if you want to hide a wallet, use the Trezor "Hidden wallet" feature instead, where the
     passphrase for each hidden wallet is entered on the device (leave this passphrase blank).
 
-    Optionally, if using_bip39 then generate the Seed from the recovered Seed Entropy, using BIP-39
-    Seed generation.  This is the ideal way to back up an existing BIP-39 Mnemonic, I believe.  It
-    results in a 20- or 33-word SLIP-39 Mnemonics, retains the BIP-39 passphrase(s) for securing the
-    resultant Cryptocurrency wallet(s), and is compatible with all BIP-39 hardware wallets.  Once
-    you are comfortable that you can always recover your BIP-39 Mnemonic from your SLIP-39 Mnemomnic
-    Cards, you are free to destroy your original insecure and unreliable BIP-39 Mnemonic backup(s).
+    Optionally, if 'using_bip39' then generate the actual 512-bit wallet Seed from the SLIP-39
+    recovered 128- or 256-bit Seed Entropy, using standard BIP-39 Seed generation.
+
+    This is the ideal way to back up an existing BIP-39 Mnemonic, I believe.  It results in a 20- or
+    33-word SLIP-39 Mnemonics, retains any existing BIP-39 passphrase(s) defined by the user for
+    securing the resultant Cryptocurrency wallet(s), and is compatible with all BIP-39 hardware
+    wallets.  Once you are comfortable that you can always recover your BIP-39 Mnemonic from your
+    SLIP-39 Mnemomnic Cards, you are free to destroy your original insecure and unreliable BIP-39
+    Mnemonic backup(s).
+
+    If strict, we will fail if invalid Mnemonics are supplied; otherwise, they'll be ignored.
 
     """
+    try:
+        encrypted_secret, groups = next( recover_encrypted( mnemonics, strict=strict ))
+    except StopIteration:
+        raise MnemonicError( "Invalid set of mnemonics; No encoded secret found" )
+
+    # python-shamir-mnemonic requires passphrase as bytes (not str)
     if passphrase is None:
         passphrase		= ""
-    secret			= None
-    try:
-        # python-shamir-mnemonic requires passphrase as bytes (not str)
-        passphrase_slip39	= b"" if using_bip39 else (
-            passphrase if isinstance( passphrase, bytes ) else passphrase.encode( 'UTF-8' )
-        )
-        combo			= range( len( mnemonics ))
-        secret			= combine_mnemonics(
-            mnemonics,
-            passphrase	= passphrase_slip39,
-        )
-    except Exception as exc:
-        # Try a subset of the supplied mnemonics, to silently reject any invalid mnemonic phrases supplied
-        for length in range( len( mnemonics )):
-            for combo in itertools.combinations( range( len( mnemonics )), length ):
-                trial		= list( mnemonics[i] for i in combo )
-                try:
-                    secret	= combine_mnemonics(
-                        trial,
-                        passphrase	= passphrase_slip39,
-                    )
-                    break
-                except Exception:
-                    pass
-            if secret:
-                break
-        if not secret:
-            # No recovery; raise the Exception produced by original attempt w/ all mnemonics
-            raise exc
-    log.info(
-        f"Recovered {len(secret)*8}-bit SLIP-39 Seed Entropy with {len(combo)}"
-        f" ({'all' if len(combo) == len(mnemonics) else ', '.join( ordinal(i+1) for i in combo)})"
-        f" of {len(mnemonics)} supplied mnemonics" + (
-            f"; Seed decoded from SLIP-39 (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
-            if using_bip39 else
-            f"; Seed decoded from SLIP-39 Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
-        )
+    passphrase_slip39		= b"" if using_bip39 else (
+        passphrase if isinstance( passphrase, bytes ) else passphrase.encode( 'UTF-8' )
     )
+
+    secret			= encrypted_secret.decrypt( passphrase_slip39 )
+
+    log.info( "Seed decoded from SLIP-39" + (
+        f" (w/ no passphrase) and generated using BIP-39 Mnemonic representation w/ {'a' if passphrase else 'no'} passphrase"
+        if using_bip39 else
+        f" Mnemonics w/ {'a' if passphrase else 'no'} passphrase"
+    ))
+
     if using_bip39:
         # python-mnemonic's Mnemonic requires passphrase as str (not bytes).  This is all a NO-OP,
         # if using_bip39 is Truthy and as_entropy is Truthy, but no harm...  It checks that no
@@ -187,7 +165,7 @@ def recover_bip39(
     # english/french has ambiguous words (fixed in python-mnemonic versions >=0.20).  Mnemonic must
     # be able to unambiguously detect language with the first few un-expanded mnemonics.
     if not language:
-        language		= Mnemonicv21.detect_language( mnemonic_stripped )
+        language		= Mnemonic.detect_language( mnemonic_stripped )
         log.info( f"BIP-39 Language detected: {language}" )
     m				= Mnemonic( language )
     mnemonic_expanded		= m.expand( mnemonic_stripped )
@@ -215,7 +193,7 @@ def produce_bip39(
     strength: Optional[int]	= None,
     language: Optional[str]	= None,
 ) -> str:
-    """Produce a BIP-38 Mnemonic from the provided entropy (or generated, default 128 bits).
+    """Produce a BIP-39 Mnemonic from the provided entropy (or generated, default 128 bits).
 
     We ensure we always use the same secure entropy source from shamir_mnemonic, to allow the user
     of slip39 to monkey-patch it in one place for testing or to improve the entropy generation.

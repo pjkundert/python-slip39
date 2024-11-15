@@ -217,7 +217,7 @@ satisfactory.  This first nonce record is transmitted with an enumeration prefix
                 )
                 return ser
 
-            def healthy_reset( file ):  # noaq: F811
+            def healthy_reset( file ):  # noqa: F811
                 file.dtr		= False
                 # Wait for a server to de-assert DTR, discarding input.  After the Server has de-asserted, we still need to drain
                 # the Server's output / Client's input buffers, so keep flushing 'til input buffer empty...

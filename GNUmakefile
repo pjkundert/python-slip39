@@ -47,10 +47,13 @@ CXFREEZE_EXT	?= win-$(CXFREEZE_ARCH)-$(CXFREEZE_VER)
 #SIGNTOOL	?= "/c/Program Files (x86)/Windows Kits/10/bin/10.0.19041.0/x86"
 SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtool.exe"
 
+NIX_OPTS	?= --pure
 
 # PY[3] is the target Python interpreter; require 3.11+.  Detect if it is named python3 or python.
 PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
+PY3_V		= $(shell $(PY3) -c "import sys; print('-'.join((next(iter(filter(None,sys.executable.split('/')))),sys.platform,sys.implementation.cache_tag)))" 2>/dev/null )
 VERSION		= $(shell $(PY3) -c 'exec(open("slip39/version.py").read()); print( __version__ )')
+WHEEL		= dist/slip39-$(VERSION)-py3-none-any.whl
 PLATFORM	?= $(shell $(PY3) -c "import sys; print( sys.platform )" )
 ifeq ($(PLATFORM),darwin)
 	INSTALLER	:= pkg
@@ -61,23 +64,22 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTESTOPTS	= --capture=no --log-cli-level=WARNING
+PYTESTOPTS	= -v --log-cli-level=WARNING  # --capture=no  # --doctest-modules 
 
 PY3TEST		= $(PY3) -m pytest $(PYTESTOPTS)
 
 # VirtualEnv: Build them in eg. ~/src/python-slip39-1.2.3/
 # o Will use the *current* git branch when creating a venv and populating it
 
-VENV_LOCAL	?= ~/src/
-
 GHUB_NAME	= python-slip39
-GHUB_REPO	= git@github.com:pjkundert/$(GHUB_NAME)
-GHUB_BRCH	= $(shell git rev-parse --abbrev-ref HEAD )
-VENV_NAME	= $(GHUB_NAME)-$(VERSION)
+
+VENV_DIR	= $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/.. )
+VENV_NAME	= $(GHUB_NAME)-$(VERSION)-$(PY3_V)
+VENV		= $(VENV_DIR)/$(VENV_NAME)
 VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
 
 
-.PHONY: all help test doctest analyze pylint build-check build install upload clean FORCE
+.PHONY: all help test doctest analyze pylint build install upload clean FORCE
 
 all:			help
 
@@ -105,14 +107,6 @@ analyze:
 pylint:
 	cd .. && pylint slip39 --disable=W,C,R
 
-
-build-check:
-	@$(PY3) -m build --version \
-	    || ( \
-		echo -e "\n\n!!! Missing Python modules; run:"; \
-		echo -e "\n\n        $(PY3) -m pip install --break-system-packages --user --upgrade pip setuptools wheel build\n"; \
-	        false; \
-	    )
 
 signing-check:
 	$(SIGNTOOL)
@@ -209,46 +203,30 @@ perry-kundert:			GRANTS="{\"crypto-licensing-server\": {\
 # VirtualEnv build, install and activate
 #
 
-venv:			$(VENV_LOCAL)/$(VENV_NAME)
-venv-activate:		$(VENV_LOCAL)/$(VENV_NAME)-activate
+venv:			$(VENV)
+	@echo; echo "*** Activating $< VirtualEnv for Interactive $(SHELL)"
+	@bash --init-file $</bin/activate -i
 
-$(VENV_LOCAL)/$(VENV_NAME):
-	@git diff --quiet || ( \
-	    echo -e "\n\n!!! Git repo branch $(GHUB_BRCH) is dirty; cannot create venv!"; false \
-	)
+$(VENV):
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PY3) -m venv $(VENV_OPTS) $@ \
-	    && cd $@ && git clone $(GHUB_REPO) -b $(GHUB_BRCH) \
-	    && . ./bin/activate \
-	    && make -C $(GHUB_NAME) install-tests install
-
-# Activate a given VirtualEnv, and go to its python-slip39 installation
-# o Creates a custom venv-activate.sh script in the venv, and uses it start
-#   start a sub-shell in that venv, with a CWD in the contained python-slip39 installation
-$(VENV_LOCAL)/$(VENV_NAME)-activate:	$(VENV_LOCAL)/$(VENV_NAME)
-	@echo; echo "*** Activating $@ VirtualEnv"
-	@[ -s $</venv-activate.sh ] || (	\
-	    echo "PS1='[\u@\h \W)]\\$$ '";	\
-	    echo "[ ! -r ~/.git-completion.bash ] || source ~/.git-completion.bash"; \
-	    echo "[ ! -r ~/.git-prompt.sh ] || source ~/.git-prompt.sh && PS1='[\u@\h \W\$$(__git_ps1 \" (%s)\")]\\$$ '"; \
-	    echo "source $</bin/activate";	\
-	    echo "cd $</$(GHUB_NAME)";		\
-	) > $</venv-activate.sh
-	@bash --init-file $</venv-activate.sh -i
+	    && source $@/bin/activate \
+	    && make install install-tests
 
 
-wheel:			deps dist/slip39-$(VERSION)-py3-none-any.whl
+wheel:			deps $(WHEEL)
 
-dist/slip39-$(VERSION)-py3-none-any.whl: build-check FORCE
+$(WHEEL):		FORCE
+	$(PY3) -m pip install -r requirements-tests.txt
 	$(PY3) -m build
 	@ls -last dist
 
 # Install from wheel, including all optional extra dependencies (except dev)
-install:		dist/slip39-$(VERSION)-py3-none-any.whl FORCE
-	$(PY3) -m pip install --break-system-packages --user --force-reinstall $<[all]
+install:		$(WHEEL) FORCE
+	$(PY3) -m pip install --force-reinstall $<[all]
 
 install-tests:
-	$(PY3) -m pip install --upgrade --break-system-packages --user -r requirements-tests.txt
+	$(PY3) -m pip install --upgrade -r requirements-tests.txt
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
@@ -769,6 +747,8 @@ test-%:
 unit-%:
 	$(PY3TEST) -k $*
 
+nix-%:
+	nix-shell $(NIX_OPTS) --run "make $*"
 
 #
 # Target to allow the printing of 'make' variables, eg:

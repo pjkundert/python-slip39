@@ -92,7 +92,7 @@ def test_tokenprice():
     due to underlying 10^18 fixed-point offset."""
     for base in (None, HOT):
         prices_eth			= list( tokenprices( USDC, USDT, WBTC, WETH, base=base ))
-        log.info( f"Token prices: " + json.dumps( prices_eth, indent=4, default=str ))
+        log.info( "Token prices: " + json.dumps( prices_eth, indent=4, default=str ))
 
         for t,b,f in prices_eth:
             log.info( f"{t.symbol:>6}/{b.symbol:<6}: {float( f ):13.4f} =~= {str(f)}" )

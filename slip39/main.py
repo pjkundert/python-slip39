@@ -21,8 +21,10 @@ import argparse
 import codecs
 import logging
 
+import tabulate
+
 from .			import Account
-from .api		import random_secret
+from .api		import random_secret, stretch_seed_entropy
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
 from .defaults		import (   # noqa: F401
@@ -53,7 +55,7 @@ def main( argv=None ):
                      help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
                      default=FILENAME_FORMAT,
-                     help=f"Output PDF to file or '-' (stdout); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
+                     help=f"Output PDF to file or '-' (stdout: use -q!); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
@@ -87,6 +89,14 @@ def main( argv=None ):
     ap.add_argument( '-s', '--secret',
                      default=None,
                      help="Use the supplied BIP-39 Mnemonic or 128-, 256- or 512-bit hex value as the secret seed; '-' reads it from stdin (eg. output from slip39.recover)" )
+    ap.add_argument( '-e', '--entropy',
+                     default=None,
+                     help="Additional entropy; if 0x... hex, used directly; otherwise, UTF-8 stretched via SHA-512" )
+    ap.add_argument( '--show', action='store_true',
+                     default=False,
+                     help="Show derivation of master seed" )
+    ap.add_argument( '--no-show', dest="show", action='store_false',
+                     help="Disable showing derivation of master seed" )
     ap.add_argument( '--bits',
                      default=None,  # Do not enforce default of 128-bit seeds
                      help=f"Ensure that the seed is of the specified bit length; {', '.join( map( str, BITS ))} supported." )
@@ -149,6 +159,9 @@ def main( argv=None ):
 
     bits_desired		= int( args.bits ) if args.bits else BITS_DEFAULT
 
+    # Master Secret Seed data.  Either raw hex [0x]0123.., or a BIP-39 Mnemonic phrase.  If raw hex,
+    # we'll also support adding additional entropy (either more raw hex from some external entropy
+    # source, or UTF-8 data such as dice rolls, etc. which we'll stretch using SHA-512).
     master_secret		= args.secret
     if master_secret:
         # Master secret seed may be supplied as hex or a BIP-39 Mnemonic (leave as str)
@@ -163,12 +176,30 @@ def main( argv=None ):
     else:
         # Generate a random secret seed, as bytes
         master_secret		= random_secret( bits_desired // 8 )
+
+    # Process Master Secret + Entropy into seed.  For practice runs (with -v[v]), show the contents and
+    show_table			= []
     if isinstance( master_secret, bytes ):
         master_secret_bits		= len( master_secret ) * 8
         if master_secret_bits not in BITS:
             raise ValueError( f"A {master_secret_bits}-bit master secret was supplied; One of {BITS!r} expected" )
         if args.bits and master_secret_bits != bits_desired:  # If a certain seed size specified, enforce
             raise ValueError( f"A {master_secret_bits}-bit master secret was supplied, but {bits_desired} bits was specified" )
+        if args.entropy:
+            args.show and show_table.append( [ "Input Secret:", f"0x{master_secret.hex()}", "From supplied hex data" ] )
+            if args.entropy.lower().startswith('0x'):
+                entropy		= stretch_seed_entropy( args.entropy[2:], 0, master_secret_bits, 'hex_codec' )
+                args.show and show_table.append( [ "xor Entropy:", f"0x{entropy.hex()}", "From supplied hex data" ] )
+            else:
+                entropy		= stretch_seed_entropy( args.entropy, 0, master_secret_bits, 'UTF-8' )
+                args.show and show_table.append( ["xor Entropy:", f"0x{entropy.hex()}", f"From SHA-512(\"{args.entropy}\")" ] )
+            master_secret	= bytes( d ^ e for d,e in zip( master_secret, entropy ) )
+            args.show and show_table.append( tabulate.SEPARATING_LINE )
+        args.show and show_table.append( [ "Master Seed:", f"0x{master_secret.hex()}", f"Using {'BIP' if args.using_bip39 else 'SLIP'}-39 derivation" ] )
+    else:
+        assert not args.entropy, "No additional entropy supported for BIP-39 master secret"
+        args.show and show_table.append( [ "Master Seed:", master_secret, "(Using BIP-39 derivation)" ] )
+    args.show and print( tabulate.tabulate( show_table, headers=("Description", "Seed data", "Interpretation"), tablefmt='orgtbl' ))
 
     # SLIP-39 Passphrase.  This is not recommended, as A) it is another thing that must be saved in
     # addition to the SLIP-39 Mnemonics in order to recover the Seed, and B) it is not implemented
@@ -203,8 +234,9 @@ def main( argv=None ):
             log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
     try:
-        # Output the filenames of the emitted PDFs, one per line.
-        print( "\n".join( write_pdfs(
+        # Output the filenames of the emitted PDFs (the keys of the returned dict), one per line
+        # (unless quiet, or --no-card)
+        results			= write_pdfs(
             names		= args.names,
             master_secret	= master_secret,
             passphrase		= passphrase,
@@ -224,7 +256,9 @@ def main( argv=None ):
             cover_page		= args.cover_page,
             watermark		= args.watermark,
             double_sided	= args.double_sided,
-        )))
+        )
+        if args.card is not False and (args.verbose - args.quiet) >= 0:
+            print( "\n".join( results ))
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )
         return 1

@@ -1,4 +1,3 @@
-import json
 import qrcode
 
 from pytest 		import approx

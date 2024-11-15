@@ -14,7 +14,7 @@ options_require			= [
         'gui',		# slip39[gui]:		Support PySimpleGUI/tkinter Graphical UI App
         'serial',	# slip39[serial]:	Support serial I/O of generated wallet data
         'wallet',	# slip39[wallet]:	Paper Wallet and BIP-38/Ethereum wallet encryption
-      # 'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
+        'invoice',	# slip39[invoice]:	Generation of invoices, and associated Smart Contracts
 ]
 extras_require			= {
     option: list(
@@ -27,6 +27,10 @@ extras_require			= {
 }
 # Make python-slip39[all] install all extra (non-tests) requirements, excluding duplicates
 extras_require['all']		= list( set( sum( extras_require.values(), [] )))
+
+# Since setuptools is retiring tests_require, add it as another option (but not included in 'all')
+extras_require['tests']		= tests_require
+options_require.append( 'tests' )
 
 Executable			= None
 if sys.platform == 'win32':
@@ -171,8 +175,6 @@ package_dir			= {
     "slip39.recovery":		"./slip39/recovery",
     "slip39.generator":		"./slip39/generator",
     "slip39.gui":		"./slip39/gui",
-    # Until tabulate fixes empty cell type deduction, separators
-    "slip39.tabulate":		"./slip39/tabulate",
 }
 
 package_data			= {

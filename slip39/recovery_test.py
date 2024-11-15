@@ -16,6 +16,7 @@ import multiprocessing
 from collections	import deque
 
 import shamir_mnemonic
+from shamir_mnemonic.constants import MAX_SHARE_COUNT
 
 from .api		import create, account, path_hardened
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
@@ -26,19 +27,24 @@ from .util		import avg, rms, ordinal, commas, round_onto
 log				= logging.getLogger( __package__ )
 
 groups_example			= dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) )
+groups_extended			= { **groups_example, **dict( more = (5,10), silly = (7,11) ) }
+
+simple_example			= dict( name="simple base", group_threshold=1, groups= dict( base = (1,1) ))
+simple_extended			= dict( name="simple ext.", group_threshold=2, groups= dict( base = (1,1), more=(3,5) ))
 
 # Disable printing of details unless something goes wrong...
-print_NOOP			= lambda *args, **kwds: None
-print				= print_NOOP
+print_NOOP			= lambda *args, **kwds: None		# noqa: E731
+print				= print_NOOP				# noqa: E273
+
 
 def noise( mag ):
     return mag * ( random.random() * 2 - 1 )
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
-def test_recover():
+def test_recover_non_extendable():
     details			= create(
-        "recovery test", 2, groups_example, SEED_XMAS
+        "recovery test", 2, groups_example, SEED_XMAS, extendable=False,
     )
     #import json
     #print( json.dumps( details.groups, indent=4 ))
@@ -80,7 +86,7 @@ def test_recover():
     # Enough correct number of mnemonics must be provided (extras ignored)
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
     assert recover( details.groups['one'][1] + details.groups['fren'][1][:4] ) == SEED_XMAS
 
@@ -91,21 +97,19 @@ def test_recover():
         ])
     assert "Invalid mnemonic checksum" in str(excinfo.value)
 
-    # Duplicate mnemonics rejected/ignored
+    # Duplicate mnemonics ignored, but inadequate mnemonics rejected
     with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
         recover( details.groups['one'][1] + details.groups['fren'][1][:2] + details.groups['fren'][1][:1] )
-    assert "Wrong number of mnemonics" in str(excinfo.value)
+    assert "No encoded secret found" in str(excinfo.value)
 
-    # Mnemonics from another SLIP-39 rejected
-    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
-        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
-            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
-        ])
-    assert "Invalid set of mnemonics" in str(excinfo.value)
+    # Mnemonics from another SLIP-39 ignored (if not otherwise invalid)
+    recover( details.groups['one'][1] + details.groups['fren'][1][:3] + [
+        "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
+    ]) == SEED_XMAS
 
 
 @substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
-def test_recover_bip39():
+def test_recover_bip39_non_extendable():
     """Go through the 3 methods for producing accounts from the same 0xffff...ffff Seed Entropy."""
 
     # Get BIP-39 Seed generated from Mnemonic Entropy + passphrase
@@ -113,7 +117,7 @@ def test_recover_bip39():
     assert codecs.encode( bip39seed, 'hex_codec' ).decode( 'ascii' ) \
         == 'b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6'
     details_bip39		= create(
-        "bip39 recovery test", 2, groups_example, master_secret=bip39seed,
+        "bip39 recovery test", 2, groups_example, master_secret=bip39seed, extendable=False,
     )
     #import json
     #print( json.dumps( details_bip39.groups, indent=4 ))
@@ -189,6 +193,7 @@ def test_recover_bip39():
         "bip39 recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ),
         master_secret=bip39entropy,
         using_bip39=True,
+        extendable=False,
     )
     assert recover( details_bip39entropy.groups['one'][1][:] + details_bip39entropy.groups['fren'][1][:3] ) == bip39entropy
 
@@ -201,7 +206,7 @@ def test_recover_bip39():
     # different, and yields the expected well-known accounts.
     #
     details_slip39		= create(
-        "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
+        "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES, extendable=False
     )
     #print( json.dumps( details_slip39.groups, indent=4 ))
     assert details_slip39.groups == {
@@ -246,6 +251,733 @@ def test_recover_bip39():
     # And ensure that the SLIP-39 encoding of the BIP-39 "zoo zoo ... wrong" w/ BIP-39
     # Entropy was identically to the raw SLIP-39 encoding.
     assert details_slip39.groups == details_bip39entropy.groups
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_extendable():
+    details			= create(
+        "recovery test", 2, groups_example, SEED_XMAS,
+    )
+    #import json
+    #print( json.dumps( details.groups, indent=4 ))
+    assert details.groups == {
+        "one": (
+            1,
+            [
+                "academic agency acrobat romp dominant parcel trial wrap home transfer standard payroll evening diet detailed fortune sympathy percent isolate champion"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beard romp cards daughter costume unhappy very amazing lying smell campus daughter daisy saver idea boring primary multiple"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency ceramic roster dwarf member raspy inmate cultural minister soul paper silver spine again husky move focus tolerate inform",
+                "academic agency ceramic scared burden tactics dining darkness ivory parcel rhythm jury uncover society advance rescue music fitness wolf hazard",
+                "academic agency ceramic shadow density cultural strike sniff ending veteran grill aide actress symbolic august endorse eyebrow equation hanger primary",
+                "academic agency ceramic sister bracelet kind flea mandate beyond security ancestor tactics column strike anatomy mason false energy impact purchase",
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency decision round academic academic academic academic academic academic academic academic academic academic academic academic academic phrase trust golden",
+                "academic agency decision scatter decision ajar source traveler shadow species depict raspy hybrid camera buyer fantasy privacy brother subject volume",
+                "academic agency decision shaft downtown salon isolate chest demand detailed result slow writing spelling realize funding body artwork lungs satisfy",
+                "academic agency decision skin angel secret plot similar welcome together mental isolate meaning smart plot artwork recover pupal remember extra",
+                "academic agency decision snake ancestor mixed category provide climate kidney spirit blue flip desert leaves rival freshman wireless firm emission",
+            ]
+        )
+    }
+    assert recover( details.groups['one'][1] + details.groups['fren'][1][:3] ) == SEED_XMAS
+
+    # Enough correct number of mnemonics must be provided (extras ignored)
+    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
+        recover( details.groups['one'][1] + details.groups['fren'][1][:2] )
+    assert "No encoded secret found" in str(excinfo.value)
+
+    assert recover( details.groups['one'][1] + details.groups['fren'][1][:4] ) == SEED_XMAS
+
+    # Invalid mnemonic phrases are rejected (one word changed)
+    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
+        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + [
+            "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry laundry"
+        ])
+    assert "Invalid mnemonic checksum" in str(excinfo.value)
+
+    # Duplicate mnemonics ignored, but inadequate mnemonics rejected
+    with pytest.raises(shamir_mnemonic.MnemonicError) as excinfo:
+        recover( details.groups['one'][1] + details.groups['fren'][1][:2] + details.groups['fren'][1][:1] )
+    assert "No encoded secret found" in str(excinfo.value)
+
+    # Mnemonics from another SLIP-39 ignored (if not otherwise invalid)
+    recover( details.groups['one'][1] + details.groups['fren'][1][:3] + [
+        "academic acid academic axle crush swing purple violence teacher curly total equation clock mailman display husband tendency smug laundry disaster"
+    ]) == SEED_XMAS
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_smoke_extendable():
+    simple_base			= create( **simple_example, master_secret=SEED_ONES, extendable=True )
+    #print( json.dumps( simple_base.groups, indent=4 ))
+    assert simple_base.groups == {
+        "base": (
+            1,
+            [
+                "academic agency academic academic chew else infant blimp nylon penalty teacher elevator screw secret prepare calcium artist eraser vexed sugar"
+            ]
+        )
+    }
+
+    simple_ext			= create( **simple_extended, master_secret=SEED_ONES, extendable=True )
+    #print( json.dumps( simple_ext.groups, indent=4 ))
+    assert simple_ext.groups == {
+        "base": (
+            1,
+            [
+                "academic agency acrobat easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy loan tricycle sister"
+            ]
+        ),
+        "more": (
+            3,
+            [
+                "academic agency beard eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic biology round voting",
+                "academic agency beard emerald blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant sister cage meaning",
+                "academic agency beard envelope cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful upgrade satisfy remove",
+                "academic agency beard exact dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk costume careful round",
+                "academic agency beard eyebrow arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks satisfy junction midst"
+            ]
+        )
+    }
+
+    # Let's see if we can work from a shamir_mnemonic.EncryptedMasterSecret, with the same identifier,
+    # extendable and iteration_exponent, and generate compatible SLIP-39 Mnemonics.
+    encr_seed			= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
+        master_secret		= SEED_ONES,
+        passphrase		= b"",
+        identifier		= 42,
+        extendable		= True,
+        iteration_exponent	= 1,
+    )
+
+    slip_simple			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5) ],
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_simple_mnems		= [[share.mnemonic() for share in group] for group in slip_simple]
+    print( json.dumps( slip_simple_mnems, indent=4 ))
+    assert slip_simple_mnems == [
+        [
+            "acid fawn acrobat easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy juice amount guitar"
+        ],
+        [
+            "acid fawn beard eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic traffic civil fangs",
+            "acid fawn beard emerald blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant debris yoga credit",
+            "acid fawn beard envelope cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful apart category camera",
+            "acid fawn beard exact dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk spew wisdom graduate",
+            "acid fawn beard eyebrow arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks dynamic numb device"
+        ]
+    ]
+
+    # Now, add another group, w/ the same encrypted seed and group_threshold...
+    slip_extend			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5), (2, 6) ],
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_mnems		= [[share.mnemonic() for share in group] for group in slip_extend]
+    assert slip_extend_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc"
+        ]
+    ]
+
+    # They should be compatible; same identifier and group_threshold --> first 3 words
+    assert slip_extend_mnems[0][0].split()[:3] == slip_simple_mnems[0][0].split()[:3]
+
+    # Of course we can recover the encrypted seed w/ sufficient mnemonics from either set
+    encr_seed_groups_simple	= shamir_mnemonic.decode_mnemonics(
+        slip_simple_mnems[0][:1] + slip_simple_mnems[1][:3]
+    )
+    encr_seed_rec_simple	= shamir_mnemonic.recover_ems( encr_seed_groups_simple )
+    assert encr_seed_rec_simple == encr_seed
+
+    # Of course we can recover the encrypted seed w/ sufficient mnemonics from either set
+    encr_seed_groups_extend	= shamir_mnemonic.decode_mnemonics(
+        slip_extend_mnems[0][:1] + slip_extend_mnems[2][:2]
+    )
+    encr_seed_rec_extend	= shamir_mnemonic.recover_ems( encr_seed_groups_extend )
+    assert encr_seed_rec_extend == encr_seed
+
+    # But, can we combine the simple and extended mnemonics?  No.  Different groups are incompatible
+    with pytest.raises(shamir_mnemonic.MnemonicError):
+        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+            slip_simple_mnems[0][:1] + slip_extend_mnems[2][:2]
+        )
+
+    # But, can we combine the simple and extended mnemonics?  No.  Different groups are incompatible
+    with pytest.raises(shamir_mnemonic.MnemonicError):
+        encr_seed_groups_combos	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+            slip_simple_mnems[0][:1] + slip_extend_mnems[2][:2]
+        )
+
+    # OK, we can't add groups.  But, can we keep the same groups, but add additional mnemonics
+    # (extend the group count) to generate more mnemonics as necessary to extend the existing
+    # groups, while keeping the existing deployed mnemonics valid?  Yes.
+
+    slip_extend_b		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 6), (2, 7) ],  # < just one group size difference
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_b_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_b]
+    print( json.dumps( slip_extend_b_mnems, indent=4 ))
+    assert slip_extend_b_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine",
+            # extended -->
+            "acid fawn beard mortgage broken standard leaves benefit deliver uncover boundary method faint pancake briefing purchase else earth moment liberty"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
+            # extended -->
+            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps"
+        ]
+    ]
+
+    slip_extend_c		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 10), (2, 10) ],  # < and another few...
+        encrypted_master_secret	= encr_seed,
+    )
+    slip_extend_c_mnems		= [[share.mnemonic() for share in group] for group in slip_extend_c]
+    print( json.dumps( slip_extend_c_mnems, indent=4 ))
+    assert slip_extend_c_mnems == [
+        [
+            "acid fawn acrobat leader course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy payment step physics"
+        ],
+        [
+            "acid fawn beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic decent vanish order",
+            "acid fawn beard lips blind arena organize step rainbow grocery veteran decorate describe bedroom disease suitable peasant transfer cylinder therapy",
+            "acid fawn beard luxury cylinder remove idea kind devote display prayer triumph replace losing oasis slim helpful spill valuable speak",
+            "acid fawn beard march dragon rainbow ultimate pecan library garbage galaxy suitable medal music payment blanket smirk arcade curly playoff",
+            "acid fawn beard method arena superior camera similar loud mansion theater papa greatest pumps cause hamster tracks tracks enlarge wine",
+            # extended -->
+            "acid fawn beard mortgage broken standard leaves benefit deliver uncover boundary method faint pancake briefing purchase else earth moment liberty",
+            "acid fawn beard nervous chew gesture heat rebound pulse purple envy evening talent dining render picture mandate afraid evening random",
+            "acid fawn beard oral dilemma hospital vampire humidity again spend retreat juice trust club level kidney costume superior nail skunk",
+            "acid fawn beard pancake alpha fatal boring submit victim scared humidity again extend station hearing legal pecan render adjust lyrics",
+            "acid fawn beard pencil believe galaxy mama adequate educate payment ocean detect golden screw fantasy forecast alto gesture system upstairs"
+        ],
+        [
+            "acid fawn ceramic leaf crystal critical forbid sled building glad legs angry enlarge ting ranked round solution device birthday greatest",
+            "acid fawn ceramic lily drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture spine work episode",
+            "acid fawn ceramic lungs avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm weapon premium mixed",
+            "acid fawn ceramic marathon capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent brother emphasis rhythm",
+            "acid fawn ceramic merit crush grin envelope spine username axis speak ladybug rescue valuable treat woman marathon recall voter endless",
+            "acid fawn ceramic morning dryer rhythm express cinema twice legal alien manager science python cleanup belong wavy flame carbon havoc",
+            # extended -->
+            "acid fawn ceramic negative aviation slavery elbow magazine scroll cover isolate mortgage actress involve include depart taught kernel explain pumps",
+            "acid fawn ceramic omit cards blessing emphasis lawsuit symbolic recover primary genuine laundry describe rhyme swimming mouse observe phrase ordinary",
+            "acid fawn ceramic pajamas cultural pumps jury uncover epidemic loan exact fangs training shame gather playoff prize mama lyrics mayor",
+            "acid fawn ceramic penalty dress hamster keyboard bumpy false born news photo multiple mandate priority empty surface hearing garden patrol"
+        ]
+    ]
+
+    # All groups internally consistent (same group parameters, ie. group count
+    encr_seed_groups_consistent	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_extend_mnems[0][:1] + slip_extend_b_mnems[2][-2:]
+    )
+    encr_seed_rec_consistent	= shamir_mnemonic.recover_ems( encr_seed_groups_consistent )
+    assert encr_seed_rec_consistent == encr_seed
+
+    # The group counts different, when we combine extended mnemonics from different extended sets.
+    # Since the number of groups, group threshold, and each group's member threshold haven't
+    # changed, the mnemonics are consistent.
+    encr_seed_groups_different	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_extend_mnems[0][:1] + slip_extend_mnems[1][-1:] + slip_extend_b_mnems[1][-1:] + slip_extend_c_mnems[1][-1:]
+    )
+    encr_seed_rec_different	= shamir_mnemonic.recover_ems( encr_seed_groups_different )
+    assert encr_seed_rec_different == encr_seed
+
+    # Let's see if the same thing works for non-extendable SLIP-39.  I don't suppose it should?
+    encr_seed_nonext		= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
+        master_secret		= SEED_ONES,
+        passphrase		= b"",
+        identifier		= 42,
+        extendable		= False,
+        iteration_exponent	= 1,
+    )
+
+    slip_nonext			= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 5), (2, 6) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext]
+    print( json.dumps( slip_nonext_mnems, indent=4 ))
+    assert slip_nonext_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema"
+        ]
+    ]
+    slip_nonext_b		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 6), (2, 7) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_b_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext_b]
+    print( json.dumps( slip_nonext_b_mnems, indent=4 ))
+    assert slip_nonext_b_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science",
+            # extended -->
+            "acid extra beard mortgage carbon kind replace exhaust peaceful trip herald herd database prune oven campus lamp genuine duke income"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema",
+            # extended -->
+            "acid extra ceramic negative dive decorate shrimp ceramic edge bedroom regular quick pile volume earth expand penalty benefit axis counter"
+        ]
+    ]
+
+    slip_nonext_c		= shamir_mnemonic.split_ems(
+        group_threshold		= 2,
+        groups			= [ (1, 1), (3, 10), (2, 10) ],
+        encrypted_master_secret	= encr_seed_nonext,
+    )
+    slip_nonext_c_mnems		= [[share.mnemonic() for share in group] for group in slip_nonext_c]
+    print( json.dumps( slip_nonext_c_mnems, indent=4 ))
+    assert slip_nonext_c_mnems == [
+        [
+            "acid extra acrobat leader drove practice energy testify oven cricket sympathy detect have huge wireless evil thumb species wits building"
+        ],
+        [
+            "acid extra beard learn academic academic academic academic academic academic academic academic academic academic academic academic academic civil execute upstairs",
+            "acid extra beard lips easel activity ancestor physics oasis home manager wildlife jacket ounce gravity miracle regret withdraw being endless",
+            "acid extra beard luxury admit hesitate mental grief ugly fused frost afraid tackle diploma leaves being downtown mortgage zero thunder",
+            "acid extra beard march drove helpful lizard satisfy intimate decision stadium watch photo platform timber leader likely evaluate peanut fangs",
+            "acid extra beard method champion ladle public training dismiss lily tracks national flash damage window medical seafood rhyme geology science",
+            # extended -->
+            "acid extra beard mortgage carbon kind replace exhaust peaceful trip herald herd database prune oven campus lamp genuine duke income",
+            "acid extra beard nervous class beam dynamic material spit sunlight repair moment lyrics brother justice order work amount spelling smoking",
+            "acid extra beard oral busy become destroy critical express raisin decision huge vampire loyalty carbon average emperor stadium memory grill",
+            "acid extra beard pancake briefing extra insect game terminal wine spend talent luxury enjoy parking family sugar render express dynamic",
+            "acid extra beard pencil coastal fact lawsuit wealthy isolate move galaxy cleanup upstairs strike scene romp glad grief beyond lyrics"
+        ],
+        [
+            "acid extra ceramic leaf award hamster activity river demand usher frozen recall scared privacy space judicial prisoner hunting glad piece",
+            "acid extra ceramic lily alien lips kernel spine pecan family enemy rich estimate disaster axle course deploy frequent headset engage",
+            "acid extra ceramic lungs capacity pitch olympic sidewalk tactics promise advocate racism bulge numb false health move husky maiden evoke",
+            "acid extra ceramic marathon black emperor tofu pants envelope armed bundle revenue move award merit domain always element leader premium",
+            "acid extra ceramic merit crucial upgrade flavor fiction primary exotic thunder provide jewelry round robin friendly paid aquatic wildlife satoshi",
+            "acid extra ceramic morning chew capacity curious dwarf dragon typical wrap remember visitor fishing knife aquatic adequate easel velvet cinema",
+            # extended -->
+            "acid extra ceramic negative dive decorate shrimp ceramic edge bedroom regular quick pile volume earth expand penalty benefit axis counter",
+            "acid extra ceramic omit decent survive prospect estimate standard quarter pajamas repeat counter general wrap capital distance ceiling browser shaft",
+            "acid extra ceramic pajamas acrobat ecology pipeline sharp slice nail crush always warn impulse grief decent manager either hawk hazard",
+            "acid extra ceramic penalty aluminum prevent space peaceful founder destroy desire activity island threaten piece genuine bolt imply glasses mama"
+        ]
+    ]
+
+    # Hmm.  Looks like adding the identifier to the salt doesn't interfere with extending the
+    # group's counts...
+    encr_seed_groups_nonext	= shamir_mnemonic.decode_mnemonics(  # noqa: F841
+        slip_nonext_mnems[0][:1] + slip_nonext_mnems[1][-1:] + slip_nonext_b_mnems[1][-1:] + slip_nonext_c_mnems[1][-1:]
+    )
+    encr_seed_rec_nonext	= shamir_mnemonic.recover_ems( encr_seed_groups_nonext )
+    assert encr_seed_rec_nonext == encr_seed_nonext
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_cover_extendable():
+    # OK, extended allows you to create a SLIP-39 mnemonic system with a certain number of groups of
+    # certain sizes, and later, produce *additional* cards in any of those same groups (w/ mnemonics
+    # required > 1).  The number of groups, group required and mnemonics required in each group
+    # stays the same.
+
+    for _ in range( 10 ):
+        group_count		= random.choice( range( 1, MAX_SHARE_COUNT + 1 ))
+        group_threshold		= random.choice( range( 1, group_count + 1 ))
+        groups			= {}
+        for gn in range( group_count ):
+            gn_req		= random.choice( range( 1, MAX_SHARE_COUNT + 1 ))
+            gn_req_of		= random.choice( range( gn_req, gn_req + ( 1 if gn_req == 1 else MAX_SHARE_COUNT - gn_req + 1 )))
+            groups[ordinal( gn+1 )] = (gn_req, gn_req_of)
+        log.warning( f"SLIP-39 {group_threshold} of {group_count}: {commas( ': '.join(map(str, i)) for i in groups.items() )}" )
+        g_nxt			= create( "non-extendable", group_threshold, groups, SEED_ONES, extendable=False )
+        g_ext			= create( "extendable", group_threshold, groups, SEED_ONES, extendable=True )
+
+        recovered = []
+
+        for ems,groups in shamir_mnemonic.group_ems_mnemonics(
+                sum(( mnems for of,mnems in g_nxt.groups.values() ), []) +  # noqa: W504
+                sum(( mnems for of,mnems in g_ext.groups.values() ), [])
+        ):
+            #import tabulate
+            #table = tabulate.tabulate( [[x, ' '.join(s.words())] for x in groups for s in groups[x]], tablefmt='orgtbl' )
+            #log.warning( f"SLIP-39 recovered: {ems!r} using:\n{table}" )
+            if ems:
+                recovered.append( ems )
+
+        assert len( recovered ) == 2
+        assert all( ems.decrypt( b"" ) == SEED_ONES for ems in recovered )
+
+
+@substitute( shamir_mnemonic.shamir, 'RANDOM_BYTES', nonrandom_bytes )
+def test_create_recover_bip39_extendable():
+    """Go through the 3 methods for producing accounts from the same 0xffff...ffff Seed Entropy."""
+
+    # Get BIP-39 Seed generated from Mnemonic Entropy + passphrase
+    bip39seed			= recover_bip39( 'zoo ' * 11 + 'wrong' )
+    assert codecs.encode( bip39seed, 'hex_codec' ).decode( 'ascii' ) \
+        == 'b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6'
+    details_bip39		= create(
+        "bip39 recovery test", 2, groups_example, master_secret=bip39seed,
+    )
+    #import json
+    #print( json.dumps( details_bip39.groups, indent=4 ))
+    assert details_bip39.groups == {
+        "one": (
+            1,
+            [
+                "academic agency acrobat romp acid scroll insect inmate empty standard depart lend guitar gross crazy amuse spit viral rhythm hand yield envelope twice estate false elite taxi hobo receiver"
+                " example inherit luxury scared salary adult email huge tackle crazy venture unfold tracks slim strategy grin jerky ordinary coal benefit thorn news exclude recover silver elevator ceramic album anxiety satisfy"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beard romp acne mother pleasure spend upgrade clinic peaceful artist emphasis froth nuclear gather software fatal multiple elevator robin capacity float similar enforce quiet violence transfer"
+                " chemical cradle vexed sprinkle woman kind cargo animal oven result finance impulse moisture anatomy zero render training prayer surface device presence always pharmacy evidence smear soul branch move furl warn random"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency ceramic roster academic single credit sister fumes darkness husky costume herd twin grasp climate weapon fiber papa oral anatomy bishop spider adult science guard false exceed"
+                " station cage omit fawn freshman famous identify treat prisoner phrase view yield prepare steady glance drift verify threaten column endless endorse stay employer vintage race category fiber lying vanish lizard mother",
+                "academic agency ceramic scared acne hearing acrobat ceramic have inform speak raisin furl mobile negative regret cleanup trend universe company intend vocal forbid evaluate review scandal numb crucial fact"
+                " vitamins twin genuine tricycle traveler trust verify disease remove leaf smith regret mansion laser grant mixed drove location endorse debris lungs quantity industry tension story puny ending ceiling radar emission",
+                "academic agency ceramic shadow acid twin swing merchant diagnose oral loyalty being ambition budget manual sympathy flexible election database herd voice spend humidity fatal detect entrance"
+                " grant album romp pants satoshi join crucial exclude thumb calcium news upstairs program step lilac born warmth evoke decrease flame greatest enjoy playoff black pitch volume brave space oven blessing parcel umbrella guard",
+                "academic agency ceramic sister acquire evil visual knit adjust secret client member domestic glance husky editor living yoga gasoline starting lungs diagnose texture burning exchange twice process gasoline"
+                " enemy estate railroad evil order visitor language alarm avoid unkind sugar traffic metric emerald timber biology facility meaning scatter energy swimming emerald fumes install exercise crowd junk superior include survive receiver",
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency decision round academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
+                " academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic"
+                " academic academic academic academic academic academic fragment receiver provide",
+                "academic agency decision scatter acquire plot story salt legs plastic depict believe carve elite express view strike bundle guard mild early rebound duckling shaped holiday fatigue system thank best member vocal hazard"
+                " mental airline lobe findings guard laden ancestor pumps hairy review crush dragon unkind antenna total bike shaped result shelter loyalty ceramic taxi rival jump clogs critical raspy",
+                "academic agency decision shaft acne river sprinkle warn hush floral admit kernel enjoy priest rhyme visitor security acrobat shaped stilt scatter alto nail pregnant legs blind infant fraction being actress aluminum"
+                " junk pumps realize lair symbolic income length texture flash pupal category paper anxiety daughter faint firefly greatest animal chemical merit desktop shaped phantom evening tension dramatic general envelope",
+                "academic agency decision skin acid blimp aviation document valuable username decision hamster flea union vampire adult capture building problem entrance wireless public plastic gravity typical ending plunge reject"
+                " acrobat medal year away duration quick walnut lunch bishop zero trash together suitable ordinary marvel deal round force pumps install safari ounce forbid quick traffic employer vintage negative employer worthy exhaust",
+                "academic agency decision snake acquire juice item envelope garbage western texture exact idle flip aquatic energy diagnose campus numb mustang exchange remind closet primary hormone minister armed campus victim resident"
+                " museum miracle paces ordinary mule have climate thunder envelope headset thorn evil away realize sunlight blind exceed ajar costume exercise repair argue mobile receiver remove listen parking inform being",
+            ]
+        )
+    }
+    assert recover( details_bip39.groups['one'][1][:] + details_bip39.groups['fren'][1][:3] ) == bip39seed
+
+    [(eth,btc)] = details_bip39.accounts
+    assert eth.address == "0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E"
+    assert btc.address == "bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2"
+
+    #
+    # Now, get the exact same derived accounts, but by passing the BIP-39 Seed Entropy (not the generated Seed!)
+    #
+    bip39entropy		= recover_bip39( 'zoo ' * 11 + 'wrong', as_entropy=True )
+    assert codecs.encode( bip39entropy, 'hex_codec' ).decode( 'ascii' ) \
+        == 'ff' * 16
+    details_bip39entropy	= create(
+        "bip39 recovery test", 2, dict( one = (1,1), two = (1,1), fam = (2,4), fren = (3,5) ),
+        master_secret=bip39entropy,
+        using_bip39=True,
+    )
+    assert recover( details_bip39entropy.groups['one'][1][:] + details_bip39entropy.groups['fren'][1][:3] ) == bip39entropy
+
+    [(eth,btc)] = details_bip39entropy.accounts
+    assert eth.address == "0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E"
+    assert btc.address == "bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2"
+
+    #
+    # Finally, test that the basic SLIP-39 encoding and derivation using the raw Seed Entropy is
+    # different, and yields the expected well-known accounts.
+    #
+    details_slip39_ones		= create(
+        "bip39 recovery test -- all ones in SLIP-39", 2, groups_example, SEED_ONES,
+    )
+    #print( json.dumps( details_slip39_ones.groups, indent=4 ))
+    assert details_slip39_ones.groups == {
+        "one": (
+            1,
+            [
+                "academic agency acrobat romp course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy bolt making enjoy"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beard romp downtown inmate hamster counter rainbow grocery veteran decorate describe bedroom disease suitable peasant editor welfare spider"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency ceramic roster crystal critical forbid sled building glad legs angry enlarge ting ranked round solution legend ending lips",
+                "academic agency ceramic scared drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture genius process pipeline",
+                "academic agency ceramic shadow avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm excuse wrist increase",
+                "academic agency ceramic sister capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent prevent born galaxy",
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency decision round academic academic academic academic academic academic academic academic academic academic academic academic academic phrase trust golden",
+                "academic agency decision scatter desert wisdom birthday fatigue lecture detailed destroy realize recover lilac genre venture jacket mountain blessing pulse",
+                "academic agency decision shaft birthday debut benefit shame market devote angel finger traveler analysis pipeline extra funding lawsuit editor guilt",
+                "academic agency decision skin category skin alpha observe artwork advance earth thank fact material sheriff peaceful club evoke robin revenue",
+                "academic agency decision snake anxiety acrobat inform home patrol alpha erode steady cultural juice emerald reject flash license royal plunge",
+            ]
+        )
+    }
+
+    # These are the well-known SLIP-39 0xffff...ffff Seed accounts
+    [(eth,btc)] = details_slip39_ones.accounts
+    assert eth.address == "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
+    assert btc.address == "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
+
+    # And ensure that the SLIP-39 encoding of the BIP-39 "zoo zoo ... wrong" w/ BIP-39
+    # Entropy was identical to the raw SLIP-39 encoding.
+    assert details_slip39_ones.groups == details_bip39entropy.groups
+
+    # With "extendable" SLIP-39 mnemonic sets, we can start with a simple set of mnemonics, and
+    # later produce additional sets of mnemonics in the future that can be added to the previous set
+    # to recover the seed.  So, lets create another set of mnemonics and try it -- and ensure that
+    # we can't mix in SLIP-39 extension mnemonics from a different seed and erroneously recover
+    # something!
+    details_slip39_ones_ext		= create(
+        "bip39 recovery test -- all ones in SLIP-39 -- extended", 2, groups_extended, SEED_ONES
+    )
+
+    print( json.dumps( details_slip39_ones_ext.groups, indent=4 ))
+    assert details_slip39_ones_ext.groups == {
+        "one": (
+            1,
+            [
+                "academic agency activity easy course prune deadline umbrella darkness salt bishop impact vanish squeeze moment segment privacy both increase owner"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beaver easy downtown inmate hamster counter rainbow grocery veteran decorate describe bedroom disease suitable peasant eclipse adult artist"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency champion echo crystal critical forbid sled building glad legs angry enlarge ting ranked round solution leaf robin frost",
+                "academic agency champion email drink verdict funding dragon activity verify fawn yoga devote perfect jacket database picture gasoline firm identify",
+                "academic agency champion entrance avoid leaf fantasy midst crush fraction cricket taxi velvet gasoline daughter august rhythm evil alpha plot",
+                "academic agency champion evoke capital flexible favorite grownup diminish sidewalk yelp blanket market class testify temple silent presence unhappy lobe"
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency declare eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic picture behavior reunion",
+                "academic agency declare emerald desert wisdom birthday fatigue lecture detailed destroy realize recover lilac genre venture jacket mother type guest",
+                "academic agency declare envelope birthday debut benefit shame market devote angel finger traveler analysis pipeline extra funding ladybug recover pumps",
+                "academic agency declare exact category skin alpha observe artwork advance earth thank fact material sheriff peaceful club exclude ending graduate",
+                "academic agency declare eyebrow anxiety acrobat inform home patrol alpha erode steady cultural juice emerald reject flash level distance index"
+            ]
+        ),
+        "more": (
+            5,
+            [
+                "academic agency editor edge academic academic academic academic academic academic academic academic academic academic academic academic academic pickup alien justice",
+                "academic agency editor emperor academic academic academic academic academic academic academic academic academic academic academic academic academic density survive maximum",
+                "academic agency editor epidemic academic academic academic academic academic academic academic academic academic academic academic academic academic mayor punish mixture",
+                "academic agency editor exceed damage editor overall peanut alpha exceed liberty training twice merit dismiss rainbow discuss aquatic company grief",
+                "academic agency editor fact capture include listen elite lecture detailed destroy realize recover lilac genre venture jacket greatest moment style",
+                "academic agency editor filter deliver unhappy patent formal mixed learn dining clinic erode shelter paces ugly percent prize involve fatal",
+                "academic agency editor floral dining exceed software duke junk headset fortune saver remove guilt isolate brave triumph scatter founder debut",
+                "academic agency editor fridge detailed midst guilt liquid hunting modify sunlight recover painting random rocky python aunt branch veteran research",
+                "academic agency editor general category carve alpha plot victim scared humidity again extend station hearing legal pecan bishop axle deliver",
+                "academic agency editor gravity crisis elder threaten spelling genius anatomy sugar sharp vampire maximum slice stick disease bucket unfold champion"
+            ]
+        ),
+        "silly": (
+            7,
+            [
+                "academic agency failure educate academic academic academic academic academic academic academic academic academic academic academic academic academic gravity ivory cradle",
+                "academic agency failure employer academic academic academic academic academic academic academic academic academic academic academic academic academic username party surprise",
+                "academic agency failure equation academic academic academic academic academic academic academic academic academic academic academic academic academic evoke smith royal",
+                "academic agency failure exclude academic academic academic academic academic academic academic academic academic academic academic academic academic strike blessing detailed",
+                "academic agency failure faint academic academic academic academic academic academic academic academic academic academic academic academic academic dining birthday wealthy",
+                "academic agency failure findings alpha strike being visitor order treat gesture predator curly fitness move platform device medal replace campus",
+                "academic agency failure focus argue adjust practice yelp medal freshman gather disaster taste bulb hazard raspy trial watch knife public",
+                "academic agency failure frost ancient superior remember amount beyond ranked admit moisture various exclude wrote carpet surprise educate species fiction",
+                "academic agency failure genre cards mule silver plunge mixed learn dining clinic erode shelter paces ugly percent math coding away",
+                "academic agency failure greatest earth episode party guest task source segment apart episode coastal knit domestic check criminal tolerate ivory",
+                "academic agency failure hand crowd repeat response pants fantasy threaten slavery forbid pajamas damage spine havoc kind admit traveler task"
+            ]
+        )
+    }
+
+    details_slip39_zero_ext		= create(
+        "bip39 recovery test -- all zero in SLIP-39 -- extended", 2, groups_extended, SEED_ZERO
+    )
+
+    print( json.dumps( details_slip39_zero_ext.groups, indent=4 ))
+    assert details_slip39_zero_ext.groups == {
+        "one": (
+            1,
+            [
+                "academic agency activity easy diagnose diet regret adjust magazine carve timber wits gray shrimp subject salt transfer husband diet editor"
+            ]
+        ),
+        "two": (
+            1,
+            [
+                "academic agency beaver easy answer wine thunder again snapshot lecture moisture cover carbon extra lunch satoshi emphasis satoshi venture favorite"
+            ]
+        ),
+        "fam": (
+            2,
+            [
+                "academic agency champion echo chew pitch failure dish chubby divorce taste ladle change satisfy profile reunion hearing twice cage already",
+                "academic agency champion email cylinder segment vexed mule branch adjust rhyme oasis violence clothes remove skin ounce mental picture describe",
+                "academic agency champion entrance dough intend bumpy inform spelling escape busy purple magazine behavior loan unhappy scroll humidity museum briefing",
+                "academic agency champion evoke dining browser rhyme style trash impulse ladle filter frost voice method paid depend anxiety cultural critical"
+            ]
+        ),
+        "fren": (
+            3,
+            [
+                "academic agency declare eclipse academic academic academic academic academic academic academic academic academic academic academic academic academic picture behavior reunion",
+                "academic agency declare emerald blimp costume shadow disease gesture phrase bracelet deliver promise lawsuit emission husband flea ultimate forecast flavor",
+                "academic agency declare envelope aviation jump isolate editor living capture aunt genius yoga strategy location client piece making strike beam",
+                "academic agency declare exact bulge false provide judicial tracks reject broken fantasy extra photo salary fiber yoga ruler military welcome",
+                "academic agency declare eyebrow adequate frequent mailman aircraft biology afraid filter already human destroy thunder criminal sniff carve broken knit"
+            ]
+        ),
+        "more": (
+            5,
+            [
+                "academic agency editor edge academic academic academic academic academic academic academic academic academic academic academic academic academic pickup alien justice",
+                "academic agency editor emperor academic academic academic academic academic academic academic academic academic academic academic academic academic density survive maximum",
+                "academic agency editor epidemic academic academic academic academic academic academic academic academic academic academic academic academic academic mayor punish mixture",
+                "academic agency editor exceed artist maximum literary boundary tactics window imply fiscal system easel wildlife ultimate ambition blessing heat herd",
+                "academic agency editor fact capital general drink nervous gesture phrase bracelet deliver promise lawsuit emission husband flea empty work receiver",
+                "academic agency editor filter depart gums coal envelope check main forget again ugly wrap meaning forbid triumph jerky senior manager",
+                "academic agency editor floral desktop knife index island careful early example injury squeeze omit leaf species stick ruler salary evil",
+                "academic agency editor fridge birthday width uncover provide legend trash index blind evening change pulse bolt glad venture upgrade junk",
+                "academic agency editor general coding valid ugly husband royal industry resident force scramble order forget superior failure skin secret angel",
+                "academic agency editor gravity course surface cricket careful dramatic airline mobile amazing voice galaxy darkness hospital quantity fortune raisin acrobat"
+            ]
+        ),
+        "silly": (
+            7,
+            [
+                "academic agency failure educate academic academic academic academic academic academic academic academic academic academic academic academic academic gravity ivory cradle",
+                "academic agency failure employer academic academic academic academic academic academic academic academic academic academic academic academic academic username party surprise",
+                "academic agency failure equation academic academic academic academic academic academic academic academic academic academic academic academic academic evoke smith royal",
+                "academic agency failure exclude academic academic academic academic academic academic academic academic academic academic academic academic academic strike blessing detailed",
+                "academic agency failure faint academic academic academic academic academic academic academic academic academic academic academic academic academic dining birthday wealthy",
+                "academic agency failure findings advance squeeze desert tendency luck greatest agency library petition perfect plan uncover perfect smart jury decorate",
+                "academic agency failure focus deliver anatomy energy tendency segment episode epidemic rainbow together coastal glasses scatter boundary smug expect mayor",
+                "academic agency failure frost declare talent income academic echo cubic exchange devote elephant lend should craft purple cover cause endorse",
+                "academic agency failure genre capacity ordinary shrimp nervous check main forget again ugly wrap meaning forbid triumph render inmate reunion",
+                "academic agency failure greatest chemical method thorn glen slice scout spit rhyme minister prune column stilt paces birthday inform umbrella",
+                "academic agency failure hand declare dragon inmate vanish entrance surface sunlight talent holiday hairy papa worthy disease ranked wisdom humidity"
+            ]
+        )
+    }
+
+    # Let's ensure each set of SLIP-39 Mnemonics works independently
+    assert recover( details_slip39_ones_ext.groups['more'][1][:5] + details_slip39_ones_ext.groups['silly'][1][:7] ) == SEED_ONES
+    assert recover( details_slip39_ones_ext.groups['more'][1][3:3+5] + details_slip39_ones_ext.groups['silly'][1][2:2+7] ) == SEED_ONES
+    [(eth,btc)] = details_slip39_ones_ext.accounts
+    assert eth.address == "0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1"
+    assert btc.address == "bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl"
+
+    assert recover( details_slip39_zero_ext.groups['more'][1][:5] + details_slip39_zero_ext.groups['silly'][1][:7] ) == SEED_ZERO
+    assert recover( details_slip39_zero_ext.groups['more'][1][3:3+5] + details_slip39_zero_ext.groups['silly'][1][2:2+7] ) == SEED_ZERO
+    [(eth,btc)] = details_slip39_zero_ext.accounts
+    assert eth.address == "0xb0e4d189aD9b1a19A4c917be5C8985214ff9ee16"
+    assert btc.address == "bc1qsqs4ja3sm84vhtc7k3palld0nwga7tf47azjsq"
+
+    # And lets try to use a mixture of the original ..._ones and ..._ones_ext "extended" group Nope;
+    # that's not how extended groups work...  I think it allows you to recover the encrypted seed
+    # and create a new set of groups, without decrypting the seed.
+
+    #assert recover( details_slip39_ones.groups['one'][1][:] + details_slip39_ones_ext.groups['silly'][1][:7] ) == SEED_ONES
 
 
 def into_boolean( val, truthy=(), falsey=() ):
@@ -412,7 +1144,7 @@ def test_dft_smoke():
     # Ensure a DFT on a power-of-2 length sequence is the same as the pure FFT
     assert dft( x[:4] ) == pytest.approx( pfft( x[:4] ))
 
-    # Lets determine how dft organizes its output buckets.  Lets find the bucket contain any DC
+    # Let's determine how dft organizes its output buckets.  Let's find the bucket contain any DC
     # offset, by supplying a 0Hz signal w/ a large DC offset.
 
     # What about a single full real-valued waveform (complex component is always 0j)?
@@ -504,11 +1236,11 @@ def test_signal_draw():
     # analyze a signal in 8-bit values, but produce a recovered signal over 2x 4-bit hex nibbles, or
     # 8x 1-bit bits.
     assert ''.join( signal_draw( s )           for s in range( -128, 128 )) \
-        == ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.....................................____________________________________~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""""""""""""""""""""'
+        == ',,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.....................................____________________________________~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""""""""""""""""""""'  # noqa: E501
     assert ''.join( signal_draw( s, pos=True ) for s in range( -128, 128 )) \
-        == '                                                                                                                                ,,,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""'
+        == '                                                                                                                                ,,,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'""""""""""""""""""'  # noqa: E501
     assert ''.join( signal_draw( s, neg=True ) for s in range( -128, 128 )) \
-        == ',,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'"""""""""""""""""""                                                                                                                                '
+        == ',,,,,,,,,,,,,,,,,,..................__________________~~~~~~~~~~~~~~~~~~~‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'\'"""""""""""""""""""                                                                                                                                '  # noqa: E501
 
     for entropy in (
             SEED_HIGH,     SEED_MID,     SEED_LOW,
@@ -552,14 +1284,14 @@ def test_signal_draw():
 
     # Validate the very last set of renderings
     assert sigRx8_1 \
-        == '""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\' (low-frequency, expanded x8)'
+        == '""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\'""""""""\'\'\'\'\'\'\'\'~~~~~~~~........,,,,,,,,........~~~~~~~~\'\'\'\'\'\'\'\' (low-frequency, expanded x8)'  # noqa: E501
     assert sigR8_1 \
-        == '""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'""""""" (scaled x8)'
+        == '""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'"""""""""""""""\'\'\'\'‾‾‾~~~___....,,,,,,,,,,,,,,,....___~~~‾‾‾\'\'\'\'""""""" (scaled x8)'  # noqa: E501
     assert f"{sigR8_pos}\n{sigR8_neg}" \
         == '''\
 """"""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""""""""''‾‾~~__.,,                               ,,.__~~‾‾''"""""
                  "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                                 "''‾~~__..,,,,,,,,,,,..__~~‾''"                \
-'''
+'''  # noqa: E501
 
 
 def test_denoise_mags():
@@ -994,6 +1726,10 @@ def test_good_entropy():
 
     # This test takes a while without numpy installed, due to inefficient python-only dft
     cycles			= 1000
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        cycles			= 100
     analysis_bad		= []
     signals_bad			= []
     shannon_bad			= []

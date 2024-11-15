@@ -87,12 +87,14 @@ def printer_output(
     printer		= None,
     orientation		= None,
     paper_format	= None,
+    double_sided	= None,
 ):
     """Output raw binary data directly to the printer, eg.
 
         ... | lpr -P "Canon_G6000_series" -o media=Letter -o sides=one-sided -o job-sheets=secret
 
     """
+    double_sided		= True if double_sided is None else bool( double_sided )
     if sys.platform == 'darwin':
         command			= [ '/usr/bin/lpr', '-o', 'sides=one-sided' ]
         command_input		= binary
@@ -114,6 +116,9 @@ def printer_output(
             # -o orientation-requested=N   Specify portrait (3) or landscape (4) orientation
             N		= { 'p': 3, 'l': 4 }[orientation.lower()[0]]
             command	       += [ '-o', f"orientation-requested={N}" ]
+        if double_sided:
+            # Regardless of desired orientation, layout assumes long-edge double-sided
+            command	       += [ '-o', "sides=two-sided-long-edge" ]
 
     log.info( f"Printing via: {' '.join( command )}" )
     subproc			= subprocess.run(

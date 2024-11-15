@@ -31,8 +31,7 @@ from crypto_licensing.licensing import doh
 from email		import utils, message_from_file, message_from_string
 from email.mime		import multipart, text
 
-#from tabulate		import tabulate
-from .tabulate		import tabulate
+from tabulate		import tabulate
 
 from .util		import is_listlike, commas, uniq, log_cfg, log_level
 
@@ -255,6 +254,8 @@ def send_message(
             for a in utils.getaddresses( addr_fields )
         ]
 
+    log.info( "Message headers:\n" + tabulate( [[k, len(v), v] for k,v in msg.items()], headers=["Description", "Length", "Value"], tablefmt='orgtbl' ))
+
     # Now that we have a to_addrs, construct a mapping of (mx, ...) --> [addr, ...].  For each
     # to_addrs, lookup its destination's mx records; we'll append all to_addrs w/ the same mx's
     # (sorted by priority).
@@ -287,12 +288,15 @@ def send_message(
     if verifycert is None:
         verifycert		= False
 
-    try:
+    # Obtain message, ensuring \r\n line termination
+    if sys.version_info[0:2] >= (3,0):
         # Python 3 libraries expect bytes.
-        msg_data = msg.as_bytes()
-    except Exception:
+        msg_data = b'\r\n'.join( msg.as_bytes().split( b'\n' ))
+    else:
         # Python 2 libraries expect strings.
-        msg_data = msg.as_string()
+        msg_data = '\r\n'.join( msg.as_string().split( '\n' ))
+
+    log.info( "Message body:\n" + msg_data.decode('UTF-8'))
 
     smtp_kwds			= dict()
     if usessl:
