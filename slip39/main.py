@@ -55,7 +55,7 @@ def main( argv=None ):
                      help="Reduce logging output." )
     ap.add_argument( '-o', '--output',
                      default=FILENAME_FORMAT,
-                     help=f"Output PDF to file or '-' (stdout); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
+                     help=f"Output PDF to file or '-' (stdout: use -q!); formatting w/ {', '.join( FILENAME_KEYWORDS )} allowed" )
     ap.add_argument( '-t', '--threshold',
                      default=None,
                      help="Number of groups required for recovery (default: half of groups, rounded up)" )
@@ -234,8 +234,9 @@ def main( argv=None ):
             log.warning( "It is recommended to not use '-j|--json <password>'; specify '-' to read from input" )
 
     try:
-        # Output the filenames of the emitted PDFs, one per line.
-        print( "\n".join( write_pdfs(
+        # Output the filenames of the emitted PDFs (the keys of the returned dict), one per line
+        # (unless quiet, or --no-card)
+        results			= write_pdfs(
             names		= args.names,
             master_secret	= master_secret,
             passphrase		= passphrase,
@@ -255,7 +256,9 @@ def main( argv=None ):
             cover_page		= args.cover_page,
             watermark		= args.watermark,
             double_sided	= args.double_sided,
-        )))
+        )
+        if args.card is not False and (args.verbose - args.quiet) >= 0:
+            print( "\n".join( results ))
     except Exception as exc:
         log.exception( f"Failed to write PDFs: {exc}" )
         return 1
