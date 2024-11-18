@@ -78,9 +78,9 @@ def recover(
     widely used) SLIP-39 decryption with the given passphrase (empty, if None).  We handle either
     str/bytes passphrase, and will en/decode as UTF-8 as necessary.
 
-    WARNING: SLIP-39 passphrase encryption is not Trezor "Model T" compatible, and is not widely
-    used; if you want to hide a wallet, use the Trezor "Hidden wallet" feature instead, where the
-    passphrase for each hidden wallet is entered on the device (leave this passphrase blank).
+    WARNING: SLIP-39 passphrase encryption is not Trezor compatible, and is not widely used; if you
+    want to hide a wallet, use the Trezor "Hidden wallet" feature instead, where the passphrase for
+    each hidden wallet is entered on the device (leave this passphrase blank).
 
     Optionally, if 'using_bip39' then generate the actual 512-bit wallet Seed from the SLIP-39
     recovered 128- or 256-bit Seed Entropy, using standard BIP-39 Seed generation.

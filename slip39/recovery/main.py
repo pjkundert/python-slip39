@@ -47,9 +47,8 @@ The secret Seed Entropy can then be used to generate a new SLIP-39 encoded walle
     python3 -m slip39 --secret = "ab04...7f"
 
 SLIP-39 Mnemonics may be encrypted with a passphrase; this is *not* Ledger-compatible, so it rarely
-recommended!  Typically, on a Trezor "Model T", you recover using your SLIP-39 Mnemonics, and then
-use the "Hidden wallet" feature (passwords entered on the device) to produce alternative sets of
-accounts.
+recommended!  Typically, on a Trezor, you recover using your SLIP-39 Mnemonics, and then use the
+"Hidden wallet" feature (passwords entered on the device) to produce alternative sets of accounts.
 
 BIP-39 Mnemonics can be backed up as SLIP-39 Mnemonics, in two ways:
 

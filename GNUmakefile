@@ -47,7 +47,7 @@ CXFREEZE_EXT	?= win-$(CXFREEZE_ARCH)-$(CXFREEZE_VER)
 #SIGNTOOL	?= "/c/Program Files (x86)/Windows Kits/10/bin/10.0.19041.0/x86"
 SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtool.exe"
 
-NIX_OPTS	?= --pure
+NIX_OPTS	?= # --pure
 
 # PY[3] is the target Python interpreter; require 3.11+.  Detect if it is named python3 or python.
 PY3		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
@@ -225,8 +225,8 @@ $(WHEEL):		FORCE
 install:		$(WHEEL) FORCE
 	$(PY3) -m pip install --force-reinstall $<[all]
 
-install-tests:
-	$(PY3) -m pip install --upgrade -r requirements-tests.txt
+install-%:  # ...-dev, -tests
+	$(PY3) -m pip install --upgrade -r requirements-$*.txt
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store

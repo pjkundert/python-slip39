@@ -25,26 +25,28 @@ nil
 Creating personal Ethereum, Bitcoin and other cryptocurrency accounts is /urgently/ needed, but is
 complex and fraught with potential for loss of funds.
 
-All Crypto wallets start with a "Seed": a large, random number used to derive all of your actual
+All Crypto wallets start with a large, random number "Seed" used to derive all of your actual
 Bitcoin, Ethereum, etc. wallets.  You do not want to try to generate such a Seed by yourself, or
 trust any hardware/software solution for this -- even us!  So, we architected the SLIP-39 App
 so you /don't need to trust it/.
 
-The best practice for using these Seed-generated wallets is to load this "Seed" (usually in the form
-of a 12- or 24-word BIP-39 Phrase) into a secure hardware device, like a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] or a
-(newer, less costly) [[https://affil.trezor.io/SHUD]["Model One"]] hardware wallet.  SLIP-39 Mnemonic cards contain the recovery
-words, which are typed directly into the Trezor device to recover the Seed, and all of its
-cryptocurrency accounts.  For the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]] and other hardware wallets supporting only BIP-39
-Mnemonics, you can now use the SLIP-39 App to securely and reliably back up these BIP-39 phrases.
+[[https://github.com/pjkundert/python-slip39/releases/latest][Download the macOS (.pkg) or win32 (.msi) SLIP-39 App]] to generate Mnemonic cards to create (or back
+up an existing BIP-39) Seed securely and reliably, by distributing Mnemonic cards for recovering the
+Seed to partners, family and friends.  Also, encrypted "Paper Wallets" can be output, to support
+software cryptocurrency wallets such as Metamask, Brave or various mobile-phone and computer-based
+wallets.
 
-[[https://github.com/pjkundert/python-slip39/releases/latest][Download the macOS (.pkg) or win32 (.msi) SLIP-39 App]] to generate Mnemonic cards and back up this
-Seed, securely and reliably, by distributing Mnemonic cards for the Seed to partners, family and
-friends.  Also, encrypted "Paper Wallets" can be output, to support software cryptocurrency wallets
-such as Metamask, Brave or various mobile-phone and computer-based wallets.
+The best practice for /using/ these Seed-generated wallets is to load this Seed into a secure
+hardware device, like a [[https://affil.trezor.io/SHdv][Trezor Safe 3]] hardware wallet which supports both SLIP-39 and BIP-39 Seeds.
+SLIP-39 Mnemonic cards contain the recovery words, which can be typed directly into the Trezor
+device to recover the Seed, and all of its cryptocurrency accounts.
 
-Later, if you (or your heirs!) need to recover *all* of your cryptocurrency accounts, they can
-collect a sufficient threshold of the cards and regain access to all of the cryptocurrency accounts
-related to the Seed.
+For the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]] and all other hardware wallets supporting /only/ BIP-39 Mnemonics, *you can now
+use the SLIP-39 App to securely and reliably /back up/ these fragile BIP-39 Mnemonic phrases*.
+
+Later, when you (or your heirs!) need to recover *all* of your cryptocurrency accounts, someone can
+collect a sufficient threshold of all of the SLIP-39 cards and regain access to all of the
+cryptocurrency accounts related to the Seed.
 #+END_ABSTRACT
 
 #+TOC: headlines 2
@@ -60,7 +62,7 @@ related to the Seed.
   Losing this Seed means that *all* of the HD Wallet accounts derived from it are permanently lost.
   Therefore, it must be backed up reliably, and be readily accessible.
 
-  Therefore, we must:
+  Therefore, we must /both/:
 
   - Ensure that nobody untrustworthy can recover the Seed, but
   - Store the Seed in many places with several (some perhaps untrustworthy) people.
@@ -80,7 +82,7 @@ related to the Seed.
 
    #+ATTR_LATEX: :width 4in
    #+CAPTION: SLIP-39 App
-   [[./images/slip39.png]]
+   [[../../images/slip39.png]]
 
 ** SLIP-39 Mnemonic Recovery Cards
 
@@ -90,7 +92,7 @@ related to the Seed.
    Instead, generate a number of SLIP-39 Mnemonic cards, which can be collected to recover the Seed:
    #+ATTR_LATEX: :width 4in
    #+CAPTION: SLIP-39 Cards PDF
-   [[./images/slip39-cards.png]]
+   [[../../images/slip39-cards.png]]
 
 *** Why Not a BIP-39 Mnemonic Phrase?
 
@@ -143,7 +145,7 @@ related to the Seed.
 
     #+ATTR_LATEX: :width 4in
     #+CAPTION: [[https://youtu.be/t70rRr08vBY][SLIP-39 Overview -- BIP-39 Mnemonic Backup]]
-    [[./images/slip39-overview-youtube.png]]
+    [[../../images/slip39-overview-youtube.png]]
 
 ** Paper Wallets
 
@@ -152,7 +154,7 @@ related to the Seed.
    
    #+ATTR_LATEX: :width 4in
    #+CAPTION: Paper Wallets
-   [[./images/slip39-wallets.png]]
+   [[../../images/slip39-wallets.png]]
 
 *** Walking-Around Money
 
@@ -181,15 +183,19 @@ related to the Seed.
 
 ** Trezor
 
-   The [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] hardware wallet has built-in SLIP-39 generation and recovery capability.
+   The [[https://trezor.go2cloud.org/SHdv][Trezor Safe 3]] hardware wallet has built-in SLIP-39 generation and recovery capability.
    Enter the words on the SLIP-39 cards directly into the screen of the Trezor to recover your
    cryptocurrency accounts.
 
    #+BEGIN_EXPORT html
-   <a href="https://trezor.go2cloud.org/aff_c?offer_id=134&aff_id=10388&file_id=583" target="_blank"><img src="https://media.go2speed.org/brand/files/trezor/134/Trezor_Model_T_banner_728x90_3.png" width="728" height="90" border="0" /></a><img src="https://trezor.go2cloud.org/aff_i?offer_id=134&file_id=583&aff_id=10388" width="0" height="0" style="position:absolute;visibility:hidden;" border="0" />
+   <!-- Javascript Ad Tag: 1696 -->
+   <div id="trezor1696wHdtBw"></div>
+   <script src="http://affil.trezor.io/aff_ad?campaign_id=1696&aff_id=10388&format=js&divid=trezor1696wHdtBw" type="text/javascript"></script>
+   <noscript><iframe src="http://affil.trezor.io/aff_ad?campaign_id=1696&aff_id=10388&format=iframe" scrolling="no" frameborder="0" marginheight="0" marginwidth="0" width="728" height="90"></iframe></noscript>
+   <!-- // End Ad Tag -->
    #+END_EXPORT
 
-   We recommend the Trezor "Model T" for this reason.  No other hardware wallet yet supports direct,
+   We recommend the Trezor Safe 3 for this reason.  No other hardware wallet yet supports direct,
    on-screen SLIP-39 Seed recovery.
 
    If you already have one of the less expensive Trezor wallets that only support BIP-39 backup, we

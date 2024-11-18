@@ -12,33 +12,34 @@ Creating personal Ethereum, Bitcoin and other cryptocurrency accounts is
 /urgently/ needed, but is complex and fraught with potential for loss of
 funds.
 
-All Crypto wallets start with a "Seed": a large, random number used to
+All Crypto wallets start with a large, random number "Seed" used to
 derive all of your actual Bitcoin, Ethereum, etc. wallets.  You do not
 want to try to generate such a Seed by yourself, or trust any
 hardware/software solution for this – even us!  So, we architected the
 SLIP-39 App so you /don't need to trust it/.
 
-The best practice for using these Seed-generated wallets is to load this
-"Seed" (usually in the form of a 12- or 24-word BIP-39 Phrase) into a
-secure hardware device, like a [Trezor "Model T"] or a (newer, less
-costly) ["Model One"] hardware wallet.  SLIP-39 Mnemonic cards contain
-the recovery words, which are typed directly into the Trezor device to
-recover the Seed, and all of its cryptocurrency accounts.  For the
-[Ledger Nano] and other hardware wallets supporting only BIP-39
-Mnemonics, you can now use the SLIP-39 App to securely and reliably back
-up these BIP-39 phrases.
-
 [Download the macOS (.pkg) or win32 (.msi) SLIP-39 App] to generate
-Mnemonic cards and back up this Seed, securely and reliably, by
-distributing Mnemonic cards for the Seed to partners, family and
-friends.  Also, encrypted "Paper Wallets" can be output, to support
-software cryptocurrency wallets such as Metamask, Brave or various
-mobile-phone and computer-based wallets.
+Mnemonic cards to create (or back up an existing BIP-39) Seed securely
+and reliably, by distributing Mnemonic cards for recovering the Seed to
+partners, family and friends.  Also, encrypted "Paper Wallets" can be
+output, to support software cryptocurrency wallets such as Metamask,
+Brave or various mobile-phone and computer-based wallets.
 
-Later, if you (or your heirs!) need to recover *all* of your
-cryptocurrency accounts, they can collect a sufficient threshold of the
-cards and regain access to all of the cryptocurrency accounts related to
-the Seed.
+The best practice for /using/ these Seed-generated wallets is to load
+this Seed into a secure hardware device, like a [Trezor Safe 3] hardware
+wallet which supports both SLIP-39 and BIP-39 Seeds.  SLIP-39 Mnemonic
+cards contain the recovery words, which can be typed directly into the
+Trezor device to recover the Seed, and all of its cryptocurrency
+accounts.
+
+For the [Ledger Nano] and all other hardware wallets supporting /only/
+BIP-39 Mnemonics, *you can now use the SLIP-39 App to securely and
+reliably /back up/ these fragile BIP-39 Mnemonic phrases*.
+
+Later, when you (or your heirs!) need to recover *all* of your
+cryptocurrency accounts, someone can collect a sufficient threshold of
+all of the SLIP-39 cards and regain access to all of the cryptocurrency
+accounts related to the Seed.
 
 Table of Contents
 ─────────────────
@@ -55,15 +56,13 @@ Table of Contents
 3. Privacy Policy
 
 
-[Trezor "Model T"] <https://trezor.go2cloud.org/SH1Y>
+[Download the macOS (.pkg) or win32 (.msi) SLIP-39 App]
+<https://github.com/pjkundert/python-slip39/releases/latest>
 
-["Model One"] <https://affil.trezor.io/SHUD>
+[Trezor Safe 3] <https://affil.trezor.io/SHdv>
 
 [Ledger Nano]
 <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
-
-[Download the macOS (.pkg) or win32 (.msi) SLIP-39 App]
-<https://github.com/pjkundert/python-slip39/releases/latest>
 
 
 1 Security with Availability
@@ -80,7 +79,7 @@ Table of Contents
   from it are permanently lost.  Therefore, it must be backed up
   reliably, and be readily accessible.
 
-  Therefore, we must:
+  Therefore, we must /both/:
 
   • Ensure that nobody untrustworthy can recover the Seed, but
   • Store the Seed in many places with several (some perhaps
@@ -104,7 +103,7 @@ Table of Contents
   store in different locations.  If you lose some of them, you can still
   recover the BIP-39 recovery phrase!
 
-  <./images/slip39.png>
+  <../../images/slip39.png>
 
 
 [SLIP-39 App] <https://slip39.com/app>
@@ -119,7 +118,7 @@ Table of Contents
 
   Instead, generate a number of SLIP-39 Mnemonic cards, which can be
   collected to recover the Seed:
-  <./images/slip39-cards.png>
+  <../../images/slip39-cards.png>
 
 
 1.2.1 Why Not a BIP-39 Mnemonic Phrase?
@@ -160,6 +159,37 @@ Table of Contents
   exposed to this risk of loss.
 
 
+1.2.3 Recovering your BIP-39 Seed Phrase
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  If you already have a BIP-39 Mnemonic, and would like back it up using
+  SLIP-39 for more security and recovery reliability, you can use the
+  SLIP-39 App's Backup Controls to do so.  After you create your Seed
+  Data (or enter an existing BIP-39 Seed Phrase), select "Using BIP-39".
+  This will generate a set of SLIP-39 Mnemonic Cards that *backs up your
+  existing BIP-39 Seed Phrase*.
+
+  Later, when you need to recover your BIP-39 Mnemonic (say, to
+  initialize a fresh replacement Ledger hardware wallet), use the
+  SLIP-39 App, select the Recover Controls, and enter sufficient SLIP-39
+  card Mnemonics – and click "Using BIP-39" to reveal your original
+  BIP-39 Seed Phrase.  Then, proceed with Ledger wallet recovery as
+  normal, using the BIP-39 Mnemonic.
+
+  This may not /seem/ like an impressive feat.  But, it is unexpectedly
+  important and powerful!  Your existing BIP-39 Seed Phrase is
+  *extremely* risky; it can /easily/ be lost or stolen.  By using
+  SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe
+  and reliable SLIP-39 Mnemonic cards to friends and family, and reduce
+  the risks of theft or loss of your critical cryptocurrency accounts
+  Seed data.
+
+  Learn how to use the SLIP-39 App to "back up" your BIP-39 Mnemonic
+  Phrase:
+
+  <../../images/slip39-overview-youtube.png>
+
+
 1.3 Paper Wallets
 ─────────────────
 
@@ -167,7 +197,7 @@ Table of Contents
   software crypto wallets (eg. Metamask, Brave or various mobile- and
   computer-based wallets):
 
-  <./images/slip39-wallets.png>
+  <../../images/slip39-wallets.png>
 
 
 1.3.1 Walking-Around Money
@@ -206,12 +236,12 @@ Table of Contents
 2.1 Trezor
 ──────────
 
-  The [Trezor "Model T"] hardware wallet has built-in SLIP-39 generation
+  The [Trezor Safe 3] hardware wallet has built-in SLIP-39 generation
   and recovery capability.  Enter the words on the SLIP-39 cards
   directly into the screen of the Trezor to recover your cryptocurrency
   accounts.
 
-  We recommend the Trezor "Model T" for this reason.  No other hardware
+  We recommend the Trezor Safe 3 for this reason.  No other hardware
   wallet yet supports direct, on-screen SLIP-39 Seed recovery.
 
   If you already have one of the less expensive Trezor wallets that only
@@ -220,7 +250,7 @@ Table of Contents
   traditional hardware wallets.
 
 
-[Trezor "Model T"] <https://trezor.go2cloud.org/SH1Y>
+[Trezor Safe 3] <https://trezor.go2cloud.org/SHdv>
 
 
 2.2 Ledger
@@ -244,31 +274,6 @@ Table of Contents
 
 [Ledger Nano X]
 <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
-
-2.2.1 Recovering your BIP-39 Seed Phrase
-╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
-
-  If you already have a BIP-39 Mnemonic, and would like back it up using
-  SLIP-39 for more security and recovery reliability, you can use the
-  SLIP-39 App's Backup Controls to do so.  After you create your Seed
-  Data (or enter an existing BIP-39 Seed Phrase), select "Using BIP-39".
-  This will generate a set of SLIP-39 Mnemonic Cards that *backs up your
-  existing BIP-39 Seed Phrase*.
-
-  Later, when you need to recover your BIP-39 Mnemonic (say, to
-  initialize a fresh replacement Ledger hardware wallet), use the
-  SLIP-39 App, select the Recover Controls, and enter sufficient SLIP-39
-  card Mnemonics – and click "Using BIP-39" to reveal your original
-  BIP-39 Seed Phrase.  Then, proceed with Ledger wallet recovery as
-  normal, using the BIP-39 Mnemonic.
-
-  This may not /seem/ like an impressive feat.  But, it is unexpectedly
-  important and powerful!  Your existing BIP-39 Seed Phrase is
-  *extremely* risky; it can /easily/ be lost or stolen.  By using
-  SLIP-39 to Backup your BIP-39 Seed Phrase, you can distribute the safe
-  and reliable SLIP-39 Mnemonic cards to friends and family, and reduce
-  the risks of theft or loss of your critical cryptocurrency accounts
-  Seed data.
 
 
 2.3 Netcoins.app

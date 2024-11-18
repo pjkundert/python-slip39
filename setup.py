@@ -30,7 +30,6 @@ extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 
 # Since setuptools is retiring tests_require, add it as another option (but not included in 'all')
 extras_require['tests']		= tests_require
-options_require.append( 'tests' )
 
 Executable			= None
 if sys.platform == 'win32':
@@ -208,40 +207,57 @@ sets of 20 words is difficult, error-prone and time consuming.
 >  
 >  ---Andreas Antonopoulos
 
-The [python-slip39][1] project (and the [slip39-app][2]) exists to assist in the safe creation,
-backup and documentation of Hierarchical Deterministic (HD) Wallet seeds and derived accounts,
-with various SLIP-39 sharing parameters.  It generates the new random wallet seed, and generates
-the expected standard Ethereum account(s) (at *m/44'/60'/0'/0/0* by default) and
-Bitcoin accounts (at Bech32 derivation path *m/84'/0'/0'/0/0* by default), with wallet address and
-QR code (compatible with Trezor and Ledger derivations).  It produces the required SLIP-39
-phrases, and outputs a single PDF containing all the required printable cards to document the seed
-(and the specified derived accounts).
+The [python-slip39] project (and the [SLIP-39 macOS/win32 App]) exists
+to assist in the safe creation, backup and documentation of
+[Hierarchical Deterministic (HD) Wallet] seeds and derived accounts,
+with various SLIP-39 sharing parameters.  It generates the new random
+wallet seed, and generates the expected standard Ethereum account(s)
+(at [derivation path] *m/44'/60'/0'/0/0* by default) and Bitcoin
+accounts (at Bech32 derivation path *m/84'/0'/0'/0/0* by default),
+with wallet address and QR code (compatible with Trezor and Ledger
+derivations).  It produces the required SLIP-39 phrases, and outputs a
+single PDF containing all the required printable cards to document the
+seed (and the specified derived accounts).
 
-On an secure (ideally air-gapped) computer, new seeds can /safely/ be generated (*without*
-trusting this program) and the PDF saved to a USB drive for printing (or directly printed without
-the file being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC,
-and XRP addresses derived from the seed, to /illustrate/ what accounts are associated with the
-backed-up seed.  Recovery of the seed to a [trezor-model-t][3] is simple, by entering the mnemonics
-right on the device.
+On an secure (ideally air-gapped) computer, new seeds can /safely/ be
+generated (*without trusting this program*) and the PDF saved to a USB
+drive for printing (or directly printed without the file being saved
+to disk.).  Presently, `slip39' can output example ETH, BTC, LTC,
+DOGE, BSC, and XRP addresses derived from the seed, to /illustrate/
+what accounts are associated with the backed-up seed.  Recovery of the
+seed to a [Trezor Safe 3] is simple, by entering the mnemonics right
+on the device.
 
-We also support the backup of existing insecure and unreliable 12- or 24-word BIP-39 Mnemonic
-Phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware wallets like the [ledger-nano][4],
-etc.!  Recover from your existing BIP-39 Seed Phrase Mnemonic, select "Using BIP-39" (and enter
-your BIP-39 passphrase), and generate a set of SLIP-39 Mnemonic cards.  Later, use the SLIP-39 App
-to recover from your SLIP-39 Mnemonic cards, click "Using BIP-39" to get your BIP-39 Mnemonic
-back, and use it (and your passphrase) to recover your accounts to your Ledger (or other) hardware
-wallet.
+We also support the backup of existing insecure and unreliable 12- or
+24-word BIP-39 Mnemonic Phrases as SLIP-39 Mnemonic cards, for
+existing BIP-39 hardware wallets like the [Ledger Nano], etc.!
+Recover from your existing BIP-39 Seed Phrase Mnemonic, select "Using
+BIP-39" (and enter your BIP-39 passphrase), and generate a set of
+SLIP-39 Mnemonic cards.  Later, use the SLIP-39 App to recover from
+your SLIP-39 Mnemonic cards, click "Using BIP-39" to get your BIP-39
+Mnemonic back, and use it (and your passphrase) to recover your
+accounts to your Ledger (or other) hardware wallet.
 
-Output of BIP-38 or JSON encrypted Paper Wallets is also supported, for import into standard
-software cryptocurrency wallets.
+Output of BIP-38 or JSON encrypted Paper Wallets is also supported,
+for import into standard software cryptocurrency wallets.
 
-[1]: <https://github.com/pjkundert/python-slip39.git> "python-slip39"
+<./images/slip39.png>
 
-[2]: <https://slip39.com/app> "SLIP-39 App"
 
-[3]: <https://trezor.go2cloud.org/SH1Y> "Trezor Model T"
+[python-slip39] <https://github.com/pjkundert/python-slip39.git>
 
-[4]: <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f> "Ledger Nano"
+[SLIP-39 macOS/win32 App] <https://slip39.com/app>
+
+[Hierarchical Deterministic (HD) Wallet]
+<https://wolovim.medium.com/ethereum-201-hd-wallets-11d0c93c87>
+
+[derivation path]
+<https://medium.com/myetherwallet/hd-wallets-and-derivation-paths-explained-865a643c7bf2>
+
+[Trezor Safe 3] <https://trezor.go2cloud.org/SHdf>
+
+[Ledger Nano]
+<https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>
 
 ## The SLIP-39 App for Generation and Backup
 

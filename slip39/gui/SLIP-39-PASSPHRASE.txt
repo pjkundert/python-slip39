@@ -78,10 +78,9 @@ recommended.  Leave it empty!
 2.1 Hardware Wallet Doesn't Support Passphrase
 ──────────────────────────────────────────────
 
-  The Trezor "Model T" doesn't presently support using a Passphrase on
-  SLIP-39 recovery.  So, if you supply one here, you will not be able to
-  use it when recovering your SLIP-39 Mnemonics on your Trezor "Model
-  T".
+  The Trezor doesn't presently support using a Passphrase on SLIP-39
+  recovery.  So, if you supply one here, you will not be able to use it
+  when recovering your SLIP-39 Mnemonics on your Trezor.
 
 
 2.1.1 Use Trezor's "Hidden Wallets" Instead

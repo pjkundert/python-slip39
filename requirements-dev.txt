@@ -1,0 +1,4 @@
+build
+cx_Freeze		>=6.12
+setuptools
+wheel

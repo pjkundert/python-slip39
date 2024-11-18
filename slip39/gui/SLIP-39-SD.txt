@@ -35,7 +35,7 @@ your insecure/unreliable BIP-39 Mnemonic using SLIP-39.
 
   So, in order for us to compute and show you the correct Cryptocurrency
   wallet(s), you must indicate whether you're importing using the
-  SLIP-39 Mnemonics directly (ie. on a Trezor "Model T"), *or* if you're
+  SLIP-39 Mnemonics directly (ie. on a Trezor), *or* if you're
   recovering the BIP-39 Mnemonic, and using that on the hardware wallet
   (ie. on a Ledger, or some other non-SLIP-39 hardware wallet).
 

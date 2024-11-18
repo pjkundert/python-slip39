@@ -51,8 +51,8 @@ sets of 20 words is difficult, error-prone and time consuming.
   this program*) and the PDF saved to a USB drive for printing (or directly printed without the file
   being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC, and XRP
   addresses derived from the seed, to /illustrate/ what accounts are associated with the backed-up
-  seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SH1Y][Trezor "Model T"]] or a (newer, less costly) [[https://affil.trezor.io/SHUD]["Model One"]] is simple,
-  by entering the mnemonics right on the device.
+  seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SHdf][Trezor Safe 3]] is simple, by entering the mnemonics right on the
+  device.
 
   We also support the backup of existing insecure and unreliable 12- or 24-word BIP-39 Mnemonic
   Phrases as SLIP-39 Mnemonic cards, for existing BIP-39 hardware wallets like the [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano]],
@@ -236,7 +236,7 @@ python3 -m slip39.recovery --using-bip39 \
 
    Run the following to obtain a PDF file containing business cards with the default SLIP-39 groups
    for a new account Seed named "Personal" (usable with any hardware wallet with SLIP-39 support,
-   such as the Trezor "Model T") ; insert a USB drive to collect the output, and run:
+   such as the Trezor Safe) ; insert a USB drive to collect the output, and run:
 
    #+LATEX: {\scriptsize
    #+BEGIN_EXAMPLE
@@ -595,9 +595,8 @@ python3 -m slip39.recovery --help 2>&1                | sed 's/^/: /' # (just fo
     :     python3 -m slip39 --secret = "ab04...7f"
     : 
     : SLIP-39 Mnemonics may be encrypted with a passphrase; this is *not* Ledger-compatible, so it rarely
-    : recommended!  Typically, on a Trezor "Model T", you recover using your SLIP-39 Mnemonics, and then
-    : use the "Hidden wallet" feature (passwords entered on the device) to produce alternative sets of
-    : accounts.
+    : recommended!  Typically, on a Trezor, you recover using your SLIP-39 Mnemonics, and then use the
+    : "Hidden wallet" feature (passwords entered on the device) to produce alternative sets of accounts.
     : 
     : BIP-39 Mnemonics can be backed up as SLIP-39 Mnemonics, in two ways:
     : 
@@ -1603,8 +1602,8 @@ slip39_eth_hd       = slip39.account( recseed, 'ETH', path )
 
    The second "Best Recovery: Using Recovered BIP-39 Mnemonic Phrase" allows us to recover the
    accounts to /any/ standard BIP-39 hardware wallet!  However, the SLIP-39 Mnemonics are *not*
-   compatible with standard SLIP-39 wallets like the Trezor "Model T" -- you have to use the
-   recovered BIP-39 Mnemonic phrase to recover the hardware wallet.
+   compatible with standard SLIP-39 wallets like the Trezor -- you have to use the recovered BIP-39
+   Mnemonic phrase to recover the hardware wallet.
    
 *** Emergency Recovery: Using Recovered Paper Wallets
 
@@ -1677,7 +1676,7 @@ slip39_eth_hd       = slip39.account( recseed, 'ETH', path )
     - Preserves all of the original wallets
 
     But:
-    - The 59-word SLIP-39 Mnemonics cannot (yet) be imported into the Trezor "Model T"
+    - The 59-word SLIP-39 Mnemonics cannot (yet) be imported into the Trezor
     - The original BIP-39 Mnemonic phrase cannot be recovered, for any hardware wallet
     - Must use the SLIP-39 App to generate "Paper Wallets", to recover the funds
 
@@ -2311,13 +2310,14 @@ f"MultiPayoutERC20 Contract & Forwarder Details:\n\n{mp}\n\n"
   : $ PY3=python3.12 make venv
   : ...
   : (python-slip39-13.0.0-usr-darwin-cpython-312) bash-3.2$
-  and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].  It is also supported under Nix (optionally
-  prefixed with a =TARGET\=py310= and/or =NIX_OPTS\=""= to avoid --pure and gain access to locally
-  installed applications like emacs, but using the nix-supplied Python3 interpreter):
+  and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].
+
+  It is also supported under Nix (optionally prefixed with eg. =TARGET\=py310=):
   : $ make nix-venv
   : ...
   : *** Activating /Users/perry/src/python-slip39-13.0.0-nix-darwin-cpython-312 VirtualEnv for Interactive /bin/bash
   : (python-slip39-13.0.0-nix-darwin-cpython-312) Perrys-MBP:python-slip39 perry$
+  The Nix installation is probably the recommended approach for macOS and Linux.
 
   Either of these methods will get you a =python3= executable running version 3.12+, usable for
   running the =slip39= module, and the =slip39.gui= GUI.

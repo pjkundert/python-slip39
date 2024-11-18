@@ -31,9 +31,9 @@ BIP-39 Mnemonic using SLIP-39.
    importing using BIP-39 vs. SLIP-39!
 
    So, in order for us to compute and show you the correct Cryptocurrency wallet(s), you must
-   indicate whether you're importing using the SLIP-39 Mnemonics directly (ie. on a Trezor "Model
-   T"), *or* if you're recovering the BIP-39 Mnemonic, and using that on the hardware wallet (ie. on
-   a Ledger, or some other non-SLIP-39 hardware wallet).
+   indicate whether you're importing using the SLIP-39 Mnemonics directly (ie. on a Trezor), *or* if
+   you're recovering the BIP-39 Mnemonic, and using that on the hardware wallet (ie. on a Ledger, or
+   some other non-SLIP-39 hardware wallet).
 
    If you recover your Seed Entropy from a BIP-39 Mnemonic, we'll /assume/ you intend to *use* the
    BIP-39 Mnemonic on your hardware wallet, and we'll check "Recovering from BIP-39 on my Hardware

@@ -1010,7 +1010,7 @@ def create(
 
     Creates accountgroups derived from the Seed Entropy.  By default, this is done in the SLIP-39
     standard, using the master_secret Entropy directly.  If a passphrase is supplied, this is also
-    used in the SLIP-39 standard fashion (not recommended -- not Trezor "Model T" compatible).
+    used in the SLIP-39 standard fashion (not recommended -- not Trezor compatible).
 
     If using_bip39, creates the Cryptocurrency accountgroups from the supplied master_secret
     Entropy, by generating the Seed from a BIP-38 Mnemonic produced from the provided entropy

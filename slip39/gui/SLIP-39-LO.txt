@@ -25,15 +25,14 @@ Select an appropriate level of Controls detail.
 ════════
 
   A basic SLIP-39 Mnemonic creation interface.  Default support for
-  [Trezor "Model T"] with native SLIP-39 Mnemonics recovery.
+  [Trezor Safe 3] with native SLIP-39 Mnemonics recovery.
 
   Select "Using BIP-39" for a traditional BIP-39 Seed Phrase Mnemonic,
   to use any other hardware wallets such as the [Ledger Nano] (or even
-  the Trezor "Model T", in BIP-39 Recovery mode).
+  the Trezor, in BIP-39 Recovery mode).
 
 
-[Trezor "Model T"]
-<https://shop.trezor.io/product/trezor-model-t?offer_id=15&aff_id=10388>
+[Trezor Safe 3] <https://affil.trezor.io/SHdv>
 
 [Ledger Nano]
 <https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f>

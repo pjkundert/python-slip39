@@ -2,9 +2,9 @@
 #+OPTIONS: toc:nil author:nil
 
 #+BEGIN_ABSTRACT
-SLIP-39 Mnemonic Cards for Hardware Wallets that natively support it, such as your Trezor "Model T".
-Recover your Cryptocurrency accounts to your hardware wallet directly from these SLIP-39 cards, by
-entering them on the screen of the device.
+SLIP-39 Mnemonic Cards for Hardware Wallets that natively support it, such as your Trezor.  Recover
+your Cryptocurrency accounts to your hardware wallet directly from these SLIP-39 cards, by entering
+them on the screen of the device.
 #+END_ABSTRACT
 
   - Collect these "SLIP-39" Card Mnemonics, with sufficient:
