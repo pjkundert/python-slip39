@@ -108,6 +108,16 @@ Table of Contents
 
 [SLIP-39 App] <https://slip39.com/app>
 
+1.1.1 Alternative Installation (for techies, on macOS or Linux)
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Open a terminal and run:
+
+  ┌────
+  │ $ python3 -m pip install slip39[gui]
+  │ $ python3 -m slip39.gui
+  └────
+
 
 1.2 SLIP-39 Mnemonic Recovery Cards
 ───────────────────────────────────

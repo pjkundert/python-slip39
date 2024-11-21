@@ -84,6 +84,13 @@ cryptocurrency accounts related to the Seed.
    #+CAPTION: SLIP-39 App
    [[../../images/slip39.png]]
 
+*** Alternative Installation (for techies, on macOS or Linux)
+
+    Open a terminal and run:
+
+    : $ python3 -m pip install slip39[gui]
+    : $ python3 -m slip39.gui
+
 ** SLIP-39 Mnemonic Recovery Cards
 
    We don't recommend writing down one BIP-39 12-word or 24-word Mnemonic phrase, and hoping that
