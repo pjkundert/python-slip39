@@ -179,18 +179,22 @@ cryptocurrency accounts related to the Seed.
 * Recommended Vendors
 
   To assist you in obtaining various SLIP-39 compatible components, we have established some
-  relationship with reliable vendors.
+  relationships with reliable vendors.  If you do nothing else -- get a Hardware Wallet!
+
+  Regardless of whether or not you decide to use safer SLIP-39 Mnemonics, or just continue on with
+  your BIP-39 Mnemonic phrase: using a Hardware Wallet or two to secure your Seed and all of its
+  derived crypto wallets is the safest way to access your cryptocurrency!
 
 ** Trezor
 
-   The [[https://trezor.go2cloud.org/SHdv][Trezor Safe 3]] hardware wallet has built-in SLIP-39 generation and recovery capability.
-   Enter the words on the SLIP-39 cards directly into the screen of the Trezor to recover your
-   cryptocurrency accounts.
+   The inexpensive [[https://trezor.go2cloud.org/SHdv][Trezor Safe 3]] hardware wallet has built-in SLIP-39 generation and recovery
+   capability.  Enter the words on the SLIP-39 cards directly into the screen of the Trezor to
+   recover your cryptocurrency accounts.
 
    #+BEGIN_EXPORT html
    <!-- Javascript Ad Tag: 1696 -->
-   <div id="trezor1696wHdtBw"></div>
-   <script src="http://affil.trezor.io/aff_ad?campaign_id=1696&aff_id=10388&format=js&divid=trezor1696wHdtBw" type="text/javascript"></script>
+   <div id="trezor1696GoqeaZ"></div>
+   <script src="http://affil.trezor.io/aff_ad?campaign_id=1696&aff_id=10388&format=js&divid=trezor1696GoqeaZ" type="text/javascript"></script>
    <noscript><iframe src="http://affil.trezor.io/aff_ad?campaign_id=1696&aff_id=10388&format=iframe" scrolling="no" frameborder="0" marginheight="0" marginwidth="0" width="728" height="90"></iframe></noscript>
    <!-- // End Ad Tag -->
    #+END_EXPORT
@@ -211,15 +215,11 @@ cryptocurrency accounts related to the Seed.
    The [[https://shop.ledger.com/pages/ledger-nano-s-plus?r=2cd1cb6ae51f][Ledger Nano S Plus]] has a large screen, at a reasonable price point, and connects via USB-C.
 
    #+BEGIN_EXPORT html
-   <a href="https://shop.ledger.com/pages/ledger-nano-s-plus?r=2cd1cb6ae51f"><img width=728 height=90 src="http://affiliate.ledger.com/image/728/90"></a>
+   <a href="https://shop.ledger.com/pages/ledger-nano-s-plus/?r=2cd1cb6ae51f"><img width=728 height=90 src="https://affiliate.ledger.com/image/728/90/Default"></a>
    #+END_EXPORT
 
    The [[https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f][Ledger Nano X]] has a large screen and supports connectivity via Bluetooth, for much easier
    connectivity with mobile phone and laptop wallet software.
-
-   #+BEGIN_EXPORT html
-   <a href="https://shop.ledger.com/pages/ledger-nano-x?r=2cd1cb6ae51f"><img width=728 height=90 src="http://affiliate.ledger.com/image/728/90"></a>
-   #+END_EXPORT
 
 ** Netcoins.app
 

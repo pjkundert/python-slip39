@@ -230,16 +230,22 @@ Table of Contents
 ═════════════════════
 
   To assist you in obtaining various SLIP-39 compatible components, we
-  have established some relationship with reliable vendors.
+  have established some relationships with reliable vendors.  If you do
+  nothing else – get a Hardware Wallet!
+
+  Regardless of whether or not you decide to use safer SLIP-39
+  Mnemonics, or just continue on with your BIP-39 Mnemonic phrase: using
+  a Hardware Wallet or two to secure your Seed and all of its derived
+  crypto wallets is the safest way to access your cryptocurrency!
 
 
 2.1 Trezor
 ──────────
 
-  The [Trezor Safe 3] hardware wallet has built-in SLIP-39 generation
-  and recovery capability.  Enter the words on the SLIP-39 cards
-  directly into the screen of the Trezor to recover your cryptocurrency
-  accounts.
+  The inexpensive [Trezor Safe 3] hardware wallet has built-in SLIP-39
+  generation and recovery capability.  Enter the words on the SLIP-39
+  cards directly into the screen of the Trezor to recover your
+  cryptocurrency accounts.
 
   We recommend the Trezor Safe 3 for this reason.  No other hardware
   wallet yet supports direct, on-screen SLIP-39 Seed recovery.
