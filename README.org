@@ -51,7 +51,7 @@ sets of 20 words is difficult, error-prone and time consuming.
   this program*) and the PDF saved to a USB drive for printing (or directly printed without the file
   being saved to disk.).  Presently, =slip39= can output example ETH, BTC, LTC, DOGE, BSC, and XRP
   addresses derived from the seed, to /illustrate/ what accounts are associated with the backed-up
-  seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SHdf][Trezor Safe 3]] is simple, by entering the mnemonics right on the
+  seed.  Recovery of the seed to a [[https://trezor.go2cloud.org/SHdv][Trezor Safe 3]] is simple, by entering the mnemonics right on the
   device.
 
   We also support the backup of existing insecure and unreliable 12- or 24-word BIP-39 Mnemonic
@@ -671,13 +671,13 @@ python3 -m slip39.recovery --help 2>&1                | sed 's/^/: /' # (just fo
     #+LATEX: {\scriptsize
     #+BEGIN_SRC bash :exports both :results output raw
 echo -n "[[./$( \
-	python3 -m slip39 --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" --output SLIP39-Example.pdf \
+	python3 -m slip39 --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" --output ./images/SLIP39-Example.pdf \
 )]]"
 
     #+END_SRC
 
     #+RESULTS:
-    [[./SLIP39-Example.pdf]]
+    [[./images/SLIP39-Example.pdf]]
 
     Note the presence of the BIP-39 recovery phrase on the cover sheet; this is recovered
     by round-tripping the original BIP-39 seed entropy, through SLIP-39, and re-encoding back
