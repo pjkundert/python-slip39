@@ -2304,31 +2304,50 @@ f"MultiPayoutERC20 Contract & Forwarder Details:\n\n{mp}\n\n"
 
   If you =git clone git@github.com:pjkundert/python-slip39.git= and have the source code, you can use
   the supplied GNU =make= targets to create a venv Virtual Environment and build then install.
+
+  The GUI requires Python3 with =tk= support, and uses PySimpleGUI which has a 30-day trial period,
+  after which it requires a license.
+
+** Homebrew on macOS, or Nix on Linux or macOS
+
+   The =python-slip39= project is tested under both homebrew:
+   : $ brew install python-tk@3.12
+   : $ PY3=python3.12 make venv
+   : ...
+   : (python-slip39-13.0.0-usr-darwin-cpython-312) bash-3.2$
+   and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].
   
-  The =python-slip39= project is tested under both homebrew:
-  : $ brew install python-tk@3.12
-  : $ PY3=python3.12 make venv
-  : ...
-  : (python-slip39-13.0.0-usr-darwin-cpython-312) bash-3.2$
-  and using [[https://www.python.org/downloads/][the official python.org/downloads installer]].
+   It is also supported under Nix (optionally prefixed with eg. =TARGET\=py310=):
+   : $ make nix-venv
+   : ...
+   : *** Activating /Users/perry/src/python-slip39-13.0.0-nix-darwin-cpython-312 VirtualEnv for Interactive /bin/bash
+   : (python-slip39-13.0.0-nix-darwin-cpython-312) Perrys-MBP:python-slip39 perry$
+   The Nix installation is probably the recommended approach for macOS and Linux.
+  
+   Either of these methods will get you a =python3= executable running version 3.12+, usable for
+   running the =slip39= module, and the =slip39.gui= GUI.
 
-  It is also supported under Nix (optionally prefixed with eg. =TARGET\=py310=):
-  : $ make nix-venv
-  : ...
-  : *** Activating /Users/perry/src/python-slip39-13.0.0-nix-darwin-cpython-312 VirtualEnv for Interactive /bin/bash
-  : (python-slip39-13.0.0-nix-darwin-cpython-312) Perrys-MBP:python-slip39 perry$
-  The Nix installation is probably the recommended approach for macOS and Linux.
+** Native Python3 on Linux
 
-  Either of these methods will get you a =python3= executable running version 3.12+, usable for
-  running the =slip39= module, and the =slip39.gui= GUI.
-
-  To manually create your own venv and install from pypi using the Python 3.9 to 3.12 (+ TK if using
-  the GUI) you have at hand:
-  : $ python3.12 -m venv python-slip39-venv
-  : $ . ./python-slip39-venv/bin/activate
-  : (python-slip39-venv) [you@yourhost src]$ python3 -m pip install slip39[gui]
-  : ...
-  : (python-slip39-venv) [you@yourhost src]$ python3 -m slip39.gui
+   To manually create your own venv and install from pypi using the Python 3.9 to 3.12 (+ TK if using
+   the GUI) you have at hand: 
+  
+   1) Ensure your Python3 has =tk= and =pip=, and GNU =make=; on Linux systems, this might be something like:
+      : $ sudo apt install make python3-pip python3-tk
+  
+   2) Create the Python3 Virtual Environment using the GNU =make= target =venv=; this will create the
+      venv, and install =slip39= in it:
+      : $ cd python-slip39
+      : $ make venv
+      : $ python3 -m slip39.gui
+      To create it manually, and then install =slip39=, go into the =python-slip39= directory you cloned, and:
+      : $ python3 -m venv python-slip39-venv
+      : $ . ./python-slip39-venv/bin/activate
+      : (python-slip39-venv) [you@yourhost src]$ python3 -m pip install slip39[gui]
+      : ...
+      : (python-slip39-venv) [you@yourhost src]$ python3 -m slip39.gui
+   3) The GUI is built using PySimpleGUI, which has a 30-day trial period before you have to purchase
+      a license.  Accept the trial period, and the GUI will be displayed.
 
 ** The =slip39= Module
 

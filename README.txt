@@ -46,8 +46,10 @@ Table of Contents
 .. 3. Single-Use Accounts using Pre-Signed Transfers
 .. 4. Testing `MultiPayoutERC20'
 6. Building & Installing
-.. 1. The `slip39' Module
-.. 2. The `slip39' GUI
+.. 1. Homebrew on macOS, or Nix on Linux or macOS
+.. 2. Native Python3 on Linux
+.. 3. The `slip39' Module
+.. 4. The `slip39' GUI
 7. Licensing
 .. 1. Create an Ed25519 "Agent" Key
 .. 2. Validating an Advanced Feature License
@@ -135,7 +137,7 @@ Table of Contents
   │ slip39 --secret "seven replace great luggage fox rent general tower guess inside smile sing"
   └────
 
-  SLIP39-2024-11-23+06.35.27-ETH-0x6E6268F14B922cb924C7683A415B30C2bf967000.pdf
+  SLIP39-2024-12-06+13.05.59-ETH-0x6E6268F14B922cb924C7683A415B30C2bf967000.pdf
 
   <./images/SLIP39-backup-BIP39.png>
 
@@ -369,14 +371,14 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:28 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  │ 2024-11-23 06:35:28 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-  │ 2024-11-23 06:35:28 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 21994 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:28 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-  │ 2024-11-23 06:35:28 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-  │ 2024-11-23 06:35:28 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-  │ 2024-11-23 06:35:28 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-  │ 2024-11-23 06:35:33 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-11-23+06.35.31-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+  │ 2024-12-06 13:06:00 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  │ 2024-12-06 13:06:00 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  │ 2024-12-06 13:06:00 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 22251 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:00 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+  │ 2024-12-06 13:06:00 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+  │ 2024-12-06 13:06:00 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+  │ 2024-12-06 13:06:00 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+  │ 2024-12-06 13:06:02 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-12-06+13.06.01-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
   └────
 
 
@@ -396,9 +398,9 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:34 slip39.recovery  Recovered 128-bit Encrypted SLIP-39 Seed Entropy using 2 groups comprising 2 mnemonics
-  │ 2024-11-23 06:35:34 slip39.recovery  Seed decoded from SLIP-39 Mnemonics w/ no passphrase
-  │ 2024-11-23 06:35:34 slip39.recovery  Recovered SLIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2024-12-06 13:06:02 slip39.recovery  Recovered 128-bit Encrypted SLIP-39 Seed Entropy using 2 groups comprising 2 mnemonics
+  │ 2024-12-06 13:06:02 slip39.recovery  Seed decoded from SLIP-39 Mnemonics w/ no passphrase
+  │ 2024-12-06 13:06:02 slip39.recovery  Recovered SLIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ ffffffffffffffffffffffffffffffff
   └────
 
@@ -417,13 +419,13 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:35 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-  │ 2024-11-23 06:35:35 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 32473 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:35 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-  │ 2024-11-23 06:35:35 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
-  │ 2024-11-23 06:35:35 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
-  │ 2024-11-23 06:35:35 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
-  │ 2024-11-23 06:35:40 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-11-23+06.35.38-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
+  │ 2024-12-06 13:06:02 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  │ 2024-12-06 13:06:02 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 23263 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:02 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+  │ 2024-12-06 13:06:02 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+  │ 2024-12-06 13:06:02 slip39.layout    DOGE   m/44'/3'/0'/0/0     : DN8PNN3dipSJpLmyxtGe4EJH38EhqF8Sfy
+  │ 2024-12-06 13:06:02 slip39.layout    LTC    m/84'/2'/0'/0/0     : ltc1qe5m2mst9kjcqtfpapaanaty40qe8xtusmq4ake
+  │ 2024-12-06 13:06:05 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-12-06+13.06.04-ETH-0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1.pdf
   └────
 
 
@@ -633,13 +635,13 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:41 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
-  │ 2024-11-23 06:35:41 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
-  │ 2024-11-23 06:35:41 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 28897 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:41 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
-  │ 2024-11-23 06:35:41 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
-  │ 2024-11-23 06:35:46 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-11-23+06.35.44-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
-  │ SLIP39-2024-11-23+06.35.44-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  │ 2024-12-06 13:06:05 slip39           It is recommended to not use '-s|--secret <hex>'; specify '-' to read from input
+  │ 2024-12-06 13:06:05 slip39           It is recommended to not use '-w|--wallet <password>'; specify '-' to read from input
+  │ 2024-12-06 13:06:05 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 20777 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:05 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xb44A2011A99596671d5952CdC22816089f142FB3
+  │ 2024-12-06 13:06:05 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qcupw7k8enymvvsa7w35j5hq4ergtvus3zk8a8s
+  │ 2024-12-06 13:06:07 slip39.layout    Writing SLIP39-encoded wallet for 'SLIP39' to: SLIP39-2024-12-06+13.06.06-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
+  │ SLIP39-2024-12-06+13.06.06-ETH-0xb44A2011A99596671d5952CdC22816089f142FB3.pdf
   └────
 
 
@@ -723,13 +725,13 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:48 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 21220 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:48 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xe6477AC8AC1b995d9F8F3C287E3F07E27532ec8C
-  │ 2024-11-23 06:35:48 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qzuaqs3dhk668tgx206swk9lsskmnnmrm4vwt82
+  │ 2024-12-06 13:06:07 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 14113 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:07 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xBC9B03B4C2aC249AbA4385E85328865A0eb540f6
+  │ 2024-12-06 13:06:07 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qdl8kzla3dg3v930jvkasr35m62e9x4u4n4hfqa
   │ ...later, after recovering SLIP-39 mnemonics...
-  │ 2024-11-23 06:35:48 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 14932 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:48 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xe6477AC8AC1b995d9F8F3C287E3F07E27532ec8C
-  │ 2024-11-23 06:35:48 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qzuaqs3dhk668tgx206swk9lsskmnnmrm4vwt82
+  │ 2024-12-06 13:06:08 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 7443 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:08 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xBC9B03B4C2aC249AbA4385E85328865A0eb540f6
+  │ 2024-12-06 13:06:08 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qdl8kzla3dg3v930jvkasr35m62e9x4u4n4hfqa
   └────
 
 
@@ -750,12 +752,12 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:35:49 slip39           Assuming BIP-39 seed entropy: Ensure you recover and use via a BIP-39 Mnemonic
-  │ 2024-11-23 06:35:49 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 8569 requiring 2 of 4 (extendable) groups to recover
-  │ 2024-11-23 06:35:49 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │ 2024-11-23 06:35:49 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
-  │ 2024-11-23 06:35:52 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'SLIP39' to: SLIP39-2024-11-23+06.35.52-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
-  │ SLIP39-2024-11-23+06.35.52-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
+  │ 2024-12-06 13:06:08 slip39           Assuming BIP-39 seed entropy: Ensure you recover and use via a BIP-39 Mnemonic
+  │ 2024-12-06 13:06:08 slip39           Generated 128-bit SLIP-39 Mnemonics w/ identifier 31963 requiring 2 of 4 (extendable) groups to recover
+  │ 2024-12-06 13:06:08 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │ 2024-12-06 13:06:08 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │ 2024-12-06 13:06:09 slip39.layout    Writing SLIP39 backup for BIP-39-encoded wallet for 'SLIP39' to: SLIP39-2024-12-06+13.06.09-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
+  │ SLIP39-2024-12-06+13.06.09-ETH-0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E.pdf
   └────
 
 
@@ -765,7 +767,7 @@ Table of Contents
 
   ┌────
   │ echo -n "[[./$( \
-  │ 	python3 -m slip39 --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" --output ./images/SLIP39-Example.pdf \
+  │         python3 -m slip39 --secret "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong" --output ./images/SLIP39-Example.pdf \
   │ )]]"
   │ 
   └────
@@ -909,11 +911,11 @@ Table of Contents
   ┌────
   │ 
   │ 
-  │ nonce: 5c5a2718db36fcef490b12db60f4c15a9a50194ccb26e4e0c64c5c95
-  │     0: 7b467b355f97105d534f7ef834a66f3bf06da7809325699d174382f33e1c869b0ffea39ce00622fd9918c7ae62d93...
-  │     1: 2d2e3c3a79908729cbad030535c6dd06277031e408797c4b726986cdcb47a9e65abc787a4b0b0d80953cfe818171e...
-  │     2: dafb557918ae4b64a6a4cb6fcc1a45423361bace1bc87b75760388de3095ade133717f5a7007495ed1ea8167bc640...
-  │     3: ededc2cf98c9f149be0f0d49651ae98fa44d3abc8307397c412ab78511fce90239396d476e04c9bab8190440c65a9...
+  │ nonce: 497b8fdfdec113b647cd34ce5f611b0e243fabaece1773741c22b6e6
+  │     0: d1ecaed8a0e69ca712e5cc554242fbb3baff7d0f5a1537af9dc38d69edc96e4a0ce2b57cb6bf007ebfb63ddfd40a1...
+  │     1: 34475657e8ad40420e10fd444103246e13c78d9a2f68b9acb0dd562226cce5e2dd028037215a9f64b9ce2153cdca0...
+  │     2: 090b65ac2dad21efdb289c394ba6be28f50320cd70482ebfc1b390fef93e09ab7e086bc783df16ae725b1c89ed891...
+  │     3: 89405cc90832b4aa8b6d8d22b4788f94fbe5d0391a3868ec349c38c4bbaffcca9d66f0bc9cdd3c3ff4efc781abc58...
   └────
 
 
@@ -954,7 +956,7 @@ Table of Contents
   └────
 
   ┌────
-  │ 2024-11-23 06:36:03 slip39.generator Decrypting accountgroups with nonce: afa075034928be73950d182b
+  │ 2024-12-06 13:06:12 slip39.generator Decrypting accountgroups with nonce: 29abf4d241d71f4c29ae1ddc
   │     0: [["ETH", "m/44'/60'/0'", "xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"], ["BTC", "m/84'/0'/0'", "zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]]
   │     1: [["ETH", "m/44'/60'/1'", "xpub6C2y6te3rtGgCPb4Gi89Qin7Da2dvnnHSuR9rLQV6bWQKiyfKyjtVzr2n9mKmTEHzr4rzK78LmdSXLSzvpZqVs4ussUU8NyXpt9nWWbKG3C"], ["BTC", "m/84'/0'/1'", "zpub6rD5AGSXPTDMUaSe3aGDqWk4uMTwcrFwytkKuDGmi3ofUkJ4dQxXHZwiXWbHHrELJAor8xGs61F8sbKS2JdQkLZRnu5PGktmr6F32nEBUBb"]]
   │     2: [["ETH", "m/44'/60'/2'", "xpub6C2y6te3rtGgENnaK62SyPawqKvbde17wc2ndMGFWi2yAkk3piwEY9QK8egtE9ye9uoqiqs5WV3MTNCCP2qjUNDb8cmSg4ZsVnwQnkziXVh"], ["BTC", "m/84'/0'/2'", "zpub6rD5AGSXPTDMYx2sQPuZgceniniRXDK5tELiREjxfSGJENNxuQD3u2yfpRqnNE1JeH14Pa7MVGrofDJtyXw252ws9HgRcd82X2M4KzkUfpZ"]]
@@ -976,16 +978,16 @@ Table of Contents
   └────
 
   ┌────
-  │     2024-11-23 06:36:04 slip39.generator Decrypting accountgroups with nonce: 13a3336a90dc74a221eaba2d
-  │     --- 0
-  │     ["ETH","m/44'/60'/0'","xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"]
-  │     ["BTC","m/84'/0'/0'","zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]
-  │     --- 1
-  │     ["ETH","m/44'/60'/1'","xpub6C2y6te3rtGgCPb4Gi89Qin7Da2dvnnHSuR9rLQV6bWQKiyfKyjtVzr2n9mKmTEHzr4rzK78LmdSXLSzvpZqVs4ussUU8NyXpt9nWWbKG3C"]
-  │     ["BTC","m/84'/0'/1'","zpub6rD5AGSXPTDMUaSe3aGDqWk4uMTwcrFwytkKuDGmi3ofUkJ4dQxXHZwiXWbHHrELJAor8xGs61F8sbKS2JdQkLZRnu5PGktmr6F32nEBUBb"]
-  │     --- 2
-  │     ["ETH","m/44'/60'/2'","xpub6C2y6te3rtGgENnaK62SyPawqKvbde17wc2ndMGFWi2yAkk3piwEY9QK8egtE9ye9uoqiqs5WV3MTNCCP2qjUNDb8cmSg4ZsVnwQnkziXVh"]
-  │     ["BTC","m/84'/0'/2'","zpub6rD5AGSXPTDMYx2sQPuZgceniniRXDK5tELiREjxfSGJENNxuQD3u2yfpRqnNE1JeH14Pa7MVGrofDJtyXw252ws9HgRcd82X2M4KzkUfpZ"]
+  │ 2024-12-06 13:06:13 slip39.generator Decrypting accountgroups with nonce: a65dd1f34a41502ae0d6a414
+  │ --- 0
+  │ ["ETH","m/44'/60'/0'","xpub6C2y6te3rtGg9SspDDFbjGEgn7yxc5ZzzkBk62yz3GRKvuqdaMDS7NUbesTJ44FprxAE7hvm5ZQjDMbYWehdJQsyBCP3mL87nnB4cB47HGS"]
+  │ ["BTC","m/84'/0'/0'","zpub6rD5AGSXPTDMSnpmczjENMT3NvVF7q5MySww6uxitUsBYgkZLeBywrcwUWhW5YkeY2aS7xc45APPgfA6s6wWfG2gnfABq6TDz9zqeMu2JCY"]
+  │ --- 1
+  │ ["ETH","m/44'/60'/1'","xpub6C2y6te3rtGgCPb4Gi89Qin7Da2dvnnHSuR9rLQV6bWQKiyfKyjtVzr2n9mKmTEHzr4rzK78LmdSXLSzvpZqVs4ussUU8NyXpt9nWWbKG3C"]
+  │ ["BTC","m/84'/0'/1'","zpub6rD5AGSXPTDMUaSe3aGDqWk4uMTwcrFwytkKuDGmi3ofUkJ4dQxXHZwiXWbHHrELJAor8xGs61F8sbKS2JdQkLZRnu5PGktmr6F32nEBUBb"]
+  │ --- 2
+  │ ["ETH","m/44'/60'/2'","xpub6C2y6te3rtGgENnaK62SyPawqKvbde17wc2ndMGFWi2yAkk3piwEY9QK8egtE9ye9uoqiqs5WV3MTNCCP2qjUNDb8cmSg4ZsVnwQnkziXVh"]
+  │ ["BTC","m/84'/0'/2'","zpub6rD5AGSXPTDMYx2sQPuZgceniniRXDK5tELiREjxfSGJENNxuQD3u2yfpRqnNE1JeH14Pa7MVGrofDJtyXw252ws9HgRcd82X2M4KzkUfpZ"]
   └────
 
   Then, it generates each client's sequence of addresses locally: you
@@ -1006,28 +1008,28 @@ Table of Contents
   └────
 
   ┌────
-  │     2024-11-23 06:36:05 slip39.generator Decrypting accountgroups with nonce: def7d3ad55d25c8c8d94f702
-  │     --- 0
-  │     ETH   m/0/0                0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │     ETH   m/0/1                0xd1a7451beB6FE0326b4B78e3909310880B781d66
-  │     ETH   m/0/2                0x578270B5E5B53336baC354756b763b309eCA90Ef
-  │     BTC   m/0/0                bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
-  │     BTC   m/0/1                bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug
-  │     BTC   m/0/2                bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w
-  │     --- 1
-  │     ETH   m/0/0                0x9176A747BA67C1d7F80AaDC930180b4183AfB5c4
-  │     ETH   m/0/1                0xa1409B655aC3e09eF261de00BAa4e85bD2820AA4
-  │     ETH   m/0/2                0xae22C13Ef5891Ed835C24Ed5090542DFa748c21F
-  │     BTC   m/0/0                bc1q8pqnqs573vx3qdp0xp6qdqzvnvy8px24rxh9lp
-  │     BTC   m/0/1                bc1qwtc58u4mmnxa29u8j07e6lmqpnrs38vefy3y24
-  │     BTC   m/0/2                bc1qg9s8qzm0lcetfv6umhlm3evtca5zsqv7elqd5s
-  │     --- 2
-  │     ETH   m/0/0                0x32A8b066c5dbD37147766491A32A612d313fda25
-  │     ETH   m/0/1                0xff8b88b975f9C296531C1E93d5e4f28757b4571A
-  │     ETH   m/0/2                0xc95Bdf50CA542E1B689f5C06e2D8bAd0625Dfa23
-  │     BTC   m/0/0                bc1q09zpchmkcnny90ghkg76gd69dvaf57qwcsrhes
-  │     BTC   m/0/1                bc1qjytdyw6zramwt4nvvpte93hfry2d4xhhqn0xg4
-  │     BTC   m/0/2                bc1qcummre0pxv5xj4gvyut0t84vfwjd6eu7r387v4
+  │ 2024-12-06 13:06:13 slip39.generator Decrypting accountgroups with nonce: a9e136ee68971a0d165eed67
+  │ --- 0
+  │ ETH   m/0/0                0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │ ETH   m/0/1                0xd1a7451beB6FE0326b4B78e3909310880B781d66
+  │ ETH   m/0/2                0x578270B5E5B53336baC354756b763b309eCA90Ef
+  │ BTC   m/0/0                bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │ BTC   m/0/1                bc1qkd33yck74lg0kaq4tdcmu3hk4yruhjayxpe9ug
+  │ BTC   m/0/2                bc1qvr7e5aytd0hpmtaz2d443k364hprvqpm3lxr8w
+  │ --- 1
+  │ ETH   m/0/0                0x9176A747BA67C1d7F80AaDC930180b4183AfB5c4
+  │ ETH   m/0/1                0xa1409B655aC3e09eF261de00BAa4e85bD2820AA4
+  │ ETH   m/0/2                0xae22C13Ef5891Ed835C24Ed5090542DFa748c21F
+  │ BTC   m/0/0                bc1q8pqnqs573vx3qdp0xp6qdqzvnvy8px24rxh9lp
+  │ BTC   m/0/1                bc1qwtc58u4mmnxa29u8j07e6lmqpnrs38vefy3y24
+  │ BTC   m/0/2                bc1qg9s8qzm0lcetfv6umhlm3evtca5zsqv7elqd5s
+  │ --- 2
+  │ ETH   m/0/0                0x32A8b066c5dbD37147766491A32A612d313fda25
+  │ ETH   m/0/1                0xff8b88b975f9C296531C1E93d5e4f28757b4571A
+  │ ETH   m/0/2                0xc95Bdf50CA542E1B689f5C06e2D8bAd0625Dfa23
+  │ BTC   m/0/0                bc1q09zpchmkcnny90ghkg76gd69dvaf57qwcsrhes
+  │ BTC   m/0/1                bc1qjytdyw6zramwt4nvvpte93hfry2d4xhhqn0xg4
+  │ BTC   m/0/2                bc1qcummre0pxv5xj4gvyut0t84vfwjd6eu7r387v4
   └────
 
   You'll notice that, after this elaborate exercise of generating
@@ -1512,7 +1514,7 @@ Table of Contents
   └────
 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Valid random 12-word mnemonics:     6.01% 
+   Valid random 12-word mnemonics:     6.04% 
    Or, about:                       1 / 16.6 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Sure enough, about 1/16 random 12-word phrases are valid BIP-39
@@ -1773,9 +1775,9 @@ Table of Contents
   │ ) 2>&1
   └────
   ┌────
-  │ 2024-11-23 06:36:19 slip39.recovery  BIP-39 Language detected: english
-  │ 2024-11-23 06:36:19 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
-  │ 2024-11-23 06:36:19 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2024-12-06 13:06:20 slip39.recovery  BIP-39 Language detected: english
+  │ 2024-12-06 13:06:20 slip39.recovery  Recovered 512-bit BIP-39 secret from english mnemonic
+  │ 2024-12-06 13:06:20 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ b6a6d8921942dd9806607ebc2750416b289adea669198769f2e15ed926c3aa92bf88ece232317b4ea463e84b0fcd3b53577812ee449ccc448eb45e6f544e25b6
   └────
 
@@ -1789,26 +1791,26 @@ Table of Contents
   │ ) 2>&1 | tail -20
   └────
   ┌────
-  │     2024-11-23 06:36:20 slip39                7 bishop    19 solution  31 favorite  43 smug      55 valid     
-  │     2024-11-23 06:36:20 slip39                8 scout     20 meaning   32 dream     44 browser   56 hospital  
-  │     2024-11-23 06:36:20 slip39                9 change    21 carpet    33 dining    45 dough     57 alarm     
-  │     2024-11-23 06:36:20 slip39               10 review    22 staff     34 deny      46 shaft     58 luxury    
-  │     2024-11-23 06:36:20 slip39               11 alcohol   23 roster    35 coal      47 earth     59 august    
-  │     2024-11-23 06:36:20 slip39               12 dish      24 desire    36 privacy   48 cluster   
-  │     2024-11-23 06:36:20 slip39           6th  1 distance  13 legend    25 fangs     37 reunion   49 freshman  
-  │     2024-11-23 06:36:20 slip39                2 survive   14 curly     26 detect    38 tenant    50 drug      
-  │     2024-11-23 06:36:20 slip39                3 decision  15 therapy   27 trouble   39 credit    51 ladybug   
-  │     2024-11-23 06:36:20 slip39                4 spider    16 exact     28 satisfy   40 triumph   52 cage      
-  │     2024-11-23 06:36:20 slip39                5 academic  17 elegant   29 friar     41 elder     53 permit    
-  │     2024-11-23 06:36:20 slip39                6 briefing  18 false     30 transfer  42 tricycle  54 rocky     
-  │     2024-11-23 06:36:20 slip39                7 object    19 salon     31 dream     43 piece     55 tension   
-  │     2024-11-23 06:36:20 slip39                8 thank     20 item      32 mobile    44 laden     56 vampire   
-  │     2024-11-23 06:36:20 slip39                9 company   21 revenue   33 busy      45 knife     57 drove     
-  │     2024-11-23 06:36:20 slip39               10 junior    22 echo      34 carbon    46 kernel    58 unusual   
-  │     2024-11-23 06:36:20 slip39               11 mayor     23 biology   35 rhythm    47 simple    59 obtain    
-  │     2024-11-23 06:36:20 slip39               12 garbage   24 focus     36 liberty   48 either    
-  │     2024-11-23 06:36:20 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │     2024-11-23 06:36:20 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │ 2024-12-06 13:06:20 slip39                7 vocal     19 ladle     31 hour      43 pitch     55 species   
+  │ 2024-12-06 13:06:20 slip39                8 element   20 dominant  32 curly     44 picture   56 stay      
+  │ 2024-12-06 13:06:20 slip39                9 agree     21 sprinkle  33 empty     45 duration  57 rhyme     
+  │ 2024-12-06 13:06:20 slip39               10 twice     22 fluff     34 suitable  46 squeeze   58 either    
+  │ 2024-12-06 13:06:20 slip39               11 meaning   23 therapy   35 unwrap    47 class     59 firm      
+  │ 2024-12-06 13:06:20 slip39               12 frost     24 trend     36 shaped    48 magazine  
+  │ 2024-12-06 13:06:20 slip39           6th  1 punish    13 texture   25 sympathy  37 width     49 render    
+  │ 2024-12-06 13:06:20 slip39                2 marathon  14 jewelry   26 champion  38 clinic    50 inherit   
+  │ 2024-12-06 13:06:20 slip39                3 decision  15 become    27 adult     39 guest     51 merchant  
+  │ 2024-12-06 13:06:20 slip39                4 spider    16 become    28 climate   40 coastal   52 imply     
+  │ 2024-12-06 13:06:20 slip39                5 academic  17 budget    29 disaster  41 pecan     53 spray     
+  │ 2024-12-06 13:06:20 slip39                6 diet      18 artwork   30 fatal     42 extra     54 amazing   
+  │ 2024-12-06 13:06:20 slip39                7 obesity   19 bucket    31 escape    43 solution  55 regular   
+  │ 2024-12-06 13:06:20 slip39                8 slice     20 inmate    32 pencil    44 research  56 writing   
+  │ 2024-12-06 13:06:20 slip39                9 reaction  21 holiday   33 loyalty   45 task      57 theater   
+  │ 2024-12-06 13:06:20 slip39               10 level     22 marathon  34 video     46 duke      58 axle      
+  │ 2024-12-06 13:06:20 slip39               11 sheriff   23 meaning   35 branch    47 device    59 lips      
+  │ 2024-12-06 13:06:20 slip39               12 submit    24 modify    36 empty     48 swimming  
+  │ 2024-12-06 13:06:20 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │ 2024-12-06 13:06:20 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
   └────
   This `0xfc20..1B5E' address is the same Ethereum address as is
   recovered on a Trezor using this BIP-39 mnemonic phrase.  Thus, we can
@@ -1851,9 +1853,9 @@ Table of Contents
   │ ) 2>&1
   └────
   ┌────
-  │ 2024-11-23 06:36:20 slip39.recovery  BIP-39 Language detected: english
-  │ 2024-11-23 06:36:20 slip39.recovery  Recovered 128-bit BIP-39 entropy from english mnemonic (no passphrase supported)
-  │ 2024-11-23 06:36:20 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
+  │ 2024-12-06 13:06:21 slip39.recovery  BIP-39 Language detected: english
+  │ 2024-12-06 13:06:21 slip39.recovery  Recovered 128-bit BIP-39 entropy from english mnemonic (no passphrase supported)
+  │ 2024-12-06 13:06:21 slip39.recovery  Recovered BIP-39 secret; To re-generate SLIP-39 wallet, send it to: python3 -m slip39 --secret -
   │ ffffffffffffffffffffffffffffffff
   └────
 
@@ -1871,26 +1873,26 @@ Table of Contents
   │ ) 2>&1 | tail -20
   └────
   ┌────
-  │     2024-11-23 06:36:21 slip39                4 skin      11 episode   18 mixture   
-  │     2024-11-23 06:36:21 slip39                5 again     12 daisy     19 western   
-  │     2024-11-23 06:36:21 slip39                6 picture   13 brave     20 ancient   
-  │     2024-11-23 06:36:21 slip39                7 desert    14 hybrid    
-  │     2024-11-23 06:36:21 slip39           5th  1 luck       8 imply     15 floral    
-  │     2024-11-23 06:36:21 slip39                2 sister     9 harvest   16 oasis     
-  │     2024-11-23 06:36:21 slip39                3 decision  10 include   17 dictate   
-  │     2024-11-23 06:36:21 slip39                4 snake     11 slice     18 lizard    
-  │     2024-11-23 06:36:21 slip39                5 decision  12 cage      19 herd      
-  │     2024-11-23 06:36:21 slip39                6 imply     13 recall    20 verify    
-  │     2024-11-23 06:36:21 slip39                7 desert    14 explain   
-  │     2024-11-23 06:36:21 slip39           6th  1 luck       8 ounce     15 herd      
-  │     2024-11-23 06:36:21 slip39                2 sister     9 carve     16 dynamic   
-  │     2024-11-23 06:36:21 slip39                3 decision  10 lyrics    17 elite     
-  │     2024-11-23 06:36:21 slip39                4 spider    11 velvet    18 havoc     
-  │     2024-11-23 06:36:21 slip39                5 bundle    12 lunar     19 scout     
-  │     2024-11-23 06:36:21 slip39                6 guitar    13 agree     20 eclipse   
-  │     2024-11-23 06:36:21 slip39                7 friendly  14 browser   
-  │     2024-11-23 06:36:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
-  │     2024-11-23 06:36:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
+  │ 2024-12-06 13:06:21 slip39                4 skin      11 cargo     18 filter    
+  │ 2024-12-06 13:06:21 slip39                5 apart     12 short     19 ladle     
+  │ 2024-12-06 13:06:21 slip39                6 learn     13 disaster  20 ranked    
+  │ 2024-12-06 13:06:21 slip39                7 graduate  14 ticket    
+  │ 2024-12-06 13:06:21 slip39           5th  1 hearing    8 should    15 tadpole   
+  │ 2024-12-06 13:06:21 slip39                2 dream      9 undergo   16 vanish    
+  │ 2024-12-06 13:06:21 slip39                3 decision  10 plot      17 very      
+  │ 2024-12-06 13:06:21 slip39                4 snake     11 edge      18 goat      
+  │ 2024-12-06 13:06:21 slip39                5 chew      12 wireless  19 browser   
+  │ 2024-12-06 13:06:21 slip39                6 blimp     13 pacific   20 eyebrow   
+  │ 2024-12-06 13:06:21 slip39                7 manager   14 paces     
+  │ 2024-12-06 13:06:21 slip39           6th  1 hearing    8 payroll   15 woman     
+  │ 2024-12-06 13:06:21 slip39                2 dream      9 task      16 density   
+  │ 2024-12-06 13:06:21 slip39                3 decision  10 exercise  17 ceiling   
+  │ 2024-12-06 13:06:21 slip39                4 spider    11 preach    18 lizard    
+  │ 2024-12-06 13:06:21 slip39                5 boundary  12 glasses   19 alpha     
+  │ 2024-12-06 13:06:21 slip39                6 rival     13 gasoline  20 lizard    
+  │ 2024-12-06 13:06:21 slip39                7 visitor   14 task      
+  │ 2024-12-06 13:06:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0x824b174803e688dE39aF5B3D7Cd39bE6515A19a1
+  │ 2024-12-06 13:06:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1q9yscq3l2yfxlvnlk3cszpqefparrv7tk24u6pl
   └────
   Because we must tell `slip39' to that we're using the BIP-39 Mnemonic
   and Seed generation process to derived the wallet addresses from the
@@ -1904,26 +1906,26 @@ Table of Contents
   │ ) 2>&1 | tail -20
   └────
   ┌────
-  │     2024-11-23 06:36:22 slip39                4 skin      11 dress     18 estimate  
-  │     2024-11-23 06:36:22 slip39                5 brother   12 vexed     19 shrimp    
-  │     2024-11-23 06:36:22 slip39                6 verify    13 deploy    20 math      
-  │     2024-11-23 06:36:22 slip39                7 blimp     14 priority  
-  │     2024-11-23 06:36:22 slip39           5th  1 spirit     8 jerky     15 organize  
-  │     2024-11-23 06:36:22 slip39                2 result     9 expect    16 element   
-  │     2024-11-23 06:36:22 slip39                3 decision  10 moisture  17 oral      
-  │     2024-11-23 06:36:22 slip39                4 snake     11 galaxy    18 spider    
-  │     2024-11-23 06:36:22 slip39                5 aircraft  12 clay      19 crisis    
-  │     2024-11-23 06:36:22 slip39                6 alpha     13 peanut    20 switch    
-  │     2024-11-23 06:36:22 slip39                7 class     14 physics   
-  │     2024-11-23 06:36:22 slip39           6th  1 spirit     8 exceed    15 educate   
-  │     2024-11-23 06:36:22 slip39                2 result     9 legend    16 harvest   
-  │     2024-11-23 06:36:22 slip39                3 decision  10 detect    17 music     
-  │     2024-11-23 06:36:22 slip39                4 spider    11 firm      18 ranked    
-  │     2024-11-23 06:36:22 slip39                5 agency    12 fortune   19 damage    
-  │     2024-11-23 06:36:22 slip39                6 pistol    13 regular   20 ajar      
-  │     2024-11-23 06:36:22 slip39                7 wavy      14 carve     
-  │     2024-11-23 06:36:22 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
-  │     2024-11-23 06:36:22 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
+  │ 2024-12-06 13:06:21 slip39                4 skin      11 slice     18 junk      
+  │ 2024-12-06 13:06:21 slip39                5 dismiss   12 suitable  19 invasion  
+  │ 2024-12-06 13:06:21 slip39                6 leaves    13 daisy     20 reject    
+  │ 2024-12-06 13:06:21 slip39                7 cultural  14 knit      
+  │ 2024-12-06 13:06:21 slip39           5th  1 floral     8 roster    15 modify    
+  │ 2024-12-06 13:06:21 slip39                2 sister     9 ladle     16 necklace  
+  │ 2024-12-06 13:06:21 slip39                3 decision  10 oasis     17 simple    
+  │ 2024-12-06 13:06:21 slip39                4 snake     11 decorate  18 market    
+  │ 2024-12-06 13:06:21 slip39                5 aviation  12 fiction   19 herald    
+  │ 2024-12-06 13:06:21 slip39                6 critical  13 dough     20 join      
+  │ 2024-12-06 13:06:21 slip39                7 branch    14 wrist     
+  │ 2024-12-06 13:06:21 slip39           6th  1 floral     8 either    15 density   
+  │ 2024-12-06 13:06:21 slip39                2 sister     9 already   16 program   
+  │ 2024-12-06 13:06:21 slip39                3 decision  10 ocean     17 satoshi   
+  │ 2024-12-06 13:06:21 slip39                4 spider    11 season    18 voting    
+  │ 2024-12-06 13:06:21 slip39                5 class     12 meaning   19 roster    
+  │ 2024-12-06 13:06:21 slip39                6 spend     13 morning   20 pupal     
+  │ 2024-12-06 13:06:21 slip39                7 maximum   14 uncover   
+  │ 2024-12-06 13:06:21 slip39.layout    ETH    m/44'/60'/0'/0/0    : 0xfc2077CA7F403cBECA41B1B0F62D91B5EA631B5E
+  │ 2024-12-06 13:06:21 slip39.layout    BTC    m/84'/0'/0'/0/0     : bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2
   └────
   And, there we have it – we've recovered exactly the same Ethereum and
   Bitcoin wallets as would a native BIP-39 hardware wallet like a Ledger
@@ -2520,6 +2522,13 @@ Table of Contents
   the source code, you can use the supplied GNU `make' targets to create
   a venv Virtual Environment and build then install.
 
+  The GUI requires Python3 with `tk' support, and uses PySimpleGUI which
+  has a 30-day trial period, after which it requires a license.
+
+
+6.1 Homebrew on macOS, or Nix on Linux or macOS
+───────────────────────────────────────────────
+
   The `python-slip39' project is tested under both homebrew:
   ┌────
   │ $ brew install python-tk@3.12
@@ -2546,21 +2555,46 @@ Table of Contents
   version 3.12+, usable for running the `slip39' module, and the
   `slip39.gui' GUI.
 
-  To manually create your own venv and install from pypi using the
-  Python 3.9 to 3.12 (+ TK if using the GUI) you have at hand:
-  ┌────
-  │ $ python3.12 -m venv python-slip39-venv
-  │ $ . ./python-slip39-venv/bin/activate
-  │ (python-slip39-venv) [you@yourhost src]$ python3 -m pip install slip39[gui]
-  │ ...
-  │ (python-slip39-venv) [you@yourhost src]$ python3 -m slip39.gui
-  └────
-
 
 [the official python.org/downloads installer]
 <https://www.python.org/downloads/>
 
-6.1 The `slip39' Module
+
+6.2 Native Python3 on Linux
+───────────────────────────
+
+  To manually create your own venv and install from pypi using the
+  Python 3.9 to 3.12 (+ TK if using the GUI) you have at hand:
+
+  1) Ensure your Python3 has `tk' and `pip', and GNU `make'; on Linux
+     systems, this might be something like:
+     ┌────
+     │ $ sudo apt install make python3-pip python3-tk
+     └────
+
+  2) Create the Python3 Virtual Environment using the GNU `make' target
+     `venv'; this will create the venv, and install `slip39' in it:
+     ┌────
+     │ $ cd python-slip39
+     │ $ make venv
+     │ $ python3 -m slip39.gui
+     └────
+
+     To create it manually, and then install `slip39', go into the
+     `python-slip39' directory you cloned, and:
+     ┌────
+     │ $ python3 -m venv python-slip39-venv
+     │ $ . ./python-slip39-venv/bin/activate
+     │ (python-slip39-venv) [you@yourhost src]$ python3 -m pip install slip39[gui]
+     │ ...
+     │ (python-slip39-venv) [you@yourhost src]$ python3 -m slip39.gui
+     └────
+  3) The GUI is built using PySimpleGUI, which has a 30-day trial period
+     before you have to purchase a license.  Accept the trial period,
+     and the GUI will be displayed.
+
+
+6.3 The `slip39' Module
 ───────────────────────
 
   To build the wheel and install `slip39' manually:
@@ -2578,7 +2612,7 @@ Table of Contents
   └────
 
 
-6.2 The `slip39' GUI
+6.4 The `slip39' GUI
 ────────────────────
 
   To install from Pypi, including the optional requirements to run the
@@ -2595,7 +2629,7 @@ Table of Contents
   └────
 
 
-6.2.1 The macOS/win32 `SLIP-39.app' GUI
+6.4.1 The macOS/win32 `SLIP-39.app' GUI
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   You can build the native macOS and win32 `SLIP-39.app' App.
@@ -2614,7 +2648,7 @@ Table of Contents
 [python.org/downloads] <https://python.org/downloads>
 
 
-6.2.2 The Windows 10 `SLIP-39' GUI
+6.4.2 The Windows 10 `SLIP-39' GUI
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 
   Install Python from <https://python.org/downloads>, and the [Microsoft
@@ -2652,7 +2686,7 @@ Table of Contents
 
 [Git from git-scm.com] <https://git-scm.com/download/win>
 
-◊ 6.2.2.1 Code Signing
+◊ 6.4.2.1 Code Signing
 
   The MMC (Microsoft Management Console) is used to store your
   code-signing certificates.  See [stackoverflow.com] for how to enable
