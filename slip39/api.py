@@ -33,6 +33,7 @@ from typing		import Dict, List, Sequence, Tuple, Optional, Union, Callable
 
 from shamir_mnemonic	import EncryptedMasterSecret, split_ems
 from shamir_mnemonic.shamir import _random_identifier, RANDOM_BYTES
+from shamir_mnemonic.constants import ID_LENGTH_BITS
 
 import hdwallet
 from hdwallet		import cryptocurrencies
@@ -981,15 +982,16 @@ group_parser.RE			= re.compile( # noqa E305
 
 def create(
     name: str,
-    group_threshold: Optional[Union[int,float]] = None,		# Default: 1/2 of groups, rounded up
+    group_threshold: Optional[Union[int,float]] = None,  # Default: 1/2 of groups, rounded up
     groups: Optional[Union[List[str],Dict[str,Tuple[int, int]]]] = None,  # Default: 4 groups (see defaults.py)
-    master_secret: Optional[Union[str,bytes]] = None,		# Default: generate 128-bit Seed Entropy
+    master_secret: Optional[Union[str,bytes]] = None,   # Default: generate 128-bit Seed Entropy
     passphrase: Optional[Union[bytes,str]] = None,
     using_bip39: Optional[bool]	= None,  # Produce wallet Seed from master_secret Entropy using BIP-39 generation
     iteration_exponent: int	= 1,
     cryptopaths: Optional[Sequence[Union[str,Tuple[str,str],Tuple[str,str,str]]]] = None,  # default: ETH, BTC at default path, format
-    strength: Optional[int]	= None,				# Default: 128
-    extendable: Optional[Union[bool,int]] = None,		# Default: True w/ random identifier
+    strength: Optional[int]	= None,			# Default: 128
+    extendable: Optional[bool]	= None,			# Default: True
+    identifier: Optional[int]	= None,			# Default: random identifier
 ) -> Tuple[str,int,Dict[str,Tuple[int,List[str]]], Sequence[Sequence[Account]], bool]:
     """Creates a SLIP-39 encoding for supplied master_secret Entropy, and 1 or more Cryptocurrency
     accounts.  Returns the Details, in a form directly compatible with the layout.produce_pdf API.
@@ -1092,7 +1094,8 @@ def create(
         master_secret	= master_secret,
         passphrase	= passphrase,
         iteration_exponent= iteration_exponent,
-        extendable	= extendable
+        extendable	= extendable,
+        identifier	= identifier,
     )
 
     groups			= {
@@ -1120,7 +1123,8 @@ def mnemonics(
     passphrase: Optional[Union[bytes,str]] = None,
     iteration_exponent: int	= 1,
     strength: int		= BITS_DEFAULT,
-    extendable: Optional[Tuple[bool,int]] = None,
+    extendable: Optional[bool]	= None,			# Default: True
+    identifier: Optional[int]	= None,			# Default: random identifier
 ) -> List[List[str]]:
     """Generate SLIP39 mnemonics for the supplied master_secret for group_threshold of the given
      groups.  Will generate a random master_secret, if necessary.
@@ -1151,11 +1155,15 @@ def mnemonics(
             passphrase		= ""
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
+        extendable		= False if extendable is False else True
+        identifier		= _random_identifier() if identifier is None else int( identifier )
+        assert isinstance( identifier, int) and 0 <= identifier < (1 << ID_LENGTH_BITS), \
+            "Identifier must be an {ID_LENGTH_BITS}-bit unsigned integer: {identifier}"
         encrypted_secret	= EncryptedMasterSecret.from_master_secret(
             master_secret = master_secret,
             passphrase	= passphrase,
-            identifier	= _random_identifier() if extendable in (None, False, True) else extendable,
-            extendable	= False if extendable is False else True,
+            identifier	= identifier,
+            extendable	= extendable,
             iteration_exponent = iteration_exponent,
         )
 

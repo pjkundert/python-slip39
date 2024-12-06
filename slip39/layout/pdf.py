@@ -431,6 +431,8 @@ def write_pdfs(
     cover_page		= True,         # Produce a cover page (including BIP-39 Mnemonic, if using_bip39)
     watermark		= None,		# Any watermark desired on each output
     double_sided	= None,
+    extendable		= None,		# Default: True
+    identifier		= None,		# Default: random identifier
 ):
     """Writes a PDF containing a unique SLIP-39 encoded Seed Entropy for each of the names specified.
 
@@ -482,6 +484,8 @@ def write_pdfs(
                 passphrase	= passphrase.encode( 'UTF-8' ) if passphrase else b'',
                 using_bip39	= using_bip39,  # Derive wallet Seed using BIP-39 Mnemonic + passphrase generation
                 cryptopaths	= cryptopaths,
+                extendable	= extendable,
+                identifier	= identifier,
             )
             for name in names or [ "SLIP39" ]
         }
