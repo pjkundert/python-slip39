@@ -119,6 +119,14 @@ def main( argv=None ):
                      help="Produce PDF SLIP-39 cover page" )
     ap.add_argument( '--no-cover', dest="cover_page", action='store_false',
                      help="Disable PDF SLIP-39 cover page" )
+    ap.add_argument( '--identifier',
+                     default=None,
+                     help="Specify a SLIP-39 encoding identifier (default: random integer)" )
+    ap.add_argument( '--extendable', action='store_true',
+                     default=None,
+                     help="Force extendable SLIP-39 encoding (the default)" )
+    ap.add_argument( '--no-extendable', dest="extendable", action='store_false',
+                     help="Force non-extendable SLIP-39 encoding (the historical default)" )
     ap.add_argument( '--text', action='store_true',
                      default=None,
                      help="Enable textual SLIP-39 mnemonic output to stdout" )
@@ -256,6 +264,8 @@ def main( argv=None ):
             cover_page		= args.cover_page,
             watermark		= args.watermark,
             double_sided	= args.double_sided,
+            extendable		= args.extendable,
+            identifier		= args.identifier,
         )
         if args.card is not False and (args.verbose - args.quiet) >= 0:
             print( "\n".join( results ))
