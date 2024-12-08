@@ -96,7 +96,7 @@ def printer_output(
     """
     double_sided		= True if double_sided is None else bool( double_sided )
     if sys.platform == 'darwin':
-        command			= [ '/usr/bin/lpr', '-o', 'sides=one-sided' ]
+        command			= [ '/usr/bin/lpr' ]
         command_input		= binary
 
         # Find the desired printer's system name; otherwise use default printer
@@ -104,7 +104,7 @@ def printer_output(
         if printer:
             printer_list	= list( printers_available() )
             for system,human in printer_list:
-                if human.lower() == printer.lower() or system.lower() == printer.lower():
+                if ( human and human.lower() == printer.lower() ) or ( system and system.lower() == printer.lower()):
                     printer_system = system
             assert printer_system, \
                 f"Couldn't locate printer matching {printer!r}, in {', '.join( h for s,h in printer_list )}"
@@ -114,11 +114,18 @@ def printer_output(
             command    	       += [ '-o', f"media={paper_format.capitalize()}" ]
         if orientation:
             # -o orientation-requested=N   Specify portrait (3) or landscape (4) orientation
-            N		= { 'p': 3, 'l': 4 }[orientation.lower()[0]]
+            N			= { 'p': 3, 'l': 4 }[orientation.lower()[0]]
             command	       += [ '-o', f"orientation-requested={N}" ]
         if double_sided:
-            # Regardless of desired orientation, layout assumes long-edge double-sided
-            command	       += [ '-o', "sides=two-sided-long-edge" ]
+            # The layout of the *cards* is what determines the "edge" upon which the double-sided
+            # page is intended to flip.  Unless correct, the right QR code won't be on the back!
+            # Default to long-edge, unless explicitly oriented landscape.
+            if orientation and orientation.lower().startswith( 'l' ):
+                command	       += [ '-o', "sides=two-sided-short-edge" ]
+            else:
+                command	       += [ '-o', "sides=two-sided-long-edge" ]
+        else:
+            command	       += [ '-o', 'sides=one-sided' ]
 
     log.info( f"Printing via: {' '.join( command )}" )
     subproc			= subprocess.run(

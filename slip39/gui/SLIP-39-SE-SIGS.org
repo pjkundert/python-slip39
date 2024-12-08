@@ -2,7 +2,7 @@
 #+OPTIONS: toc:nil title:nil author:nil
 
 #+BEGIN_ABSTRACT
-Bad Entropy is risk to Cryptocurrency HD Wallet Seed Secrets!
+Bad Entropy is a risk to Cryptocurrency HD Wallet Seed Secrets!
 
 Avoid Harmonic and Shannon Entropy Deficiencies:
   - Use strong cryptographically secure randomness for your Seed Data
