@@ -595,12 +595,12 @@ def update_seed_data( event, window, values ):
         # We're recovering the BIP-39 Seed Phrase *Entropy*, NOT the derived (decrypted) 512-bit
         # Seed Data!  So, we don't deal in Passphrases, here.  The Passphrase (to encrypt the Seed,
         # when "Using BIP-39") is only required to display the correct wallet addresses.
-        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic to Back Up: " )
+        window['-SD-DATA-F-'].update( "BIP-39 Mnemonic to Recover or Back Up: " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=False )
         window['-SD-PASS-F-'].update( visible=False )
     elif 'SLIP' in update_seed_data.src:
-        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics to Back Up: " )
+        window['-SD-DATA-F-'].update( "SLIP-39 Mnemonics to Recover or Back Up: " )
         window['-SD-DATA-F-'].update( visible=True )
         window['-SD-PASS-C-'].update( visible=True )
         window['-SD-PASS-F-'].update(
@@ -1532,7 +1532,7 @@ def app(
                 continue
             name_len		= max( len( name ) for name in details )
             status		= '\n'.join(
-                f"Saved {name}"
+                f"{'Print' if printer else 'Saved'}: {name}"
                 for name in details
             )
         # Finally, success has been assured; turn off emboldened status line

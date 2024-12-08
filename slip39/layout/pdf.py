@@ -235,6 +235,8 @@ def produce_pdf(
 
     # Find the best PDF and orientation, by max of returned cards_pp (cards per page).  Assumes
     # layout_pdf returns a tuple that can be compared; cards_pp,orientation,... will always sort.
+    # This card orientation defines the overall orientation of the entire PDF; we'll rotate other
+    # elements (cover, paper wallets) to match.
     page_margin_mm		= PAGE_MARGIN * MM_IN
     cards_pp,orientation,page_xy,pdf,_ = max(
         layout_pdf( card_dim, page_margin_mm, orientation=orientation, paper_format=paper_format )
@@ -335,6 +337,8 @@ def produce_pdf(
         cover_sent	       += "\n".join( slip39_group )
         tpl_cover['cover-sent']	= cover_sent
 
+        # Add the cover page(s), rotated to match the orientation deduced for the cards.  Thus, the
+        # whole PDF will be printable with the deduced card page orientation.
         pdf.add_page()
         if orientation.lower().startswith( 'p' ):
             tpl_cover.render( offsetx=pdf.epw, rotate=-90.0 )
@@ -520,7 +524,9 @@ def write_pdfs(
 
         # Unless no card_format (False) or paper wallet password specified, produce a PDF containing
         # the SLIP-39 mnemonic recovery cards; remember the deduced (<pdf_paper>,<pdf_orient>).  If
-        # we're producing paper wallets, always force portrait orientation for the cards, to match.
+        # we're producing paper wallets, always force portrait orientation for the cards, to match
+        # the layout of the paper wallets, so that all page orientations will match; this may result
+        # in a sub-optimal card layout, but mixing orientations in a PDF confuses some printers.
         if card_format is not False or wallet_pwd is not None:
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
@@ -547,7 +553,8 @@ def write_pdfs(
 
         if wallet_pwd is not None:
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
-            # inches; template dimensions are in mm.
+            # inches; template dimensions are in mm.  Paper wallets are always formatted for
+            # portrait orientation; we've forced that, above, if paper wallets are desired.
             try:
                 (wall_h,wall_w),wall_margin = WALLET_SIZES[wallet_format.lower() if wallet_format else WALLET]
             except KeyError:
@@ -557,8 +564,8 @@ def write_pdfs(
             wall_dim		= wall.mm()
 
             # Lay out wallets, always in Portrait orientation, defaulting to the Card paper_format
-            # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.  Printers may
-            # have problems with a PDF mixing Landscape and Portrait, but do it if desired...
+            # if it is a standard size (a str, not an (x,y) tuple), otherwise to "Letter" paper.
+            # Rotate the wallets to match the card's orientation (like the cover page).
             if wallet_paper is None:
                 wallet_paper	= paper_format if type(paper_format) is str else PAPER
 
