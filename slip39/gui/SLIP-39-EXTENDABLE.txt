@@ -1,0 +1,78 @@
+SLIP-39 Mnemonics recover a unique (but "valid") Seed and derived
+wallets, no matter what /alternative/ passphrase you use!  Your
+/original/ Seed can only be recovered with the originally specified
+"correct" passphrase.
+
+Extendable SLIP-39 Mnemonics ensures that all SLIP-39 Mnemonic sets
+generated from the /original/ Seed and original "correct" passphrase
+will /always/ result in the same unique Seed for each /alternative/
+passphrase.
+
+Non-Extendable SLIP-39 Mnemonics recover the /original/ Seed with the
+"correct" passphrase, but *different* unique Seeds for all /alternative/
+passphrases.
+
+
+1 Extendable
+════════════
+
+  The default is now /Extendable/ – does /not/ use the Identifier to
+  salt the encryption passphrase.
+
+
+1.1 The Purpose for Multiple Passphrases
+────────────────────────────────────────
+
+  Recovering different Seeds for different passphrases is a valuable
+  feature, because you may use the same SLIP-39 Mnemonic cards, and
+  supply different passphrases to recover different (but valid) Seeds
+  and sets of derived HD wallets!
+
+  • You could have a "distress" passphrase that recovers a decoy wallet
+    containing a small amount of sacrificial funds, while your real
+    savings are under a different passphrase.
+  • One password for your personal accounts and another for business
+    accounts.
+
+
+1.2 Non-Extendable Encoding
+───────────────────────────
+
+  Historically, the SLIP-39 encoding used the randomly assigned
+  Identifier to both 1) associate groups of Mnemonics belonging to the
+  same set, but /also/ 2) to salt the Seed encryption.
+
+  This meant that: if you created 2 sets of SLIP-39 Mnemonics for the
+  same Seed – each set would lead to */same/* Seed with the "correct"
+  original passphrase, but to */different/* Seeds with each "distress"
+  passphrase!
+
+  Unless all sets of SLIP-39 Mnemonics lead to the same Seeds for each
+  passphrase, you are restricted to ever issue /only one/ set of SLIP-39
+  Mnemonics for each Seed!  You lose the ability to recover other
+  "distress" passphrase Seeds from the new sets of Mnemonics!
+
+
+1.3 Issuing Multiple SLIP-39 Mnemonic Sets
+──────────────────────────────────────────
+
+  You may want to issue a simple set of SLIP-39 Mnemonics for your Seed
+  to begin with, and then (later) decide to issue a more elaborate set
+  of SLIP-39 Mnenmonic cards.
+
+  Only with Extendable SLIP-39 Mnemonics, will the /alternative/
+  passphrase Seeds and derived wallets be consistent.
+
+
+2 Recovery
+══════════
+
+  The SLIP-39 App supports recovery from both Extendable and (historic)
+  non-Extendable SLIP-39 Mnemonics.
+
+
+2.1 Using <https://iancoleman.io/slip39>
+────────────────────────────────────────
+
+  Until the website is updated, you cannot (as of Dec 2024) use it to
+  recover your Seed from Extendable SLIP-39 Mnemonics.

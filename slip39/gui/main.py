@@ -57,7 +57,7 @@ SLIP39_EXAMPLE_128              = "academic acid acrobat romp change injury pain
                                   "academic acid beard romp believe impulse species holiday demand building" \
                                   " earth warn lunar olympic clothes piece campus alpha short endless"
 
-SD_SEED_FRAME			= 'Seed Source: Create your Seed Entropy here'
+SD_SEED_FRAME			= 'Seed Source: Create/Recover Seed Entropy here'
 SE_SEED_FRAME			= 'Seed Extra Randomness'
 SS_SEED_FRAME			= 'Seed Secret & SLIP-39 Recovery Groups'
 
@@ -269,16 +269,17 @@ def groups_layout(
         ],
     ] + [
         [
-            # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro; BIP-39 and Fixed Hex only in Pro
+            # SLIP-39 only available in Recovery; SLIP-39 Passphrase only in Pro
             sg.Frame( SD_SEED_FRAME, [
                 [
                     sg.Text( "Random:" if not LO_BAK else "Source:",            visible=LO_CRE, **T_hue( T_kwds, 0/20 )),
-                    sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     default=LO_CRE,
+                    sg.Radio( "128-bit",          "SD", key='-SD-128-RND-',     visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
+                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     default=LO_CRE and not LO_REC,
                                                                                 visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
-                    sg.Radio( "256-bit",          "SD", key='-SD-256-RND-',     visible=LO_CRE, **T_hue( B_kwds, 0/20 )),
                     sg.Radio( "512-bit",          "SD", key='-SD-512-RND-',     visible=LO_PRO, **T_hue( B_kwds, 0/20 )),
                     sg.Text( "Recover:",                                        visible=LO_CRE, **T_hue( T_kwds, 2/20 )),
-                    sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        visible=LO_REC, **T_hue( B_kwds, 2/20 )),
+                    sg.Radio( "SLIP-39",          "SD", key='-SD-SLIP-',        default=LO_REC,
+                                                                                visible=LO_REC, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39",           "SD", key='-SD-BIP-',         default=LO_BAK,
                                                                                 visible=LO_CRE, **T_hue( B_kwds, 2/20 )),
                     sg.Radio( "BIP-39 Seed",      "SD", key='-SD-BIP-SEED-',    visible=LO_PRO, **T_hue( B_kwds, 2/20 )),
@@ -367,6 +368,9 @@ def groups_layout(
                             sg.Text( f"of {len(groups)}", key='-RECOVERY-',                     **T_kwds ),
                             sg.Button( '+', **B_kwds ),
                             sg.Text( "Mnemonic Card Groups",                                    **T_kwds ),
+                            sg.Checkbox( "Extendable",  key='-EXTENDABLE-',     visible=LO_CRE,
+                                                                                default=True,
+                                                                                size=prefix,    **T_hue( B_kwds, +1/20 )),
                         ],
                         group_body,
                     ] ),
@@ -1073,6 +1077,7 @@ def app(
     events_ignored		= ('-MNEMONICS-'+sg.WRITE_ONLY_KEY,)
     master_secret		= None		# default to produce randomly
     details			= None		# The SLIP-39 details produced from groups; make None to force SLIP-39 Mnemonic update
+    extendable			= True
     cryptopaths			= None
     timeout			= 0		# First time thru; refresh immediately; functions req. refresh may adjust via values['__TIMEOUT__']
     instructions		= ''		# The last instructions .txt payload found
@@ -1441,6 +1446,11 @@ def app(
         # We avoid recomputing this unless something about the seed or the recovered groups changes;
         # each time we recompute -- even without any changes -- the SLIP-39 Mnemonics will change,
         # due to the use of entropy in the SLIP-39 process.
+        extendable_rec		= values['-EXTENDABLE-']
+        if extendable_rec != extendable:
+            extendable		= extendable_rec
+            details		= None
+
         if not details or names[0] not in details:
             log.info( f"SLIP39 details for {names}..." )
             try:
@@ -1457,6 +1467,7 @@ def app(
                         passphrase	= passphrase,
                         using_bip39	= using_bip39,
                         cryptopaths	= cryptopaths,
+                        extendable	= extendable,
                     )
             except Exception as exc:
                 status		= f"Error creating: {exc}"
