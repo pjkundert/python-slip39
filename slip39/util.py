@@ -20,6 +20,8 @@ import colorsys
 import getpass
 import logging
 import math
+import os
+import subprocess
 import sys
 import traceback
 
@@ -631,37 +633,88 @@ def uniq( seq, key=None ):
         yield v
 
 
-def parse_scutil(input_data):
+def parse_scutil( input_data ):
     """
     A simple parser for the custom 'scutil' data format where every object is a dictionary.
     """
-    stack = []
-    obj = None
+    stack			= []
+    obj				= None
 
     # Split lines and iterate through them
     for line in input_data.splitlines():
         log.debug( f"Parse: {line}" )
-        line = line.strip()
+        line			= line.strip()
         if not line:
             continue
 
         if line == '}':
-            obj = stack.pop()
+            obj			= stack.pop()
             continue
 
-        *key,val = map(str.strip, line.split( ':' ))
+        *key,val		= map(str.strip, line.split( ':' ))
 
         if val.startswith('<') and val.endswith('{'):
             # New dictionary/array detected
-            val = {}
+            val			= {}
             if key:
                 stack[-1][key[0]] = val
             stack.append(val)
             continue
 
-        stack[-1][key[0]] = val
+        stack[-1][key[0]]	= val
 
     assert not stack, \
         f"Invalid parse: {stack!r}"
 
     return obj
+
+
+def user_name_full():
+    full_name			= None
+    if sys.platform == 'darwin':
+        command			= [ '/usr/sbin/scutil' ]
+        command_input		= "show State:/Users/ConsoleUser"
+    elif sys.platform == 'win32':
+        command			= [ 'net', 'user', os.environ['USERNAME'] ]
+        command_input		= None
+    else:  # assume *nix
+        command			= [ 'getent', 'passwd', os.environ['USER'] ]
+        command_input		= None
+
+    subproc			= subprocess.run(
+        command,
+        input		= command_input,
+        capture_output	= True,
+        encoding	= 'UTF-8',
+    )
+    assert subproc.returncode == 0 and subproc.stdout, \
+        f"{' '.join( command )!r} command failed, or no output returned"
+
+    if sys.platform == 'darwin':
+        scutil		= parse_scutil( subproc.stdout )
+        if uid := scutil.get( 'UID' ):
+            for session in scutil.get( 'SessionInfo', {} ).values():
+                if session.get( 'kCGSSessionUserIDKey' ) == uid:
+                    # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
+                    full_name = session.get( 'kCGSessionLongUserNameKey' )
+                    break
+    elif sys.platform == 'win32':
+        for li in subproc.stdout.split( '\n' ):
+            if li.startswith( 'Full Name' ):
+                # eg.: "Full Name                IEUser"
+                full_name	= li[9:].strip()
+                break
+    else:
+        # getent="perry:x:1002:1004:Perry Kundert,,,:/home/perry:/bin/bash"
+        # >>> getent.split(':')
+        # ['perry', 'x', '1002', '1004', 'Perry Kundert,,,', '/home/perry', '/bin/bash']
+        pwents			= subproc.stdout.split( ':' )
+        assert len( pwents ) > 4, \
+                f"Unrecognized passwd entry: {li}"
+        gecos			= pwents[4]
+        full_name		= gecos.split( ',' )[0]  # Discard ...,building,room,phone,...
+
+    assert full_name, \
+        "User's full name not found"
+    log.info( f"Current user's full name: {full_name!r}" )
+    return full_name

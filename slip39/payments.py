@@ -17,14 +17,13 @@
 from __future__          import annotations
 
 import logging
-import traceback
 import sys
+import traceback
 
 from typing		import Optional
 from pathlib		import Path
 from enum		import Enum
 
-import crypto_licensing
 from crypto_licensing	import licensing
 from crypto_licensing.misc import deduce_name
 
@@ -178,7 +177,8 @@ def reload(
     caller, which may be supplied via <generator>.send( ... ).
 
     If an error occurs (such as no Grants found), a (Process.ERROR, <str>) will be produced.  This
-    will often be
+    will often be the signal that additional Licenses are required (or just that the wrong
+    credentials were provided).
 
     """
     # If no username/password provided, we'll loop once w/ None, then request input for subsequent authorizations
@@ -299,7 +299,7 @@ def reload(
     except Exception as exc:
         log.error( "Failed loading Agent Keypair and/or License: {exc}".format(
             exc=''.join( traceback.format_exception( *sys.exc_info() )) if log.isEnabledFor( logging.TRACE ) else exc ))
-        with open( Path( crypto_licensing.__file__ ).resolve().parent / 'licensing' / 'static' / 'txt' / 'CL-KEYPAIR-MISSING.txt', 'r' ) as f:
+        with open( Path( licensing.__file__ ).resolve().parent / 'static' / 'txt' / 'CL-KEYPAIR-MISSING.txt', 'r' ) as f:
             error		= f.read().format(
                 DISTRIBUTION	= deduce_name( basename=basename, filename=kwds.get( 'filename' ), package=kwds.get( 'package' ), default=client and client.servicekey or "" ),
                 KEYPATTERN	= licensing.KEYPATTERN,

@@ -25,7 +25,6 @@ import os
 import pprint
 import re
 import sys
-import subprocess
 
 from itertools		import islice
 
@@ -33,7 +32,7 @@ import PySimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available, stretch_seed_entropy
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy
-from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg, parse_scutil
+from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rate_dB, entropy_rating_dB, timing, avg, user_name_full
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
@@ -964,57 +963,6 @@ def update_seed_recovered( window, values, details, passphrase=None ):
     # when run without any details (ie. to clear any displayed -MNEMONICS-).
     if recohex and window['-SEED-'].get() != recohex:
         return f"Recovered Seed {recohex!r} doesn't match expected: {window['-SEED-'].get()!r}"
-
-
-def user_name_full():
-    full_name			= None
-    if sys.platform == 'darwin':
-        command			= [ '/usr/sbin/scutil' ]
-        command_input		= "show State:/Users/ConsoleUser"
-    elif sys.platform == 'win32':
-        command			= [ 'net', 'user', os.environ['USERNAME'] ]
-        command_input		= None
-    else:  # assume *nix
-        command			= [ 'getent', 'passwd', os.environ['USER'] ]
-        command_input		= None
-
-    subproc			= subprocess.run(
-        command,
-        input		= command_input,
-        capture_output	= True,
-        encoding	= 'UTF-8',
-    )
-    assert subproc.returncode == 0 and subproc.stdout, \
-        f"{' '.join( command )!r} command failed, or no output returned"
-
-    if sys.platform == 'darwin':
-        scutil = parse_scutil( subproc.stdout )
-        if uid := scutil.get( 'UID' ):
-            for session in scutil.get( 'SessionInfo', {} ).values():
-                if session.get( 'kCGSSessionUserIDKey' ) == uid:
-                    # eg.: "      kCGSessionLongUserNameKey : Perry Kundert"
-                    full_name = session.get( 'kCGSessionLongUserNameKey' )
-                    break
-    elif sys.platform == 'win32':
-        for li in subproc.stdout.split( '\n' ):
-            if li.startswith( 'Full Name' ):
-                # eg.: "Full Name                IEUser"
-                full_name	= li[9:].strip()
-                break
-    else:
-        # getent="perry:x:1002:1004:Perry Kundert,,,:/home/perry:/bin/bash"
-        # >>> getent.split(':')
-        # ['perry', 'x', '1002', '1004', 'Perry Kundert,,,', '/home/perry', '/bin/bash']
-        pwents			= subproc.stdout.split( ':' )
-        assert len( pwents ) > 4, \
-                f"Unrecognized passwd entry: {li}"
-        gecos			= pwents[4]
-        full_name		= gecos.split( ',' )[0]  # Discard ...,building,room,phone,...
-
-    assert full_name, \
-        "User's full name not found"
-    log.info( f"Current user's full name: {full_name!r}" )
-    return full_name
 
 
 def app(

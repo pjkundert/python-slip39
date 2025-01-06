@@ -147,23 +147,168 @@ deps:			$(TXT) slip39/gui/SLIP-39.txt slip39/layout/COVER.txt
 # Agent Keypairs, Product Licences
 #
 
-GLOBAL_OPTIONS	= -vv
+# The SLIP-39 App is owned by Perry Kundert
+# 
+# Dominion R&D Corp sub-licenses its crypto-licensing module and licensing server,
+# and also owns the master license for PySimpleGUI, which it provisions as a Distribution
+# Key for Perry's SLIP-39.App to use.
+# 
+# 
+
+GLOBAL_OPTIONS	= -v
 
 CREDENTIALS	= $(abspath $(HOME)/.crypto-licensing )
+
+# The Dominion R&D Corp. root signing keypair.  Used to issue Licenses for general Dominion
+# products and services.
+DOMINION-AUTH	= "Dominion R&D Corp."
+DOMINION-USER	= "perry@dominionrnd.com"
+DOMINION-DOMN	= "dominionrnd.com"
+DOMINION-NAME	= "dominion"
+DOMINION-SERV	= "dominion"
+DOMINION-PROD	= "Dominion"
+DOMINION-KEY	= $(CREDENTIALS)/dominion.crypto-keypair 
+
+# Dominion R&D Corp.'s signing keypair for crypto-licensing related products.
+DOMINION-LIC-AUTH= "Dominion R&D Corp. (Licensing)"
+DOMINION-LIC-USER= "licensing@dominionrnd.com"
+DOMINION-LIC-DOMN= "dominionrnd.com"
+DOMINION-LIC-NAME= "crypto-licensing"
+DOMINION-LIC-SERV= "crypto-licensing"
+DOMINION-LIC-PROD= "Crypto Licensing"
+DOMINION-LIC-KEY= $(CREDENTIALS)/crypto-licensing.crypto-keypair 
+DOMINION-LIC-LIC= $(CREDENTIALS)/crypto-licensing.crypto-license
+
+PERRY-K-AUTH	= "Perry Kundert"
+PERRY-K-USER	= "perry@kundert.ca"
+PERRY-K-DOMN	= "perry.kundert.ca"
+PERRY-K-NAME	= "perry-kundert"
+PERRY-K-SERV	= "perry-kundert"
+PERRY-K-PROD	= "Perry Kundert"
+PERRY-K-KEY	= $(CREDENTIALS)/perry-kundert.crypto-keypair
+PERRY-K-LIC	= $(CREDENTIALS)/perry-kundert.crypto-license
+
+# An Authoring keypair is created for Perry Kundert's SLIP-39, and a License for the SLIP-39 App
+SLIP-39-AUTH	= "Perry Kundert (SLIP-39)"
+SLIP-39-USER	= "perry@slip39.com"
+SLIP-39-DOMN	= "slip39.com"
+SLIP-39-NAME	= "slip-39-app"
+SLIP-39-SERV	= "slip-39-app"
+SLIP-39-PROD	= "SLIP-39 App"
+SLIP-39-KEY	= $(CREDENTIALS)/slip-39-app.crypto-keypair
+SLIP-39-LIC	= $(CREDENTIALS)/slip-39-app.crypto-license
+
+# The root Dominion authoring key is used for issuing the SLIP-39 GUI grants
+SLIP-39-GUI-AUTH= "Dominion R&D Corp. (PySimpleGUI)"
+SLIP-39-GUI-USER= $(DOMINION-USER)
+SLIP-39-GUI-DOMN= $(DOMINION-DOMN)
+SLIP-39-GUI-NAME= $(DOMINION-NAME)
+SLIP-39-GUI-SERV= $(DOMINION-SERV)
+SLIP-39-GUI-PROD= "SLIP-39 PySimpleGUI"
+SLIP-39-GUI-KEY	= $(CREDENTIALS)/slip-39-pysimplegui.crypto-keypair
+SLIP-39-GUI-LIC	= $(CREDENTIALS)/slip-39-pysimplegui.crypto-license
+
+# The Dominion R&D Corp. crypto-licensing authoring keypair is used for .
+SLIP-39-LIC-AUTH= $(DOMINION-LIC-AUTH)
+SLIP-39-LIC-USER= $(DOMINION-LIC-USER)
+SLIP-39-LIC-DOMN= $(DOMINION-LIC-DOMN)
+SLIP-39-LIC-NAME= $(DOMINION-LIC-NAME)
+SLIP-39-LIC-SERV= $(DOMINION-LIC-SERV)
+SLIP-39-LIC-PROD= "SLIP-39 Licensing"
+SLIP-39-LIC-KEY	= $(CREDENTIALS)/slip-39-licensing.crypto-keypair
+SLIP-39-LIC-LIC	= $(CREDENTIALS)/slip-39-licensing.crypto-license
+
+PAY-TEST-LIC	= slip39/invoice/payments_test/perry-kundert.crypto-license
 
 export CRYPTO_LIC_PASSWORD
 export CRYPTO_LIC_USERNAME
 
-.PHONY: slip-39 perry-kundert
-products:			slip-39				\
-				perry-kundert			 \
+.PHONY: licenses #  perry-kundert
+licenses:		$(SLIP-39-LIC) #	perry-kundert
 
-slip-39:
 
-perry-kundert:			USERNAME=a@b.c
-perry-kundert:			CRYPTO_LIC_PASSWORD=password
-perry-kundert:			slip39/invoice/payments_test/perry-kundert.crypto-license
-perry-kundert:			GRANTS="{\"crypto-licensing-server\": {\
+# The slip-39 Keypair and License is signed and issued by Perry Kundert, who is the client for the
+# various license dependencies (slip-39-pysimplegui, slip-39-licensing) issued by Dominion R&D
+# Corp. to Perry for his SLIP-39.App.  The base slip-39-app.crypto-license shipped for free with the
+# SLIP-39.App authorizes the basic tier of operation for the SLIP-39.App.  Other licenses may be
+# issued to specific client's Ed25519 keypair Public Key, a specific Machine ID or their user name.
+
+$(SLIP-39-KEY):		AUTHOR=$(SLIP-39-AUTH)
+$(SLIP-39-KEY):		KEYNAME=$(SLIP-39-NAME)
+$(SLIP-39-KEY):		USERNAME=perry@slip39.com
+$(SLIP-39-KEY):		CRYPTO_LIC_PASSWORD=$(shell cat $(CREDENTIALS)/slip-39.crypto-password || echo -)
+
+
+$(PERRY-K-KEY):		AUTHOR=$(PERRY-K-AUTH)
+$(PERRY-K-KEY):		KEYNAME=$(PERRY-K-NAME)
+$(PERRY-K-KEY):		USERNAME=$(PERRY-K-USER)
+$(PERRY-K-KEY):		CRYPTO_LIC_PASSWORD=$(shell cat $(basename $@).crypto-password || echo - )
+
+$(PERRY-K-LIC):		AUTHOR=$(PERRY-K-AUTH)
+$(PERRY-K-LIC):		KEYNAME=$(PERRY-K-NAME)
+$(PERRY-K-LIC):		USERNAME=$(PERRY-K-USER)
+$(PERRY-K-LIC):		DOMAIN=$(PERRY-K-DOMN)
+$(PERRY-K-LIC):		PRODUCT=$(PERRY-K-PROD)
+$(PERRY-K-LIC):		SERVICE=$(PERRY-K-SERV)
+$(PERRY-K-LIC):		GRANTS=$(shell cat $(basename $@).grants )
+$(PERRY-K-LIC):		LICENSE_OPTIONS=
+$(PERRY-K-LIC):		CRYPTO_LIC_PASSWORD=$(shell cat $(basename $@).crypto-password || echo - )
+
+
+# The base SLIP-39 License is generic; isn't issued to a specific client, so can be sub-licensed by
+# any end-user using their Ed25519 private key.
+$(SLIP-39-LIC):		AUTHOR=$(SLIP-39-AUTH)
+$(SLIP-39-LIC):		KEYNAME=$(SLIP-39-NAME)
+$(SLIP-39-LIC):		USERNAME=$(SLIP-39-USER)
+$(SLIP-39-LIC):		DOMAIN=$(SLIP-39-DOMN)
+$(SLIP-39-LIC):		PRODUCT=$(SLIP-39-PROD)  # license: slip-39
+$(SLIP-39-LIC):		SERVICE=$(SLIP-39-SERV)  # service: slip-39
+$(SLIP-39-LIC):		GRANTS=$(shell cat $(basename $@).grants )
+$(SLIP-39-LIC):		CRYPTO_LIC_PASSWORD=$(shell cat $(basename $@).crypto-password || echo - )
+$(SLIP-39-LIC):		LICENSE_OPTIONS=--dependency $(PERRY-K-LIC) --dependency $(SLIP-39-GUI-LIC) --dependency $(DOMINION-LIC-LIC)
+$(SLIP-39-LIC):		$(PERRY-K-LIC) $(SLIP-39-GUI-LIC) $(DOMINION-LIC-LIC)
+
+# The SLIP-39 GUI sub-License is signed by Dominion R&D Corp.'s Root authoring keypair, and issued
+# to the Perry Kundert (SLIP-39) client public key.
+
+$(SLIP-39-GUI-KEY):	$(DOMINION-KEY)
+	ln -fs $< $@
+	ln -fs $(basename $<).crypto-password  $(basename $@).crypto-password
+
+$(SLIP-39-GUI-LIC):	AUTHOR=$(SLIP-39-GUI-AUTH)
+$(SLIP-39-GUI-LIC):	KEYNAME=$(SLIP-39-GUI-NAME)
+$(SLIP-39-GUI-LIC):	USERNAME=$(SLIP-39-GUI-USER)
+$(SLIP-39-GUI-LIC):	DOMAIN=$(SLIP-39-GUI-DOMN)
+$(SLIP-39-GUI-LIC):	PRODUCT=$(SLIP-39-GUI-PROD)  # ==> license: slip-39-pysimplegui
+$(SLIP-39-GUI-LIC):	SERVICE=$(SLIP-39-GUI-SERV)  # ==> service: dominion
+$(SLIP-39-GUI-LIC):	GRANTS=$(shell cat $(basename $@).grants )
+$(SLIP-39-GUI-LIC):	CRYPTO_LIC_PASSWORD=$(shell cat $(basename $@).crypto-password || echo - )
+$(SLIP-39-GUI-LIC):	LICENSE_OPTIONS=--client $(SLIP-39-AUTH) --client-pubkey $(shell jq '.vk' < $(SLIP-39-KEY) )
+
+
+# The SLIP-39 Licensing sub-License is signed by Dominion R&D Corp.'s Crypto-Licensing authoring
+# keypair, and issued to Perry Kundert (SLIP-39) client public key.
+
+$(SLIP-39-LIC-KEY):	$(DOMINION-LIC-KEY)
+	ln -fs $< $@
+	ln -fs $(basename $<).crypto-password  $(basename $@).crypto-password
+
+$(SLIP-39-LIC-LIC):	AUTHOR=$(SLIP-39-LIC-AUTH)
+$(SLIP-39-LIC-LIC):	KEYNAME=$(SLIP-39-LIC-NAME)
+$(SLIP-39-LIC-LIC):	USERNAME=$(SLIP-39-LIC-USER)
+$(SLIP-39-LIC-LIC):	DOMAIN=$(SLIP-39-LIC-DOMN)
+$(SLIP-39-LIC-LIC):	PRODUCT=$(SLIP-39-LIC-PROD)  # ==> license: slip-39-licensing
+$(SLIP-39-LIC-LIC):	SERVICE=$(SLIP-39-LIC-SERV)  # ==> service: crypto-licensing
+$(SLIP-39-LIC-LIC):	GRANTS=$(shell cat $(basename $@).grants )
+$(SLIP-39-LIC-LIC):	CRYPTO_LIC_PASSWORD=$(shell cat $(basename $@).crypto-password || echo - )
+$(SLIP-39-LIC-LIC):	LICENSE_OPTIONS=--dependency $(CREDENTIALS)/crypto-licensing.crypto-license --client $(SLIP-39-AUTH) --client-pubkey $(shell jq '.vk' < $(SLIP-39-KEY))
+
+
+
+$(PAY-TEST-LIC):	GLOBAL_OPTIONS=$(GLOBAL_OPTIONS) --reverse-save --no-registering
+$(PAY-TEST-LIC):	USERNAME=a@b.c
+$(PAY-TEST-LIC):	CRYPTO_LIC_PASSWORD=password
+$(PAY-TEST-LIC):	GRANTS="{\"crypto-licensing-server\": {\
     \"override\": { \
         \"rate\": \"0.1%\", \
         \"crypto\": { \
@@ -175,28 +320,29 @@ perry-kundert:			GRANTS="{\"crypto-licensing-server\": {\
 
 
 
+# Preserve all "secondary" intermediate files (eg. the .crypto-keypair generated)
+.SECONDARY:
+
 # Create .crypto-keypair from seed; note: if the make rule fails, intermediate files are deleted.
 # We expect any password to be transmitted in CRYPTO_LIC_PASSWORD env. var.
 %.crypto-keypair: %.crypto-seed
 	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
-	    --extra   $(dir $(basename $@ ))			\
-	    --name $(notdir $(basename $@ ))			\
-            --reverse-save					\
+	    --name $(KEYNAME)					\
+	    --extra $(dir $(basename $@ )) --reverse-save	\
 	    registered						\
 	    --username $(USERNAME)				\
-	    --seed $$( cat $< )
+	    --seed "$$( cat $< || true )"
 
 # Create .crypto-license, signed by .crypto-keypair
 %.crypto-license : %.crypto-keypair
 	$(PY3) -m crypto_licensing $(GLOBAL_OPTIONS)		\
-	    --extra   $(dir $(basename $@ ))			\
-	    --name $(notdir $(basename $@ ))			\
-            --reverse-save					\
+	    --name $(KEYNAME)					\
+	    --extra $(dir $(basename $@ )) --reverse-save	\
 	    license						\
 	    --username $(USERNAME) --no-registering		\
-	    --client $(CLIENT) --client-pubkey $(CLIENT_PUBKEY)	\
-	    --grant $(GRANTS)					\
-	    --author $(AUTHOR) --domain $(DOMAIN) --product $(PRODUCT) $(LICENSE_OPTIONS)
+	    --grant '$(GRANTS)'					\
+	    --author $(AUTHOR) --domain $(DOMAIN)		\
+	    --service $(SERVICE) --product $(PRODUCT) $(LICENSE_OPTIONS)
 
 
 # 
@@ -738,13 +884,18 @@ upload: 	upload-check wheel
 clean:
 	@rm -rf MANIFEST *.png build dist auto *.egg-info $(shell find . -name '__pycache__' )
 
+.PHONY: deps-test
+deps-test:	slip39/payments_test/slip-39-app.crypto-license
+
+slip39/payments_test/slip-39-app.crypto-license: $(SLIP-39-LIC)
+	cp $< $@
 
 # Run only tests with a prefix containing the target string, eg test-api
-test-%:
+test-%:		deps-test
 	$(PY3TEST) $(shell find slip39 -name '*$**_test.py')
 
 # Run all tests with names matching the target string
-unit-%:
+unit-%:		deps-test
 	$(PY3TEST) -k $*
 
 nix-%:

@@ -66,7 +66,7 @@
 #    and we do not want people using the same email address, or other people's
 #    email addresses.
 
-KTYPE="rsa"  # "ed25519"  # but not well supported yet; even by Cloudflare
+KTYPE="ed25519"  # "rsa" # Ed25519 is not well supported yet; even by Cloudflare?
 
 COMPANY=""
 while [ "${COMPANY}" == "" ]; do
