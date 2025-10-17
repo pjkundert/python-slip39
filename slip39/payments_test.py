@@ -12,6 +12,7 @@ from .payments		import Process, reload
 
 log				= logging.getLogger( "payments_test" )
 
+test_dir			= Path( __file__ ).resolve()		# Our payments_test.py file
 
 def test_sending():
     """Test the transmission and receipt of data via iterator.send(...)"""
@@ -49,7 +50,6 @@ def test_grants( tmp_path ):
 
     """
 
-    test			= Path( __file__ ).resolve()		# Our payments_test.py file
     here			= Path( tmp_path ).resolve()		# Our testing directory.
 
     name_ss			= "self-signed"
@@ -194,7 +194,7 @@ def test_grants( tmp_path ):
     # author.service as the basename), and then attempt to sign and save an instance of it with the
     # client Agent's Keypair.  For this, we need access to an Agent Keypair suitable for signing
     # (access to decrypted private key); so we'll need the credentials.
-    machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
+    machine_id_path		= test_dir.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
         client		= client,
@@ -277,12 +277,16 @@ def test_grants( tmp_path ):
     assert "specifies Machine ID 00010203-0405-4607-8809-0a0b0c0d0e0f; found" in str( excinfo.value )
 
 
+# We can generate this license w/ a complex network of cryptographic keys and license fragments.
+@pytest.mark.skipif(
+    not (test_dir.with_suffix( '' ) / "slip-39-app.crypto-license").exists(),
+    reason="payments_test/slip-39-app.crypto-license doesn't exist"
+)
 def test_reload( tmp_path, monkeypatch ):
     """Test self-signed Licensing, with multiple complex licenses.
 
     """
 
-    test			= Path( __file__ ).resolve()		# Our payments_test.py file
     here			= Path( tmp_path ).resolve()		# Our testing directory.
 
     monkeypatch.setattr( config_paths, "PATHS",  [
@@ -325,7 +329,7 @@ def test_reload( tmp_path, monkeypatch ):
     # author.service as the basename), and then attempt to sign and save an instance of it with the
     # client Agent's Keypair.  For this, we need access to an Agent Keypair suitable for signing
     # (access to decrypted private key); so we'll need the credentials.
-    machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
+    machine_id_path		= test_dir.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
         client		= client,

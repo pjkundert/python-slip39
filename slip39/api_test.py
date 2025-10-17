@@ -236,8 +236,8 @@ def test_slip39_non_extendable_compatibility():
         "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
         "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking"
     ]
-    account = Account( crypto="Bitcoin", format="legacy" )
-    account.from_mnemonic( "\n".join(mnemonics), passphrase = 'TREZOR', path="m/" )
+    account = Account( crypto="Bitcoin", format="legacy", passphrase='TREZOR' )
+    account.from_mnemonic( "\n".join(mnemonics), path="m/" )
     assert account.xprvkey == "xprv9s21ZrQH143K2nNuAbfWPHBtfiSCS14XQgb3otW4pX655q58EEZeC8zmjEUwucBu9dPnxdpbZLCn57yx45RBkwJHnwHFjZK4XPJ8SyeYjYg"
 
 
@@ -248,8 +248,8 @@ def test_slip39_extendable_trezor_compatibility():
         "enemy favorite academic acid cowboy phrase havoc level response walnut budget painting inside trash adjust froth kitchen learn tidy punish",
         "enemy favorite academic always academic sniff script carpet romp kind promise scatter center unfair training emphasis evening belong fake enforce"
     ]
-    account = Account( crypto="Bitcoin", format="legacy" )
-    account.from_mnemonic( "\n".join(mnemonics), passphrase = 'TREZOR', path="m/" )
+    account = Account( crypto="Bitcoin", format="legacy", passphrase='TREZOR' )
+    account.from_mnemonic( "\n".join(mnemonics), path="m/" )
     assert account.xprvkey == "xprv9s21ZrQH143K4FS1qQdXYAFVAHiSAnjj21YAKGh2CqUPJ2yQhMmYGT4e5a2tyGLiVsRgTEvajXkxhg92zJ8zmWZas9LguQWz7WZShfJg6RS"
 
 
@@ -318,6 +318,13 @@ def test_account_from_mnemonic():
     )
     [(eth_zoo,btc_zoo)]	= details_zoos_using_bip39.accounts
     btc_zoo.address == 'bc1qk0a9hr7wjfxeenz9nwenw9flhq0tmsf6vsgnn2'
+
+
+def test_account_supported():
+    """Try to support some random cryptocurrencies"""
+    polygon = Account( crypto="Polygon" ).from_mnemonic( BIP39_ZOO )
+    assert polygon.path == "m/44'/60'/0'/0/0"  # Default; ETH
+    assert polygon.address == 'rUPzi4ZwoYxi7peKCqUkzqEuSrzSRyLguV'
 
 
 @pytest.mark.skipif( not scrypt or not eth_account,

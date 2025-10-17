@@ -4,11 +4,12 @@ click			>=8.1.3,<9
 crypto-licensing	>=5.1.4,<6
 cx_Freeze		>=6.12		; sys_platform == "win32"
 fpdf2			>=2.7.6,<3
-#hdwallet		>=2.3.0,<3
-hdwallet-slip39		>=2.3.0,<3
+# Forces 'import shamir_mnemonic' to be satisfied by this, instead of allowing hdwallet to import its older version.
+shamir-mnemonic-slip39	>=0.4.0,<0.5
+#shamir-mnemonic	>=0.3.0,<0.4
+#hdwallet		>=3.7.0,<4
+hdwallet                @ git+https://github.com/pjkundert/python-hdwallet.git@feature/seeds#egg=hdwallet
 #tabulate		>=0.10.0
 tabulate-slip39		>=0.10.0
 mnemonic		>=0.21,	<1
 qrcode			>=7.3
-#shamir-mnemonic	>=0.3.0,<0.4
-shamir-mnemonic-slip39	>=0.4.0,<0.5
