@@ -28,7 +28,7 @@ import sys
 
 from itertools		import islice
 
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 
 from ..api		import Account, create, group_parser, random_secret, cryptopaths_parser, paper_wallet_available, stretch_seed_entropy
 from ..recovery		import recover, recover_bip39, produce_bip39, scan_entropy, display_entropy

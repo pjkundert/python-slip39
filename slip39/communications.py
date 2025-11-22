@@ -228,6 +228,7 @@ def send_message(
     verifycert		= None,		# and verify SSL/TLS certs (not generally supported)
     username		= None,
     password		= None,
+    timeout		= None,		# Optional timeout to smtplib.SMTP
 ):
     """Send a (possibly DKIM-signed) email msg, ideally directly to target domain's SMTP server,
     "RCPT TO" (each) to_addrs recipient, "MAIL FROM" the from_addrs.
@@ -298,7 +299,7 @@ def send_message(
 
     log.info( "Message body:\n" + msg_data.decode('UTF-8'))
 
-    smtp_kwds			= dict()
+    smtp_kwds			= dict( timeout=timeout )
     if usessl:
         smtp_class		= smtplib.SMTP_SSL
         smtp_kwds.update( context = ssl.create_default_context() )
@@ -327,7 +328,7 @@ def send_message(
         log.warning( f"Sending {len(to_addrs)} via {mxs}: {to_addrs}" )
         for mx_i,mx in enumerate( mxs ):
             # TODO: react if connecting to relay (localhost postfix) is a socket error.
-            log.info( f"Connecting to SMTP server {mx}" )
+            log.info( f"Connecting to SMTP server {mx}:{port}" )
             try:
                 with smtp_class_logging( mx, port, **smtp_kwds ) as mta:
                     if starttls:

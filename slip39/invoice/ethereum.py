@@ -103,15 +103,24 @@ def contract_address(
 class Chain( Enum ):
     Nothing		= 0
     Ethereum		= 1
-    Goerli		= 2
+    Sepolia		= 2
 
 
 #
 # Etherscan API, for accessing Gas Oracle and wallet data
 #
 etherscan_urls			= dict(
-    Ethereum	= 'https://api.etherscan.io/api',
-    Goerli	= 'https://api-goerli.etherscan.io/api',
+    Ethereum		= 'https://api.etherscan.io/v2/api',
+    Sepolia		= 'https://api.etherscan.io/v2/api',
+)
+
+etherscan_params		= dict(
+    Ethereum			= dict(
+        chainid		= "1",
+    ),
+    Sepolia			= dict(
+        chainid		= "11155111",
+    )
 )
 
 #
@@ -123,13 +132,13 @@ etherscan_urls			= dict(
 # contracts), you'll probably need an official ALCHEMY_API_TOKEN
 #
 alchemy_urls			= dict(
-    Ethereum	= 'eth-mainnet.g.alchemy.com/v2',
-    Goerli	= 'eth-goerli.g.alchemy.com/v2',
+    Ethereum		= 'eth-mainnet.g.alchemy.com/v2',
+    Sepolia		= 'eth-sepolia.g.alchemy.com/v2',
 )
 
 alchemy_api_testing		= dict(
-    Goerli	= 'AxnmGEYn7VDkC4KqfNSFbSW9pHFR7PDO',
-    Ethereum	= 'J038e3gaccJC6Ue0BrvmpjzxsdfGly9n',
+    Ethereum		= 'J038e3gaccJC6Ue0BrvmpjzxsdfGly9n',
+    Sepolia		= 'AxnmGEYn7VDkC4KqfNSFbSW9pHFR7PDO',
 )
 
 
@@ -196,7 +205,7 @@ def etherscan( chain, params, headers=None, apikey=None, timeout=None, verify=Tr
     headers			= headers or {
         'Content-Type':  'application/x-javascript',
     }
-    params			= dict( params )
+    params			= etherscan_params[chain.name].copy()
     if apikey is None:
         apikey			= os.getenv( 'ETHERSCAN_API_TOKEN' )
     if apikey and apikey.strip():  # May remain None, or be empty
@@ -667,9 +676,9 @@ class Contract:
     """Interact with Ethereum contracts, via web3.py's web3.Web3 instance.
 
     Specify an ETHERSCAN_API_TOKEN to avoid the free tier's 1/5s call rate.  We always query the
-    Ethereum chain via Etherscan (there is no gasoracle on it's Goerli API URL).
+    Ethereum chain via Etherscan (there is no gasoracle on it's Sepolia testnet API URL).
 
-    Specify an ALCHEMY_API_TOKEN and use Alchemy's Goerli or Ethereum (default) APIs.
+    Specify an ALCHEMY_API_TOKEN and use Alchemy's Sepolia Testnet or Ethereum (default) APIs.
 
     Attempts to reload/compile the contract of the specified version, from the .source path.
 
@@ -888,7 +897,7 @@ class Contract:
         """
 
         # Find out what the network thinks the required Gas fees need to be.  This could be a
-        # Testnet like Goerli, with abnormally low Gas prices.  But, for a real Ethereum Mainnet
+        # Testnet like Sepolia, with abnormally low Gas prices.  But, for a real Ethereum Mainnet
         # transaction, it will be an estimate of the latest block's gas price estimates for the next
         # block.
         latest			= self._w3.eth.get_block( 'latest' )
@@ -1296,7 +1305,7 @@ def tokeninfo( token, chain=None, w3_url=None, use_provider=None ):
         token			= Web3.to_checksum_address( token )
     except ValueError:
         pass
-    if chain and isinstance( chain, str ):  # The blockchain; eg. "Ethereum", "Goerli"
+    if chain and isinstance( chain, str ):  # The blockchain; eg. "Ethereum", "Sepolia"
         chain,			= ( c for c in Chain if c.name.lower() == chain.lower() )
     assert isinstance( chain, (Chain, type(None)) )
     if chain is None:

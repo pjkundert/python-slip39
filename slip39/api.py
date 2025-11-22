@@ -37,12 +37,20 @@ from shamir_mnemonic.constants import ID_LENGTH_BITS
 
 import hdwallet
 from hdwallet		import cryptocurrencies, exceptions
+from hdwallet.seeds	import SLIP39Seed
+from hdwallet.entropies	import SLIP39Entropy
+from hdwallet.mnemonics	import MNEMONICS
+from hdwallet.hds	import BIP44HD, BIP49HD, BIP84HD
+from hdwallet.derivations import BIP44Derivation, BIP49Derivation, BIP84Derivation, CustomDerivation
+from hdwallet.addresses	import ADDRESSES
+from hdwallet.exceptions import SymbolError
 
 from .defaults		import (
     BITS_DEFAULT, BITS, MNEM_ROWS_COLS, GROUPS, GROUP_REQUIRED_RATIO, GROUP_THRESHOLD_RATIO, CRYPTO_PATHS
 )
 from .util		import ordinal, commas, is_mapping
 from .recovery		import produce_bip39, recover_bip39, recover as recover_slip39
+from .exceptions	import SymbolError
 
 __author__                      = "Perry Kundert"
 __email__                       = "perry@dominionrnd.com"
@@ -100,6 +108,14 @@ def path_edit(
     To simply eliminate a segment, leave its segment empty.  For example, if you wish to eliminate
     the last two segments, provide "..//", yielding "m/49'/0'/0'".
 
+    To add to an existing path, don't include the "m/" anchor; just supply the extension; add "/1/2" to
+
+        m/49'/0'/0'
+
+    you can provide "/1/2" to produce "m/49'/0'/0'/1/2"
+
+    Providing a new "m/..." replaces the existing path.
+
     """
     if edit.startswith( '.' ):
         if ( new_edit := edit.lstrip( '.' )).startswith( '/' ):
@@ -113,7 +129,15 @@ def path_edit(
         # any empty edited segments)
         res_segs	= cur_segs[:len(cur_segs)-len(new_segs)] + list(filter(None, new_segs))
         return '/'.join( res_segs )
+    elif edit.startswith( '/' ):
+        new_edit	= edit[1:]
+        new_segs	= new_edit.split( '/' )
+        cur_segs	= path.split( '/' )
+        log.debug( f"Using {edit} to append extra {len(new_segs)} on {path} with {'/'.join(new_segs)}" )
+        res_segs	= cur_segs + new_segs
+        return '/'.join( res_segs )
     else:
+        assert edit.startswith( 'm/' ), f"Failed to edit {path} with: {edit!r}"
         return edit
 
 
@@ -149,7 +173,7 @@ class Account:
     | Crypto | Semantic | Path              | Address | Support |
     |--------+----------+-------------------+---------+---------|
     | ETH    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   |         |
-    | BSC    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
+    | BNB    | Legacy   | m/44'/ 60'/0'/0/0 | 0x...   | Beta    |
     | BTC    | Legacy   | m/44'/  0'/0'/0/0 | 1...    |         |
     |        | SegWit   | m/49'/  0'/0'/0/0 | 3...    |         |
     |        | Bech32   | m/84'/  0'/0'/0/0 | bc1...  |         |
@@ -163,11 +187,11 @@ class Account:
     CRYPTO_SYMBOLS		= dict(
         # Convert known Symbols to official Cryptocurrency Name.  By convention, Symbols are
         # capitalized to avoid collisions with names
-        ETH		= 'Ethereum',
+        BNB		= 'Binance',
         BTC		= 'Bitcoin',
-        LTC		= 'Litecoin',
         DOGE		= 'Dogecoin',
-        BSC		= 'Binance',
+        ETH		= 'Ethereum',
+        LTC		= 'Litecoin',
         XRP		= 'Ripple',
     )
     CRYPTO_DECIMALS		= dict(
@@ -179,60 +203,108 @@ class Account:
         # (24 decimals); using the default 8 // 3 = 2 for WBTC would be dramatically too few
         # decimals of precision for practical use.  So, we recommend defaulting to the underlying
         # known cryptocurrency, when a proxy Token is used for price calculations.
-        ETH		= 18,
+        BNB		= 18,
         BTC		= 24,
-        LTC		= 24,
         DOGE		= 24,
-        BSC		= 18,
+        ETH		= 18,
+        LTC		= 24,
         XRP		= 6,
     )
     CRYPTO_NAMES		= dict(
         # Currently supported (in order of visibility), and conversion of known Names to Symbol.  By
         # convention, Cryptocurrency names are lower-cased to avoid collisions with symbols.
-        ethereum	= 'ETH',
+        binance		= 'BNB',
         bitcoin		= 'BTC',
-        litecoin	= 'LTC',
         dogecoin	= 'DOGE',
-        binance		= 'BSC',
+        ethereum	= 'ETH',
+        litecoin	= 'LTC',
         ripple		= 'XRP',
     )
     CRYPTOCURRENCIES		= set( CRYPTO_NAMES.values() )
-    CRYPTOCURRENCIES_BETA	= set( ('BSC', 'XRP') )
+    CRYPTOCURRENCIES_BETA	= set( ('BNB', 'XRP') )
 
-    ETHJS_ENCRYPT		= set( ('ETH', 'BSC') )			# Can be encrypted w/ Ethereum JSON wallet
+    ETHJS_ENCRYPT		= set( ('ETH', 'BNB') )			# Can be encrypted w/ Ethereum JSON wallet
     BIP38_ENCRYPT		= CRYPTOCURRENCIES - ETHJS_ENCRYPT      # Can be encrypted w/ BIP-38
 
     CRYPTO_FORMAT		= dict(
-        ETH		= "legacy",
+        BNB		= "legacy",
         BTC		= "bech32",
-        LTC		= "bech32",
         DOGE		= "legacy",
-        BSC		= "legacy",
+        ETH		= "legacy",
+        LTC		= "bech32",
         XRP		= "legacy",
+    )
+    CRYPTO_FORMAT_HD		= dict(
+        BNB		= dict(
+            legacy	= BIP44HD,
+        ),
+        BTC		= dict(
+            legacy	= BIP44HD,
+            segwit	= BIP49HD,
+            bech32	= BIP84HD,
+        ),
+        DOGE		= dict(
+            legacy	= BIP44HD,
+        ),
+        ETH		= dict(
+            legacy	= BIP44HD,
+        ),
+        LTC		= dict(
+            legacy	= BIP44HD,
+            segwit	= BIP49HD,
+            bech32	= BIP84HD,
+        ),
+        XRP		= dict(
+            legacy	= BIP44HD,
+        ),
+    )
+    CRYPTO_FORMAT_DERIVATION	= dict(
+        BNB		= dict(
+            legacy	= BIP44Derivation,
+        ),
+        BTC		= dict(
+            legacy	= BIP44Derivation,
+            segwit	= BIP49Derivation,
+            bech32	= BIP84Derivation,
+        ),
+        DOGE		= dict(
+            legacy	= BIP44Derivation,
+        ),
+        ETH		= dict(
+            legacy	= BIP44Derivation,
+        ),
+        LTC		= dict(
+            legacy	= BIP44Derivation,
+            segwit	= BIP49Derivation,
+            bech32	= BIP84Derivation,
+        ),
+        XRP		= dict(
+            legacy	= BIP44Derivation,
+        ),
     )
 
     # The available address formats and default derivation paths.
     FORMATS		= ("legacy", "segwit", "bech32")
 
     CRYPTO_FORMAT_PATH		= dict(
-        ETH		= dict(
-            legacy	= "m/44'/60'/0'/0/0",
-        ),
-        BSC		= dict(
-            legacy	= "m/44'/60'/0'/0/0",
+        BNB		= dict(
+            legacy	= "m/44'/714'/0'/0/0",
         ),
         BTC		= dict(
             legacy	= "m/44'/0'/0'/0/0",
             segwit	= "m/49'/0'/0'/0/0",
             bech32	= "m/84'/0'/0'/0/0",
         ),
+        DOGE		= dict(
+            legacy	= "m/44'/3'/0'/0/0",
+        ),
+        ETH		= dict(
+            legacy	= "m/44'/60'/0'/0/0",
+        ),
         LTC		= dict(
             legacy	= "m/44'/2'/0'/0/0",
             segwit	= "m/49'/2'/0'/0/0",
             bech32	= "m/84'/2'/0'/0/0",
-        ),
-        DOGE		= dict(
-            legacy	= "m/44'/3'/0'/0/0",
         ),
         XRP		= dict(
             legacy	= "m/44'/144'/0'/0/0",
@@ -240,10 +312,7 @@ class Account:
     )
 
     CRYPTO_FORMAT_SEMANTIC	= dict(
-        ETH		= dict(
-            legacy	= "p2pkh",
-        ),
-        BSC		= dict(
+        BNB		= dict(
             legacy	= "p2pkh",
         ),
         BTC		= dict(
@@ -251,17 +320,45 @@ class Account:
             segwit	= "p2wpkh_in_p2sh",
             bech32	= "p2wpkh",
         ),
+        DOGE		= dict(
+            legacy	= "p2pkh",
+        ),
+        ETH		= dict(
+            legacy	= "p2pkh",
+        ),
         LTC		= dict(
             legacy	= "p2pkh",
             segwit	= "p2wpkh_in_p2sh",
             bech32	= "p2wpkh",
         ),
-        DOGE		= dict(
-            legacy	= "p2pkh",
-        ),
         XRP		= dict(
             legacy	= "p2pkh",
         )
+    )
+
+    CRYPTO_FORMAT_ADDRESS		= dict(
+        BNB		= dict(
+            legacy	= ADDRESSES.address("Ethereum"),
+        ),
+        BTC		= dict(
+            legacy	= ADDRESSES.address("P2PKH"),
+            segwit	= ADDRESSES.address("P2WPKH-In-P2SH"),
+            bech32	= ADDRESSES.address("P2WPKH"),
+        ),
+        DOGE		= dict(
+            legacy	= ADDRESSES.address("P2PKH"),
+        ),
+        ETH		= dict(
+            legacy	= ADDRESSES.address("Ethereum"),
+        ),
+        LTC		= dict(
+            legacy	= ADDRESSES.address("P2PKH"),
+            segwit	= ADDRESSES.address("P2WPKH-In-P2SH"),
+            bech32	= ADDRESSES.address("P2WPKH"),
+        ),
+        XRP		= dict(
+            legacy	= ADDRESSES.address("Ripple"),
+        ),
     )
 
     @classmethod
@@ -278,9 +375,10 @@ class Account:
 
     @classmethod
     def address_format( cls, crypto, format=None ):
-        """Get or set the desired default address format for the specified supported crypto.  Future
-        instances of Address created for the crypto will use the specified address format and its
-        default derivation path.
+        """Get or set the desired default address format for the specified supported crypto.
+
+        Future instances of Address created for the crypto will use the specified address format and
+        its default derivation path.
 
         """
         crypto			= cls.supported( crypto )
@@ -297,7 +395,15 @@ class Account:
         """Validates that the specified cryptocurrency is supported and returns the normalized "SYMBOL"
         for it, or raises an a ValueError.  Eg. "ETH"/"Ethereum" --> "ETH"
 
-        If not currently available, attempts to add it.
+        If not currently available, attempts to add it, defining:
+
+            cls.CRYPTO_SYMBOLS[<SYMBOL>]	= "Name"
+            cls.CRYPTO_NAMES["name"]		= <SYMBOL>
+            cls.CRYPTO_DECIMALS			= 18  # for example
+            cls.CRYPTOCURRENCIES		= {'BTC', ..., <SYMBOL>}
+            cls.BIP38_ENCRYPT
+
+        Yields an HDWallet SymbolError on unsupported symbol.
 
         """
         try:
@@ -308,8 +414,7 @@ class Account:
             if validated:
                 return validated
 
-            # Not (yet) supported.  Attempt to find it by Name/SYM in hdwallet.cryptocurrencies, or
-            # raise SymbolError
+            # Attempt to find it by Name/SYM in hdwallet.cryptocurrencies, or raise SymbolError
             try:
                 validated_cls	= cryptocurrencies.CRYPTOCURRENCIES.cryptocurrency( crypto )
             except exceptions.Error:
@@ -317,36 +422,57 @@ class Account:
             validated		= validated_cls.SYMBOL
 
             # Unable to support Cardano or Monero, which doesn't use the default BIP44 derivation.
-            cls.CRYPTO_SYMBOLS[validated] = validated_cls.NAME
-            cls.CRYPTO_DECIMALS	= 18  # Default
+            cls.CRYPTO_SYMBOLS[validated]	= validated_cls.NAME
+            cls.CRYPTO_DECIMALS[validated]	= 18  # Default
             cls.CRYPTO_NAMES[validated_cls.NAME.lower()] = validated
             cls.CRYPTOCURRENCIES = set( cls.CRYPTO_NAMES.values() )
             # Any dynamically added Cryptocurrency is considered "Beta"
-            cls.CRYPTOCURRENCIES_BETA = cls.CRYPTOCURRENCIES_BETA | set((validated))
+            cls.CRYPTOCURRENCIES_BETA	       |= {validated}
 
+            if str(validated_cls.DEFAULT_HD) != "BIP44":
+                raise SymbodError(
+                    f"Unknown default format; unable to support {validated_cls.NAME}"
+                )
             # If BIP44 supported, consider it the legacy format. If BIP49: segwit, BIP84: bech32
-            path = cls.CRYPTO_FORMAT_PATH[validated] = {}
-            sems = cls.CRYPTO_FORMAT_SEMANTIC[validated] = {}
-            if "BIP44" in validated.HDS:
+            cls.CRYPTO_FORMAT_PATH[validated]	= path = {}
+            cls.CRYPTO_FORMAT_SEMANTIC[validated]= sems = {}
+            cls.CRYPTO_FORMAT_ADDRESS[validated]= addr = {}
+            cls.CRYPTO_FORMAT_HD[validated]= hder = {}
+            cls.CRYPTO_FORMAT_DERIVATION[validated]= ders = {}
+            cls.CRYPTO_FORMAT[validated]	= "legacy"
+            
+            # The default format unless otherwise specified will be .CRYPTO_FORMAT[<SYMBOL>]; it'll
+            # be the highest BIP44/49/84 support by the cryptocurrency.
+            if hasattr( validated_cls.HDS, "BIP44" ):
                 path["legacy"]	= f"m/44'/{validated_cls.COIN_TYPE}'/0'/0/0"
                 sems["legacy"]	= "p2pkh"
-            if "BIP49" in validated.HDS:
+                addr["legacy"]	= ADDRESSES.address(validated_cls.DEFAULT_ADDRESS)
+                hder["legacy"]	= BIP44HD
+                ders["legacy"]	= BIP44Derivation
+            if hasattr( validated_cls.HDS, "BIP49" ):
                 path["segwit"]	= f"m/49'/{validated_cls.COIN_TYPE}'/0'/0/0"
                 sems["segwit"]	= "p2wpkh_in_p2sh"
-            if "BIP84" in validated.HDS:
+                addr["segwit"]	= ADDRESSES.addresses("P2WPKH-IN-P2SH")
+                hder["segwit"]	= BIP49HD
+                ders["segwit"]	= BIP49Derivation
+                cls.CRYPTO_FORMAT[validated]	= "segwit"
+            if hasattr( validated_cls.HDS, "BIP84" ):
                 path["bech32"]	= f"m/84'/{validated_cls.COIN_TYPE}'/0'/0/0"
                 sems["bech32"]	= "p2wpkh"
-            assert path, \
-                f"Unsupported HD derivation for cryptocurrency {validated_cls.NAME}"
-            assert str(validated.DEFAULT_HD) == "BIP44", \
-                f"Unknown default format; unable to support {validated_cls.NAME}"
-            cls.CRYPTO_FORMAT[validated] = "legacy"
+                addr["bech32"]	= ADDRESSES.address("P2WPKH")
+                hder["bech32"]	= BIP84HD
+                ders["bech32"]	= BIP84Derivation
+                cls.CRYPTO_FORMAT[validated]	= "bech32"
+            if not path:
+                raise SymbolError(
+                    f"Unsupported HD derivation for cryptocurrency {validated_cls.NAME}"
+                )
 
             # If BIP38 is supported, use it otherwise assume Ethereum
             if validated_cls.SUPPORT_BIP38:
-                cls.BIP38_ENCRYPT = cls.BIP38_ENCRYPT | set((validated))
+                cls.BIP38_ENCRYPT      |= {validated}
             else:
-                cls.ETHJS_ENCRYPT = cls.ETHJS_ENCRYPT | set((validated))
+                cls.ETHJS_ENCRYPT      |= {validated}
 
             return validated
 
@@ -356,7 +482,7 @@ class Account:
         finally:
             log.debug( f"Validating {crypto!r} yields: {validated!r}" )
 
-        raise ValueError( f"{crypto} not presently supported; specify {commas( cls.CRYPTOCURRENCIES )}" )
+        raise SymbolError( f"{crypto} not presently supported" )
 
     def __str__( self ):
         """Until from_seed/from_path are invoked, may not have an address or derivation path."""
@@ -373,6 +499,8 @@ class Account:
     def __init__( self, crypto, format=None, **args ):
         """Initialize account with the specified Cryptocurrency name/symbol 'crypto'.
 
+        Specifies the Hierarchical Derivation and the default address type, format and network.
+
         Optionally supply a desired address 'semantic', 'passphrase', etc.
 
         """
@@ -380,14 +508,67 @@ class Account:
         name			= self.CRYPTO_SYMBOLS[crypto.upper()]
         cryptocurrency		= cryptocurrencies.CRYPTOCURRENCIES.cryptocurrency( name )
         self.format		= format.lower() if format else Account.address_format( crypto )
+        # Used for default address type, and derivation scheme for public/private keys.  Fails if
+        # the cryptocurrency is incapable of representing address/semantic in the desired the
+        # desired format.
         semantic		= self.CRYPTO_FORMAT_SEMANTIC[crypto][self.format]
-        self.hdwallet		= hdwallet.HDWallet( cryptocurrency=cryptocurrency, semantic=semantic, **args )
+        hd			= self.CRYPTO_FORMAT_HD[crypto][self.format]
+        address			= self.CRYPTO_FORMAT_ADDRESS[crypto][self.format]
+        network			= cryptocurrency.DEFAULT_NETWORK
+        self.hdwallet		= hdwallet.HDWallet(
+            cryptocurrency=cryptocurrency, hd=hd, network=network, address=address, semantic=semantic, **args )
 
-    def from_seed( self, seed: Union[str,bytes], path: Optional[str] = None, format=None ) -> Account:
-        """Derive the Account from the supplied seed and (optionally) path; uses the default derivation
-        path for the Account address format, if None provided.  As with all of the functions that
-        completely replace the derivation Seed, we clear any existing known derivation path; it is
-        unrelated to this newly supplied seed.  Handles bytes or hex seeds, optionally with "0x...".
+    def from_entropy(
+        self,
+        entropy: Union[str,bytes],
+        path: Optional[str] = None
+    ) -> Account:
+        """Derive the Account from the supplied entropy and (optionally) path.
+
+        Uses the default derivation path for the Account address format, if None provided.  As with
+        all of the functions that completely replace the derivation Seed, we clear any existing
+        known derivation path; it is unrelated to this newly supplied seed.  Handles bytes or hex
+        seeds, optionally with "0x...".
+
+        Only supports entropy of SLIP-39 sizes 128-, 256- or 512-bits.
+
+        """
+        if type( entropy ) is bytes:
+            entropy		= codecs.encode( entropy, 'hex_codec' ).decode( 'ascii' )
+        if entropy[:2].lower() == "0x":
+            entropy		= entropy[2:]
+        assert all( c in string.hexdigits for c in entropy ), \
+            "Only bytes and hex string HD Wallet Entropy are supported"
+        log.debug(f"Deriving {self.hdwallet._hd.__class__.__name__} wallet from entropy: {entropy!r}")
+        self.hdwallet.from_entropy( SLIP39Entropy( entropy ))
+        self.from_path( path )
+        return self
+
+    def from_seed(
+        self,
+        seed: Union[str,bytes],
+        path: Optional[str] = None
+    ) -> Account:
+        """Derive the Account from the supplied seed and (optionally) path.
+
+        Assumes all Cryptocurrency Seed-specific derivation, validation and processing has already
+        occurred, and that the data complies with the seed size and structure limitations.
+
+        For example:
+
+        | Seed        | Requirements                                   |
+        |-------------+------------------------------------------------|
+        | BIP-39      | raw 128-, 160-, 192-, 224- or 256-bit entropy, |
+        |             | to normalized canonical words,                 |
+        |             | to UTF-8 NFKD,                                 |
+        |             | to BPKDF2 HMAC SHA-512,                        |
+        |             | to 512-bit seed.                               |
+        | Electrum v2 | Seeds' HMAC SHA-512 must start with a:         |
+        |             | "01" (Standard),                               |
+        |             | "100" (Segwit),                                |
+        |             | "100" (Segwit),                                |
+        |             | "101" (Standard 2Fa), or                       |
+        |             | "102" (Segwit  2FA).                           |
 
         """
         if type( seed ) is bytes:
@@ -396,31 +577,35 @@ class Account:
             seed		= seed[2:]
         assert all( c in string.hexdigits for c in seed ), \
             "Only bytes and hex string HD Wallet Seeds are supported"
-        # A raw hex seed is compatible with an hdwallet ISeed
-        self.hdwallet.from_seed( seed )
+        log.debug(f"Deriving {self.hdwallet._hd.__class__.__name__} wallet from seed: {seed!r}")
+        self.hdwallet.from_seed( SLIP39Seed( seed ))
         self.from_path( path )
         return self
 
-    def from_mnemonic( self, mnemonic: str, path: Optional[str] = None, using_bip39: bool = False,
-                       slip39_passphrase: Optional[Union[bytes,str]] = None ) -> Account:
+    def from_mnemonic(
+        self,
+        mnemonic: str,
+        path: Optional[str] = None,
+        language: Optional[str] = None,
+        using_bip39: bool = False,
+        slip39_passphrase: Optional[Union[bytes,str]] = None,
+    ) -> Account:
         """Derive the Account seed from the supplied BIP-39/SLIP-39 Mnemonic(s) and (optionally) path.
-        Any passphrase must have been supplied at Account creation.
+
+        Any BIP-39 (or other Mnemonic) seed passphrase must be supplied at Account creation.  If a
+        'slip39_passphrase' is required (not recommended), it must be supplied here.
 
         Since Mnemonics are intended to encode "root" HD Wallet seeds, uses the default derivation
         path for the Account address format, if None provided.
 
-        SLIP-39 Mnemonics are recognized by the fact that they are multiple lines (has newlines).
+        BIP-39 Mnemonics must have 12, 15, 18 21 or 24 words; SLIP-39 Mnemonics may 1 or multiple
+        lines, but are a multiple of 20, 33 or 59 words.
 
         If 'using_bip39', then any supplied SLIP-39 Mnemonics entropy will first be converted back
         into a BIP-39 Mnemonic (to maintain compatibility w/ BIP-39 wallets) to obtain the Seed.
-        Otherwise, SLIP-39 Mnemonics will use native SLIP-39 Seed decoding.  The HDWallet.from_seed
-        performs the BIP-39 HD derivation processs from the seed data.
+        Otherwise, SLIP-39 Mnemonics will use native SLIP-39 Seed decoding.
 
-        We do not use python-hdwallet's Mnemonic facilities, because they don't detect language,
-        don't expand unambiguous mnemonics, etc.; use python-mnemonic instead.
-
-        Any BIP39 or seed passphrase must be supplied at Account creation.  If a 'slip39_passphrase'
-        is required (not recommended), it must be supplied here.
+        The HDWallet.from_entropy performs the BIP-39 HD derivation processs from the entropy data.
 
         I recommend *neither* SLIP-39 nor BIP-39 passphrases!  Use wallet-level passphrases instead
         (eg. Trezor named wallets).
@@ -433,14 +618,65 @@ class Account:
         ]
         if len( mnemonics_lines ) < 1:
             raise ValueError( "At least one BIP-39 2 SLIP-39 Mnemonics required" )
-        if len( mnemonics_lines ) > 1:
-            # Must be SLIP-39 Mnemonic Phrases.
-            seed		= recover_slip39( mnemonics_lines, passphrase=slip39_passphrase, using_bip39=using_bip39 )
-            return self.from_seed( seed=seed, path=path )
 
-        # Only BIP-39 Mnemonics supported.  Any BIP-39 passphrase must be supplied at Account creation.
-        seed			= recover_bip39( *mnemonics_lines, as_entropy=True )
-        return self.from_seed( seed, path=path )
+        # Try the mnemonics as SLIP-39.  We can't assume that there will be more than one line,
+        # because a 1/1 SLIP-39 group is possible.
+        try:
+            entropy		= recover_slip39(
+                mnemonics_lines,
+                passphrase=slip39_passphrase,
+                using_bip39=False,
+            )
+        except Exception as exc:
+            # Wasn't SLIP-39 Mnemonic(s); probably a single-line BIP-39 (or other) Mnemonic
+            if len(mnemonics_lines) > 1:
+                raise ValueError( f"Multi-line Mnemonic is not SLIP-39: {exc}" ) from exc
+
+            # Try each Mnemonic type appropriate for the Cryptocurrency, 'til we find one
+            imnemonic = None
+            mnemonic_types = []
+            for mnemonic_type in self.hdwallet._cryptocurrency.MNEMONICS.get_mnemonics():
+                if isinstance( mnemonic_type, dict ):
+                    mnemonic_type, = mnemonic_type.keys()
+                mnemonic_types.append( mnemonic_type )
+                mnemonic_cls	= MNEMONICS.mnemonic( mnemonic_type )
+                try:
+                    imnemonic	= mnemonic_cls(
+                        mnemonic	= mnemonics_lines[0],
+                        language	= language
+                    )
+                except Exception as exc_mnem:
+                    log.debug( f"Single-line Mnemonic is not {mnemonic_type}: {exc_mnem}" )
+                else:
+                    # The supplied Mnemonic was recognized, canonicalized and decoded/validated
+                    break
+            if not imnemonic:
+                raise ValueError( f"Single-line Mnemonic is not recognized as {', '.join(mnemonic_types)}" )
+        else:
+            # Must have been SLIP-39 Mnemonic Phrase(s); got the entropy it encoded.  Standard
+            # SLIP-39 encoding is to use the entropy directly as the HD seed.
+            if not using_bip39:
+                return self.from_seed( seed=entropy, path=path )
+
+            # If using_bip39 supplied, then the SLIP-39 Mmnemonic(s) encoded the source entropy for
+            # some other Mnemonic.  Convert it to the first appropriate Mnemonic for the
+            # cryptocurrency, in the specified language or the first of its valid languages.
+            mnemonic_cls	= MNEMONICS.mnemonic(
+                self.hdwallet._cryptocurrency.MNEMONICS.get_mnemonics()[0]
+            )
+            imnemonic		= mnemonic_cls(
+                mnemonic	= mnemonic_cls.from_entropy(
+                    entropy	= entropy,
+                    language	= language or mnemonic_cls.languages[0]
+                ),
+                language	= language or mnemonic_cls.languages[0]
+            )
+
+        # Recognized/generated a Cryptocurrency-appropriate IMnemonic.  Any passphrase must be
+        # supplied at Account creation, and is known to the HDWallet.
+        self.hdwallet.from_mnemonic( mnemonic=imnemonic )
+        self.from_path( path )
+        return self
 
     def from_xpubkey( self, xpubkey: str, path: Optional[str] = None ) -> Account:
         """Derive the Account from the supplied xpubkey and (optionally) path; uses no derivation path
@@ -469,26 +705,30 @@ class Account:
 
         """
         self.hdwallet.clean_derivation()
+        self.hdwallet.update_derivation( derivation=CustomDerivation() )
         self.hdwallet.from_xpublic_key( xpubkey )
-        self.from_path( path or "m/" )
+        self.from_derivation( derivation=CustomDerivation( path=path ))
         return self
 
     def from_xprvkey( self, xprvkey: str, path: Optional[str] = None ) -> Account:
         self.hdwallet.clean_derivation()
+        self.hdwallet.update_derivation( derivation=CustomDerivation() )
         self.hdwallet.from_xprivate_key( xprvkey )
-        self.from_path( path or "m/" )
+        self.from_derivation( derivation=CustomDerivation( path=path ))
         return self
 
     def from_public_key( self, public_key: str, path: Optional[str] = None ) -> Account:
         self.hdwallet.clean_derivation()
+        self.hdwallet.update_derivation( derivation=CustomDerivation() )
         self.hdwallet.from_public_key( public_key )
-        self.from_path( path or "m/" )
+        self.from_derivation( derivation=CustomDerivation( path=path ))
         return self
 
     def from_private_key( self, private_key: str, path: Optional[str] = None ) -> Account:
         self.hdwallet.clean_derivation()
+        self.hdwallet.update_derivation( derivation=CustomDerivation() )
         self.hdwallet.from_private_key( private_key )
-        self.from_path( path or "m/" )
+        self.from_derivation( derivation=CustomDerivation( path=path ))
         return self
 
     def from_path( self, path: Optional[str] = None ) -> Account:
@@ -502,7 +742,7 @@ class Account:
 
         """
         from_path		= self.path
-        log.debug( f"Changing {self.format} {self!r} from {from_path} to {path}" )
+        log.debug( f"Changing {self.format} {self!r} from {from_path} using {path}" )
         if not from_path or len( from_path ) <= 2:
             if from_path != "m/":
                 raise ValueError( f"Empty but invalid path detected: {from_path}" )
@@ -515,60 +755,37 @@ class Account:
         # Valid HD wallet derivation paths always start with "m/"
         if not ( from_path and len( from_path ) >= 2 and from_path.startswith( "m/" ) ):
             raise ValueError( f"Unrecognized HD wallet derivation path: {from_path!r}" )
-        if len( from_path ) > 2:
-            self.hdwallet.from_path( from_path )
+
+        # In order to support any number of derivation path segments, we only use CustomDerivation
+        self.hdwallet.from_derivation( derivation=CustomDerivation( path=from_path ))
         return self
+
+    def from_derivation( self, derivation: IDerivation ):
+        self.hdwallet.clean_derivation()
+        self.hdwallet.update_derivation( derivation )
 
     @property
     def address( self ):
         """Returns the 1..., 3... or bc1... address, depending on whether format is legacy, segwit or bech32"""
-        return self.formatted_address()
+        return self.hdwallet.address()
 
-    def formatted_address( self, format=None ):
-        if ( format or self.format or '' ).lower() == "legacy":
-            return self.legacy_address()
-        elif ( format or self.format or '' ).lower() == "segwit":
-            return self.segwit_address()
-        elif ( format or self.format or '' ).lower() == "bech32":
-            return self.bech32_address()
-        raise ValueError( f"Unknown addresses semantic: {self.format}" )
-
-    def substitute_symbol( method ):
-        """For some locally-defined cryptocurrencies, the python-hdwallet code specifically checks
-        for "ETH" and represents the address in the standard Ethereum 0x... format.  For those
-        cryptocurrencies that need the underlying hdwallet._cryptocurrency.symbol adjusted during
-        the call, place the entry in the CRYPTO_LOCAL_SYMBOL dict, above.
-
-        Decorate the target methods that require the underlying .hdwallet._cryptocurrency.SYMBOL to
-        be adjusted for the duration of the method.
-
-        See: python-hdwallet/hdwallet/hdwallet.py, line 1102.
-
-        """
-        @wraps( method )
-        def wrapper( self, *args, **kwds ):
-            symbol              = self.hdwallet._cryptocurrency.SYMBOL
-            try:
-                self.hdwallet._cryptocurrency.SYMBOL \
-                                = self.CRYPTO_LOCAL_SYMBOL.get( symbol, symbol )        # noqa: E126
-                return method( self, *args, **kwds )
-            finally:
-                self.hdwallet._cryptocurrency.SYMBOL \
-                                = symbol						# noqa: E126
-        return wrapper
-
-    #@substitute_symbol
     def legacy_address( self ):
         """BIP-44 Address"""
-        return self.hdwallet.p2pkh_address()
+        return self.hdwallet.address(
+            address=self.CRYPTO_FORMAT_ADDRESS[self.hdwallet.symbol()]["legacy"]
+        )
 
     def segwit_address( self ):
         """BIP-49 Address"""
-        return self.hdwallet.p2wpkh_in_p2sh_address()
+        return self.hdwallet.address(
+            address=self.CRYPTO_FORMAT_ADDRESS[self.hdwallet.symbol()]["segwit"]
+        )
 
     def bech32_address( self ):
         """BIP-84 Address"""
-        return self.hdwallet.p2wpkh_address()
+        return self.hdwallet.address(
+            address=self.CRYPTO_FORMAT_ADDRESS[self.hdwallet.symbol()]["bech32"]
+        )
 
     @property
     def name( self ):
@@ -581,7 +798,9 @@ class Account:
 
     @property
     def path( self ) -> str:
-        return self.hdwallet.path() or 'm/'
+        if self.hdwallet._derivation:
+            return self.hdwallet.path()
+        return 'm/'
 
     @property
     def key( self ):
@@ -1229,7 +1448,7 @@ def account(
     """
     if isinstance( master_secret, str ):
         master_secret		= master_secret.strip()
-    if isinstance( master_secret, bytes ) or master_secret[:2].lower == "0x" or all(
+    if isinstance( master_secret, bytes ) or master_secret[:2].lower() == "0x" or all(
         c in string.hexdigits for c in master_secret
     ):
         # Probably a binary/hex Seed.
@@ -1237,11 +1456,17 @@ def account(
             crypto	= crypto or 'ETH',
             format	= format,
         )
-        acct.from_seed(
-            seed	= master_secret,
-            path	= path,
-        )
-        log.debug( f"Created {acct.format} {acct} from {len(master_secret)*8}-bit seed, at derivation path {acct.path}" )
+        if using_bip39:
+            acct.from_entropy(
+                entropy	= master_secret,
+                path	= path,
+            )
+        else:
+            acct.from_seed(
+                seed	= master_secret,
+                path	= path,
+            )
+        log.debug( f"Created {acct.format} {acct} from {len(master_secret)*8}-bit {'entropy' if using_bip39 else 'seed'}, at derivation path {acct.path}" )
     elif ' ' in master_secret:
         # Some kind of Mnemonic; this is the only valid use of whitespace within a master_secret.
         acct			= Account(

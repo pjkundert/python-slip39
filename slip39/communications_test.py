@@ -131,6 +131,7 @@ def test_communications_dkim():
     try:
         send_message(
             msg,
+            timeout	= 5.0,
             #from_addr	= SMTP_FROM,		# Envelope MAIL FROM: specifies actual sender
             #to_addrs	= [ SMTP_TO ],		# Will be the same as message To: (should default)
             #relay		= ['mail2.kundert.ca'],  # 'localhost',   # use eg. ssh -fNL 0.0.0.0:25:linda.mx.cloudflare.net:25 root@your.VPS.com
@@ -201,7 +202,8 @@ def test_communications_autoresponder( monkeypatch ):
         relay		= controller.hostname,
         port		= controller.port,
         starttls	= False,
-        usessl		= False
+        usessl		= False,
+        timeout		= 5.0,
     )
     assert len( envelopes ) == 1
     assert envelopes[-1].rcpt_tos == [ 'licensing@dominionrnd.com' ]

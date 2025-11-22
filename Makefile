@@ -65,7 +65,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTEST_OPTS	?= -v --log-cli-level=WARNING  # --capture=no  # --doctest-modules 
+PYTEST_OPTS	?= -v # --log-cli-level=WARNING --capture=no  # --doctest-modules 
 
 PYTEST		= $(PYTHON) -m pytest $(PYTEST_OPTS)
 

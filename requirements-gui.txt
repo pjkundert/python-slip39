@@ -1,1 +1,3 @@
-pysimplegui		>=5.0.7,<5.1
+#pysimplegui		>=5.0.8,<5.1
+FreeSimpleGUI		>=5.2,<6
+

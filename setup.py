@@ -30,6 +30,8 @@ extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 
 # Since setuptools is retiring tests_require, add it as another option (but not included in 'all')
 extras_require['tests']		= tests_require
+import json
+print(json.dumps( extras_require, indent=4 ))
 
 Executable			= None
 if sys.platform == 'win32':
@@ -223,7 +225,7 @@ On an secure (ideally air-gapped) computer, new seeds can /safely/ be
 generated (*without trusting this program*) and the PDF saved to a USB
 drive for printing (or directly printed without the file being saved
 to disk.).  Presently, `slip39' can output example ETH, BTC, LTC,
-DOGE, BSC, and XRP addresses derived from the seed, to /illustrate/
+DOGE, BNB, and XRP addresses derived from the seed, to /illustrate/
 what accounts are associated with the backed-up seed.  Recovery of the
 seed to a [Trezor Safe 3] is simple, by entering the mnemonics right
 on the device.
@@ -386,7 +388,6 @@ setup(
     name			= "slip39",
     version			= __version__,
     install_requires		= install_requires,
-    tests_require		= tests_require,
     extras_require		= extras_require,
     packages			= package_dir.keys(),
     package_dir			= package_dir,
