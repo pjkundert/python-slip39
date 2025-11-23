@@ -28,7 +28,7 @@ from .api		import random_secret, stretch_seed_entropy
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
 from .defaults		import (   # noqa: F401
-    CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
+    ANONYMOUS, CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
     BITS, BITS_DEFAULT,
     FILENAME_FORMAT,
     FILENAME_KEYWORDS,
@@ -103,6 +103,9 @@ def main( argv=None ):
     ap.add_argument( '--using-bip39', action='store_true',
                      default=None,
                      help="Generate Seed from secret Entropy using BIP-39 generation algorithm (encode as BIP-39 Mnemonics, encrypted using --passphrase)" )
+    ap.add_argument( '--anonymous', action='store_true',
+                     default=None,
+                     help=f"SLIP-39 mnemonic cards include cryptocurrency public addresses and QR codes (default: {ANONYMOUS})" )
     ap.add_argument( '--passphrase',
                      default=None,
                      help="Encrypt the master secret w/ this passphrase, '-' reads it from stdin (default: None/'')" )
@@ -249,6 +252,7 @@ def main( argv=None ):
             master_secret	= master_secret,
             passphrase		= passphrase,
             using_bip39		= args.using_bip39,
+            anonymous		= args.anonymous,
             group		= args.group,
             group_threshold	= args.threshold,
             cryptocurrency	= args.cryptocurrency,

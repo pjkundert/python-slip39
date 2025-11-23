@@ -437,11 +437,11 @@ slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     :               [-c CRYPTOCURRENCY] [-p PATH] [-j JSON] [-w WALLET]
     :               [--wallet-hint WALLET_HINT] [--wallet-format WALLET_FORMAT]
     :               [-s SECRET] [-e ENTROPY] [--show] [--no-show] [--bits BITS]
-    :               [--using-bip39] [--passphrase PASSPHRASE] [-C CARD] [--no-card]
-    :               [--paper PAPER] [--cover] [--no-cover] [--identifier IDENTIFIER]
-    :               [--extendable] [--no-extendable] [--text]
-    :               [--watermark WATERMARK] [--double-sided] [--no-double-sided]
-    :               [--single-sided]
+    :               [--using-bip39] [--anonymous] [--passphrase PASSPHRASE]
+    :               [-C CARD] [--no-card] [--paper PAPER] [--cover] [--no-cover]
+    :               [--identifier IDENTIFIER] [--extendable] [--no-extendable]
+    :               [--text] [--watermark WATERMARK] [--double-sided]
+    :               [--no-double-sided] [--single-sided]
     :               [names ...]
     : 
     : Create and output SLIP-39 encoded Seeds and Paper Wallets to a PDF file.
@@ -504,6 +504,8 @@ slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     :   --using-bip39         Generate Seed from secret Entropy using BIP-39
     :                         generation algorithm (encode as BIP-39 Mnemonics,
     :                         encrypted using --passphrase)
+    :   --anonymous           SLIP-39 mnemonic cards include cryptocurrency public
+    :                         addresses and QR codes (default: False)
     :   --passphrase PASSPHRASE
     :                         Encrypt the master secret w/ this passphrase, '-'
     :                         reads it from stdin (default: None/'')
@@ -1173,6 +1175,7 @@ create_details      = slip39.create(
     | groups          | Like groups, w/ <members> =  ["<mnemonics>", ...]                   |
     | accounts        | Resultant { "path": Account, ...}                                   |
     | using_bip39     | Generate Seed from Entropy via BIP-39 generation algorithm          |
+    | anonymous       | Avoid including cryptocurrency public addresses and QR codes        |
     | card_format     | 'index', '(<h>,<w>),<margin>', ...                                  |
     | paper_format    | 'Letter', ...                                                       |
     | orientation     | Force an orientation (default: portrait, landscape)                 |
@@ -1212,6 +1215,7 @@ pdf_binary = pdf.output()
     | master_secret   | A Seed secret (only appropriate if exactly one name supplied)                                         |
     | passphrase      | A SLIP-39 passphrase (not Trezor compatible; use "hidden wallet" phrase on device instead)            |
     | using_bip39     | Generate Seed from Entropy via BIP-39 generation algorithm                                            |
+    | anonymous       | Avoid including cryptocurrency public addresses and QR codes                                          |
     | group           | A dict of {"<group>":(<required>, <members>), ...}                                                    |
     | group_threshold | How many groups are required to recover the Seed                                                      |
     | cryptocurrency  | A sequence of [ "<crypto>", "<crypto>:<derivation>", ... ] w/ optional ranges                         |

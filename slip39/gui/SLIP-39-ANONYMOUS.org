@@ -1,0 +1,15 @@
+#+title: Anonymous
+#+OPTIONS: toc:nil title:nil author:nil
+
+#+BEGIN_ABSTRACT
+If you prefer your SLIP-39 cards to NOT include your Cryptocurrency public addresses and their QR
+codes, select Anonymous.
+#+END_ABSTRACT
+
+* Anonymous
+
+SLIP-39 Cards Mnemonics will be larger, covering the area where the QR codes would have appeared.
+
+** Paper Wallets
+
+If Cryptocurrency "Paper Wallet" are printed, they will of course include public address information.

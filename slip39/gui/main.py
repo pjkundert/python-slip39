@@ -36,7 +36,7 @@ from ..util		import log_level, log_cfg, ordinal, commas, chunker, hue_shift, rat
 from ..layout		import write_pdfs, printers_available
 from ..defaults		import (
     GROUPS, GROUP_THRESHOLD_RATIO, MNEM_PREFIX, CRYPTO_PATHS, BITS, BITS_BIP39, BITS_DEFAULT,
-    CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
+    ANONYMOUS, CARD_SIZES, CARD, PAPER_FORMATS, PAPER, WALLET_SIZES, WALLET, MNEM_CONT, THEME,
     LAYOUT, LAYOUT_OPTIONS, LAYOUT_BAK, LAYOUT_CRE, LAYOUT_REC, LAYOUT_PRO
 )
 
@@ -237,7 +237,8 @@ def groups_layout(
                         [
                             sg.Text( f"Seed Name{LO_PRO and 's, ...' or ''}:",  size=prefix,    **T_kwds ),
                             sg.Input( f"{', '.join(names)}",key='-NAMES-',      size=inputs,    **I_kwds ),
-                            sg.Checkbox( '2-Sided',key='-PF-DOUBLE-',		default=True,	**I_kwds ),
+                            sg.Checkbox( '2-Sided', key='-PF-DOUBLE-',		default=True,	**I_kwds ),
+                            sg.Checkbox( 'Anonymous', key='-ANONYMOUS-',	default=ANONYMOUS, **I_kwds ),
                         ],
                         [
                             sg.Text( "Card size:",                                              **T_hue( T_kwds, 1/20 )),
@@ -1470,9 +1471,11 @@ def app(
                 paper_format	= next( pf for pn,pf in PAPER_FORMATS.items() if values[f"-PF-{pn}-"] )
                 wallet_format	= next( (f for f in WALLET_SIZES if values.get( f"-WALLET-SIZE-{f}-" )), None )
                 double_sided	= values['-PF-DOUBLE-']
+                anonymous	= values['-ANONYMOUS-']
                 details		= write_pdfs(
                     names		= details,
                     using_bip39		= using_bip39,
+                    anonymous		= anonymous,
                     card_format		= card_format,
                     paper_format	= paper_format,
                     cryptocurrency	= cryptocurrency,
