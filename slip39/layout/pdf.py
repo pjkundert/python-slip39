@@ -181,15 +181,6 @@ def layout_pdf(
     return LayoutPDF( comps_pp, orientation, page_xy, pdf, comp_dim )
 
 
-def output_pdf( *args, **kwds ):
-    warnings.warn(
-        "output_pdf() is deprecated; use produce_pdf instead.",
-        PendingDeprecationWarning,
-    )
-    _,pdf,accounts		= produce_pdf( *args, **kwds )
-    return pdf,accounts
-
-
 def produce_pdf(
     name: str,
     group_threshold: int,			# SLIP-39 Group Threshold required
@@ -253,7 +244,7 @@ def produce_pdf(
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs) > 4 else ''}"
+    requires			= f"Recover {'(via BIP-39) ' if using_bip39 else ''}w/ {group_threshold} of {len(group_reqs)}: {', '.join(group_reqs[:4])}{'...' if len(group_reqs) > 4 else ''}"
 
     # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
@@ -285,7 +276,7 @@ def produce_pdf(
         cover			= Region(
             'cover', 0, 0, cvw / MM_IN, cvh / MM_IN
         ).add_region_relative(
-            Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
+            Region( 'cover-interior', x1=+1/4, y1=+1/4, x2=-1/4, y2=-1/4 )
         )
         cover.add_region_proportional(
             Image( 'cover-image', x1=1/4, x2=3/4, y1=1/4, y2=3/4, priority=-3 )
@@ -296,7 +287,7 @@ def produce_pdf(
             Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
         )
         cover.add_region_proportional(
-            Region( 'cover-rhs', x1=3/5, y1=1/5 )  # On right, below full-width header
+            Region( 'cover-rhs', x1=55/100, y1=1/5 )  # On right, below full-width header
         ).add_region_proportional(
             Text( 'cover-sent', y2=1/25, font='mono', multiline=True )  # 1st line
         )
@@ -314,8 +305,9 @@ def produce_pdf(
         g_nam_max		= max( map( len, groups.keys() ))
         for g_nam,(g_of,g_mns) in groups.items():
             slip39_mnems.extend( g_mns )
-            slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
-            slip39_group.extend( f"  {i+1:2}: ____________________" for i in range( len( g_mns )))
+            #slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
+            slip39_group.append(f"{g_nam+':':8}{g_of}/{len(g_mns)}: {' '.join(g_mns[0].split()[:3])}")
+            slip39_group.extend( f"{i+1:2}: ______________________" for i in range( len( g_mns )))
         if using_bip39:
             # Add the BIP-39 Mnemonics to the cover_text, by recovering the master_secret from the
             # SLIP-39 Mnemonics.
@@ -487,7 +479,7 @@ def write_pdfs(
                 extendable	= extendable,
                 identifier	= identifier,
             )
-            for name in names or [ "SLIP39" ]
+            for name in names or [ "" ]
         }
 
     if text and using_bip39:
@@ -517,7 +509,7 @@ def write_pdfs(
             g_nam_max		= max( map( len, details.groups.keys() ))
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
-                    print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
+                    print( f"{name or 'SLIP39'} {g_name:{g_nam_max}} {i+1}: {mnem}" )
         # Get the correct cover page format (if any), according to the details.using_bip39
         if cover_page:
             cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
@@ -545,7 +537,7 @@ def write_pdfs(
         now			= datetime.now()
 
         pdf_name		= ( filename or FILENAME_FORMAT ).format(
-            name	= name,
+            name	= name or "SLIP39",
             date	= datetime.strftime( now, '%Y-%m-%d' ),
             time	= datetime.strftime( now, '%H.%M.%S'),
             crypto	= accounts[0][0].crypto,
