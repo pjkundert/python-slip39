@@ -1,4 +1,5 @@
 aiosmtpd		>=1.4,	<2
+numpy
 build
 cx_Freeze		>=6.12
 flake8

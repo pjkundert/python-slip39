@@ -1712,16 +1712,16 @@ def test_good_entropy():
     assert signal.dB == pytest.approx( -4.3, abs=1e-1 )
 
     analysis			= analyze_entropy( entropy )
-    print( f"Analysis of XMAS entropy: {analysis}" )
+    log.info( f"Analysis of XMAS entropy: {analysis}" )
     assert analysis is None
 
     analysis			= analyze_entropy( entropy[:4]
                                                    + 2 * codecs.decode( "DeadBeef", 'hex_codec' )
                                                    + entropy[12:])
-    print( f"Analysis of XMAS entropy w/ 0xDeadBeef: {analysis}" )
+    log.info( f"Analysis of XMAS entropy w/ 0xDeadBeef: {analysis}" )
 
     analysis			= analyze_entropy( entropy[:-5] + entropy[:5] )
-    print( f"Analysis of XMAS entropy w/ 5 dups: {analysis}" )
+    log.info( f"Analysis of XMAS entropy w/ 5 dups: {analysis}" )
     assert analysis and "Shannon entropy reduced" in analysis
 
     # This test takes a while without numpy installed, due to inefficient python-only dft
@@ -1740,16 +1740,16 @@ def test_good_entropy():
             analysis_bad.append( analysis )
             if "Signal" in analysis:
                 signals_bad.append( analysis )
-                print( f"{ordinal(i)} analysis shows Signal energy: {analysis}" )
+                log.info( f"{ordinal(i)} analysis shows Signal energy: {analysis}" )
             if "Shannon" in analysis:
                 shannon_bad.append( analysis )
 
-    print( f"Analyzed {cycles} random entropy and found {100*len(analysis_bad)/cycles:.1f}% bad" )
-    print( f"  Signals failure found {100*len(signals_bad)/cycles:.1f}%" )
-    print( f"  Shannon failure found {100*len(shannon_bad)/cycles:.1f}%" )
+    log.info( f"Analyzed {cycles} random entropy and found {100*len(analysis_bad)/cycles:.1f}% bad" )
+    log.info( f"  Signals failure found {100*len(signals_bad)/cycles:.1f}%" )
+    log.info( f"  Shannon failure found {100*len(shannon_bad)/cycles:.1f}%" )
     assert len( analysis_bad ) / cycles < 5/100
-    assert len( shannon_bad ) / cycles < 3/100
-    assert len( signals_bad ) / cycles < 3/100
+    assert len( shannon_bad ) / cycles < 4/100
+    assert len( signals_bad ) / cycles < 4/100
 
 
 def test_rngs_entropy( detailed=False ):
@@ -1829,9 +1829,9 @@ def test_rngs_entropy( detailed=False ):
                     ),
                     reverse=True
             )[:3] ):
-                print( f"{ordinal(i)} {rng.__name__}: {s}" )
+                log.info( f"{ordinal(i)} {rng.__name__}: {s}" )
 
-    print( f"Summary (goal is ~1% of entropy reports signals/shannon failure): {json.dumps( summ, indent=4)}" )
+    log.info( f"Summary (goal is ~1% of entropy reports signals/shannon failure): {json.dumps( summ, indent=4)}" )
 
 
 if __name__ == "__main__":

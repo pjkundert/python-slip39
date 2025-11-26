@@ -45,9 +45,10 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
+    #target_arch='universal2',  # Requires Python fat binary
     target_arch=None,
-    codesign_identity='EAA134BE299C43D27E33E2B8645FF4CF55DE8A92',
-    entitlements_file=None,
+    codesign_identity='AAEEBB68998F340D00A05926C67D77980D562856',
+    entitlements_file='SLIP-39.metadata/entitlements.plist',
     icon='images/SLIP-39.icns',
 )
 
@@ -55,7 +56,7 @@ app = BUNDLE(
     exe,
     name='SLIP-39.app',
     icon='images/SLIP-39.icns',
-    version='11.2.1',
+    version='14.0.0',
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,
@@ -63,7 +64,7 @@ app = BUNDLE(
         'NSRequiresAquaSystemAppearance': 'No',
         'CFBundleSupportedPlatforms': ['MacOSX'],
         'CFBundleIdentifier': 'ca.kundert.perry.SLIP39',
-        'CFBundleVersion':'11.2.1',
+        'CFBundleVersion':'14.0.0',
         'CFBundlePackageType':'APPL',
         'LSApplicationCategoryType':'public.app-category.utilities',
         'LSMinimumSystemVersion':'10.15',

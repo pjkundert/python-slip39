@@ -22,14 +22,14 @@ APPID		?= 1608360813
 #DEVID		?= DDB5489E29389E9081E0A2FD83B6555D1B101829
 #DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
 #DEVID		?= A5DE932A0649AE3B6F06A8134F3E19D2E19A8196
-# Developer ID Application (not for Mac App Store)
-DEVID		?= EAA134BE299C43D27E33E2B8645FF4CF55DE8A92
-
-#PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
-#PKGID		?= 1B482CEB543825C33C366A5665B935D3CEC9FD05
+# Developer ID Application (not for Mac App Store) (exp. Friday, November 10, 2028 at 14:19:34 Mountain Standard Time)
+#DEVID		?= EAA134BE299C43D27E33E2B8645FF4CF55DE8A92
+# 3rd Party Mac Developer Application; for signing for Mac App Store
+DEVID		?= AAEEBB68998F340D00A05926C67D77980D562856
 
 PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
-
+#PKGID		?= CC8AA39695DCC81F0DD56063EBCF033DC2529CC7
+#PKGID		?= 3rd Party Mac Developer Installer: Perry Kundert ($(TEAMID))
 
 BUNDLEID	?= ca.kundert.perry.SLIP39
 APIISSUER	?= 5f3b4519-83ae-4e01-8d31-f7db26f68290
@@ -49,7 +49,11 @@ SIGNTOOL	?= "c:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86\signtoo
 
 NIX_OPTS	?= # --pure
 
-# PY[3] is the target Python interpreter; require 3.11+.  Detect if it is named python3 or python, and if system, nix or venv-supplied.
+# PY[3] is the target Python interpreter; require 3.11+.  Detect if it is named python3 or python,
+# and if system, nix or venv-supplied.  NOTE: Don't try to provide a full path to a Python
+# interpreter as the PYTHON variable, as this will interfere with properly using the venv-supplied
+# python.  Instead, alter the PATH variable so the 'make' invocation sees the correct target Python.
+
 PYTHON		?= $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo python )
 PYTHON_P	= $(shell which $(PYTHON))
 PYTHON_V	= $(shell $(PYTHON) -c "import sys; print('-'.join((('venv' if sys.prefix != sys.base_prefix else next(iter(filter(None,sys.base_prefix.split('/'))))),sys.platform,sys.implementation.cache_tag)))" 2>/dev/null )
@@ -65,7 +69,7 @@ else
 endif
 
 # To see all pytest output, uncomment --capture=no, ...
-PYTEST_OPTS	?= -v # --log-cli-level=WARNING --capture=no  # --doctest-modules 
+PYTEST_OPTS	?= -vv # --capture=no --log-cli-level=INFO  # --doctest-modules 
 
 PYTEST		= $(PYTHON) -m pytest $(PYTEST_OPTS)
 
@@ -407,24 +411,29 @@ $(VENV):
 wheel:			deps $(WHEEL)
 
 $(WHEEL):		FORCE
-	$(PYTHON) -m pip install -r requirements-tests.txt
+	$(PYTHON) -m pip install -r requirements-dev.txt
 	$(PYTHON) -m build
 	@ls -last dist
 
-# Install from wheel, including all optional extra dependencies (except dev)
+# Install from wheel, including all optional extra dependencies (except dev).  Always use the venv (or global) 
 install:		$(WHEEL) FORCE
-	$(PYTHON) -m pip install --force-reinstall $<[all]
+	$(PYTHON) -m pip install --no-user --force-reinstall $<[all]
 
 install-%:  # ...-dev, -tests
-	$(PYTHON) -m pip install --upgrade -r requirements-$*.txt
+	$(PYTHON) -m pip install --no-user --upgrade -r requirements-$*.txt
 
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
 # 
 # Mac:  To build the .dmg installer, run:
+#    nix develop
+#    PYTHON=python3.12 make venv
+#  - In the venv:
 #    make clean
 #    make installer  # continue running every couple of minutes 'til the App is notarized
+#  - Once .pkg is successfully notarized, upload it:
+#    make app-pkg-upload
 #
 installer:		$(INSTALLER)
 
@@ -676,7 +685,7 @@ dist/SLIP-39-$(VERSION).zip:	dist/SLIP-39.app
 	codesign -dv -r- $<
 	codesign -vv $<
 	rm -f $@
-	/usr/bin/ditto -c -k --keepParent "$<" "$@"
+	/usr/bin/ditto -c -k --sequesterRsrc --keepParent "$<" "$@"
 	@ls -last dist
 
 # Upload and notarize the .zip, unless we've already uploaded it and have a RequestUUID
@@ -811,13 +820,13 @@ dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 				$(PROVISION)
 	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
-	sed -I "" -E "s/version=.*/version='$(VERSION)',/" $<
-	sed -I "" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
-	sed -I "" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
+	sed -i"" -E "s/version=.*/version='$(VERSION)',/" $<
+	sed -i"" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
+	sed -i"" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
 	pyinstaller --noconfirm $<
 	#echo "Copying Provisioning Profile..."; rsync -va $(PROVISION) $@/Contents/embedded.provisionprofile
 	echo "Checking signature (pyinstaller signed)..."; ./SLIP-39.metadata/check-signature $@ || true
-	codesign --verify --verbose $@
+	codesign --verify --verbose $@ || echo "Not valid; codesign-ing..."
 	# codesign --deep --force \
 	#     --all-architectures --options=runtime --timestamp \
 	#     --sign "$(DEVID)" \

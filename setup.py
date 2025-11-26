@@ -31,16 +31,15 @@ extras_require['all']		= list( set( sum( extras_require.values(), [] )))
 # Since setuptools is retiring tests_require, add it as another option (but not included in 'all')
 extras_require['tests']		= tests_require
 import json
-print(json.dumps( extras_require, indent=4 ))
 
 Executable			= None
 if sys.platform == 'win32':
     # We use cx_Freeze for executable/installer packaging on Windows, only, for now.
     from cx_Freeze import setup, Executable
-    print( f"sys.platform {sys.platform}: Using cx_Freeze.setup" )
+    #print( f"sys.platform {sys.platform}: Using cx_Freeze.setup" )
 else:
     from setuptools import setup
-    print( f"sys.platform {sys.platform}: Using setuptools.setup" )
+    #print( f"sys.platform {sys.platform}: Using setuptools.setup" )
 
 # 
 # For various platforms, extra setup options are required.  Collect them here
@@ -370,8 +369,8 @@ cryptocurrency wallets (BIP-38 for Bitcoin, etc., and standard JSON wallets for 
 """
 
 classifiers			= [
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "License :: Other/Proprietary License",
+    "License-Expression :: GPL-3.0-or-later OR LicenseRef-Proprietary",
+    "License-File: LICENSE",
     "Programming Language :: Python :: 3",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -401,7 +400,6 @@ setup(
     description			= "Standards-compliant SLIP-39 cryptocurrency seed generation and recovery, compatible with Trezor hardware wallets",
     long_description		= long_description,
     long_description_content_type = long_description_content_type,
-    license			= "Dual License; GPLv3 and Proprietary",
     keywords			= "Ethereum Bitcoin Dogecoin Litecoin cryptocurrency SLIP-39 BIP-39 seed recovery PDF BIP-38 paper wallet",
     url				= "https://github.com/pjkundert/python-slip39",
     classifiers			= classifiers,
