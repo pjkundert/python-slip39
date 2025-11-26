@@ -13,6 +13,7 @@ SHELL		= /bin/bash
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
 
+ALL		= gui,serial,wallet,invoice
 
 APPLEID		?= perry@kundert.ca
 TEAMID		?= ZD8TVTCXDS
@@ -410,14 +411,13 @@ $(VENV):
 
 wheel:			deps $(WHEEL)
 
-$(WHEEL):		FORCE
-	$(PYTHON) -m pip install -r requirements-dev.txt
+$(WHEEL):		install-dev FORCE
 	$(PYTHON) -m build
 	@ls -last dist
 
 # Install from wheel, including all optional extra dependencies (except dev).  Always use the venv (or global) 
 install:		$(WHEEL) FORCE
-	$(PYTHON) -m pip install --no-user --force-reinstall $<[all]
+	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(ALL)]
 
 install-%:  # ...-dev, -tests
 	$(PYTHON) -m pip install --no-user --upgrade -r requirements-$*.txt
