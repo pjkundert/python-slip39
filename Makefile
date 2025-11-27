@@ -406,7 +406,7 @@ $(VENV):
 	@echo; echo "*** Building $@ VirtualEnv..."
 	@rm -rf $@ && $(PYTHON) -m venv $(VENV_OPTS) $@ && sed -i -e '1s:^:. $$HOME/.bashrc\n:' $@/bin/activate \
 	    && source $@/bin/activate \
-	    && make install-tests install
+	    && make install-tests install-dev install
 
 
 wheel:			deps $(WHEEL)
@@ -415,12 +415,12 @@ $(WHEEL):		install-dev FORCE
 	$(PYTHON) -m build
 	@ls -last dist
 
-# Install from wheel, including all optional extra dependencies (except dev).  Always use the venv (or global) 
+# Install from wheel, including all optional extra dependencies (except dev).  Always use the venv (or global)
 install:		$(WHEEL) FORCE
 	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(ALL)]
 
-install-%:  # ...-dev, -tests
-	$(PYTHON) -m pip install --no-user --upgrade -r requirements-$*.txt
+install-%:  # ...-dev, -tests, -gui, -serial, -wallet, -invoice
+	$(PYTHON) -m pip install --no-user --upgrade -e .[$*]
 
 
 # Building / Signing / Notarizing and Uploading the macOS or win32 App

@@ -1,9 +1,0 @@
-aiosmtpd		>=1.4,	<2
-numpy
-build
-flake8
-pyinstaller		>=6.1
-pytest			>=7.4.2,<8
-pytest-cov		>=4.1.0,<5
-setuptools
-wheel
