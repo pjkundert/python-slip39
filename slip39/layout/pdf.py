@@ -326,7 +326,7 @@ def produce_pdf(
             cover_text	       += "\n"
 
         tpl_cover['cover-text']	= cover_text
-        cover_sent		= "SLIP-39 Mnemonic Card Recipients:\n\n"
+        cover_sent		= f"SLIP-39 Group Recipients ({group_threshold} of {len(group_reqs)}):\n\n"
         cover_sent	       += "\n".join( slip39_group )
         tpl_cover['cover-sent']	= cover_sent
 
