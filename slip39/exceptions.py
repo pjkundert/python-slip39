@@ -2,7 +2,7 @@
 #
 # Python-slip39 -- Ethereum SLIP-39 Account Generation and Recovery
 #
-# Copyright (c) 2022, Dominion Research & Development Corp.
+# Copyright (c) 2025, Dominion Research & Development Corp.
 #
 # Python-slip39 is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -15,15 +15,13 @@
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 
-from __future__          import annotations
+from hdwallet.exceptions import SymbolError
 
-__author__                      = "Perry Kundert"
-__email__                       = "perry@dominionrnd.com"
-__copyright__                   = "Copyright (c) 2022 Dominion Research & Development Corp."
-__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
-from .version	import __version__, __version_info__	# noqa F401
-from .api	import *				# noqa F403
-from .layout	import *				# noqa F403
-from .recovery  import *				# noqa F403
-from .limits	import *				# noqa F403
+class SLIP39Error( Exception ):
+    pass
+
+
+class ConversionError( SLIP39Error ):
+    pass
+

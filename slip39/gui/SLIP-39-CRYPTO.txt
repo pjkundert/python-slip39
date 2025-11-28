@@ -14,7 +14,7 @@ compatible) displayed are:
                     SegWit    m/49'/  2'/0'/0/0  M…               
                     Legacy    m/44'/  2'/0'/0/0  L…               
  Recover    DOGE    Legacy    m/44'/  3'/0'/0/0  D…               
- Pro        BSC     Legacy    m/44'/ 60'/0'/0/0  0x…      Beta    
+ Pro        BNB     Legacy    m/44'/714'/0'/0/0  0x…      Beta    
  Pro        XRP     Legacy    m/44'/144'/0'/0/0  r…               
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -35,6 +35,6 @@ are derived from this Seed.
 2 Cryptocurrencies In Beta Testing
 ══════════════════════════════════
 
-  XRP and BSC wallet addresses are also supported, if desired (currently
+  XRP and BNB wallet addresses are also supported, if desired (currently
   in Beta testing quality).  Generated Paper Wallets should be /tested/
   to ensure that generated and recovered private keys are valid.

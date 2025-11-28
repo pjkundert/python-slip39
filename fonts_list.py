@@ -1,5 +1,5 @@
 from tkinter import Tk, font
-import  PySimpleGUI as sg
+import FreeSimpleGUI as sg
 root = Tk()
 font_tuple = font.families()
 #Creates a Empty list to hold font names

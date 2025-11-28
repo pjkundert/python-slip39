@@ -278,8 +278,12 @@ def layout_card(
     card_bottom			= card_interior.add_region_proportional(
         Region( 'card-bottom', x1=0, y1=1/4, x2=1, y2=1 )
     )
+    # If crypto addresses and their QR codes are not desired, use ...big mnemonics
     card_mnemonics		= card_bottom.add_region_proportional(
         Region( 'card-mnemonics', x1=0, y1=0, x2=13/16, y2=1 )
+    )
+    card_mnemonics_big		= card_bottom.add_region_proportional(
+        Region( 'card-mnemonics-big', x1=0, y1=0, x2=1, y2=1 )
     )
     # QR code for Card Mnemonics on back is center/middle of Mnemonics area
     card_mnemonics.add_region(
@@ -322,6 +326,18 @@ def layout_card(
                     font	= 'mono',
                     bold	= True,
                     size_ratio	= 9/16,
+                )
+            )
+            card_mnemonics_big.add_region_proportional(
+                Text(
+                    f"mnem-{c * rows + r}-big",
+                    x1		= c/cols,
+                    y1		= r/rows,
+                    x2		= (c+1)/cols,
+                    y2		= (r+1)/rows,
+                    font	= 'mono',
+                    bold	= True,
+                    size_ratio	= 12/16,
                 )
             )
 

@@ -230,8 +230,8 @@ cryptocurrency accounts related to the Seed.
 
 ** Netcoins.app
 
-   In Canada, one of the more highly regulatory-compliant cryptocurrency exchanges is [[https://netcoins.app/r?ac=5YO1MZ][Netcoins.app
-   (referral code: 5YO1MZ)]]; sign up with this referral link, and we both get some benefits.
+   In Canada, one of the more highly regulatory-compliant cryptocurrency exchanges is [[https://netcoins.app/invite/K4K97DY][Netcoins.app]]
+   sign up with this referral link, and we both get some benefits.
 
    They have higher than typical Interac e-transfer limits, which is very nice.  However, they don't
    support a wide range of cryptocurrencies; presently, only BTC, ETH, XRP, LTC, BCH, USDC, and a

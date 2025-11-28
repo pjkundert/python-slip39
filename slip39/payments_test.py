@@ -1,18 +1,18 @@
-import pytest
 import logging
+import pytest
 import subprocess
 
 from pathlib		import Path
 
-
 from crypto_licensing	import licensing
+from crypto_licensing.misc import config_paths
 
-
-from ..util		import ordinal
+from .util		import ordinal
 from .payments		import Process, reload
 
 log				= logging.getLogger( "payments_test" )
 
+test_dir			= Path( __file__ ).resolve()		# Our payments_test.py file
 
 def test_sending():
     """Test the transmission and receipt of data via iterator.send(...)"""
@@ -50,7 +50,6 @@ def test_grants( tmp_path ):
 
     """
 
-    test			= Path( __file__ ).resolve()		# Our payments_test.py file
     here			= Path( tmp_path ).resolve()		# Our testing directory.
 
     name_ss			= "self-signed"
@@ -195,7 +194,7 @@ def test_grants( tmp_path ):
     # author.service as the basename), and then attempt to sign and save an instance of it with the
     # client Agent's Keypair.  For this, we need access to an Agent Keypair suitable for signing
     # (access to decrypted private key); so we'll need the credentials.
-    machine_id_path		= test.with_suffix( '' ) / "payments_test.machine-id"
+    machine_id_path		= test_dir.with_suffix( '' ) / "payments_test.machine-id"
     reloader			= reload(
         author		= author,
         client		= client,
@@ -276,3 +275,112 @@ def test_grants( tmp_path ):
             confirm		= False,
         )
     assert "specifies Machine ID 00010203-0405-4607-8809-0a0b0c0d0e0f; found" in str( excinfo.value )
+
+
+# We can generate this license w/ a complex network of cryptographic keys and license fragments.
+@pytest.mark.skipif(
+    not (test_dir.with_suffix( '' ) / "slip-39-app.crypto-license").exists(),
+    reason="payments_test/slip-39-app.crypto-license doesn't exist"
+)
+def test_reload( tmp_path, monkeypatch ):
+    """Test self-signed Licensing, with multiple complex licenses.
+
+    """
+
+    here			= Path( tmp_path ).resolve()		# Our testing directory.
+
+    monkeypatch.setattr( config_paths, "PATHS",  [
+        lambda fn: str( test.with_suffix( '' ) / fn ),  # most general; the payments_test dir, where the licenses are
+        lambda fn: str( here / fn ),			# most specific; the temp dir, where we save our keypairs, custom licenses
+    ] )
+
+    name_ss			= "self-signed"
+    base_ss			= here / name_ss
+    seed_ss			= licensing.into_bytes( "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )
+    user_ss			= "sales@self-signed.com"
+    pswd_ss			= "password"
+    keyp_ss			= licensing.registered(
+        basename	= str( base_ss ),
+        seed		= seed_ss,
+        username	= user_ss,
+        password	= pswd_ss,
+    )
+    assert keyp_ss['vk'] == "5zTqbCtiV95yNV5HKqBaTEh+a0Y8Ap7TBt8vAbVja1g="
+
+    author			= licensing.Agent(
+        name	= "Perry Kundert (SLIP-39)",
+        domain	= "slip39.com",
+        pubkey	= "qtHHsgdsrtA83kM/C/LUN8Y2If+BIvcs1X4nYw0m0w4=",
+        product	= "SLIP-39 App",
+        service	= "slip-39-app",
+    )
+
+    client			= licensing.Agent(
+        name	= "Perry Kundert <perry@kundert.ca>",
+        service	= "slip-39-app-owner",
+        pubkey	= keyp_ss['vk'],
+    )
+    log.info( f"Client: {client}" )
+
+    # We'll be loading an existing Client Agent keypair, so restrict it from registering a new one.
+    # We'll look for Licenses issued under the basenames of client.service (an already issued
+    # sub-license), and author.service (eg. an author-issued License we can sub-license). If no
+    # already issued License is found, tt must try to load the Author's License (using the
+    # author.service as the basename), and then attempt to sign and save an instance of it with the
+    # client Agent's Keypair.  For this, we need access to an Agent Keypair suitable for signing
+    # (access to decrypted private key); so we'll need the credentials.
+    machine_id_path		= test_dir.with_suffix( '' ) / "payments_test.machine-id"
+    reloader			= reload(
+        author		= author,
+        client		= client,
+        registering	= False,
+        reverse_save	= True,
+        basename	= None,         # name_cl,  # basename of the License, and the Keypair use to self-sign it
+        confirm		= False,
+        extra		= [ str( here ) ],
+        constraints	= dict(
+            machine	= True,
+        ),
+        machine_id_path	= machine_id_path,
+    )
+
+    username			= user_ss
+    password			= pswd_ss
+    grants			= None
+    keypairs,licenses		= [],[]
+    try:
+        key,val			= next( reloader )
+        while True:
+            log.info( f"test_grants <-- {key}: {val}" )
+            if key == Process.PROMPT:
+                if 'username' in val:
+                    log.info( f"test_grants --> {username}" )
+                    key,val	= reloader.send( username )
+                    continue
+                elif 'password' in val:
+                    log.info( f"test_grants --> {password}" )
+                    key,val	= reloader.send( password )
+                    continue
+                else:
+                    log.info( f"test_grants -x- ignoring  {val}" )
+            elif key is Process.GRANTS:
+                log.warning( f"Grants:  {val}" )
+                grants		= val
+            elif key is Process.KEYPAIR:
+                log.warning( f"Keypair: {val}" )
+                keypairs.append( val )
+            elif key is Process.LICENSE:
+                log.warning( f"License: {val[1]}, w/ Keypair: {licensing.KeypairPlaintext( val[0] )}" )
+                keypairs.append( val[0] )
+                licenses.append( val[1] )
+            key,val		= next( reloader )
+    except StopIteration:
+        log.info( f"test_grants xxx Done w/ key == {key}, val == {val}" )
+
+    assert str( grants ) == "None"
+#     assert str( grants ) == None  # """\
+# {
+#     "self-signed":{
+#         "some-capability":10
+#     }
+# }"""

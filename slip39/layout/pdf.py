@@ -39,7 +39,7 @@ from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, grou
 from ..util		import chunker
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
-    FONTS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
+    FONTS, ANONYMOUS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
@@ -181,21 +181,13 @@ def layout_pdf(
     return LayoutPDF( comps_pp, orientation, page_xy, pdf, comp_dim )
 
 
-def output_pdf( *args, **kwds ):
-    warnings.warn(
-        "output_pdf() is deprecated; use produce_pdf instead.",
-        PendingDeprecationWarning,
-    )
-    _,pdf,accounts		= produce_pdf( *args, **kwds )
-    return pdf,accounts
-
-
 def produce_pdf(
     name: str,
     group_threshold: int,			# SLIP-39 Group Threshold required
     groups: Dict[str,Tuple[int,List[str]]],     # SLIP-39 Groups {<name>: (<need>,[<mnemonic>,...])
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
     using_bip39: bool,				# Using BIP-39 wallets Seed generation
+    anonymous: Optional[bool]	= None,		# Avoid printing crypto addresses, QR codes
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
@@ -253,7 +245,7 @@ def produce_pdf(
     group_reqs			= list(
         f"{g_nam}({g_of}/{len(g_mns)})" if g_of != len(g_mns) else f"{g_nam}({g_of})"
         for g_nam,(g_of,g_mns) in groups.items() )
-    requires			= f"Recover w/ {group_threshold} of {len(group_reqs)} groups {', '.join(group_reqs[:4])}{'...' if len(group_reqs) > 4 else ''}"
+    requires			= f"Recover {'(via BIP-39) ' if using_bip39 else ''}w/ {group_threshold} of {len(group_reqs)}: {', '.join(group_reqs[:4])}{'...' if len(group_reqs) > 4 else ''}"
 
     # Convert all of the first group's account(s) to an address QR code
     assert accounts and accounts[0], \
@@ -285,7 +277,7 @@ def produce_pdf(
         cover			= Region(
             'cover', 0, 0, cvw / MM_IN, cvh / MM_IN
         ).add_region_relative(
-            Box( 'cover-interior', x1=+1/2, y1=+1/2, x2=-1/2, y2=-1/2 )
+            Region( 'cover-interior', x1=+1/4, y1=+1/4, x2=-1/4, y2=-1/4 )
         )
         cover.add_region_proportional(
             Image( 'cover-image', x1=1/4, x2=3/4, y1=1/4, y2=3/4, priority=-3 )
@@ -296,7 +288,7 @@ def produce_pdf(
             Text( 'cover-text', y2=1/45, font='mono', multiline=True )  # 1st line
         )
         cover.add_region_proportional(
-            Region( 'cover-rhs', x1=3/5, y1=1/5 )  # On right, below full-width header
+            Region( 'cover-rhs', x1=55/100, y1=1/5 )  # On right, below full-width header
         ).add_region_proportional(
             Text( 'cover-sent', y2=1/25, font='mono', multiline=True )  # 1st line
         )
@@ -314,8 +306,9 @@ def produce_pdf(
         g_nam_max		= max( map( len, groups.keys() ))
         for g_nam,(g_of,g_mns) in groups.items():
             slip39_mnems.extend( g_mns )
-            slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
-            slip39_group.extend( f"  {i+1:2}: ____________________" for i in range( len( g_mns )))
+            #slip39_group.append( f"{g_nam:{g_nam_max}}: {g_of} of {len(g_mns)} to recover" )
+            slip39_group.append(f"{g_nam+':':8}{g_of}/{len(g_mns)}: {' '.join(g_mns[0].split()[:3])}")
+            slip39_group.extend( f"{i+1:2}: ______________________" for i in range( len( g_mns )))
         if using_bip39:
             # Add the BIP-39 Mnemonics to the cover_text, by recovering the master_secret from the
             # SLIP-39 Mnemonics.
@@ -333,7 +326,7 @@ def produce_pdf(
             cover_text	       += "\n"
 
         tpl_cover['cover-text']	= cover_text
-        cover_sent		= "SLIP-39 Mnemonic Card Recipients:\n\n"
+        cover_sent		= f"SLIP-39 Group Recipients ({group_threshold} of {len(group_reqs)}):\n\n"
         cover_sent	       += "\n".join( slip39_group )
         tpl_cover['cover-sent']	= cover_sent
 
@@ -365,9 +358,10 @@ def produce_pdf(
             f['card-title']	= \
               b['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
             f['card-requires']	= requires
-            f['card-crypto1']	= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
-            f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
-            if len( accounts[0] ) > 1:
+            if not (ANONYMOUS if anonymous is None else anonymous):
+                f['card-crypto1']= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+                f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
+            if not (ANONYMOUS if anonymous is None else anonymous) and len( accounts[0] ) > 1:
                 f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
             f[f'card-g{g_n}']	= \
@@ -375,7 +369,8 @@ def produce_pdf(
             if watermark:
                 f['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
-                f[f"mnem-{n}"]	= m
+                mn_idx		= f"mnem-{n}-big" if (ANONYMOUS if anonymous is None else anonymous) else f"mnem-{n}"
+                f[mn_idx]	= m
 
             # Back contains QR code of the card's SLIP-39 Mnemonic
             qrc			= qrcode.QRCode(
@@ -417,6 +412,7 @@ def write_pdfs(
     group_threshold	= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
     edit		= None,		# Adjust crypto paths according to the provided path edit
+    anonymous		= None,		# Produce cryptocurrency addresses and QR codes
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
     paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
     filename		= None,		# A file name format w/ {path}, etc. formatters
@@ -487,7 +483,7 @@ def write_pdfs(
                 extendable	= extendable,
                 identifier	= identifier,
             )
-            for name in names or [ "SLIP39" ]
+            for name in names or [ "" ]
         }
 
     if text and using_bip39:
@@ -517,7 +513,7 @@ def write_pdfs(
             g_nam_max		= max( map( len, details.groups.keys() ))
             for g_name,(g_of,g_mnems) in details.groups.items():
                 for i,mnem in enumerate( g_mnems ):
-                    print( f"{name} {g_name:{g_nam_max}} {i+1}: {mnem}" )
+                    print( f"{name or 'SLIP39'} {g_name:{g_nam_max}} {i+1}: {mnem}" )
         # Get the correct cover page format (if any), according to the details.using_bip39
         if cover_page:
             cover_text		= open(os.path.join(os.path.dirname(__file__), 'COVER.txt'), encoding='UTF-8').read()
@@ -534,6 +530,7 @@ def write_pdfs(
         if card_format is not False or wallet_pwd is not None:
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
+                anonymous	= anonymous,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
                 orientations	= ('portrait', ) if wallet_pwd is not None else None,
@@ -545,7 +542,7 @@ def write_pdfs(
         now			= datetime.now()
 
         pdf_name		= ( filename or FILENAME_FORMAT ).format(
-            name	= name,
+            name	= name or "SLIP39",
             date	= datetime.strftime( now, '%Y-%m-%d' ),
             time	= datetime.strftime( now, '%H.%M.%S'),
             crypto	= accounts[0][0].crypto,

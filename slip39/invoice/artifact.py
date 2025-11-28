@@ -40,6 +40,7 @@ from ..defaults		import (
 )
 from ..layout		import Region, Text, Image, Box, Coordinate, layout_pdf
 from .ethereum		import tokeninfo, tokenprices, tokenknown
+from ..exceptions	import ConversionError, SymbolError
 
 """
 Invoice artifacts:
@@ -181,10 +182,6 @@ def conversions_table( conversions, symbols=None, greater=None, tablefmt=None, p
     )
 
 
-class ConversionError( Exception ):
-    pass
-
-
 def conversions_remaining( conversions, verify=None ):
     """Complete the graph of conversion ratios, if we have a path from one pair to another.  Returns
     falsey if no additional conversion ratios were computable; truthy if some *might* be possible.
@@ -271,7 +268,7 @@ def conversions_remaining( conversions, verify=None ):
 def cryptocurrency_symbol( name, chain=None, w3_url=None, use_provider=None ):
     try:
         return Account.supported( name )
-    except ValueError as exc:
+    except SymbolError as exc:
         log.info( f"Could not identify currency {name!r} as a supported Cryptocurrency: {exc}" )
     # Not a known core Cryptocurrency; a Token?
     try:
@@ -457,7 +454,7 @@ class Invoice:
         self.currencies_proxy	= currencies_proxy      # { "BTC": TokenInfo( "WBTC", ... ), ... }
         self.currencies_alias	= currencies_alias      # { "WBTC": TokenInfo( "BTC", ... ), ... }
         self.conversions	= conversions		# { ("BTC","ETH"): 14.3914, ... }
-        self.created		= datetime.utcnow().astimezone( timezone.utc )
+        self.created		= datetime.now( timezone.utc )
         self.resolved		= self.created
 
     def unsatisfied( self ):
@@ -520,7 +517,7 @@ class Invoice:
                 if log.isEnabledFor( logging.DEBUG ):
                     log.debug( f"Working: \n{conversions_table( self.conversions, greater=False )}" )
             log.info( f"{'Remaining' if remaining else 'Resolved'}:\n{conversions_table( self.conversions, greater=False )}\n{f'==> {remaining}' if remaining else ''}" )
-        self.resolved		= datetime.utcnow().astimezone( timezone.utc )
+        self.resolved		= datetime.now( timezone.utc )
 
     def decimals( self, currency ):
         info			= self.currencies_proxy[currency]
