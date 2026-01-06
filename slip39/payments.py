@@ -62,7 +62,7 @@ generated account.
    so they can receive the payment).
 
     - Use the Client Agent's private key + Vendor Agent's public key to derive unique D-H secret.
-    - Hash with whatever other local date (eg. Machine-ID, account User Name, ...) is required/desired
+    - Hash with whatever other local data (eg. Machine-ID, account User Name, ...) is required/desired
 
    With this seed data, we can now proceed to generating payment information.
 

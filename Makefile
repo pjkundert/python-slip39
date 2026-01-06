@@ -24,9 +24,9 @@ APPID		?= 1608360813
 #DEVID		?= 3rd Party Mac Developer Application: Perry Kundert ($(TEAMID))
 #DEVID		?= A5DE932A0649AE3B6F06A8134F3E19D2E19A8196
 # Developer ID Application (not for Mac App Store) (exp. Friday, November 10, 2028 at 14:19:34 Mountain Standard Time)
-#DEVID		?= EAA134BE299C43D27E33E2B8645FF4CF55DE8A92
+DEVID		?= EAA134BE299C43D27E33E2B8645FF4CF55DE8A92
 # 3rd Party Mac Developer Application; for signing for Mac App Store
-DEVID		?= AAEEBB68998F340D00A05926C67D77980D562856
+#DEVID		?= AAEEBB68998F340D00A05926C67D77980D562856
 
 PKGID		?= Developer ID Installer: Perry Kundert ($(TEAMID))
 #PKGID		?= CC8AA39695DCC81F0DD56063EBCF033DC2529CC7
@@ -82,7 +82,7 @@ GHUB_NAME	= python-slip39
 VENV_DIR	= $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/.. )
 VENV_NAME	= $(GHUB_NAME)-$(VERSION)-$(PYTHON_V)
 VENV		= $(VENV_DIR)/$(VENV_NAME)
-VENV_OPTS	= # --copies # Doesn't help; still references some system libs.
+VENV_OPTS	= --system-site-packages --copies # make available references some system libs, eg. _tkinter
 
 
 .PHONY: all help test doctest analyze pylint build install upload clean FORCE
@@ -126,6 +126,20 @@ signing-check:
 	$(SIGNTOOL)
 
 build:			clean wheel
+
+clean:
+	@echo "Cleaning Python artifacts..."
+	rm -rf build/ dist/ *.egg-info .eggs/
+	find . -type d -name '__pycache__' -exec rm -rf {} +
+	find . -type d -name '.pytest_cache' -exec rm -rf {} +
+	find . -type d -name '.mypy_cache' -exec rm -rf {} +
+	find . -type d -name '*.egg-info' -exec rm -rf {} +
+	find . -type f -name '*.pyc' -delete
+	find . -type f -name '*.pyo' -delete
+	find . -type f -name '*.egg' -delete
+	find . -type f -name '.coverage' -delete
+	find . -type f -name '*.log' -delete
+
 
 nix-%:
 	@if [ -r flake.nix ]; then \
@@ -420,19 +434,35 @@ install:		$(WHEEL) FORCE
 	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(ALL)]
 
 install-%:  # ...-dev, -tests, -gui, -serial, -wallet, -invoice
-	$(PYTHON) -m pip install --no-user --upgrade -e .[$*]
+	$(PYTHON) -m pip install --no-user --upgrade .[$*]
 
 
+#
 # Building / Signing / Notarizing and Uploading the macOS or win32 App
 # o TODO: no signed and notarized package yet accepted for upload by macOS App Store
 # 
-# Mac:  To build the .dmg installer, run:
-#    nix develop
-#    PYTHON=python3.12 make venv
-#  - In the venv:
-#    make clean
-#    make installer  # continue running every couple of minutes 'til the App is notarized
-#  - Once .pkg is successfully notarized, upload it:
+# Building, signing and deploying a .app / .pkg currently requires the official python.org
+# Python 3.13; the Nix supplied python doesn't work with PyInstaller to yield a working .app
+# 
+# Mac:  To build the .pkg (default) installer:
+#
+# 1) Download the macOS 3.13 aarch64 installer from python.org: https://www.python.org/downloads/latest/python3.13/
+#
+# 2) Install it; should put it in /usr/local/bin/python
+#
+# 3) Create the venv using the just-installed python:
+#  $ PATH=/usr/local/bin make venv
+#    ...
+#  python-slip39-14.0.2-Library-darwin-cpython-313) [perry@Perrys-MBP python-slip39 (master *%=)]$ 
+#
+# 4) Build the app and installer:
+#
+#  $ make clean
+#  $ make installer
+# 
+# 5) Test the dist/SLIP-39-14.0.2.pkg and the installed /Applications/SLIP-39.app
+# 
+# 6) Once .pkg is successfully notarized, upload it: (TODO)
 #    make app-pkg-upload
 #
 installer:		$(INSTALLER)
@@ -487,12 +517,13 @@ dist/slip39-$(VERSION)-win64.msi: build/exe.$(CXFREEZE_EXT)/SLIP-39.exe # signin
 # o Uses https://github.com/sindresorhus/create-dmg
 #   - npm install --global create-dmg
 #   - Renames the resultant file from "SLIP-39 1.2.3.dmg" to "SLIP-39-1.2.3.dmg"
-#   - It automatically finds the correct signing key (unkown)
+#   - It automatically finds the correct signing key (unknown)
 # 
 dist/SLIP-39-$(VERSION).dmg:	dist/SLIP-39.app
 	@echo -e "\n\n*** Creating and signing DMG $@..."
-	npx create-dmg -v --overwrite --identity "$(PKGID)" $< dist/
-	mv "SLIP-39 $(VERSION).dmg" "$@"
+	#npx create-dmg -v --overwrite --identity "$(PKGID)" $< dist/
+	npx create-dmg -v --overwrite --identity "$(DEVID)" $< dist/
+	mv "dist/SLIP-39 $(VERSION).dmg" "$@"
 	@echo "Checking signature..."; ./SLIP-39.metadata/check-signature $@
 
 .PHONY: dist/SLIP-39-$(VERSION).dmg-verify
@@ -672,7 +703,6 @@ dist/SLIP-39-$(VERSION).pkg.upload-package: dist/SLIP-39-$(VERSION).pkg dist/SLI
 	)
 
 
-
 # 
 # Build the macOS App, and Package the macOS App as a Zip file for Notarization
 # 
@@ -800,6 +830,10 @@ dist/SLIP-39.app-checkids:	SLIP-39.spec
 # https://github.com/txoof/codesign
 # https://github.com/The-Nicholas-R-Barrow-Company-LLC/PyMacApp
 
+# .../src/python-slip39-14.0.2-nix-darwin-cpython-313/lib/python3.13/site-packages/PyInstaller/utils/hooks/tcl_tk.py
+# TK_LIBRARY environment variable must be set to the location of the tkinter installation directory.  If supplied by Nix,
+# this can be deduced.
+
 # * In order for code signing to succeed, your code signing key(s) MUST have all of their dependent
 #   (issuer) keys downloaded to your Keychain, from https://www.apple.com/certificateauthority.
 #   - Use Keychain Access, right-click on your signing key and click Evaluate "...".
@@ -821,8 +855,13 @@ dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 	@echo -e "\n\n*** Rebuilding $@, version $(VERSION)..."
 	rm -rf build $@*
 	sed -i"" -E "s/version=.*/version='$(VERSION)',/" $<
-	sed -i"" -E "s/'CFBundleVersion':.*/'CFBundleVersion':'$(VERSION)',/" $<
+	sed -i"" -E "s/'CFBundleVersion':.*/'CFBundleVersion': '$(VERSION)',/" $<
 	sed -i"" -E "s/codesign_identity=.*/codesign_identity='$(DEVID)',/" $<
+	@echo "Finding Tcl/Tk libraries from Nix environment..."
+	export TCL_LIBRARY=$$($(PYTHON) -c "import tkinter; print(tkinter.Tcl().eval('info library'))") && \
+	export TK_LIBRARY=$$($(PYTHON) -c "import tkinter; tk = tkinter.Tk(); tk.withdraw(); print(tk.eval('set ::tk_library')); tk.destroy()") && \
+	echo "  TCL_LIBRARY=$$TCL_LIBRARY" && \
+	echo "  TK_LIBRARY=$$TK_LIBRARY" && \
 	pyinstaller --noconfirm $<
 	#echo "Copying Provisioning Profile..."; rsync -va $(PROVISION) $@/Contents/embedded.provisionprofile
 	echo "Checking signature (pyinstaller signed)..."; ./SLIP-39.metadata/check-signature $@ || true
@@ -833,11 +872,13 @@ dist/SLIP-39.app: 		SLIP-39-macOS.spec \
 	#     $@
 	# echo "Checking signature (app code signed)..."; ./SLIP-39.metadata/check-signature $@ || true
 	# codesign --verify $@
+	#
+	echo "Not valid; codesign-ing..."
 	codesign --deep --force --timestamp --verbose --options runtime \
-	    --all-architectures \
-	    --entitlements ./SLIP-39.metadata/entitlements.plist \
-	    --sign "$(DEVID)" \
-	    $@
+	     --all-architectures \
+	     --entitlements ./SLIP-39.metadata/entitlements.plist \
+	     --sign "$(DEVID)" \
+	     $@
 	echo "Checking signature (app code + entitlements signed w/ $(DEVID))..."; ./SLIP-39.metadata/check-signature $@ || true
 	codesign --verify --verbose $@
 	touch $@  # try to avoid unnecessary rebuilding
@@ -865,15 +906,21 @@ app-assess: dist/SLIP-39.app
 #    +             })
 #    +
 #                 bundle_identifier='ca.kundert.perry.SLIP39')
-
+#
+#
+# The --onefile approach is incompatible with macOS Apps; use --onedir
 SLIP-39-macOS.spec: SLIP-39.py
 	@echo -e "\n\n!!! Rebuilding $@; Must be manually edited..."
-	pyinstaller --noconfirm --windowed --onefile \
+	pyinstaller --noconfirm --windowed --onedir \
 	    --codesign-identity "$(DEVID)" \
 	    --osx-bundle-identifier "$(BUNDLEID)" \
 	    --collect-data shamir_mnemonic \
+	    --collect-all tzdata \
+	    --collect-all zoneinfo \
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
+	    --osx-entitlements-file SLIP-39.metadata/entitlements.plist \
+	    --icon images/SLIP-39.icns \
 		$<
 	mv SLIP-39.spec $@
 	@echo "!!! Regenerated $@: must be manually corrected!"
@@ -888,6 +935,7 @@ SLIP-39-win32.spec: SLIP-39.py
 	@echo -e "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onefile \
 	    --collect-data shamir_mnemonic \
+	    --collect-data tzdata \
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
 		$<

@@ -73,6 +73,8 @@ dev = [
     "build",
     "setuptools",
     "wheel",
+    "pyinstaller		>=6.17",
+    "tzdata",
 ]
 
 [project.urls]
