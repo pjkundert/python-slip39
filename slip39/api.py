@@ -68,7 +68,7 @@ try:
 except ImportError as exc:
     AES				= None
     scrypt			= None
-    message			= f"Unable to support Paper Wallet output: {exc}"
+    message			= f"Unable to support Paper Wallet output (pycryptodome): {exc}"
     warnings.warn( message, ImportWarning )
     if log.isEnabledFor( logging.DEBUG ):
         log.exception( message )
@@ -78,7 +78,7 @@ try:
     import eth_account
 except ImportError as exc:
     eth_account			= None
-    message			= f"Unable to support Paper Wallet output: {exc}"
+    message			= f"Unable to support Paper Wallet output (eth_account): {exc}"
     warnings.warn( message, ImportWarning )
     if log.isEnabledFor( logging.DEBUG ):
         log.exception( message )

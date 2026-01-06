@@ -4,12 +4,18 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = []
 binaries = []
-hiddenimports = ['slip39', 'tzdata']
+hiddenimports = ['Crypto', 'Crypto.Cipher', 'Crypto.Protocol', 'Crypto.Protocol.KDF', 'Crypto.Hash', 'slip39']
 datas += collect_data_files('shamir_mnemonic')
 datas += collect_data_files('slip39')
 tmp_ret = collect_all('tzdata')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('zoneinfo')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('Crypto')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('eth_account')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('py_ecc')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
@@ -59,7 +65,6 @@ app = BUNDLE(
     coll,
     name='SLIP-39.app',
     icon='images/SLIP-39.icns',
-    version='14.0.2',
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,
@@ -67,7 +72,7 @@ app = BUNDLE(
         'NSRequiresAquaSystemAppearance': 'No',
         'CFBundleSupportedPlatforms': ['MacOSX'],
         'CFBundleIdentifier': 'ca.kundert.perry.SLIP39',
-        'CFBundleVersion': '14.0.2',
+        'CFBundleVersion': '14.1.0',
         'CFBundlePackageType':'APPL',
         'LSApplicationCategoryType':'public.app-category.utilities',
         'LSMinimumSystemVersion':'10.15',

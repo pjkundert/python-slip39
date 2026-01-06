@@ -2,17 +2,22 @@
 #+OPTIONS: toc:nil title:nil author:nil
 
 #+BEGIN_ABSTRACT
-Supply a password to produce an encrypted Ethereum JSON wallet or Bitcoin, ... BIP-38 Paper Wallet.
+Supply a password (or a hint) to produce an encrypted Ethereum JSON wallet or Bitcoin, ... BIP-38
+Paper Wallet.
 
-If you import these SLIP-39 Mnemonics directly into your Trezor hardware wallet -- you do
-/not/ need Paper Wallets: you have access to /all/ of the wallets, in every cryptocurrency supported
-by the Trezor.
+If you import these SLIP-39 (or BIP-39) Mnemonics directly into your Trezor hardware wallet -- you
+do /not/ need Paper Wallets: you have access to /all/ of the wallets, in every cryptocurrency
+supported by the Trezor.
 
 These are intended to support the importing of /individual/, single wallets into standard software
 wallets (eg. Brave browser, Metamask plugins, other software wallets on PCs or mobile devices).  If
 you need some cryptocurrency "walking around" money, use them to create recoverable "Safe Portable
 Crypto Accounts" (below).
 #+END_ABSTRACT
+
+NOTE: you likely want to change the Custom Derivation Path in "# to Derive:" to something other than
+your main wallet at .../0'/0/0: probably a path like =99'/0/0-3=, to create 4 Paper Wallets at a
+different "account" (99').
 
 * Password
 

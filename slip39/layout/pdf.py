@@ -420,7 +420,7 @@ def write_pdfs(
     printer		= None,		# A printer name (or True for default), if output to printer is desired
     json_pwd		= None,		# If JSON wallet output desired, supply password
     text		= None,		# Truthy outputs SLIP-39 recover phrases to stdout
-    wallet_pwd		= None,		# If paper wallet images desired, supply password
+    wallet_pwd		= None,		# If paper wallet images desired, supply password (may be empty); None/False disables
     wallet_pwd_hint	= None,		# an optional password hint
     wallet_format	= None,		# and a paper wallet format (eg. 'quarter')
     wallet_paper	= None,		# default Wallets to output on Letter format paper,
@@ -527,13 +527,13 @@ def write_pdfs(
         # we're producing paper wallets, always force portrait orientation for the cards, to match
         # the layout of the paper wallets, so that all page orientations will match; this may result
         # in a sub-optimal card layout, but mixing orientations in a PDF confuses some printers.
-        if card_format is not False or wallet_pwd is not None:
+        if card_format is not False or wallet_pwd not in (None, False):
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 anonymous	= anonymous,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
-                orientations	= ('portrait', ) if wallet_pwd is not None else None,
+                orientations	= ('portrait', ) if wallet_pwd not in (None, False) else None,
                 cover_text	= cover_text,
                 watermark	= watermark,
                 double_sided	= double_sided,
@@ -552,7 +552,7 @@ def write_pdfs(
         if not pdf_name.lower().endswith( '.pdf' ):
             pdf_name	       += '.pdf'
 
-        if wallet_pwd is not None:
+        if wallet_pwd not in (None, False):
             # Deduce the paper wallet size and create a template.  All layouts are in specified in
             # inches; template dimensions are in mm.  Paper wallets are always formatted for
             # portrait orientation; we've forced that, above, if paper wallets are desired.
@@ -655,7 +655,7 @@ def write_pdfs(
                         wall_tpl[f"private-{ln}"] = line
                     wall_tpl['private-hint-t']	= 'PASSWORD HINT:'
                     wall_tpl['private-hint-bg']	= os.path.join( images, '1x1-ffffff54.png' )
-                    wall_tpl['private-hint']	= wallet_pwd_hint
+                    wall_tpl['private-hint']	= wallet_pwd_hint or ''
                     wall_tpl['private-qr-t']	= 'PRIVATE KEY'
                     wall_tpl['private-qr-bg']	= os.path.join( images, '1x1-ffffff54.png' )
                     wall_tpl['private-qr']	= private_qr.make_image( back_color="transparent" ).get_image()

@@ -72,7 +72,7 @@ def pretty(thing, maxstr=60, indent=4, **kwds):
 
 
 def theme_color( thing, theme=None ):
-    """Get the currency configured PySimpleGUI Theme color for thing == eg. "TEXT", "BACKGROUND.
+    """Get the currently configured PySimpleGUI Theme color for thing == eg. "TEXT", "BACKGROUND.
     """
     if theme is None:
         theme			= sg.CURRENT_LOOK_AND_FEEL
@@ -392,7 +392,7 @@ def groups_layout(
                         for c_row in chunker(
                             CRYPTO_DISPLAY, int( round( math.sqrt( len( CRYPTO_DISPLAY )) + .25 ))
                         )
-                    ],                                                          visible=LO_REC )
+                    ],                                                          visible=LO_CRE )
                 ] + [
                     sg.Frame( 'Paper Wallet Password/Hint (empty, if no Paper Wallets desired)', [
                         [
@@ -402,13 +402,13 @@ def groups_layout(
                             sg.Input( default_text=wallet_pwd_hint or '',
                                                         key='-WALLET-HINT-',    size=shorty,    **I_kwds ),
                         ],
-                    ],                                                          visible=LO_REC, **F_kwds ),
+                    ],                                                          visible=LO_CRE, **F_kwds ),
                     sg.Frame( '# to Derive:', [
                         [
-                            sg.Input( default_text=wallet_derive or '1',
+                            sg.Input( default_text=wallet_derive or "0'/0/0-3",
                                                         key='-WALLET-DERIVE-',  size=shorty,    **I_kwds ),
                         ],
-                    ],                                                          visible=LO_REC, **F_kwds ),
+                    ],                                                          visible=LO_CRE, **F_kwds ),
                 ] + [
                     sg.Column( [
                         [
@@ -419,10 +419,10 @@ def groups_layout(
                                                         key=f"-WALLET-SIZE-{ws}-",              **B_kwds )
                             for ws in WALLET_SIZES
                         ],
-                    ],                                                          visible=LO_REC )
+                    ],                                                          visible=LO_CRE )
                 ],
             ],                                          key='-WALLET-F-',       visible=LO_CRE and wallet_pwd is not False,
-                                                                                                **F_kwds_big ),  # noqa: E126
+                                                                                              **F_kwds_big ),  # noqa: E126
         ],
     ] + [
         [
@@ -1443,11 +1443,18 @@ def app(
         # We have a complete SLIP-39 Mnemonic set.  If we get here, no failure status has been
         # detected, and SLIP39 mnemonic and account details { "name": <details> } have been created;
         # we can now save the PDFs; converted details is now { "<filename>": <details> })
-        if wallet_pwd is not False and values['-WALLET-PASS-'] or values['-WALLET-HINT-']:
+        if wallet_pwd is not False:
             # And, if Paper Wallets haven't been disabled completely, remember our password/hint.
             # If we're supplied a wallet password "hint", we allow even the empty wallet password.
-            wallet_pwd		= values['-WALLET-PASS-']
-            wallet_pwd_hint	= values['-WALLET-HINT-']
+            # None/False disables, empty is OK.
+            if values['-WALLET-PASS-'] or values['-WALLET-HINT-']:
+                window['-WALLET-DERIVE-'].update( visible=True )
+                wallet_pwd	= values['-WALLET-PASS-']
+                wallet_pwd_hint	= values['-WALLET-HINT-']
+            else:
+                wallet_pwd	= None
+                wallet_pwd_hint	= None
+                window['-WALLET-DERIVE-'].update( visible=False )
 
         if event in ('-SAVE-', '-PRINT-'):
             # A -SAVE- target directory has been selected; use it, if possible.  This is where any

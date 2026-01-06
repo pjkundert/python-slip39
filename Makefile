@@ -13,7 +13,8 @@ SHELL		= /bin/bash
 
 # Change to your own Apple Developer ID, if you want to code-sign the resultant .app
 
-ALL		= gui,serial,wallet,invoice
+MIN		= gui,wallet
+ALL		= gui,wallet,serial,invoice
 
 APPLEID		?= perry@kundert.ca
 TEAMID		?= ZD8TVTCXDS
@@ -90,7 +91,7 @@ VENV_OPTS	= --system-site-packages --copies # make available references some sys
 all:		help
 
 help:
-	@echo "GNUmakefile for cpppo.  Targets:"
+	@echo "GNUmakefile for python-slip39.  Targets:"
 	@echo "  help			This help"
 	@echo "  test			Run unit tests under Python3"
 	@echo "  clean			Remove build artifacts"
@@ -99,7 +100,17 @@ help:
 	@echo "  upload			Upload new version to pypi (package maintainer only)"
 	@echo "  app			Build the macOS SLIP-39.app"
 	@echo "  installer		Build the .dmg, .msi, as appropriate for PLATFORM"
-	@echo "  print-PLATFORM		  prints the detected PLATFORM"
+	@echo
+	@echo "  nix-venv               Create and/or start Nix-supplied Python virtual env"
+	@echo "  nix-venv-test          Run the 'make test' target within the Nix Python venv"
+	@echo "  TARGET=py313 make nix-venv...     Use a Python 3.13 Nix environment for the remaining targets"
+	@echo "  PATH=/usr/local/bin:$PATH make venv...   Use an installed Python environment for the remaining targets"
+
+
+# Installs ALL optional Python requirements for testing
+.PHONY: deps-test
+deps-test:	install-all \
+		slip39/payments_test/slip-39-app.crypto-license
 
 test:		deps-test
 	$(PYTEST) $(PYTEST_OPTS)
@@ -143,7 +154,11 @@ clean:
 
 nix-%:
 	@if [ -r flake.nix ]; then \
-	    nix develop $(NIX_OPTS) --command make $*; \
+	    if [ -n "$(TARGET)" ]; then \
+		nix develop .#$(TARGET) $(NIX_OPTS) --command make $*; \
+	    else \
+		nix develop $(NIX_OPTS) --command make $*; \
+	    fi; \
         else \
 	    nix-shell $(NIX_OPTS) --run "make $*"; \
 	fi
@@ -156,7 +171,6 @@ nix-%:
 print-%:
 	@echo $* = $($*)
 	@echo $*\'s origin is $(origin $*)
-
 
 
 # 
@@ -365,9 +379,6 @@ $(PAY-TEST-LIC):	GRANTS="{\"crypto-licensing-server\": {\
 }}"
 
 
-.PHONY: deps-test
-deps-test:	slip39/payments_test/slip-39-app.crypto-license
-
 # Try to copy the generated slip-39-app.crypto-license, if it exists, but no worries if it doesn't
 slip39/payments_test/slip-39-app.crypto-license: FORCE
 	cp $(SLIP-39-LIC) $@ 2>/dev/null || echo "Missing $(SLIP-39-LIC); ignoring..."
@@ -415,6 +426,7 @@ venv:			$(VENV)
 	@echo; echo "*** Activating $< VirtualEnv for Interactive $(SHELL)"
 	@bash --init-file $</bin/activate -i
 
+# Installs the MIN optional Python requirements to support GUI, paper wallets
 $(VENV):
 	@[[ "$(PYTHON_V)" =~ "^venv" ]] && ( echo -e "\n\n!!! $@ Cannot start a venv within a venv"; false ) || true
 	@echo; echo "*** Building $@ VirtualEnv..."
@@ -431,6 +443,9 @@ $(WHEEL):		install-dev FORCE
 
 # Install from wheel, including all optional extra dependencies (except dev).  Always use the venv (or global)
 install:		$(WHEEL) FORCE
+	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(MIN)]
+
+install-all:
 	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(ALL)]
 
 install-%:  # ...-dev, -tests, -gui, -serial, -wallet, -invoice
@@ -909,6 +924,7 @@ app-assess: dist/SLIP-39.app
 #
 #
 # The --onefile approach is incompatible with macOS Apps; use --onedir
+# Ensures various Python packages using shared libraries are made available
 SLIP-39-macOS.spec: SLIP-39.py
 	@echo -e "\n\n!!! Rebuilding $@; Must be manually edited..."
 	pyinstaller --noconfirm --windowed --onedir \
@@ -917,6 +933,13 @@ SLIP-39-macOS.spec: SLIP-39.py
 	    --collect-data shamir_mnemonic \
 	    --collect-all tzdata \
 	    --collect-all zoneinfo \
+	    --collect-all pycryptodome \
+	    --collect-all eth_account \
+	    --hidden-import Crypto \
+	    --hidden-import Crypto.Cipher \
+	    --hidden-import Crypto.Protocol \
+	    --hidden-import Crypto.Protocol.KDF \
+	    --hidden-import Crypto.Hash \
 	    --hidden-import slip39 \
 	    --collect-data slip39 \
 	    --osx-entitlements-file SLIP-39.metadata/entitlements.plist \
