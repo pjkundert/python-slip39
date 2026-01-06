@@ -445,7 +445,7 @@ $(WHEEL):		install-dev FORCE
 install:		$(WHEEL) FORCE
 	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(MIN)]
 
-install-all:
+install-all:		$(WHEEL) FORCE
 	$(PYTHON) -m pip install --no-user --force-reinstall $<[$(ALL)]
 
 install-%:  # ...-dev, -tests, -gui, -serial, -wallet, -invoice

@@ -317,7 +317,7 @@ def commas( seq, final=None ):  # supply alternative final connector, eg. 'and',
         end			= seq[nxt:] if nxt < len( seq ) else []
         seq			= beg + [f"{seq[rng[0]]}-{seq[rng[1]]}"] + end
     if final and len(seq) > 1:
-        seq			= seq[:-2] + [f"{seq[-2]} {final} {seq[-1]}"]
+        seq			= seq[:-2] + [f" {final} ".join( map( str, seq[-2:] ))]
     return ', '.join( map( str, seq ))
 
 
@@ -554,7 +554,7 @@ class mixed_fraction( Fraction ):
     def __str__( self ):
         whole, rest		= divmod( self.numerator, self.denominator )
         if whole and rest:
-            return f"{whole}+{Fraction( rest, self.denominator)}"
+            return f"{whole}+{Fraction( rest, self.denominator )}"
         return super().__str__()
 
 
