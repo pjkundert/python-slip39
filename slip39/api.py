@@ -1372,18 +1372,20 @@ def mnemonics(
         master_secret		= random_secret(( strength + 7 ) // 8 )
 
     if isinstance( master_secret, EncryptedMasterSecret ):
-        assert not passphrase, \
-            "No passphrase required/allowed for encrypted master seed"
+        if passphrase:
+            raise ValueError( "No passphrase required/allowed for encrypted master seed" )
         encrypted_secret	= master_secret
     else:
         if passphrase is None:
             passphrase		= ""
         if isinstance( passphrase, str ):
             passphrase		= passphrase.encode( 'UTF-8' )
+        if not all( 32 <= c <= 126 for c in passphrase ):
+            raise ValueError( "Passphrase must contain only printable ASCII characters (code points 32-126)" )
         extendable		= False if extendable is False else True
         identifier		= _random_identifier() if identifier is None else int( identifier )
-        assert isinstance( identifier, int) and 0 <= identifier < (1 << ID_LENGTH_BITS), \
-            "Identifier must be an {ID_LENGTH_BITS}-bit unsigned integer: {identifier}"
+        if not 0 <= identifier < (1 << ID_LENGTH_BITS):
+            raise ValueError( f"Identifier must be a {ID_LENGTH_BITS}-bit unsigned integer: {identifier}" )
         encrypted_secret	= EncryptedMasterSecret.from_master_secret(
             master_secret = master_secret,
             passphrase	= passphrase,
