@@ -14,8 +14,9 @@ except ImportError:
     scrypt			= None
 
 import shamir_mnemonic
+from shamir_mnemonic.constants import ID_LENGTH_BITS
 
-from .			import account, create, addresses, addressgroups, accountgroups, Account
+from .			import account, create, addresses, addressgroups, accountgroups, Account, mnemonics
 from .recovery		import recover
 
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES
@@ -630,3 +631,41 @@ def test_accountgroups():
     ))
     # print( json.dumps( acctgrps, default=repr ))
     assert len(acctgrps) == 4
+
+
+def test_mnemonics_passphrase_printable_ascii():
+    """SLIP-39 allows only printable ASCII (code points 32-126) in a passphrase."""
+    master_secret		= b'\0' * 16
+    for passphrase in ( "café", b"\x1f", b"\x7f" ):
+        with pytest.raises( ValueError ):
+            mnemonics( 1, [(1, 1)], master_secret=master_secret, passphrase=passphrase )
+
+    [[mnemonic]]		= mnemonics( 1, [(1, 1)], master_secret=master_secret, passphrase=" ~" )
+    assert shamir_mnemonic.combine_mnemonics( [mnemonic], b" ~" ) == master_secret
+
+
+def test_mnemonics_identifier_range():
+    """An identifier out of range raises ValueError, also under python -O."""
+    master_secret		= b'\0' * 16
+    for identifier in ( -1, 1 << ID_LENGTH_BITS ):
+        for extendable in ( False, True ):
+            with pytest.raises( ValueError ):
+                mnemonics( 1, [(1, 1)], master_secret=master_secret, passphrase="x",
+                           identifier=identifier, extendable=extendable )
+
+    [[mnemonic]]		= mnemonics( 1, [(1, 1)], master_secret=master_secret, passphrase="x",
+                                             identifier=(1 << ID_LENGTH_BITS) - 1, extendable=False )
+    assert shamir_mnemonic.combine_mnemonics( [mnemonic], b"x" ) == master_secret
+
+
+def test_mnemonics_encrypted_secret_passphrase():
+    """An encrypted master secret is already protected by its passphrase; another one is refused."""
+    encrypted_secret		= shamir_mnemonic.EncryptedMasterSecret.from_master_secret(
+        master_secret	= b'\0' * 16,
+        passphrase	= b"x",
+        identifier	= 0,
+        extendable	= True,
+        iteration_exponent = 1,
+    )
+    with pytest.raises( ValueError ):
+        mnemonics( 1, [(1, 1)], master_secret=encrypted_secret, passphrase="y" )
