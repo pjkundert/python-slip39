@@ -4,6 +4,7 @@ from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
+from .layout.components	import layout_components
 from .defaults		import MM_IN
 
 
@@ -73,3 +74,13 @@ def test_Region():
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
+
+
+def test_layout_components_oversize():
+    """A component larger than the page is laid out 1 per page, instead of raising ZeroDivisionError."""
+    pdf				= FPDF( orientation='portrait', format='A4' )
+    pdf.add_page()
+    comps_pp,page_xy		= layout_components( pdf, comp_dim=Coordinate( x=pdf.epw * 2, y=pdf.eph * 2 ))
+    assert comps_pp == 1
+    page,_			= page_xy( 3 )
+    assert page == 3
