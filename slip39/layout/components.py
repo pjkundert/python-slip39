@@ -213,6 +213,13 @@ class Box( Region ):
 Coordinate			= namedtuple( 'Coordinate', ('x', 'y') )
 
 
+# A SLIP-39 mnemonic cell is eg. "12 advocate": up to MNEM_CHARS (2 digits, a space, an 8-letter word)
+# of monospaced font, each MONO_WIDTH of the font size wide; fit within MNEM_FIT of the column width.
+MNEM_CHARS			= 11
+MONO_WIDTH			= .6
+MNEM_FIT			= .9
+
+
 def layout_card(
     card_size: Coordinate,
     card_margin: int,
@@ -314,6 +321,17 @@ def layout_card(
     assert num_mnemonics in MNEM_ROWS_COLS, \
         f"Invalid SLIP-39 mnemonic word count: {num_mnemonics}"
     rows,cols			= MNEM_ROWS_COLS[num_mnemonics]
+
+    def mnem_size( region, size_ratio ):
+        """The mnemonic font size (points): from the height of each row, unless that is too wide for
+        the longest "NN word" (MNEM_CHARS mono characters) to fit in the width of each column."""
+        return min(
+            region.h / rows * PT_IN * size_ratio,
+            region.w / cols * PT_IN * MNEM_FIT / ( MNEM_CHARS * MONO_WIDTH ),
+        )
+
+    mnem_fontsize		= mnem_size( card_mnemonics, 9/16 )
+    mnem_fontsize_big		= mnem_size( card_mnemonics_big, 12/16 )
     for r in range( rows ):
         for c in range( cols ):
             card_mnemonics.add_region_proportional(
@@ -325,7 +343,7 @@ def layout_card(
                     y2		= (r+1)/rows,
                     font	= 'mono',
                     bold	= True,
-                    size_ratio	= 9/16,
+                    size	= mnem_fontsize,
                 )
             )
             card_mnemonics_big.add_region_proportional(
@@ -337,7 +355,7 @@ def layout_card(
                     y2		= (r+1)/rows,
                     font	= 'mono',
                     bold	= True,
-                    size_ratio	= 12/16,
+                    size	= mnem_fontsize_big,
                 )
             )
 
