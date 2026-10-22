@@ -4,6 +4,7 @@ from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
+from .layout.components	import layout_card
 from .defaults		import MM_IN
 
 
@@ -73,3 +74,10 @@ def test_Region():
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
+
+
+def test_card_title_centered():
+    """The card title is horizontally centered (it is also used, unchanged, on the back of the card)."""
+    card			= layout_card( Coordinate( y=2+1/4, x=3+3/8 ), 1/8, 20 )
+    title			= next( e for e in card.elements() if e['name'] == 'card-title' )
+    assert title['align'] == 'C'
