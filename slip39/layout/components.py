@@ -299,7 +299,7 @@ def layout_card(
     ).square( justify='BR' )
 
     card_top.add_region_proportional(
-        Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True )
+        Text( 'card-title', x1=0, y1=0, x2=1, y2=40/100, bold=True, align='C' )
     )
     card_top.add_region_proportional(
         Text( 'card-requires', x1=0, y1=40/100, x2=1, y2=66/100, align='C', italic=True )
