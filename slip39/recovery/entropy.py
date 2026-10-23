@@ -99,28 +99,23 @@ def idft( y: List[complex] ) -> List[complex]:
     """
     N				= len( y )
     #assert N <= 170, f"idft: {N=} too large."  # 512-bit entropy as 3-bit symbols
-    e_sk_N			= idft.e_sk.setdefault( N, [] )
-    if e_sk_N:
-        e_sk_N_i		= iter( e_sk_N )
-        result			= [
-            sum(
-                y_k * e_sk
-                for y_k,e_sk in zip( y, e_sk_N_i )
-            ) / N+0j
-            for n in range( N )
-        ]
-    else:
+    e_sk_N			= idft.e_sk.get( N )
+    if e_sk_N is None:
         #print( f"idft: Memoizing {N=} multiplication factors" )
-        result			= []
-        for n in range( N ):
-            r			= 0
-            s			= 2j * cmath.pi * n / N
-            for k in range( N ):
-                e_sk		= cmath.exp( s * k )
-                e_sk_N.append( e_sk )
-                r	       += y[k] * e_sk
-            r		       /= N+0j
-            result.append( r )
+        e_sk_N			= idft.e_sk[N] = [
+            cmath.exp( 2j * cmath.pi * n / N * k )
+            for n in range( N )
+            for k in range( N )
+        ]
+    # Always accumulate in the same order (not w/ sum(), which since Python 3.12 uses compensated
+    # summation, and would give slightly different results than w/ the same code before and after
+    # the factors are memoized).
+    result			= []
+    for n in range( N ):
+        r			= 0
+        for k in range( N ):
+            r		       += y[k] * e_sk_N[n * N + k]
+        result.append( r / ( N+0j ))
     return result
 idft.e_sk			= {}  # noqa: E305
 

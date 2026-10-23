@@ -20,7 +20,7 @@ from shamir_mnemonic.constants import MAX_SHARE_COUNT
 
 from .api		import create, account, path_hardened
 from .recovery		import recover, recover_bip39, shannon_entropy, signal_entropy, analyze_entropy
-from .recovery.entropy	import fft, ifft, pfft, dft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
+from .recovery.entropy	import fft, ifft, pfft, dft, idft, dft_on_real, dft_to_rms_mags, entropy_bin_dfts, denoise_mags, signal_draw, signal_recover_real, scan_entropy
 from .dependency_test	import substitute, nonrandom_bytes, SEED_XMAS, SEED_ONES, SEED_ZERO
 from .util		import avg, rms, ordinal, commas, round_onto
 
@@ -1125,6 +1125,21 @@ def test_util():
     assert round_onto( +.1, [-5, -1,    1, 5], keep_sign=True  ) == +1
     assert round_onto( +.1, [-5, -1,       5], keep_sign=True  ) == +5
     assert round_onto( None, [-5, -1, None, 5], keep_sign=True  ) is None
+
+
+def test_idft_memoized():
+    """The pure-Python idft (used by ifft when numpy isn't available) must give exactly the same
+    results before and after its multiplication factors are memoized.
+
+    """
+    x				= [ 2, 3, 5, 7, 11 ]
+    y				= dft( x )
+    idft.e_sk.pop( len( y ), None )  # Ensure the factors aren't memoized yet
+    first			= idft( y )
+    assert len( idft.e_sk[len( y )] ) == len( y ) ** 2  # and now they are
+    second			= idft( y )
+    assert first == second
+    assert [ f.real for f in first ] == pytest.approx( x )
 
 
 def test_dft_smoke():
