@@ -603,7 +603,10 @@ def write_pdfs(
                     wall_tpl[f"crypto-f{c_n}"]	= account.crypto
                     wall_tpl[f"crypto-b{c_n}"]	= account.crypto
 
-                    wall_tpl['center']		= os.path.join( images, account.crypto + '.png' )
+                    # Not every cryptocurrency has a logo; if not, leave the center of the wallet blank
+                    logo			= os.path.join( images, account.crypto + '.png' )
+                    if os.path.exists( logo ):
+                        wall_tpl['center']	= logo
 
                     wall_tpl['name-label']	= "Wallet:"
                     wall_tpl['name-bg']		= os.path.join( images, '1x1-ffffff54.png' )
