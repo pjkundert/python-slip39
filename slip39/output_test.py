@@ -4,7 +4,8 @@ from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
 from .layout		import Region, Text, Image, Box, Coordinate
-from .defaults		import MM_IN
+from .layout.components	import layout_card, MNEM_CHARS, MONO_WIDTH
+from .defaults		import MM_IN, PT_IN, CARD_SIZES, MNEM_ROWS_COLS
 
 
 def test_Region():
@@ -73,3 +74,15 @@ def test_Region():
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
+
+
+def test_card_mnemonics_fit():
+    """The longest mnemonic cell ("12 advocate") must fit within its column, for every card size."""
+    for card_size,((card_h,card_w),card_margin) in CARD_SIZES.items():
+        for num_mnemonics in MNEM_ROWS_COLS:
+            card			= layout_card( Coordinate( y=card_h, x=card_w ), card_margin, num_mnemonics )
+            for e in card.elements():
+                if e['name'].startswith( 'mnem-' ):
+                    cell_pt		= ( e['x2'] - e['x1'] ) / MM_IN * PT_IN
+                    assert e['size'] * MONO_WIDTH * MNEM_CHARS <= cell_pt, \
+                        f"{card_size} card, {num_mnemonics} words: {e['name']} {e['size']:.2f}pt too big for a {cell_pt:.1f}pt column"
