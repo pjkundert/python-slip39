@@ -1,9 +1,10 @@
+import pytest
 import qrcode
 
 from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
-from .layout		import Region, Text, Image, Box, Coordinate
+from .layout		import Region, Text, Image, Box, Coordinate, write_pdfs
 from .defaults		import MM_IN
 
 
@@ -73,3 +74,18 @@ def test_Region():
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
+
+
+def test_wallet_without_logo( tmp_path ):
+    """A cryptocurrency without a logo image (eg. Dash) still gets a Paper Wallet, w/ a blank center."""
+    pytest.importorskip( "Crypto.Protocol.KDF" )  # BIP-38 encrypted Paper Wallets require scrypt
+    results			= write_pdfs(
+        names		= [ "Test" ],
+        master_secret	= bytes.fromhex( "ff" * 16 ),
+        cryptocurrency	= [ "DASH" ],
+        filepath	= str( tmp_path ),
+        filename	= "wallet-dash",
+        wallet_pwd	= "password",
+    )
+    assert list( results ) == [ "wallet-dash.pdf" ]
+    assert ( tmp_path / "wallet-dash.pdf" ).stat().st_size > 0
