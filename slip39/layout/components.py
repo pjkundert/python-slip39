@@ -586,8 +586,8 @@ def layout_components(
     if bleed is None:
         bleed			= 5/100
     # FPDF().epw/.eph is *without* page margins, but *with* re-orienting for portrait/landscape
-    comp_cols			= int(( pdf.epw - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.x )
-    comp_rows			= int(( pdf.eph - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.y )
+    comp_cols			= max( 1, int(( pdf.epw - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.x ))
+    comp_rows			= max( 1, int(( pdf.eph - page_margin_mm * 2 * min( 1, 1 - bleed )) // comp_dim.y ))
     comps_pp			= comp_rows * comp_cols
 
     # Compute actual page margins to center cards.
