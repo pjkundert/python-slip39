@@ -187,7 +187,7 @@ def produce_pdf(
     groups: Dict[str,Tuple[int,List[str]]],     # SLIP-39 Groups {<name>: (<need>,[<mnemonic>,...])
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
     using_bip39: bool,				# Using BIP-39 wallets Seed generation
-    anonymous: Optional[bool]	= None,		# Avoid printing crypto addresses, QR codes
+    anonymous: bool		= ANONYMOUS,	# Avoid printing crypto addresses, QR codes
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
@@ -355,21 +355,28 @@ def produce_pdf(
 
             _,f,b		= page[-1][-1]
 
-            f['card-title']	= \
-              b['card-title']	= f"SLIP39 {g_name}({mn_n+1}/{len(g_mnems)}) for: {name}"
-            f['card-requires']	= requires
-            if not (ANONYMOUS if anonymous is None else anonymous):
-                f['card-crypto1']= f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
+            # Anonymous cards show only the group name: not the name, the other groups, nor the
+            # cryptocurrency addresses and QR codes.
+            title		= g_name
+            if not anonymous:
+                title		= f"SLIP39 {g_name}"
+                if len( g_mnems ) > 1:
+                    title		= f"{title} {mn_n+1}"
+                if name:
+                    title		= f"{title} for {name}"
+                f['card-requires'] = requires
+                f['card-crypto1'] = f"{accounts[0][0].crypto} {accounts[0][0].path}: {accounts[0][0].address}"
                 f['card-qr1']	= io.BytesIO( qr_acct[0].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
-            if not (ANONYMOUS if anonymous is None else anonymous) and len( accounts[0] ) > 1:
-                f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
-                f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
-            f[f'card-g{g_n}']	= \
-              b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
+                if len( accounts[0] ) > 1:
+                    f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
+                    f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
+                f[f'card-g{g_n}']	= \
+                  b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
+            f['card-title'] = b['card-title'] = title
             if watermark:
                 f['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
-                mn_idx		= f"mnem-{n}-big" if (ANONYMOUS if anonymous is None else anonymous) else f"mnem-{n}"
+                mn_idx		= f"mnem-{n}-big" if anonymous else f"mnem-{n}"
                 f[mn_idx]	= m
 
             # Back contains QR code of the card's SLIP-39 Mnemonic
@@ -412,7 +419,7 @@ def write_pdfs(
     group_threshold	= None,		# int, or 1/2 of groups by default
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
     edit		= None,		# Adjust crypto paths according to the provided path edit
-    anonymous		= None,		# Produce cryptocurrency addresses and QR codes
+    anonymous		= ANONYMOUS,	# Produce cryptocurrency addresses and QR codes
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
     paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
     filename		= None,		# A file name format w/ {path}, etc. formatters

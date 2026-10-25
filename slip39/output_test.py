@@ -1,9 +1,10 @@
+import pytest
 import qrcode
 
 from pytest 		import approx
 from fpdf		import FPDF, FlexTemplate
 
-from .layout		import Region, Text, Image, Box, Coordinate
+from .layout		import Region, Text, Image, Box, Coordinate, write_pdfs
 from .defaults		import MM_IN
 
 
@@ -73,3 +74,59 @@ def test_Region():
     tpl.render( offsetx = card_size.x * MM_IN, offsety = card_size.y * MM_IN )
 
     #pdf.output( "test.pdf" ) # To view results in test.pdf, uncomment
+
+
+@pytest.fixture
+def rendered_cards( monkeypatch ):
+    """Records the texts of every template rendered into a PDF."""
+    rendered			= []
+    render			= FlexTemplate.render
+
+    def record( self, *args, **kwds ):
+        rendered.append( dict( self.texts ))
+        return render( self, *args, **kwds )
+    monkeypatch.setattr( FlexTemplate, 'render', record )
+    return rendered
+
+
+def write_cards( tmp_path, **kwds ):
+    write_pdfs(
+        names		= [ "Alice" ],
+        master_secret	= bytes.fromhex( "ff" * 16 ),
+        cryptocurrency	= [ "BTC" ],
+        cover_page	= False,
+        filepath	= str( tmp_path ),
+        filename	= "cards",
+        **kwds
+    )
+
+
+def test_cards( tmp_path, rendered_cards ):
+    """Cards carry the name, the requirements of all groups, the address, and the group label."""
+    write_cards( tmp_path )
+    cards			= [ t for t in rendered_cards if 'card-title' in t ]
+    fronts			= [ t for t in cards if 'card-requires' in t ]  # the backs only have a title (and QR code)
+    assert fronts
+    assert { t['card-title'] for t in cards } == {
+        "SLIP39 First for Alice", "SLIP39 Second for Alice",
+        "SLIP39 Fam 1 for Alice", "SLIP39 Fam 2 for Alice", "SLIP39 Fam 3 for Alice", "SLIP39 Fam 4 for Alice",
+        *( f"SLIP39 Frens {n} for Alice" for n in range( 1, 7 )),
+    }
+    for t in fronts:
+        assert "Recover w/ 2 of 4" in t['card-requires']
+        assert 'card-crypto1' in t and 'card-qr1' in t
+        assert any( k.startswith( 'card-g' ) for k in t )
+
+
+def test_anonymous_cards( tmp_path, rendered_cards ):
+    """Anonymous cards (front and back) show just the group name, and the mnemonic."""
+    write_cards( tmp_path, anonymous=True )
+    cards			= [ t for t in rendered_cards if 'card-title' in t ]
+    assert cards
+    assert { t['card-title'] for t in cards } == { "First", "Second", "Fam", "Frens" }
+    for t in cards:
+        assert not any( k.startswith(( 'card-g', 'card-requires', 'card-crypto', 'card-qr1', 'card-qr2' )) for k in t ), \
+            f"Anonymous card shows: {sorted( t )}"
+        assert "Alice" not in "".join( str( v ) for v in t.values() )
+    # The mnemonic words are the (large) ones
+    assert any( k.endswith( '-big' ) for t in cards for k in t if k.startswith( 'mnem-' ))
