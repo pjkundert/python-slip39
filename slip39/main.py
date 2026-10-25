@@ -28,7 +28,7 @@ from .api		import random_secret, stretch_seed_entropy
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
 from .defaults		import (   # noqa: F401
-    ANONYMOUS, CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
+    ANONYMOUS, CARD, CARD_SIZES, PAPER, PAPER_FORMATS, WALLET, WALLET_SIZES,
     BITS, BITS_DEFAULT,
     FILENAME_FORMAT,
     FILENAME_KEYWORDS,
@@ -41,6 +41,18 @@ __copyright__                   = "Copyright (c) 2022 Dominion Research & Develo
 __license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 log				= logging.getLogger( __package__ )
+
+
+def paper_format( name ):
+    """Convert a (case-insensitive) paper name into its PAPER_FORMATS value (a paper format name, or
+    (width, height) in mm).  Other sizes aren't supported: the cards and Paper Wallets must fit on the
+    page, and eg. A5 is too small for a Paper Wallet.
+
+    """
+    for paper,fmt in PAPER_FORMATS.items():
+        if paper.lower() == name.lower():
+            return fmt
+    raise argparse.ArgumentTypeError( f"Unsupported paper size {name!r}; use one of: {', '.join( PAPER_FORMATS )}" )
 
 
 def main( argv=None ):
@@ -115,8 +127,8 @@ def main( argv=None ):
     ap.add_argument( '--no-card', dest="card", action='store_false',
                      help="Disable PDF SLIP-39 mnemonic card output" )
     ap.add_argument( '--paper',
-                     default=None,
-                     help=f"Paper size (default: {PAPER})" )
+                     default=None, type=paper_format,
+                     help=f"Paper size; {', '.join( PAPER_FORMATS )} (default: {PAPER})" )
     ap.add_argument( '--cover', dest="cover_page", action='store_true',
                      default=True,
                      help="Produce PDF SLIP-39 cover page" )

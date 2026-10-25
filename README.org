@@ -513,7 +513,7 @@ slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     :                         quarter, photo or '(<h>,<w>),<margin>' (default:
     :                         business)
     :   --no-card             Disable PDF SLIP-39 mnemonic card output
-    :   --paper PAPER         Paper size (default: Letter)
+    :   --paper PAPER         Paper size; Letter, Legal, A4, Photo (default: Letter)
     :   --cover               Produce PDF SLIP-39 cover page
     :   --no-cover            Disable PDF SLIP-39 cover page
     :   --identifier IDENTIFIER
