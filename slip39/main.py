@@ -28,7 +28,7 @@ from .api		import random_secret, stretch_seed_entropy
 from .util		import log_cfg, log_level, input_secure
 from .layout		import write_pdfs
 from .defaults		import (   # noqa: F401
-    ANONYMOUS, CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
+    ANONYMOUS, BACKGROUNDS, CARD, CARD_SIZES, PAPER, WALLET, WALLET_SIZES,
     BITS, BITS_DEFAULT,
     FILENAME_FORMAT,
     FILENAME_KEYWORDS,
@@ -117,6 +117,11 @@ def main( argv=None ):
     ap.add_argument( '--paper',
                      default=None,
                      help=f"Paper size (default: {PAPER})" )
+    ap.add_argument( '--backgrounds', action='store_true',
+                     default=BACKGROUNDS,
+                     help=f"Print backgrounds, watermarks and group labels{' (default)' if BACKGROUNDS else ''}" )
+    ap.add_argument( '--no-backgrounds', dest="backgrounds", action='store_false',
+                     help=f"Don't print backgrounds, watermarks and group labels{'' if BACKGROUNDS else ' (default)'}" )
     ap.add_argument( '--cover', dest="cover_page", action='store_true',
                      default=True,
                      help="Produce PDF SLIP-39 cover page" )
@@ -266,6 +271,7 @@ def main( argv=None ):
             wallet_pwd_hint	= wallet_pwd_hint,
             wallet_format	= wallet_format,
             cover_page		= args.cover_page,
+            backgrounds		= args.backgrounds,
             watermark		= args.watermark,
             double_sided	= args.double_sided,
             extendable		= args.extendable,

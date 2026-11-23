@@ -438,7 +438,8 @@ slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     :               [--wallet-hint WALLET_HINT] [--wallet-format WALLET_FORMAT]
     :               [-s SECRET] [-e ENTROPY] [--show] [--no-show] [--bits BITS]
     :               [--using-bip39] [--anonymous] [--passphrase PASSPHRASE]
-    :               [-C CARD] [--no-card] [--paper PAPER] [--cover] [--no-cover]
+    :               [-C CARD] [--no-card] [--paper PAPER] [--backgrounds]
+    :               [--no-backgrounds] [--cover] [--no-cover]
     :               [--identifier IDENTIFIER] [--extendable] [--no-extendable]
     :               [--text] [--watermark WATERMARK] [--double-sided]
     :               [--no-double-sided] [--single-sided]
@@ -514,6 +515,9 @@ slip39 --help 2>&1                | sed 's/^/: /' # (just for output formatting)
     :                         business)
     :   --no-card             Disable PDF SLIP-39 mnemonic card output
     :   --paper PAPER         Paper size (default: Letter)
+    :   --backgrounds         Print backgrounds, watermarks and group labels
+    :                         (default)
+    :   --no-backgrounds      Don't print backgrounds, watermarks and group labels
     :   --cover               Produce PDF SLIP-39 cover page
     :   --no-cover            Disable PDF SLIP-39 cover page
     :   --identifier IDENTIFIER
