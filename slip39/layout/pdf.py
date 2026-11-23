@@ -39,7 +39,7 @@ from ..api		import Account, cryptopaths_parser, create, enumerate_mnemonic, grou
 from ..util		import chunker
 from ..recovery		import recover, produce_bip39
 from ..defaults		import (
-    FONTS, ANONYMOUS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
+    FONTS, ANONYMOUS, BACKGROUNDS, CARD, CARD_SIZES, PAPER, ORIENTATION, PAGE_MARGIN, MM_IN, PT_IN,
     WALLET, WALLET_SIZES,
     GROUPS, GROUP_THRESHOLD_RATIO,
     FILENAME_FORMAT,
@@ -188,6 +188,7 @@ def produce_pdf(
     accounts: Sequence[Sequence[Account]],      # The crypto account(s); at least 1 of each required
     using_bip39: bool,				# Using BIP-39 wallets Seed generation
     anonymous: Optional[bool]	= None,		# Avoid printing crypto addresses, QR codes
+    backgrounds: bool		= BACKGROUNDS,	# Print backgrounds, watermarks and group labels
     card_format: str		= CARD,		# 'index' or '(<h>,<w>),<margin>'
     paper_format: Any		= None,		# 'Letter', (x,y) dimensions in mm.
     orientations: Sequence[str]	= None,		# available orientations; default portrait, landscape
@@ -298,8 +299,9 @@ def produce_pdf(
             log.debug( f"Cover elements: {json.dumps( cover_elements, indent=4)}" )
         tpl_cover		= fpdf.FlexTemplate( pdf, cover_elements )
         images			= os.path.dirname( __file__ )
-        tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
-        tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
+        if backgrounds:
+            tpl_cover['cover-image'] = os.path.join( images, 'SLIP-39.png' )
+            tpl_cover['cover-fade'] = os.path.join( images, '1x1-ffffffbf.png' )
 
         slip39_mnems		= []
         slip39_group		= []
@@ -364,9 +366,10 @@ def produce_pdf(
             if not (ANONYMOUS if anonymous is None else anonymous) and len( accounts[0] ) > 1:
                 f['card-crypto2'] = f"{accounts[0][1].crypto} {accounts[0][1].path}: {accounts[0][1].address}"
                 f['card-qr2']	= io.BytesIO( qr_acct[1].to_string(encoding='unicode').encode('UTF-8'))  # get_image()
-            f[f'card-g{g_n}']	= \
-              b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
-            if watermark:
+            if backgrounds:
+                f[f'card-g{g_n}']	= \
+                  b[f'card-g{g_n}']	= f"{g_name:7.7}..{mn_n+1}" if len(g_name) > 8 else f"{g_name} {mn_n+1}"
+            if backgrounds and watermark:
                 f['card-watermark'] = watermark
             for n,m in enumerate_mnemonic( mnem ).items():
                 mn_idx		= f"mnem-{n}-big" if (ANONYMOUS if anonymous is None else anonymous) else f"mnem-{n}"
@@ -413,6 +416,7 @@ def write_pdfs(
     cryptocurrency	= None,		# sequence of [ 'ETH:<path>', ... ] to produce accounts for
     edit		= None,		# Adjust crypto paths according to the provided path edit
     anonymous		= None,		# Produce cryptocurrency addresses and QR codes
+    backgrounds		= BACKGROUNDS,	# Print backgrounds, watermarks and group labels
     card_format		= None,		# Eg. "credit"; False outputs no SLIP-39 Mnemonic cards to PDF
     paper_format	= None,		# Eg. "Letter", "Legal", (x,y)
     filename		= None,		# A file name format w/ {path}, etc. formatters
@@ -531,6 +535,7 @@ def write_pdfs(
             (pdf_paper,pdf_orient),pdf,_ = produce_pdf(
                 *details,
                 anonymous	= anonymous,
+                backgrounds	= backgrounds,
                 card_format	= card_format or CARD,
                 paper_format	= paper_format or PAPER,
                 orientations	= ('portrait', ) if wallet_pwd not in (None, False) else None,
@@ -599,9 +604,10 @@ def write_pdfs(
                     wall_n     += 1
 
                     images			= os.path.dirname( __file__ )
-                    wall_tpl['wallet-bg']	= os.path.join( images, 'paper-wallet-background.png' )
-                    wall_tpl[f"crypto-f{c_n}"]	= account.crypto
-                    wall_tpl[f"crypto-b{c_n}"]	= account.crypto
+                    if backgrounds:
+                        wall_tpl['wallet-bg']	= os.path.join( images, 'paper-wallet-background.png' )
+                        wall_tpl[f"crypto-f{c_n}"]	= account.crypto
+                        wall_tpl[f"crypto-b{c_n}"]	= account.crypto
 
                     wall_tpl['center']		= os.path.join( images, account.crypto + '.png' )
 

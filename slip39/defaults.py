@@ -59,6 +59,9 @@ PHOTO_CARD			= (3+1/2, 5+1/2), 1/16  # prints on 4x6 photo paper w/ 1/4" default
 # Whether we should avoid printing Cryptocurrency addresses, QR codes
 ANONYMOUS			= False
 
+# Whether we should print backgrounds (and watermarks, and the diagonal group labels on cards)
+BACKGROUNDS			= True
+
 # SLIP-39 Mnemonic Card Sizes
 CARD				= 'business'
 CARD_SIZES			= dict(
